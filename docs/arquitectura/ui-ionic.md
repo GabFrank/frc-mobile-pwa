@@ -1,5 +1,7 @@
 # Convenciones de UI
 
+> ⚠️ **Documento histórico.** Describe `frc-mobile` (Ionic + Capacitor), no este repo. Se conserva porque explica reglas de negocio y decisiones que se heredaron. Para la implementación actual, ver [`../design-system.md`](../design-system.md) y [`capa-de-datos.md`](capa-de-datos.md).
+
 **Ionic exclusivamente.** No hay Angular Material en este repo — a diferencia del `desktop`, que sí lo usa. No importes componentes de Material aunque encuentres patrones parecidos en el repo hermano.
 
 ## Servicios de UI, no controllers directos

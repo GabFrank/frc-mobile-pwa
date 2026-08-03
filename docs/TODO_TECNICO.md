@@ -1,5 +1,13 @@
 # TODO técnico — irregularidades detectadas
 
+> ⚠️ **Este archivo cataloga los defectos de `frc-mobile`**, el repo anterior. Se conserva como memoria de qué NO repetir.
+>
+> **Ya resueltos en `frc-mobile-pwa`** (no hay que volver a hacerlos): **#1** fecha por defecto de `porFecha` · **#2** observables que no completaban ni propagaban errores · **#3** update forzado (desaparece con el service worker) · **#4** la cadena `"null"` en `localStorage` · **#7** módulos lazy y eager a la vez · **#9** roles con strings inline · **#11** `descodificarQr` sin validar · **#12** `comparatorLike` sin escapar el regex · **#16-19** código muerto y archivos `" copy"` (no se portaron) · **#24** `errorLink` vacío · **#26** `totalRs` sin tipo · **#34** typos `delele`/`toInpuList`/`ZonaesSearchGQL` · **#38** `pais.model.ts` vacío · **#46** carpeta `venta/` vacía · **#48** `pages/financiero` y `pages/general` movidos a `domains/` · **#56** dos sets de íconos.
+>
+> **Siguen abiertos y aplican al repo nuevo:** **#5** `ProductoInput.tiempoGarantia` tipado `boolean` · **#6** `toInput()` que pierde campos · **#8** lectura de `Preferences` (ya no aplica: no hay Capacitor) · **#13** lint y tests (resuelto: vitest corre) · **#25** campos comentados en `Producto` · **#40** `RrhhMobileService` sin tipos · **#41** guard de aprobaciones RRHH · **#52** modelos faciales desde CDN · **#53** credenciales de terceros en el código.
+>
+> **Además**, la revisión con agentes del repo nuevo encontró 14 defectos propios, ya corregidos. Ver el commit `fix: corregir los 14 hallazgos de la revision con agentes`.
+
 Hallazgos encontrados durante la documentación completa del repo (Olas 1-4). **Nada de esto está arreglado**: se documentó el comportamiento tal como es y se difirió la corrección para después de cerrar la documentación.
 
 Cada ítem indica dónde está, qué pasa, por qué importa y el riesgo de tocarlo.

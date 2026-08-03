@@ -1,5 +1,7 @@
 # Ruteo y navegación
 
+> ⚠️ **Documento histórico.** Describe `frc-mobile` (Ionic + Capacitor), no este repo. Se conserva porque explica reglas de negocio y decisiones que se heredaron. Para la implementación actual, ver [`../design-system.md`](../design-system.md) y [`capa-de-datos.md`](capa-de-datos.md).
+
 ## Modelo de navegación
 
 **No hay tabs.** La app navega por **menú lateral** (`ion-menu` en `app.component.html`) + Angular Router con lazy loading por módulo.

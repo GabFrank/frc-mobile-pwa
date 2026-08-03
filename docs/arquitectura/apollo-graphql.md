@@ -1,5 +1,7 @@
 # Apollo / GraphQL
 
+> ⚠️ **Documento histórico.** Describe `frc-mobile` (Ionic + Capacitor), no este repo. Se conserva porque explica reglas de negocio y decisiones que se heredaron. Para la implementación actual, ver [`../design-system.md`](../design-system.md) y [`capa-de-datos.md`](capa-de-datos.md).
+
 Cómo la app habla con `frc-comercial/central`. **Es el documento más importante del repo** — casi todo el código de datos pasa por acá.
 
 ## Setup del cliente

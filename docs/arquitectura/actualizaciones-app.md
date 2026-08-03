@@ -1,5 +1,7 @@
 # Actualizaciones de la app
 
+> ⚠️ **Documento histórico.** Describe `frc-mobile` (Ionic + Capacitor), no este repo. Se conserva porque explica reglas de negocio y decisiones que se heredaron. Para la implementación actual, ver [`../design-system.md`](../design-system.md) y [`capa-de-datos.md`](capa-de-datos.md).
+
 ## ⚠️ No existe canal OTA
 
 **Todo cambio de esta app —incluso si solo toca código Angular— requiere una versión nueva publicada en Play Store.** No hay actualización del bundle web por fuera de la tienda.

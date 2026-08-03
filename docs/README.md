@@ -1,8 +1,13 @@
-# Documentación — frc-mobile
+# Documentación — frc-mobile-pwa
 
-Documentación técnica del repo `GabFrank/frc-mobile` (`frc-app`, marca comercial **Bodega Franco**), app móvil Android/iOS del ERP **Franco Systems**.
+Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 
-Esta carpeta es la **fuente de verdad** de cómo funciona el repo. Vive junto al código y se versiona con él: si cambiás comportamiento, actualizá el `.md` en el mismo PR.
+> **Cómo leer esta carpeta.** Hay dos clases de documento acá:
+>
+> - **Los de este repo** describen la implementación actual: [`arquitectura/capa-de-datos.md`](arquitectura/capa-de-datos.md), [`design-system.md`](design-system.md), [`arquitectura/autenticacion-sesion.md`](arquitectura/autenticacion-sesion.md).
+> - **Los portados de `frc-mobile`** describen el sistema anterior y siguen siendo la **especificación de las reglas de negocio** a reconstruir: todo `modulos/`, `REGLAS_DESARROLLO.md`, `TODO_TECNICO.md`. Las reglas de negocio valen; los detalles de implementación (Ionic, Capacitor, `GenericCrudService`) ya no.
+>
+> Cada documento portado que describa implementación vieja lleva un aviso al inicio.
 
 ## Cómo está organizado
 
@@ -14,7 +19,9 @@ Esta carpeta es la **fuente de verdad** de cómo funciona el repo. Vive junto al
 | [`manuales-refactor/`](manuales-refactor/) | Histórico de refactors puntuales. No es documentación viva |
 | [`REGLAS_DESARROLLO.md`](REGLAS_DESARROLLO.md) | Regla crítica para modificar el backend `central` sin romper el desktop |
 | [`TODO_TECNICO.md`](TODO_TECNICO.md) | Irregularidades detectadas al documentar, pendientes de corrección |
-| [`analisis/`](analisis/) | Documentos de investigación para decisiones técnicas |
+| [`analisis/`](analisis/) | Investigación y plan de la migración a PWA |
+| [`design-system.md`](design-system.md) | **Sistema de diseño de este repo** |
+| [`design-system/`](design-system/) | Galería y pantallas aprobadas en el Gate 1 |
 
 ## Por dónde empezar
 
@@ -29,7 +36,8 @@ Esta carpeta es la **fuente de verdad** de cómo funciona el repo. Vive junto al
 |---|---|
 | [vision-general.md](arquitectura/vision-general.md) | Stack, versiones reales, estructura, convenciones de idioma |
 | [routing-navegacion.md](arquitectura/routing-navegacion.md) | Rutas raíz, lazy loading, menú lateral, módulos eager |
-| [apollo-graphql.md](arquitectura/apollo-graphql.md) | Setup Apollo HTTP+WS, alias `data:`, `GenericCrudService`, política de caché |
+| **[capa-de-datos.md](arquitectura/capa-de-datos.md)** | **Vigente.** Shim de Apollo, `DatosService`, alias `data:` |
+| [apollo-graphql.md](arquitectura/apollo-graphql.md) | Histórico: cómo era en `frc-mobile` |
 | [autenticacion-sesion.md](arquitectura/autenticacion-sesion.md) | Login REST, token, biometría, `InicioSesion`, logout |
 | [configuracion-servidor.md](arquitectura/configuracion-servidor.md) | `serverIp`/`serverPort`, `conectionConfig.ts`, cambio de servidor |
 | [capacitor-nativo.md](arquitectura/capacitor-nativo.md) | Capacitor 7, plugins, permisos, `cap sync` |

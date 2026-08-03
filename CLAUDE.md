@@ -101,7 +101,17 @@ src/
 
 ## Estado
 
-**Fase 2 del plan de migración.** Esqueleto listo; la capa de datos y los módulos se portan por olas. Ver `docs/analisis/plan-migracion-pwa.md`.
+**Fase 2 del plan de migración, con la Ola A iniciada.**
+
+Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con restauración de sesión, shell responsivo, módulo de caja (lista y detalle), galería viva en `/design-system`.
+
+Pendiente: el resto de los módulos, escáner, cámara, GPS, biometría y el transporte WebSocket para suscripciones.
+
+Verificación: **147 tests**, cero errores de tipos, AOT en verde.
+
+Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
+
+Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.
 
 ## Lo que nunca se hace
 

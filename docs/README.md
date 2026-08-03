@@ -18,7 +18,8 @@ Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 | [`modulos/`](modulos/) | Un documento por módulo funcional: reglas de negocio, rutas, páginas, servicios y operaciones GraphQL |
 | [`manuales-refactor/`](manuales-refactor/) | Histórico de refactors puntuales. No es documentación viva |
 | [`REGLAS_DESARROLLO.md`](REGLAS_DESARROLLO.md) | Regla crítica para modificar el backend `central` sin romper el desktop |
-| [`TODO_TECNICO.md`](TODO_TECNICO.md) | Irregularidades detectadas al documentar, pendientes de corrección |
+| [`TODO_TECNICO.md`](TODO_TECNICO.md) | Los 59 defectos de `frc-mobile`, con cuáles ya están resueltos acá |
+| [`PLAN_TESTEO_MANUAL.md`](PLAN_TESTEO_MANUAL.md) | **40 casos de prueba manual** para validar lo implementado |
 | [`analisis/`](analisis/) | Investigación y plan de la migración a PWA |
 | [`design-system.md`](design-system.md) | **Sistema de diseño de este repo** |
 | [`design-system/`](design-system/) | Galería y pantallas aprobadas en el Gate 1 |

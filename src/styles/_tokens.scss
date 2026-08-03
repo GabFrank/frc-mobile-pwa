@@ -1,0 +1,147 @@
+// ═══════════════════════════════════════════════════════════════
+//  TOKENS DE DISEÑO — FRC Mobile PWA
+//
+//  ESTE ES EL ÚNICO ARCHIVO DEL PROYECTO QUE PUEDE CONTENER
+//  VALORES LITERALES DE COLOR, ESPACIADO, RADIO O TIPOGRAFÍA.
+//
+//  Cualquier .scss de componente que escriba un hex o un px de
+//  espaciado está mal y el lint lo rechaza.
+//
+//  Aprobado en el Gate 1 (2026-08-03).
+//  Referencia visual: docs/design-system/galeria.html
+// ═══════════════════════════════════════════════════════════════
+
+:root {
+  // ─── Marca ───────────────────────────────────────────────────
+  // Heredada de frc-gourmet y del desktop.
+  // El rojo IDENTIFICA, no comunica estado: se usa en la acción
+  // principal y en la navegación activa, nunca para decir "error".
+  --brand:        #db392e;
+  --brand-hover:  #b33026;
+  --brand-accent: #f57c00;
+  --on-brand:     #ffffff;
+
+  // ─── Semántica de estado ─────────────────────────────────────
+  // Vocabulario cerrado. Todo estado de toda máquina del sistema
+  // se mapea a uno de estos cinco tonos. Ver estado-registry.ts
+  --ok:      #2e7d32;
+  --warn:    #ef6c00;
+  --danger:  #c62828;
+  --info:    #1565c0;
+  --neutral: #6b6462;
+
+  --ok-bg:      #e8f3e9;
+  --warn-bg:    #fdf0e3;
+  --danger-bg:  #fbeaea;
+  --info-bg:    #e8eff8;
+  --neutral-bg: #f0eeed;
+
+  // ─── Superficies y texto ─────────────────────────────────────
+  // Neutros con sesgo cálido hacia el rojo de marca: un gris puro
+  // lee como valor por defecto, no como decisión.
+  --bg:             #f7f5f4;
+  --surface:        #ffffff;
+  --surface-sunken: #efecea;
+  --border:         rgba(30, 20, 18, 0.12);
+  --border-light:   rgba(30, 20, 18, 0.06);
+
+  --text:      #1c1917;
+  --text-soft: #6b6462;
+  --text-mute: #a09895;
+
+  // ─── Espaciado — escala de 4 ─────────────────────────────────
+  // Siete valores. El repo anterior acumuló catorce.
+  --sp-1:  4px;   // dentro de un ícono o chip
+  --sp-2:  8px;   // dentro de un control
+  --sp-3:  12px;  // entre elementos de un grupo
+  --sp-4:  16px;  // padding de card, margen de pantalla
+  --sp-6:  24px;  // entre bloques
+  --sp-8:  32px;  // entre secciones
+  --sp-12: 48px;  // estados vacíos
+
+  // ─── Radios ──────────────────────────────────────────────────
+  // Tres valores. El repo anterior acumuló ocho.
+  --radius-sm:   8px;    // chips, inputs, botones
+  --radius-md:   12px;   // cards, diálogos, paneles
+  --radius-full: 999px;  // avatares, FAB, pills
+
+  // ─── Elevación ───────────────────────────────────────────────
+  --elev-0: none;
+  --elev-1: 0 1px 3px rgba(30, 20, 18, 0.10);   // card
+  --elev-2: 0 4px 14px rgba(30, 20, 18, 0.14);  // diálogo, FAB
+
+  // ─── Tipografía ──────────────────────────────────────────────
+  // system-ui: en Android es Roboto, en iOS San Francisco.
+  // La app se ve nativa en cada plataforma sin descargar fuentes.
+  --font-ui:  system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  // Monoespaciada para importes y códigos. tabular-nums es
+  // requisito: en una lista de guaraníes las cifras tienen que
+  // alinearse para poder compararlas de un vistazo.
+  --font-num: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+  --fs-display: 24px;
+  --fs-title:   18px;
+  --fs-body:    15px;
+  --fs-label:   13px;
+  --fs-caption: 12px;
+
+  --fw-regular: 400;
+  --fw-medium:  550;
+  --fw-bold:    650;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TEMA OSCURO
+//  Se define ahora, no se agrega después. Solo se redefinen
+//  tokens: ninguna regla de componente vive dentro del media query.
+// ═══════════════════════════════════════════════════════════════
+
+@mixin dark-tokens {
+  --brand:        #e8544a;
+  --brand-hover:  #f06a60;
+  --brand-accent: #ffa726;
+  --on-brand:     #1c1917;
+
+  --ok:      #66bb6a;
+  --warn:    #ffa726;
+  --danger:  #ef5350;
+  --info:    #64b5f6;
+  --neutral: #a39c99;
+
+  --ok-bg:      #1b2e1d;
+  --warn-bg:    #32261a;
+  --danger-bg:  #331d1d;
+  --info-bg:    #1a2836;
+  --neutral-bg: #2a2523;
+
+  --bg:             #16130f;
+  --surface:        #201c1a;
+  --surface-sunken: #171412;
+  --border:         rgba(255, 244, 240, 0.14);
+  --border-light:   rgba(255, 244, 240, 0.07);
+
+  --text:      #f2ede9;
+  --text-soft: #b3aaa5;
+  --text-mute: #7d7470;
+
+  --elev-1: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --elev-2: 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root { @include dark-tokens; }
+}
+
+// La preferencia explícita del usuario gana sobre el sistema,
+// en ambas direcciones.
+:root[data-theme='dark']  { @include dark-tokens; }
+:root[data-theme='light'] {
+  --brand: #db392e; --brand-hover: #b33026; --brand-accent: #f57c00; --on-brand: #ffffff;
+  --ok: #2e7d32; --warn: #ef6c00; --danger: #c62828; --info: #1565c0; --neutral: #6b6462;
+  --ok-bg: #e8f3e9; --warn-bg: #fdf0e3; --danger-bg: #fbeaea; --info-bg: #e8eff8; --neutral-bg: #f0eeed;
+  --bg: #f7f5f4; --surface: #ffffff; --surface-sunken: #efecea;
+  --border: rgba(30, 20, 18, 0.12); --border-light: rgba(30, 20, 18, 0.06);
+  --text: #1c1917; --text-soft: #6b6462; --text-mute: #a09895;
+  --elev-1: 0 1px 3px rgba(30, 20, 18, 0.10);
+  --elev-2: 0 4px 14px rgba(30, 20, 18, 0.14);
+}

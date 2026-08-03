@@ -1,0 +1,113 @@
+# CLAUDE.md — frc-comercial/mobile-pwa
+
+Guía para trabajar en este repositorio.
+
+## Qué es
+
+**PWA que reemplaza a `frc-mobile`** (la app Android empaquetada con Capacitor). Cliente web del ERP **Franco Systems**, marca comercial **Bodega Franco**.
+
+- **Repo:** `GabFrank/frc-mobile-pwa` — **privado**
+- **Reemplaza a:** `GabFrank/frc-mobile` (público, en modo mantenimiento durante la transición)
+- **Backend:** `frc-comercial/central` vía GraphQL. **Nunca `frc-efact`.**
+
+## Stack
+
+| Capa | Versión |
+|---|---|
+| Angular | **21** (standalone, zoneless) |
+| Angular Material | 21 |
+| Apollo Client | 4 · `apollo-angular` 14 |
+| Service Worker | `@angular/service-worker` 21 |
+| Node | 20.20 |
+
+> **No hay Ionic ni Capacitor.** Este repo es web puro. Si algo necesita una capacidad de dispositivo, se resuelve con una API del navegador detrás de un servicio en `core/`.
+
+## Comandos
+
+```bash
+npm start          # ng serve → http://localhost:4200
+npm run build      # build de producción — el gate real
+npm test           # tests unitarios
+```
+
+> **`localhost` es contexto seguro.** Cámara, geolocalización y service worker funcionan en desarrollo sin HTTPS. Para probar en un celular Android por USB: `adb reverse tcp:4200 tcp:4200`, y el teléfono lo ve como `localhost` — con las mismas APIs habilitadas.
+
+## Documentación
+
+**`docs/` es la especificación**, portada del repo anterior. Antes de reconstruir un módulo, leé su documento: contiene las reglas de negocio verificadas contra el código en producción.
+
+| Ruta | Contenido |
+|---|---|
+| `docs/README.md` | Índice maestro |
+| `docs/arquitectura/` | Apollo, auth, servidor, UI, actualizaciones |
+| `docs/infraestructura/` | Servicios, utils, modelos, componentes |
+| `docs/modulos/` | Un documento por módulo funcional |
+| `docs/design-system/` | **Galería y pantallas aprobadas (Gate 1)** |
+| `docs/analisis/` | Plan de migración y runbook de Cloudflare |
+| `docs/TODO_TECNICO.md` | 59 hallazgos del repo anterior — **qué NO repetir** |
+
+## Reglas del proyecto
+
+### 1 · El alias `data:` en GraphQL
+
+Toda operación aliasea su campo raíz a `data`. Es la convención heredada de los 296 documentos GraphQL que se portan verbatim.
+
+```graphql
+query ($id: Int) {
+  data: miOperacion(id: $id) { id }
+}
+```
+
+Sin el alias, el resultado llega `undefined` **sin error ni log**.
+
+### 2 · Cero valores literales fuera de los tokens
+
+`src/styles/_tokens.scss` es el único archivo que puede contener un hex, un valor de espaciado o un radio. Todo lo demás usa `var(--sp-4)`, `var(--brand)`, `var(--radius-md)`.
+
+Esto existe porque el repo anterior acumuló 14 valores de espaciado, 8 radios y `#f44336` hardcodeado 50 veces.
+
+### 3 · Componentes genéricos por regla de tres
+
+Un componente se vuelve genérico cuando aparece en **3 o más pantallas de módulos distintos**, o cuando **encapsula una regla de negocio** que no debe duplicarse — como el importe en guaraníes, que no lleva decimales.
+
+Fuera de eso, no. Las cards por módulo, los formularios por entidad y los layouts de pantalla se resuelven con los genéricos existentes.
+
+### 4 · Ningún módulo está listo sin sus tres estados
+
+Carga, vacío y error. Es parte de la definición de terminado, no una mejora posterior.
+
+### 5 · Antes de tocar el backend, verificá si lo usa el desktop
+
+Si lo usa, se crea un método paralelo con sufijo `Mobile`. El desktop es producto en producción en farmacias y bodegas. Ver `docs/REGLAS_DESARROLLO.md`.
+
+### 6 · El dinero lo calcula el backend
+
+Balances de caja, diferencias de arqueo, distribución de cantidades entre notas de recepción. El cliente muestra, no calcula.
+
+## Estructura
+
+```
+src/
+├── app/
+│   ├── core/              # config de servidor, auth, capacidades de dispositivo
+│   ├── shared/            # componentes del sistema de diseño
+│   ├── domains/           # modelos y enums (portados verbatim)
+│   ├── graphql/           # operaciones compartidas (portadas verbatim)
+│   └── pages/             # módulos funcionales
+├── styles/
+│   └── _tokens.scss       # ← único archivo con valores literales
+└── environments/
+```
+
+## Estado
+
+**Fase 2 del plan de migración.** Esqueleto listo; la capa de datos y los módulos se portan por olas. Ver `docs/analisis/plan-migracion-pwa.md`.
+
+## Lo que nunca se hace
+
+1. Escribir un color o espaciado literal fuera de `_tokens.scss`
+2. Commitear secretos — este repo es privado, pero una clave commiteada hay que rotarla igual
+3. Agregar Capacitor o Ionic
+4. Calcular dinero en el cliente
+5. Push directo a `master` o `develop` — siempre vía PR
+6. Dar por terminado un módulo sin sus estados de carga, vacío y error

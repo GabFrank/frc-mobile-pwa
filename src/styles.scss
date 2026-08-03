@@ -1,0 +1,66 @@
+// ═══════════════════════════════════════════════════════════════
+//  Estilos globales — FRC Mobile PWA
+//
+//  Los valores viven en styles/_tokens.scss. Acá solo se aplican.
+// ═══════════════════════════════════════════════════════════════
+
+@use '@angular/material' as mat;
+@use 'styles/tokens';
+
+html {
+  height: 100%;
+
+  // Paleta de Material alineada con la marca FRC.
+  // density 0 = targets táctiles cómodos: el desktop usa -3 (denso),
+  // esto es una app de mano.
+  @include mat.theme((
+    color: (
+      primary: mat.$red-palette,
+      tertiary: mat.$orange-palette,
+    ),
+    typography: system-ui,
+    density: 0,
+  ));
+}
+
+body {
+  // Sigue la preferencia del sistema; el toggle in-app la pisa
+  // vía [data-theme] en :root (ver _tokens.scss).
+  color-scheme: light dark;
+
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+
+  // Evita el rebote al final de una lista, que en una PWA instalada
+  // delata que es web.
+  overscroll-behavior-y: none;
+}
+
+// Cifras alineadas donde se comparan.
+.frc-num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+// Foco visible en todo lo interactivo. Requisito de accesibilidad y,
+// en una app operada a las apuradas, de usabilidad.
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

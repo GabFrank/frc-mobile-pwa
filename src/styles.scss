@@ -64,3 +64,13 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+// ─── Toasts por tono ───────────────────────────────────────────────────
+// El color lo define el tono semántico, no cada llamador.
+.frc-snack--ok .mdc-snackbar__surface     { --mdc-snackbar-container-color: var(--ok); }
+.frc-snack--warn .mdc-snackbar__surface   { --mdc-snackbar-container-color: var(--warn); }
+.frc-snack--danger .mdc-snackbar__surface { --mdc-snackbar-container-color: var(--danger); }
+.frc-snack--neutral .mdc-snackbar__surface { --mdc-snackbar-container-color: var(--neutral); }
+.frc-snack--ok, .frc-snack--warn, .frc-snack--danger, .frc-snack--neutral {
+  --mdc-snackbar-supporting-text-color: #fff;
+}

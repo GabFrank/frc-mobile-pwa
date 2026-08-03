@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, forwardRef, input, model } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  forwardRef,
+  input,
+  model,
+  signal,
+} from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -72,7 +80,7 @@ export class CampoImporteComponent implements ControlValueAccessor {
 
   readonly valor = model<number | null>(null);
   /** Texto en edición; se separa del valor para no reformatear mientras se tipea. */
-  private readonly enEdicion = model<string | null>(null);
+  private readonly enEdicion = signal<string | null>(null);
 
   readonly precision = computed(() => precisionDe(this.moneda()));
   readonly texto = computed(() => {

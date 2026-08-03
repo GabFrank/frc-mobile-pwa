@@ -1,5 +1,6 @@
 import { InicioSesion } from "../configuracion/inicio-sesion.model";
 import { Persona } from "./persona.model";
+import { Sucursal } from "../empresarial/sucursal/sucursal.model";
 
 export class Usuario {
   id?: number;
@@ -12,6 +13,8 @@ export class Usuario {
   roles?: string[];
   avatar?: string;
   inicioSesion?: InicioSesion;
+  /** Viene en la query de login (`usuarioParaLogin`). */
+  sucursal?: Sucursal;;
 
   toInput(): UsuarioInput {
     let input = new UsuarioInput;

@@ -125,6 +125,9 @@ export abstract class Subscription<TData = unknown, TVariables extends object = 
       .subscribe<TData>({
         query: this.document,
         variables: variables as Record<string, unknown> | undefined,
+        // Los mismos defaults que query y mutation: sin `errorPolicy: 'all'`
+        // un error de GraphQL mata el stream en vez de llegar en `errors`.
+        ...DEFAULTS,
         ...options,
       })
       .pipe(map((res) => normalizar<TData>(res)));

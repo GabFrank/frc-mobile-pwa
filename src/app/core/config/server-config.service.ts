@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from '../auth/auth.tokens';
 
 const KEY_BASE_URL = 'frc.serverBaseUrl';
 
@@ -36,8 +37,19 @@ export class ServerConfigService {
    */
   cambiarServidor(baseUrl: string): void {
     const normalizada = baseUrl.replace(/\/+$/, '');
+    if (normalizada === this.baseUrl()) {
+      return;
+    }
     localStorage.setItem(KEY_BASE_URL, normalizada);
     this.baseUrl.set(normalizada);
+
+    // Invalida la sesión: el token de la instancia vieja no vale en la nueva,
+    // y seguir mandándolo produce 401 que parecen "contraseña incorrecta".
+    //
+    // Se borran las claves directamente en vez de inyectar `AuthService`,
+    // porque `AuthService` ya depende de este servicio y habría ciclo.
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_ID_KEY);
   }
 
   private leerBaseUrl(): string {

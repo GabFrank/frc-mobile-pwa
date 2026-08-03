@@ -1,10 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  effect,
+  DestroyRef,
   inject,
-  input,
-  output,
   signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -150,7 +148,18 @@ export class BuscadorComponent<T> {
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    // El debounce puede quedar pendiente cuando el usuario cierra el diálogo:
+    // sin esto disparaba una consulta y mutaba signals de una instancia ya
+    // destruida.
+    inject(DestroyRef).onDestroy(() => this.limpiarTimer());
     this.buscar();
+  }
+
+  private limpiarTimer(): void {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
   }
 
   alEscribir(evento: Event): void {
@@ -161,9 +170,7 @@ export class BuscadorComponent<T> {
     }
     // En modo paginado se espera a que el usuario deje de tipear, para no
     // disparar una consulta por tecla.
-    if (this.timer) {
-      clearTimeout(this.timer);
-    }
+    this.limpiarTimer();
     this.timer = setTimeout(() => this.buscar(), this.config.debounceMs ?? 300);
   }
 
@@ -204,6 +211,7 @@ export class BuscadorComponent<T> {
   }
 
   elegir(item: T): void {
+    this.limpiarTimer();
     this.ref.close(item);
   }
 }

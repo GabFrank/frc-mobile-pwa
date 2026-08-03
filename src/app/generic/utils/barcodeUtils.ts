@@ -73,13 +73,40 @@ export function extractCodigoBarra(text: string): string | null {
   return candidatos.length > 0 ? candidatos[0] : null;
 }
 
+/**
+ * Decide si el texto parece un código y no una descripción.
+ *
+ * 🐛 Corrige un bug heredado de `frc-mobile`: allá esta función devolvía
+ * `codigosParaBuscar(text).length > 0`, y como el patrón alfanumérico acepta
+ * cualquier token de 4+ caracteres, `"coca cola dos litros"` daba `true`. La
+ * función era efectivamente inútil para distinguir código de descripción.
+ *
+ * Ahora exige que **todo** el texto tenga forma de código: sin espacios y con
+ * el patrón de un numérico o de un token único.
+ */
 export function pareceBusquedaPorCodigo(text: string): boolean {
-  return codigosParaBuscar(text).length > 0;
+  const trimmed = text?.trim() ?? '';
+  if (!trimmed || /\s/.test(trimmed)) {
+    return false;
+  }
+  return (
+    esCodigoPesable(trimmed) ||
+    NUMERIC_BARCODE.test(trimmed) ||
+    SINGLE_TOKEN_CODE.test(trimmed) ||
+    GS1_GTIN.test(trimmed)
+  );
 }
 
+/**
+ * Código de balanza: 13 dígitos con prefijo `20`.
+ *
+ * Se valida que el resto sea numérico. Sin eso, un Code128 alfanumérico de 13
+ * caracteres que empezara con "20" se tomaba por pesable, y
+ * `parseCodigoPesable` devolvía `NaN` como peso — un dato corrupto mostrado
+ * al operador en vez de una búsqueda normal de código.
+ */
 export function esCodigoPesable(text: string): boolean {
-  const t = text?.trim() ?? '';
-  return t.length === 13 && t.substring(0, 2) === '20';
+  return /^20\d{11}$/.test(text?.trim() ?? '');
 }
 
 export function parseCodigoPesable(text: string): { codigoInterno: string; peso: number } {

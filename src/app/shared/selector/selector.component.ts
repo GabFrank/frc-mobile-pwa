@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, forwardRef, input, model } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  forwardRef,
+  input,
+  model,
+  signal,
+} from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
@@ -36,7 +44,7 @@ export interface OpcionSeleccion {
       <mat-select
         [value]="valor()"
         [compareWith]="comparar"
-        [disabled]="deshabilitado()"
+        [disabled]="inhabilitado()"
         (selectionChange)="alCambiar($event.value)"
       >
         @for (op of opciones(); track op.valor) {
@@ -60,6 +68,11 @@ export class SelectorComponent implements ControlValueAccessor {
   readonly opciones = input<OpcionSeleccion[]>([]);
   readonly deshabilitado = input(false);
   readonly valor = model<unknown>(null);
+
+  /** Deshabilitado por el FormControl, vía `setDisabledState`. */
+  private readonly deshabilitadoPorForm = signal(false);
+  /** El campo está inhabilitado por cualquiera de las dos vías. */
+  readonly inhabilitado = computed(() => this.deshabilitado() || this.deshabilitadoPorForm());
 
   private alTocar: () => void = () => undefined;
   private alCambiarFn: (valor: unknown) => void = () => undefined;
@@ -85,5 +98,14 @@ export class SelectorComponent implements ControlValueAccessor {
   }
   registerOnTouched(fn: () => void): void {
     this.alTocar = fn;
+  }
+
+  /**
+   * Sin esto, `formControl.disable()` no tenía efecto: el control seguía
+   * editable y seguía empujando valores al modelo aunque el formulario lo
+   * considerara deshabilitado.
+   */
+  setDisabledState(deshabilitado: boolean): void {
+    this.deshabilitadoPorForm.set(deshabilitado);
   }
 }

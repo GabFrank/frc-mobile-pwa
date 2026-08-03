@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, finalize, map, tap } from 'rxjs/operators';
 
-import { AUTH_USER_ID_KEY } from '../auth/auth.tokens';
+import { leerUsuarioIdEnSesion } from '../auth/auth.tokens';
 import { CargandoService } from '../ui/cargando.service';
 import { NotificacionService } from '../ui/notificacion.service';
 import type {
@@ -139,7 +139,7 @@ export class DatosService {
   ): Observable<T> {
     const entity = { ...input };
     if (entity['usuarioId'] == null) {
-      const usuarioId = this.usuarioIdEnSesion();
+      const usuarioId = leerUsuarioIdEnSesion();
       if (usuarioId != null) {
         entity['usuarioId'] = usuarioId;
       }
@@ -160,7 +160,7 @@ export class DatosService {
   ): Observable<T> {
     const cabecera = { ...entity };
     if (cabecera['usuarioId'] == null) {
-      const usuarioId = this.usuarioIdEnSesion();
+      const usuarioId = leerUsuarioIdEnSesion();
       if (usuarioId != null) {
         cabecera['usuarioId'] = usuarioId;
       }
@@ -201,11 +201,23 @@ export class DatosService {
 
   // ───────────────────────────────────────────────────────── Suscripciones ──
 
+  /**
+   * Suscripción GraphQL.
+   *
+   * Pasa por el mismo pipeline de errores que las lecturas: un error en un
+   * stream "que solo emite datos" es fácil de no manejar, y sin esto moría
+   * en silencio.
+   */
   suscribir<T>(
     gql: Subscription<{ data?: T }>,
     variables?: Record<string, unknown>,
+    opciones?: OpcionesOperacion,
   ): Observable<T> {
-    return gql.subscribe(variables).pipe(map((res) => this.extraer(res)));
+    // Sin contador de carga: una suscripción vive mientras dure la pantalla.
+    return this.ejecutar(gql.subscribe(variables, opciones?.gql), {
+      mostrarCarga: false,
+      ...opciones,
+    });
   }
 
   // ──────────────────────────────────────────────────────────────── Interno ──
@@ -225,8 +237,13 @@ export class DatosService {
         }
         return this.extraer(res);
       }),
-      tap(() => {
-        if (opciones?.mensajeExito) {
+      tap((resultado) => {
+        // Solo se avisa éxito si el backend devolvió algo afirmativo: una
+        // mutation puede responder `data: null` o `false` sin error GraphQL
+        // cuando una regla de negocio la rechaza. Avisar "Guardado" ahí sería
+        // mentirle al usuario.
+        const afirmativo = resultado !== null && resultado !== undefined && resultado !== false;
+        if (opciones?.mensajeExito && afirmativo) {
           this.notificacion.ok(opciones.mensajeExito);
         }
       }),
@@ -266,14 +283,7 @@ export class DatosService {
     return payload.data as T;
   }
 
-  private usuarioIdEnSesion(): number | null {
-    const crudo = localStorage.getItem(AUTH_USER_ID_KEY);
-    if (!crudo || crudo === 'null') {
-      return null;
-    }
-    const id = Number(crudo);
-    return Number.isFinite(id) ? id : null;
-  }
+
 }
 
 export interface OpcionesOperacion {

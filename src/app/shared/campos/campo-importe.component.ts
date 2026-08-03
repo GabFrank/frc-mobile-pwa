@@ -51,7 +51,7 @@ import {
         class="entrada"
         inputmode="decimal"
         [value]="texto()"
-        [disabled]="deshabilitado()"
+        [disabled]="inhabilitado()"
         (input)="alEscribir($event)"
         (blur)="alSalir()"
       />
@@ -77,6 +77,11 @@ export class CampoImporteComponent implements ControlValueAccessor {
   readonly simbolo = input<string | null>(null);
   readonly ayuda = input<string | null>(null);
   readonly deshabilitado = input(false);
+
+  /** Deshabilitado por el FormControl, vía `setDisabledState`. */
+  private readonly deshabilitadoPorForm = signal(false);
+  /** El campo está inhabilitado por cualquiera de las dos vías. */
+  readonly inhabilitado = computed(() => this.deshabilitado() || this.deshabilitadoPorForm());
 
   readonly valor = model<number | null>(null);
   /** Texto en edición; se separa del valor para no reformatear mientras se tipea. */
@@ -123,5 +128,13 @@ export class CampoImporteComponent implements ControlValueAccessor {
   }
   registerOnTouched(fn: () => void): void {
     this.alTocar = fn;
+  }
+
+  /**
+   * Sin esto, `formControl.disable()` no tenía efecto: el campo seguía
+   * editable y seguía empujando valores al modelo.
+   */
+  setDisabledState(deshabilitado: boolean): void {
+    this.deshabilitadoPorForm.set(deshabilitado);
   }
 }

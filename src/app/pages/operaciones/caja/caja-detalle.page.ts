@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 
 import { PdvCaja } from 'src/app/domains/caja/caja.model';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
@@ -118,7 +126,17 @@ export class CajaDetallePage {
   });
 
   constructor() {
-    this.cargar();
+    // ⚠️ NO llamar `cargar()` desde el constructor.
+    //
+    // Con `withComponentInputBinding`, el router crea el componente y recién
+    // después asigna los inputs de ruta: en el constructor `id()` todavía es
+    // undefined, y la pantalla mostraba siempre "caja inválida".
+    effect(() => {
+      const id = this.id();
+      if (id !== undefined) {
+        this.cargar();
+      }
+    });
   }
 
   cargar(): void {

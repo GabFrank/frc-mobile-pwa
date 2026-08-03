@@ -24,7 +24,10 @@ export class DialogoService {
       data,
       width: '340px',
       maxWidth: '92vw',
-      autoFocus: false,
+      // Sin esto, `cdkFocusInitial` del botón de confirmación no tiene
+      // efecto y el diálogo abre sin foco: inutilizable con teclado o
+      // lector de pantalla.
+      autoFocus: 'first-tabbable',
       restoreFocus: true,
     });
     return (await firstValueFrom(ref.afterClosed())) === true;

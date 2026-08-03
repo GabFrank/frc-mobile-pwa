@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, inject, input, Output } from '@angular/core';
 import { Location } from '@angular/common';
 import { IconoComponent } from '../icono/icono.component';
 
@@ -99,13 +99,25 @@ export class PaginaComponent {
   readonly titulo = input.required<string>();
   readonly conVolver = input(false);
 
-  /** Si se escucha, reemplaza al comportamiento por defecto. */
-  readonly atras = output<void>();
+  /**
+   * Si alguien lo escucha, **reemplaza** al comportamiento por defecto.
+   *
+   * Es lo que permite que un formulario intercepte el botón de volver para
+   * preguntar "¿salir sin guardar?".
+   *
+   * Se usa `@Output()` y no `output()` porque `EventEmitter` expone
+   * `observed`, que es justamente lo que hace falta para saber si hay quien
+   * escuche. La API de signals no lo ofrece.
+   */
+  @Output() readonly atras = new EventEmitter<void>();
 
   volver(): void {
+    if (this.atras.observed) {
+      this.atras.emit();
+      return;
+    }
     // `Location.back()` en vez de navegar: evita apilar entradas en el
     // historial cuando el objetivo es simplemente volver.
     this.location.back();
-    this.atras.emit();
   }
 }

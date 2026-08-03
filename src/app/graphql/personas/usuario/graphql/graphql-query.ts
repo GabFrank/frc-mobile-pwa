@@ -88,6 +88,15 @@ export const usuarioQuery = gql`
 // Persona -> GraphQL rechaza la query y el login falla.
 // El login no consume `embeddingFacial`; la busqueda/galeria facial de marcacion
 // sigue usando `usuarioQuery` (con el campo) contra el servidor que lo soporta.
+// La query de arranque de sesión.
+//
+// ⚠️ NO pide `password`. El repo anterior lo traía —el backend lo devuelve en
+// texto plano— y quedaba en memoria del cliente sin ninguna necesidad. Ver
+// REPORTE_VULNERABILIDADES.md del workspace.
+//
+// Sí pide `sucursal`: los roles y la sucursal son lo que la UI necesita para
+// decidir qué mostrar, y al restaurar sesión no hay respuesta REST de login
+// de donde sacarla.
 export const usuarioLoginQuery = gql`
   query ($id: ID!) {
     data: usuario(id: $id) {
@@ -101,7 +110,10 @@ export const usuarioLoginQuery = gql`
         nacimiento
         imagenes
       }
-      password
+      sucursal {
+        id
+        nombre
+      }
       creadoEn
       usuario {
         persona {

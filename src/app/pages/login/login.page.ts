@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { SesionService } from 'src/app/core/auth/sesion.service';
 import { ServerConfigService } from 'src/app/core/config/server-config.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
@@ -133,6 +134,7 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
 export class LoginPage {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
+  private readonly sesion = inject(SesionService);
   private readonly router = inject(Router);
   private readonly notificacion = inject(NotificacionService);
   readonly servidor = inject(ServerConfigService);
@@ -156,12 +158,24 @@ export class LoginPage {
     const { nickname, password } = this.form.getRawValue();
     const resultado = await this.auth.login(nickname, password);
 
-    this.enviando.set(false);
-
     if (!resultado.ok) {
+      this.enviando.set(false);
       this.error.set(resultado.mensaje ?? 'No se pudo iniciar sesión.');
       return;
     }
+
+    // El login REST solo devuelve token, usuarioId y sucursal. Los roles —de
+    // los que depende todo el control de acceso de la UI— vienen de GraphQL,
+    // así que hay que cargar el usuario antes de entrar.
+    const usuarioId = this.auth.usuarioIdGuardado;
+    if (usuarioId == null || !(await this.sesion.cargarUsuario(usuarioId))) {
+      this.enviando.set(false);
+      await this.auth.logout(false);
+      this.error.set('Entraste, pero no se pudieron cargar tus datos. Intentá de nuevo.');
+      return;
+    }
+
+    this.enviando.set(false);
 
     if (resultado.requiereCambioContrasena) {
       this.notificacion.warn('Estás usando la contraseña por defecto. Cambiala desde tu cuenta.');

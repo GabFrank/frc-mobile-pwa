@@ -14,7 +14,7 @@ export class Usuario {
   avatar?: string;
   inicioSesion?: InicioSesion;
   /** Viene en la query de login (`usuarioParaLogin`). */
-  sucursal?: Sucursal;;
+  sucursal?: Sucursal;
 
   toInput(): UsuarioInput {
     let input = new UsuarioInput;

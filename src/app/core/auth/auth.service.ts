@@ -7,7 +7,13 @@ import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { generateUUID } from 'src/app/generic/utils/string-utils';
 import { ServerConfigService } from '../config/server-config.service';
-import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY, DEVICE_ID_KEY } from './auth.tokens';
+import {
+  AUTH_TOKEN_KEY,
+  AUTH_USER_ID_KEY,
+  DEVICE_ID_KEY,
+  hayTokenEnSesion,
+  leerUsuarioIdEnSesion,
+} from './auth.tokens';
 
 interface RespuestaLogin {
   token?: string;
@@ -57,17 +63,11 @@ export class AuthService {
 
   /** Hay token guardado: puede haber sesión que restaurar. */
   get hayTokenGuardado(): boolean {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-    return !!token && token !== 'null';
+    return hayTokenEnSesion();
   }
 
   get usuarioIdGuardado(): number | null {
-    const crudo = localStorage.getItem(AUTH_USER_ID_KEY);
-    if (!crudo || crudo === 'null') {
-      return null;
-    }
-    const id = Number(crudo);
-    return Number.isFinite(id) ? id : null;
+    return leerUsuarioIdEnSesion();
   }
 
   /** Identificador estable de esta instalación. */

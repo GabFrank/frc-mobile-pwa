@@ -50,17 +50,30 @@ export function formatearImporte(
     return '';
   }
   const precision = precisionDe(moneda);
+  // `Intl` formatea el cero negativo como "-0". En una pantalla de arqueo,
+  // donde el rojo del negativo llama la atención, un resultado balanceado no
+  // debe verse como faltante.
+  const normalizado = Object.is(valor, -0) ? 0 : valor;
   const numero = new Intl.NumberFormat(LOCALE, {
     minimumFractionDigits: precision,
     maximumFractionDigits: precision,
-  }).format(valor);
+  }).format(normalizado);
 
   return simbolo ? `${simbolo} ${numero}` : numero;
 }
 
 /**
- * Parsea un importe escrito por el usuario en formato `es-PY`
- * (punto para miles, coma para decimales).
+ * Parsea un importe escrito por el usuario.
+ *
+ * El formato de referencia es `es-PY` —punto para miles, coma para
+ * decimales— pero **no se puede asumir**: los teclados numéricos de Android
+ * e iOS insertan `.` como tecla decimal según el idioma del sistema, no el de
+ * la app, y en Paraguay es habitual tener el teléfono en inglés.
+ *
+ * Por eso, si el texto no tiene coma y termina en un punto seguido de 1 o 2
+ * dígitos, ese punto se interpreta como separador decimal. Sin esta regla,
+ * `"10.50"` se leía como `1050`: un error de 100× que llegaba al backend sin
+ * ninguna validación que lo frenara.
  *
  * Devuelve `null` si el texto no representa un número.
  */
@@ -68,16 +81,29 @@ export function parsearImporte(texto: string | null | undefined): number | null 
   if (texto == null) {
     return null;
   }
-  const limpio = String(texto)
-    .trim()
-    .replace(/[^\d,.-]/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.');
 
-  if (limpio === '' || limpio === '-') {
+  const soloNumerico = String(texto)
+    .trim()
+    .replace(/[^\d,.-]/g, '');
+
+  if (soloNumerico === '' || soloNumerico === '-') {
     return null;
   }
-  const valor = Number(limpio);
+
+  let normalizado: string;
+  if (soloNumerico.includes(',')) {
+    // Con coma presente, el punto es separador de miles.
+    normalizado = soloNumerico.replace(/\./g, '').replace(',', '.');
+  } else if (/\.\d{1,2}$/.test(soloNumerico)) {
+    // Un único punto final con 1-2 decimales: es la tecla decimal.
+    const partes = soloNumerico.split('.');
+    const decimales = partes.pop() as string;
+    normalizado = `${partes.join('')}.${decimales}`;
+  } else {
+    normalizado = soloNumerico.replace(/\./g, '');
+  }
+
+  const valor = Number(normalizado);
   return Number.isFinite(valor) ? valor : null;
 }
 
@@ -93,7 +119,11 @@ export function redondearAMoneda(
 ): number {
   const precision = precisionDe(moneda);
   const factor = 10 ** precision;
-  return Math.round(valor * factor) / factor;
+  // Redondeo simétrico. `Math.round` lleva los `.5` hacia +∞, así que un
+  // sobrante de +1234,5 y un faltante de -1234,5 redondeaban a magnitudes
+  // distintas — inaceptable en una diferencia de arqueo.
+  const signo = valor < 0 ? -1 : 1;
+  return (signo * Math.round(Math.abs(valor) * factor)) / factor;
 }
 
 export function esEntero(n: number): boolean {

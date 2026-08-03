@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  EventEmitter,
+  input,
+  Output,
+} from '@angular/core';
 import { IconoComponent } from '../icono/icono.component';
 
 /**
@@ -23,11 +30,11 @@ import { IconoComponent } from '../icono/icono.component';
   template: `
     <article
       class="card"
-      [class.clickable]="clickable()"
-      [attr.role]="clickable() ? 'button' : null"
-      [attr.tabindex]="clickable() ? 0 : null"
-      (click)="alAbrir()"
-      (keydown.enter)="alAbrir()"
+      [class.clickable]="esInteractiva()"
+      [attr.role]="esInteractiva() ? 'button' : null"
+      [attr.tabindex]="esInteractiva() ? 0 : null"
+      (click)="alAbrir($event)"
+      (keydown.enter)="alAbrir($event)"
       (keydown.space)="alAbrir($event)"
     >
       @if (icono()) {
@@ -120,12 +127,30 @@ export class CardComponent {
   readonly icono = input<string | null>(null);
   /** Miniatura circular, para personas. */
   readonly redondo = input(false);
-  readonly clickable = input(true);
+  /**
+   * Por defecto `false`: una card sin acción no debe anunciarse como botón ni
+   * capturar el foco. Se activa sola si alguien escucha `(abrir)`.
+   */
+  readonly clickable = input<boolean | null>(null);
 
-  readonly abrir = output<void>();
+  /**
+   * `@Output()` en vez de `output()` porque `EventEmitter.observed` permite
+   * saber si hay quien escuche, y de eso depende que la card se anuncie o no
+   * como interactiva. La API de signals no expone esa información.
+   */
+  @Output() readonly abrir = new EventEmitter<void>();
+
+  /** Interactiva si se pidió explícitamente, o si hay quien escuche `(abrir)`. */
+  readonly esInteractiva = computed(() => this.clickable() ?? this.abrir.observed);
 
   alAbrir(evento?: Event): void {
-    if (!this.clickable()) {
+    if (!this.esInteractiva()) {
+      return;
+    }
+    // Un control dentro de los slots (un botón de acción, por ejemplo) no
+    // debe disparar además la apertura de la card.
+    const origen = evento?.target as HTMLElement | null;
+    if (origen?.closest('button, a, input, select, textarea')) {
       return;
     }
     evento?.preventDefault();

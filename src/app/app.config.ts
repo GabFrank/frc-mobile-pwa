@@ -2,6 +2,7 @@ import {
   ApplicationConfig,
   inject,
   isDevMode,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
@@ -15,6 +16,7 @@ import { SetContextLink } from '@apollo/client/link/context';
 import { routes } from './app.routes';
 import { ServerConfigService } from './core/config/server-config.service';
 import { AUTH_TOKEN_KEY } from './core/auth/auth.tokens';
+import { SesionService } from './core/auth/sesion.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -67,5 +69,11 @@ export const appConfig: ApplicationConfig = {
         // explícitamente sin tocar configuración global.
       };
     }),
+
+    // Restaura la sesión antes de resolver la primera ruta: si hay token
+    // guardado, carga el usuario y sus roles. Sin esto, recargar la página
+    // dejaba la sesión válida para el guard pero sin identidad, y la UI
+    // ocultaba en silencio todo lo que depende de roles.
+    provideAppInitializer(() => inject(SesionService).restaurar()),
   ],
 };

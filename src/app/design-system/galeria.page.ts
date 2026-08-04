@@ -238,7 +238,7 @@ import type { ConfigBuscadorLocal } from '../shared/buscador/buscador.component'
     }
     .destructivo {
       --mat-button-filled-container-color: var(--danger);
-      --mat-button-filled-label-text-color: #fff;
+      --mat-button-filled-label-text-color: var(--on-tono);
     }
     .iconos {
       display: grid;

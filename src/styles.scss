@@ -77,13 +77,13 @@ html {
 
   // Semántica de error
   --mat-sys-error: var(--danger);
-  --mat-sys-on-error: #fff;
+  --mat-sys-on-error: var(--on-tono);
   --mat-sys-error-container: var(--danger-bg);
   --mat-sys-on-error-container: var(--danger);
 
   // Acento
   --mat-sys-tertiary: var(--brand-accent);
-  --mat-sys-on-tertiary: #fff;
+  --mat-sys-on-tertiary: var(--on-tono);
 
   // Superficies y texto
   --mat-sys-surface: var(--surface);
@@ -160,10 +160,17 @@ input:-webkit-autofill:focus {
 
 // ─── Toasts por tono ───────────────────────────────────────────────────
 // El color lo define el tono semántico, no cada llamador.
-.frc-snack--ok .mdc-snackbar__surface     { --mdc-snackbar-container-color: var(--ok); }
-.frc-snack--warn .mdc-snackbar__surface   { --mdc-snackbar-container-color: var(--warn); }
-.frc-snack--danger .mdc-snackbar__surface { --mdc-snackbar-container-color: var(--danger); }
-.frc-snack--neutral .mdc-snackbar__surface { --mdc-snackbar-container-color: var(--neutral); }
+//
+// ⚠️ Los tokens son `--mat-snack-bar-*`, NO `--mdc-snackbar-*`. Los `mdc-`
+// son de la implementación vieja y Material 21 ya no los lee: las reglas
+// se aplicaban sin error y el toast seguía saliendo con el gris de
+// `--mat-sys-inverse-surface`. Los nombres van en el contenedor, que es
+// donde Material los resuelve.
+.frc-snack--ok      { --mat-snack-bar-container-color: var(--ok); }
+.frc-snack--warn    { --mat-snack-bar-container-color: var(--warn); }
+.frc-snack--danger  { --mat-snack-bar-container-color: var(--danger); }
+.frc-snack--neutral { --mat-snack-bar-container-color: var(--neutral); }
 .frc-snack--ok, .frc-snack--warn, .frc-snack--danger, .frc-snack--neutral {
-  --mdc-snackbar-supporting-text-color: #fff;
+  --mat-snack-bar-supporting-text-color: var(--on-tono);
+  --mat-snack-bar-button-color: var(--on-tono);
 }

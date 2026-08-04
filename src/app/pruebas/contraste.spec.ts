@@ -38,6 +38,7 @@ const CLARO = {
   dangerBg: '#fbeaea',
   infoBg: '#e8eff8',
   neutralBg: '#f0eeed',
+  onTono: '#ffffff',
   bg: '#f7f5f4',
   surface: '#ffffff',
   text: '#1c1917',
@@ -58,6 +59,7 @@ const OSCURO = {
   dangerBg: '#331d1d',
   infoBg: '#1a2836',
   neutralBg: '#2a2523',
+  onTono: '#1c1917',
   bg: '#16130f',
   surface: '#201c1a',
   text: '#f2ede9',
@@ -100,6 +102,19 @@ describe.each([
     'el tono %s se lee como texto sobre la superficie',
     (tono) => {
       expect(contraste(t[tono], t.surface)).toBeGreaterThanOrEqual(AA);
+    },
+  );
+
+  /*
+    Los tonos también se usan como RELLENO —toasts, botón destructivo— y ese
+    caso no estaba cubierto. En tema oscuro el texto encima era `#fff` fijo:
+    1,94:1 sobre `--warn`. Un aviso de advertencia era prácticamente
+    invisible sobre su propio fondo.
+  */
+  it.each(['ok', 'warn', 'danger', 'info', 'neutral'] as const)(
+    'el texto sobre un relleno de %s se lee',
+    (tono) => {
+      expect(contraste(t.onTono, t[tono])).toBeGreaterThanOrEqual(AA);
     },
   );
 });

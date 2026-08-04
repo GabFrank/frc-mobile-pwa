@@ -42,6 +42,15 @@
   --info-bg:    #e8eff8;
   --neutral-bg: #f0eeed;
 
+  // Texto sobre un tono usado como RELLENO: toasts, botón destructivo.
+  //
+  // Un solo valor cubre los cinco tonos porque en cada tema los cinco caen
+  // del mismo lado: en claro son oscuros (blanco encima da 5.28:1 a 6.07:1),
+  // en oscuro son claros (blanco encima caería a 1.94:1 en `--warn`
+  // —ilegible— mientras que texto oscuro da 5.02:1 a 9.00:1).
+  // Si alguna vez un tono se sale de ese rango, acá es donde se corrige.
+  --on-tono: #ffffff;
+
   // ─── Superficies y texto ─────────────────────────────────────
   // Neutros con sesgo cálido hacia el rojo de marca: un gris puro
   // lee como valor por defecto, no como decisión.
@@ -122,6 +131,9 @@
   --info-bg:    #1a2836;
   --neutral-bg: #2a2523;
 
+  // En oscuro los tonos son claros: encima va texto oscuro, no blanco.
+  --on-tono: #1c1917;
+
   --bg:             #16130f;
   --surface:        #201c1a;
   --surface-sunken: #171412;
@@ -148,6 +160,7 @@
   --brand-text: #c43026;
   --ok: #2a7030; --warn: #b34d00; --danger: #c62828; --info: #1565c0; --neutral: #6b6462;
   --ok-bg: #e8f3e9; --warn-bg: #fdf0e3; --danger-bg: #fbeaea; --info-bg: #e8eff8; --neutral-bg: #f0eeed;
+  --on-tono: #ffffff;
   --bg: #f7f5f4; --surface: #ffffff; --surface-sunken: #efecea;
   --border: rgba(30, 20, 18, 0.12); --border-light: rgba(30, 20, 18, 0.06);
   --text: #1c1917; --text-soft: #6b6462; --text-mute: #a09895;

@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { MatTabsModule } from '@angular/material/tabs';
 
 import { ConteoMoneda } from 'src/app/domains/caja/conteo-moneda/conteo-moneda.model';
 import { Conteo } from 'src/app/domains/caja/conteo.model';
 import { Moneda } from 'src/app/domains/moneda/moneda.model';
 import { MonedaBillete } from 'src/app/domains/moneda/moneda-billetes/moneda-billetes.model';
 import { ImporteComponent } from 'src/app/shared/importe/importe.component';
-import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { formatearImporte } from 'src/app/generic/utils/moneda.util';
 
-/** Lo que el balance dice que debería haber, por denominación de moneda. */
+/** Lo que el balance dice que debería haber, por moneda. */
 export interface EsperadoPorMoneda {
   gs?: number;
   rs?: number;
@@ -16,109 +16,208 @@ export interface EsperadoPorMoneda {
 }
 
 /**
+ * Campo del `Conteo` donde va el total de cada moneda.
+ *
+ * ⚠️ Esto NO es una lista de monedas soportadas por la UI —los tabs se
+ * generan de lo que manda el servidor—. Es el **contrato del backend**:
+ * `Conteo` tiene exactamente tres campos de total (`totalGs`, `totalRs`,
+ * `totalDs`), así que solo esas tres monedas tienen dónde ser guardadas.
+ *
+ * Si aparece una cuarta moneda con denominaciones, la pantalla lo dice en
+ * vez de contarla y perderla en silencio. Arreglarlo de verdad requiere un
+ * campo nuevo en `ConteoInput`, o sea backend.
+ */
+const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>> = {
+  GUARANI: 'totalGs',
+  REAL: 'totalRs',
+  DOLAR: 'totalDs',
+};
+
+/**
  * Arqueo de efectivo: cuántas unidades hay de cada denominación.
  *
+ * Un tab por moneda, generado de lo que manda el servidor. En el teléfono
+ * las monedas apiladas eran un scroll largo en el que se perdía de vista
+ * dónde iba uno; con tabs, cada moneda es una pantalla y los totales de
+ * todas quedan visibles arriba.
+ *
  * Es el mismo formulario para la apertura y para el cierre. La única
- * diferencia es que en el cierre se muestra **lo esperado** al lado de lo
- * contado, para que el cajero vea la diferencia mientras cuenta y no
- * después.
+ * diferencia es que en el cierre se muestra **lo esperado**, para que el
+ * cajero vea la diferencia mientras cuenta y no después.
  *
  * ⚠️ **El total NO es dinero calculado en el cliente en el sentido de la
  * regla del proyecto.** Acá se multiplica una cantidad contada a mano por el
  * valor de un billete: es la captura del dato, no una liquidación. Lo que
- * nunca se calcula acá es la **diferencia de arqueo** contra el esperado —
+ * nunca se calcula acá es la **diferencia de arqueo que queda registrada** —
  * eso lo hace el backend, porque define si el cajero responde por dinero
- * faltante.
+ * faltante. La que se muestra es una ayuda para recontar antes de confirmar.
  */
 @Component({
   selector: 'frc-conteo-form',
   standalone: true,
-  imports: [SeccionComponent, ImporteComponent],
+  imports: [MatTabsModule, ImporteComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @for (m of monedas(); track m.id) {
-      <frc-seccion [titulo]="m.denominacion ?? 'Moneda'" [panel]="true">
-        @for (b of denominacionesDe(m); track b.id) {
-          <div class="fila">
-            <label [attr.for]="'den-' + b.id" class="valor">
-              {{ etiqueta(b, m) }}
-            </label>
-            <input
-              [id]="'den-' + b.id"
-              class="cantidad frc-num"
-              type="number"
-              inputmode="numeric"
-              min="0"
-              step="1"
-              [value]="cantidadDe(b) || ''"
-              (input)="contar(b, $event)"
-              [attr.aria-label]="'Cantidad de ' + etiqueta(b, m)"
-            />
-            <span class="subtotal frc-num">
-              <frc-importe
-                [valor]="subtotalDe(b)"
-                [moneda]="m.denominacion ?? null"
-                [simbolo]="m.simbolo ?? null"
-              />
-            </span>
-          </div>
-        } @empty {
-          <p class="sin-denominaciones">
-            Esta moneda no tiene denominaciones cargadas. Avisá a sistemas: sin ellas no se
-            puede arquear.
-          </p>
-        }
-
-        <div class="total">
-          <span>Contado</span>
+    <!--
+      Resumen fuera de los tabs: con una moneda por tab, sin esto habría que
+      entrar a cada una para saber cuánto se lleva contado.
+    -->
+    <div class="resumen">
+      @for (m of monedas(); track m.id) {
+        <div class="resumen-item" [class.activa]="m.id === monedaActiva()?.id">
+          <span class="resumen-moneda">{{ nombre(m) }}</span>
           <frc-importe
             [valor]="totalDe(m)"
             [moneda]="m.denominacion ?? null"
             [simbolo]="m.simbolo ?? null"
           />
+          @if (esperadoDe(m); as esp) {
+            <span class="resumen-dif" [class.hay]="totalDe(m) - esp !== 0">
+              <frc-importe
+                [valor]="totalDe(m) - esp"
+                [moneda]="m.denominacion ?? null"
+                [simbolo]="m.simbolo ?? null"
+              />
+            </span>
+          }
         </div>
+      }
+    </div>
 
-        @if (esperadoDe(m); as esp) {
-          <div class="total esperado">
-            <span>Esperado</span>
-            <frc-importe
-              [valor]="esp"
-              [moneda]="m.denominacion ?? null"
-              [simbolo]="m.simbolo ?? null"
-            />
+    <mat-tab-group
+      [selectedIndex]="indiceActivo()"
+      (selectedIndexChange)="indiceActivo.set($event)"
+      animationDuration="120ms"
+    >
+      @for (m of monedas(); track m.id) {
+        <mat-tab [label]="nombre(m)">
+          <div class="panel">
+            @if (!campoDe(m)) {
+              <p class="aviso">
+                El servidor no tiene dónde guardar un arqueo en {{ nombre(m) }}: el conteo solo
+                admite guaraníes, reales y dólares. Avisá a sistemas antes de contar esta moneda.
+              </p>
+            }
+
+            @for (b of denominacionesDe(m); track b.id) {
+              <div class="fila">
+                <label [attr.for]="'den-' + b.id" class="valor">{{ etiqueta(b, m) }}</label>
+                <input
+                  [id]="'den-' + b.id"
+                  class="cantidad"
+                  type="number"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  [value]="cantidadDe(b) || ''"
+                  (input)="contar(b, $event)"
+                  [attr.aria-label]="'Cantidad de ' + etiqueta(b, m)"
+                />
+                <span class="subtotal">
+                  <frc-importe
+                    [valor]="subtotalDe(b)"
+                    [moneda]="m.denominacion ?? null"
+                    [simbolo]="m.simbolo ?? null"
+                  />
+                </span>
+              </div>
+            } @empty {
+              <p class="aviso">
+                Esta moneda no tiene denominaciones cargadas. Sin ellas no se puede arquear.
+              </p>
+            }
+
+            @if (esperadoDe(m); as esp) {
+              <div class="cierre">
+                <div class="cierre-fila">
+                  <span>Esperado</span>
+                  <frc-importe
+                    [valor]="esp"
+                    [moneda]="m.denominacion ?? null"
+                    [simbolo]="m.simbolo ?? null"
+                  />
+                </div>
+                <div class="cierre-fila" [class.hay]="totalDe(m) - esp !== 0">
+                  <span>Diferencia</span>
+                  <frc-importe
+                    [valor]="totalDe(m) - esp"
+                    [moneda]="m.denominacion ?? null"
+                    [simbolo]="m.simbolo ?? null"
+                  />
+                </div>
+              </div>
+            }
           </div>
-          <div class="total diferencia" [class.hay]="totalDe(m) - esp !== 0">
-            <span>Diferencia</span>
-            <frc-importe
-              [valor]="totalDe(m) - esp"
-              [moneda]="m.denominacion ?? null"
-              [simbolo]="m.simbolo ?? null"
-            />
-          </div>
-        }
-      </frc-seccion>
-    }
+        </mat-tab>
+      }
+    </mat-tab-group>
   `,
   styles: `
+    .resumen {
+      display: flex;
+      gap: var(--sp-2);
+      /*
+        Si hay más monedas de las que entran a lo ancho, la tira scrollea
+        sola. El cuerpo de la página nunca scrollea de costado.
+      */
+      overflow-x: auto;
+      padding-bottom: var(--sp-1);
+    }
+    .resumen-item {
+      flex: 1 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: var(--sp-2) var(--sp-3);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+    }
+    .resumen-item.activa { border-color: var(--brand-text); }
+    .resumen-moneda {
+      font-size: var(--fs-caption);
+      color: var(--text-mute);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .resumen-dif { font-size: var(--fs-caption); color: var(--text-soft); }
+    .resumen-dif.hay { color: var(--danger); }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      padding-top: var(--sp-3);
+    }
+
+    /*
+      Tres columnas: denominación, cantidad y subtotal. Las laterales pueden
+      encogerse con minmax(0, ...) y la fila nunca desborda: en 320 px un
+      desborde horizontal deja el campo de cantidad fuera de alcance.
+    */
     .fila {
       display: grid;
-      grid-template-columns: 1fr 5rem auto;
+      grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, auto);
       align-items: center;
-      gap: var(--sp-3);
+      gap: var(--sp-2);
       padding: var(--sp-2) 0;
       border-bottom: 1px solid var(--border-light);
     }
     .valor {
       font-size: var(--fs-body);
       color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .cantidad {
       width: 100%;
+      min-width: 0;
       padding: var(--sp-2);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       background: var(--surface);
       color: var(--text);
+      font-family: var(--font-num);
       font-size: var(--fs-body);
       text-align: right;
     }
@@ -127,30 +226,32 @@ export interface EsperadoPorMoneda {
       outline-offset: -1px;
     }
     .subtotal {
-      min-width: 7rem;
       text-align: right;
       color: var(--text-soft);
       font-size: var(--fs-label);
+      overflow: hidden;
     }
-    .total {
+
+    .cierre {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      padding-top: var(--sp-3);
+    }
+    .cierre-fila {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      padding-top: var(--sp-3);
-      font-weight: var(--fw-medium);
-    }
-    .total.esperado,
-    .total.diferencia {
-      padding-top: var(--sp-2);
-      font-weight: var(--fw-regular);
       color: var(--text-soft);
+      font-size: var(--fs-label);
     }
-    .total.diferencia.hay {
+    .cierre-fila.hay {
       color: var(--danger);
       font-weight: var(--fw-medium);
     }
-    .sin-denominaciones {
-      margin: 0;
+
+    .aviso {
+      margin: 0 0 var(--sp-2);
       color: var(--warn);
       font-size: var(--fs-label);
     }
@@ -159,11 +260,14 @@ export interface EsperadoPorMoneda {
 export class ConteoFormComponent {
   readonly monedas = input.required<Moneda[]>();
 
-  /** Solo en el cierre. Sin esto no se muestran las filas de esperado. */
+  /** Solo en el cierre. Sin esto no se muestra ninguna fila de esperado. */
   readonly esperado = input<EsperadoPorMoneda | null>(null);
 
   /** Emite en cada cambio: la pantalla decide cuándo guardar. */
   readonly cambio = output<Conteo>();
+
+  readonly indiceActivo = signal(0);
+  readonly monedaActiva = computed(() => this.monedas()[this.indiceActivo()] ?? null);
 
   /**
    * Cantidades por id de denominación.
@@ -175,9 +279,17 @@ export class ConteoFormComponent {
    */
   private readonly cantidades = signal<ReadonlyMap<number, number>>(new Map());
 
-  readonly totalGs = computed(() => this.totalPorDenominacion('GUARANI'));
-  readonly totalRs = computed(() => this.totalPorDenominacion('REAL'));
-  readonly totalDs = computed(() => this.totalPorDenominacion('DOLAR'));
+  readonly totalGs = computed(() => this.totalDelCampo('totalGs'));
+  readonly totalRs = computed(() => this.totalDelCampo('totalRs'));
+  readonly totalDs = computed(() => this.totalDelCampo('totalDs'));
+
+  nombre(m: Moneda): string {
+    return m.denominacion ?? `Moneda ${m.id}`;
+  }
+
+  campoDe(m: Moneda): 'totalGs' | 'totalRs' | 'totalDs' | undefined {
+    return m.denominacion ? CAMPO_DE_TOTAL[m.denominacion] : undefined;
+  }
 
   denominacionesDe(m: Moneda): MonedaBillete[] {
     return (m.monedaBilleteList ?? [])
@@ -207,19 +319,12 @@ export class ConteoFormComponent {
 
   esperadoDe(m: Moneda): number | null {
     const esp = this.esperado();
-    if (!esp) {
+    const campo = this.campoDe(m);
+    if (!esp || !campo) {
       return null;
     }
-    switch (m.denominacion) {
-      case 'GUARANI':
-        return esp.gs ?? 0;
-      case 'REAL':
-        return esp.rs ?? 0;
-      case 'DOLAR':
-        return esp.ds ?? 0;
-      default:
-        return null;
-    }
+    const valor = { totalGs: esp.gs, totalRs: esp.rs, totalDs: esp.ds }[campo];
+    return valor ?? null;
   }
 
   contar(b: MonedaBillete, evento: Event): void {
@@ -264,11 +369,12 @@ export class ConteoFormComponent {
 
   /** `true` si no se contó nada en ninguna moneda. */
   vacio(): boolean {
-    return this.totalGs() === 0 && this.totalRs() === 0 && this.totalDs() === 0;
+    return (this.armar().conteoMonedaList ?? []).length === 0;
   }
 
-  private totalPorDenominacion(denominacion: string): number {
-    const moneda = this.monedas().find((m) => m.denominacion === denominacion);
-    return moneda ? this.totalDe(moneda) : 0;
+  private totalDelCampo(campo: 'totalGs' | 'totalRs' | 'totalDs'): number {
+    return this.monedas()
+      .filter((m) => this.campoDe(m) === campo)
+      .reduce((suma, m) => suma + this.totalDe(m), 0);
   }
 }

@@ -187,3 +187,69 @@ describe('Arqueo de caja', () => {
     expect(form.esperadoDe(m)).toBe(500_000);
   });
 });
+
+describe('Arqueo — monedas dinámicas', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+  });
+
+  const crear = (monedas: Moneda[]) => {
+    const f = TestBed.createComponent(ConteoFormComponent);
+    f.componentRef.setInput('monedas', monedas);
+    f.detectChanges();
+    return f;
+  };
+
+  it('crea un tab por cada moneda que manda el servidor', () => {
+    const f = crear([
+      guarani([billete(1, 50_000)]),
+      Object.assign(new Moneda(), { id: 2, denominacion: 'REAL', simbolo: 'R$' }),
+      Object.assign(new Moneda(), { id: 3, denominacion: 'DOLAR', simbolo: 'US$' }),
+    ]);
+
+    const tabs = f.nativeElement.querySelectorAll('.mat-mdc-tab');
+    expect(tabs.length).toBe(3);
+  });
+
+  it('no asume tres monedas: con una sola muestra un solo tab', () => {
+    const f = crear([guarani([billete(1, 50_000)])]);
+
+    expect(f.nativeElement.querySelectorAll('.mat-mdc-tab').length).toBe(1);
+  });
+
+  /*
+    Los tabs se generan de los datos, pero `Conteo` tiene exactamente tres
+    campos de total. Una moneda fuera de ese contrato se contaría en pantalla
+    y se perdería al guardar, así que la pantalla lo dice.
+  */
+  it('avisa cuando el servidor no tiene dónde guardar el arqueo de una moneda', () => {
+    const f = crear([
+      Object.assign(new Moneda(), {
+        id: 7,
+        denominacion: 'EURO',
+        simbolo: '€',
+        monedaBilleteList: [billete(1, 50)],
+      }),
+    ]);
+
+    expect(f.componentInstance.campoDe(f.componentInstance.monedas()[0]!)).toBeUndefined();
+    expect(f.nativeElement.textContent).toContain('no tiene dónde guardar');
+  });
+
+  it('suma dos monedas que comparten campo de total', () => {
+    // Caso defensivo: si el servidor devolviera dos registros GUARANI, el
+    // total no puede quedarse con el de una sola.
+    const f = crear([guarani([billete(1, 50_000)]), guarani([billete(2, 10_000)])]);
+    const form = f.componentInstance;
+    const escribirEn = (b: MonedaBillete, texto: string) => {
+      const input = document.createElement('input');
+      input.value = texto;
+      form.contar(b, { target: input } as unknown as Event);
+    };
+
+    escribirEn(form.monedas()[0]!.monedaBilleteList![0]!, '1');
+    escribirEn(form.monedas()[1]!.monedaBilleteList![0]!, '2');
+
+    expect(form.totalGs()).toBe(70_000);
+  });
+});

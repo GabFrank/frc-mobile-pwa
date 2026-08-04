@@ -199,9 +199,19 @@ export const cajaQuery = gql`
       }
       balance {
         totalGeneral
+        totalAperGs
+        totalVentaGs
+        totalTarjeta
+        totalRetiroGs
+        totalGastoGs
+        totalCierreGs
         diferenciaGs
         diferenciaRs
         diferenciaDs
+      }
+      sucursal {
+        id
+        nombre
       }
     }
   }

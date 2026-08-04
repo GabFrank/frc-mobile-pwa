@@ -45,9 +45,14 @@ import { CajaService } from './caja.service';
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
       } @else if (caja(); as c) {
         <frc-seccion titulo="Estado" [panel]="true">
-          <frc-dato etiqueta="Estado">
-            <frc-estado-chip enumerado="PdvCajaEstado" [valor]="c.estado ?? null" />
-          </frc-dato>
+          @if (c.estado) {
+            <frc-dato etiqueta="Estado">
+              <frc-estado-chip enumerado="PdvCajaEstado" [valor]="c.estado" />
+            </frc-dato>
+          } @else {
+            <!-- Las cajas replicadas viejas no tienen estado cargado. -->
+            <frc-dato etiqueta="Estado" valor="Sin registrar" />
+          }
           <frc-dato etiqueta="Sucursal" [valor]="c.sucursal?.nombre ?? '—'" />
           <frc-dato etiqueta="Maletín" [valor]="c.maletin?.descripcion ?? '—'" />
         </frc-seccion>
@@ -108,6 +113,17 @@ export class CajaDetallePage {
   /** Viene de la ruta `:id` con `withComponentInputBinding`. */
   readonly id = input<string>();
 
+  /**
+   * Sucursal de la caja, por query param `?suc=`.
+   *
+   * ⚠️ **El id de caja NO es único en el sistema.** Cada filial numera sus
+   * cajas desde 1, y el central las guarda con una clave compuesta
+   * (`EmbebedPrimaryKey(id, sucursalId)`). En la lista de cajas abiertas de
+   * un usuario aparecen varias "Caja 1" de sucursales distintas: navegar
+   * solo con el id traía la caja de otra sucursal.
+   */
+  readonly suc = input<string>();
+
   readonly caja = signal<PdvCaja | null>(null);
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
@@ -133,6 +149,8 @@ export class CajaDetallePage {
     // undefined, y la pantalla mostraba siempre "caja inválida".
     effect(() => {
       const id = this.id();
+      // `suc` se lee acá para que el efecto también reaccione si cambia.
+      this.suc();
       if (id !== undefined) {
         this.cargar();
       }
@@ -150,7 +168,8 @@ export class CajaDetallePage {
     this.cargando.set(true);
     this.error.set(null);
 
-    this.cajaService.porId(id).subscribe({
+    const suc = Number(this.suc());
+    this.cajaService.porId(id, Number.isFinite(suc) && suc > 0 ? suc : undefined).subscribe({
       next: (caja) => {
         this.caja.set(caja);
         this.cargando.set(false);

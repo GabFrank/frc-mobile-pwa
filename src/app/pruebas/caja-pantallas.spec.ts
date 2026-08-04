@@ -122,10 +122,22 @@ describe('Pantallas de caja', () => {
       await f.whenStable();
       f.detectChanges();
 
-      expect(cajaService.porId).toHaveBeenCalledWith(4);
+      expect(cajaService.porId).toHaveBeenCalledWith(4, undefined);
       // Antes de la corrección mostraba siempre "no es válida".
       expect(texto(f)).not.toContain('no es válida');
       expect(texto(f)).toContain('Caja 04');
+    });
+
+    it('resuelve la caja en su sucursal cuando la URL la trae', async () => {
+      const f = TestBed.createComponent(CajaDetallePage);
+      f.componentRef.setInput('id', '1');
+      f.componentRef.setInput('suc', '16');
+      f.detectChanges();
+      await f.whenStable();
+
+      // El id de caja se repite entre filiales: sin la sucursal, el central
+      // resuelve la "Caja 1" de otra sucursal.
+      expect(cajaService.porId).toHaveBeenCalledWith(1, 16);
     });
 
     it('avisa cuando el id no sirve', async () => {

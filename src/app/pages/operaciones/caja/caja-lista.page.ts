@@ -113,7 +113,16 @@ export class CajaListaPage {
     return fechaLegible(caja.fechaApertura);
   }
 
+  /**
+   * La sucursal viaja en la URL junto al id.
+   *
+   * El id de caja se repite entre filiales —cada una numera desde 1—, así
+   * que sin `suc` el detalle resuelve la caja de otra sucursal.
+   */
   abrir(caja: PdvCaja): void {
-    void this.router.navigate(['/operaciones/caja', caja.id]);
+    const suc = caja.sucursalId ?? caja.sucursal?.id;
+    void this.router.navigate(['/operaciones/caja', caja.id], {
+      queryParams: suc != null ? { suc } : undefined,
+    });
   }
 }

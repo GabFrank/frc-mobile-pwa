@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { PdvCaja } from 'src/app/domains/caja/caja.model';
@@ -27,10 +28,15 @@ import { CajaService } from './caja.service';
     SkeletonComponent,
     EstadoVacioComponent,
     EstadoErrorComponent,
+    MatButtonModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Caja" [conVolver]="true">
+      <div acciones>
+        <button matButton="filled" class="ancho" (click)="nueva()">Abrir caja</button>
+      </div>
+
       @if (cargando()) {
         <frc-skeleton [cantidad]="3" [conMiniatura]="true" />
       } @else if (error()) {
@@ -67,6 +73,7 @@ import { CajaService } from './caja.service';
     </frc-pagina>
   `,
   styles: `
+    .ancho { width: 100%; }
     .desde {
       font-size: var(--fs-caption);
       color: var(--text-soft);
@@ -107,6 +114,10 @@ export class CajaListaPage {
         this.cargando.set(false);
       },
     });
+  }
+
+  nueva(): void {
+    void this.router.navigate(['/operaciones/caja/abrir']);
   }
 
   desde(caja: PdvCaja): string | null {

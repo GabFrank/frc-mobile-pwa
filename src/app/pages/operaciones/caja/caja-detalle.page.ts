@@ -8,6 +8,9 @@ import {
   signal,
 } from '@angular/core';
 
+import { MatButtonModule } from '@angular/material/button';
+import { Router } from '@angular/router';
+
 import { PdvCaja } from 'src/app/domains/caja/caja.model';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
@@ -35,6 +38,7 @@ import { CajaService } from './caja.service';
     EstadoChipComponent,
     SkeletonComponent,
     EstadoErrorComponent,
+    MatButtonModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -97,9 +101,16 @@ import { CajaService } from './caja.service';
           </frc-seccion>
         }
       }
+
+      @if (caja(); as c) {
+        <div acciones>
+          <button matButton="filled" class="ancho" (click)="irACerrar(c)">Cerrar caja</button>
+        </div>
+      }
     </frc-pagina>
   `,
   styles: `
+    .ancho { width: 100%; }
     .aviso {
       margin: var(--sp-2) 0 0;
       font-size: var(--fs-label);
@@ -109,6 +120,7 @@ import { CajaService } from './caja.service';
 })
 export class CajaDetallePage {
   private readonly cajaService = inject(CajaService);
+  private readonly router = inject(Router);
 
   /** Viene de la ruta `:id` con `withComponentInputBinding`. */
   readonly id = input<string>();
@@ -154,6 +166,14 @@ export class CajaDetallePage {
       if (id !== undefined) {
         this.cargar();
       }
+    });
+  }
+
+  /** La sucursal viaja con el id: el id de caja no es único entre filiales. */
+  irACerrar(caja: PdvCaja): void {
+    const suc = caja.sucursal?.id ?? caja.sucursalId ?? Number(this.suc());
+    void this.router.navigate(['/operaciones/caja', caja.id, 'cerrar'], {
+      queryParams: Number.isFinite(suc) ? { suc } : undefined,
     });
   }
 

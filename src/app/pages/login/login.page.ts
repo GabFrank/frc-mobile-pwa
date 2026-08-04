@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { SesionService } from 'src/app/core/auth/sesion.service';
@@ -29,7 +29,7 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
-    MatSlideToggleModule,
+    MatCheckboxModule,
     IconoComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -73,13 +73,15 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
           </button>
         </mat-form-field>
 
+        <!--
+          Casillas y no switches: un switch promete efecto inmediato, y
+          estas opciones se aplican recién al tocar Entrar. Además el switch
+          de Material mide 52x32, más que el interior del campo de usuario,
+          y para una opción secundaria pesaba más que el formulario.
+        -->
         <div class="opciones">
-          <mat-slide-toggle formControlName="recordarUsuario">
-            Recordar usuario
-          </mat-slide-toggle>
-          <mat-slide-toggle formControlName="mantenerConectado">
-            Mantenerme conectado
-          </mat-slide-toggle>
+          <mat-checkbox formControlName="recordarUsuario">Recordar usuario</mat-checkbox>
+          <mat-checkbox formControlName="mantenerConectado">Mantenerme conectado</mat-checkbox>
           <p class="nota">
             {{
               form.controls.mantenerConectado.value
@@ -151,7 +153,14 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
     .opciones {
       display: flex;
       flex-direction: column;
-      gap: var(--sp-2);
+      /*
+        Sin gap: la casilla ya trae su propia área táctil de 40 px y
+        sumarle separación la despegaba del formulario.
+      */
+      margin: calc(var(--sp-2) * -1) 0;
+    }
+    .opciones mat-checkbox {
+      --mat-checkbox-label-text-size: var(--fs-label);
     }
     .nota {
       margin: 0;

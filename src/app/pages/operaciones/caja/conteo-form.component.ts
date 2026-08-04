@@ -63,7 +63,7 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
       entrar a cada una para saber cuánto se lleva contado.
     -->
     <div class="resumen">
-      @for (m of monedas(); track m.id) {
+      @for (m of visibles(); track m.id) {
         <div class="resumen-item" [class.activa]="m.id === monedaActiva()?.id">
           <span class="resumen-moneda">{{ nombre(m) }}</span>
           <frc-importe
@@ -89,7 +89,7 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
       (selectedIndexChange)="indiceActivo.set($event)"
       animationDuration="120ms"
     >
-      @for (m of monedas(); track m.id) {
+      @for (m of visibles(); track m.id) {
         <mat-tab [label]="nombre(m)">
           <div class="panel">
             @if (!campoDe(m)) {
@@ -121,10 +121,6 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
                   />
                 </span>
               </div>
-            } @empty {
-              <p class="aviso">
-                Esta moneda no tiene denominaciones cargadas. Sin ellas no se puede arquear.
-              </p>
             }
 
             @if (esperadoDe(m); as esp) {
@@ -266,8 +262,23 @@ export class ConteoFormComponent {
   /** Emite en cada cambio: la pantalla decide cuándo guardar. */
   readonly cambio = output<Conteo>();
 
+  /**
+   * Las que se pueden arquear: activas y con al menos una denominación
+   * vigente.
+   *
+   * Una moneda dada de baja, o una que quedó cargada sin denominaciones, no
+   * tiene nada que contar: su tab estaría vacío y solo agregaría un lugar
+   * más donde mirar. Se filtran acá y no en cada pantalla para que la
+   * apertura y el cierre no puedan divergir.
+   */
+  readonly visibles = computed(() =>
+    this.monedas().filter(
+      (m) => m.activo !== false && this.denominacionesDe(m).length > 0,
+    ),
+  );
+
   readonly indiceActivo = signal(0);
-  readonly monedaActiva = computed(() => this.monedas()[this.indiceActivo()] ?? null);
+  readonly monedaActiva = computed(() => this.visibles()[this.indiceActivo()] ?? null);
 
   /**
    * Cantidades por id de denominación.
@@ -353,7 +364,7 @@ export class ConteoFormComponent {
     conteo.totalGs = this.totalGs();
     conteo.totalRs = this.totalRs();
     conteo.totalDs = this.totalDs();
-    conteo.conteoMonedaList = this.monedas()
+    conteo.conteoMonedaList = this.visibles()
       .flatMap((m) => this.denominacionesDe(m))
       // Solo se mandan las denominaciones con cantidad: una fila en cero no
       // aporta nada al arqueo y ensucia el detalle guardado.
@@ -373,7 +384,7 @@ export class ConteoFormComponent {
   }
 
   private totalDelCampo(campo: 'totalGs' | 'totalRs' | 'totalDs'): number {
-    return this.monedas()
+    return this.visibles()
       .filter((m) => this.campoDe(m) === campo)
       .reduce((suma, m) => suma + this.totalDe(m), 0);
   }

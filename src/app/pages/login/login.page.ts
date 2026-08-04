@@ -1,9 +1,18 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { SesionService } from 'src/app/core/auth/sesion.service';
@@ -20,6 +29,7 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
+    MatSlideToggleModule,
     IconoComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,6 +57,7 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
           <mat-label>Contraseña</mat-label>
           <input
             matInput
+            #clave
             formControlName="password"
             [type]="verClave() ? 'text' : 'password'"
             autocomplete="current-password"
@@ -61,6 +72,22 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
             <frc-icono [nombre]="verClave() ? 'ocultar' : 'ver'" [tamano]="20" />
           </button>
         </mat-form-field>
+
+        <div class="opciones">
+          <mat-slide-toggle formControlName="recordarUsuario">
+            Recordar usuario
+          </mat-slide-toggle>
+          <mat-slide-toggle formControlName="mantenerConectado">
+            Mantenerme conectado
+          </mat-slide-toggle>
+          <p class="nota">
+            {{
+              form.controls.mantenerConectado.value
+                ? 'La sesión sigue abierta aunque cierres el navegador.'
+                : 'La sesión se cierra al cerrar el navegador.'
+            }}
+          </p>
+        </div>
 
         @if (error()) {
           <p class="error" role="alert">{{ error() }}</p>
@@ -121,6 +148,16 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
       color: var(--danger);
       font-size: var(--fs-label);
     }
+    .opciones {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+    }
+    .nota {
+      margin: 0;
+      color: var(--text-mute);
+      font-size: var(--fs-caption);
+    }
     .ojo {
       background: none;
       border: none;
@@ -142,9 +179,26 @@ export class LoginPage {
   private readonly dialogo = inject(DialogoService);
 
   readonly form = this.fb.nonNullable.group({
-    nickname: ['', Validators.required],
+    nickname: [this.auth.usuarioRecordado ?? '', Validators.required],
     password: ['', Validators.required],
+    // Ambas arrancan en true: es lo que espera quien usa la app todos los
+    // días desde su propio teléfono. Quien entre desde una máquina prestada
+    // las apaga y la sesión muere al cerrar el navegador.
+    recordarUsuario: [this.auth.preferencias.recordarUsuario],
+    mantenerConectado: [this.auth.preferencias.mantenerConectado],
   });
+
+  private readonly clave = viewChild<ElementRef<HTMLInputElement>>('clave');
+
+  constructor() {
+    // Con el usuario ya cargado, lo único que falta escribir es la
+    // contraseña: el foco arranca ahí y en el teléfono el teclado sube solo.
+    afterNextRender(() => {
+      if (this.auth.usuarioRecordado) {
+        this.clave()?.nativeElement.focus();
+      }
+    });
+  }
 
   readonly enviando = signal(false);
   readonly verClave = signal(false);
@@ -157,8 +211,11 @@ export class LoginPage {
     this.enviando.set(true);
     this.error.set(null);
 
-    const { nickname, password } = this.form.getRawValue();
-    const resultado = await this.auth.login(nickname, password);
+    const { nickname, password, recordarUsuario, mantenerConectado } = this.form.getRawValue();
+    const resultado = await this.auth.login(nickname, password, {
+      recordarUsuario,
+      mantenerConectado,
+    });
 
     if (!resultado.ok) {
       this.enviando.set(false);
@@ -175,12 +232,20 @@ export class LoginPage {
       await this.auth.logout(false);
       // Se muestra el motivo real: "intentá de nuevo" no ayuda si el problema
       // es del servidor o de la query, que es lo habitual acá.
-      const motivo = this.sesion.ultimoError();
-      this.error.set(
-        motivo
-          ? `Entraste, pero no se pudieron cargar tus datos: ${motivo}`
-          : 'Entraste, pero no se pudieron cargar tus datos. Intentá de nuevo.',
-      );
+      // Un fallo de red no es culpa de la credencial: decirlo así evita que
+      // el cajero pruebe contraseñas cuando el problema es el servidor.
+      if (this.sesion.ultimoFalloFueDeRed()) {
+        this.error.set(
+          'Tus datos son correctos, pero no se pudo contactar al servidor. Revisá la conexión y probá de nuevo.',
+        );
+      } else {
+        const motivo = this.sesion.ultimoError();
+        this.error.set(
+          motivo
+            ? `Entraste, pero no se pudieron cargar tus datos: ${motivo}`
+            : 'Entraste, pero no se pudieron cargar tus datos. Intentá de nuevo.',
+        );
+      }
       return;
     }
 

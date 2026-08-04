@@ -8,11 +8,18 @@ import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { generateUUID } from 'src/app/generic/utils/string-utils';
 import { ServerConfigService } from '../config/server-config.service';
 import {
-  AUTH_TOKEN_KEY,
-  AUTH_USER_ID_KEY,
   DEVICE_ID_KEY,
+  guardarBandera,
+  leerBandera,
+  MANTENER_CONECTADO_KEY,
+  mantenerConectado,
+  RECORDAR_USUARIO_KEY,
+  guardarSesion,
+  guardarUsuarioRecordado,
   hayTokenEnSesion,
   leerUsuarioIdEnSesion,
+  leerUsuarioRecordado,
+  limpiarSesion,
 } from './auth.tokens';
 
 interface RespuestaLogin {
@@ -21,6 +28,14 @@ interface RespuestaLogin {
   sucursal?: Sucursal;
   message?: string;
   mensaje?: string;
+}
+
+/** Lo que el usuario eligió en el login sobre cómo recordarlo. */
+export interface PreferenciasDeSesion {
+  /** Precargar el nombre la próxima vez. **Nunca la contraseña.** */
+  recordarUsuario: boolean;
+  /** Que la sesión sobreviva al cierre del navegador. */
+  mantenerConectado: boolean;
 }
 
 export interface ResultadoLogin {
@@ -80,7 +95,31 @@ export class AuthService {
     return id;
   }
 
-  async login(nickname: string, password: string): Promise<ResultadoLogin> {
+  /** El usuario a precargar en el login, si pidió ser recordado. */
+  get usuarioRecordado(): string | null {
+    return leerUsuarioRecordado();
+  }
+
+  /** Las preferencias vigentes, para marcar los controles del login. */
+  get preferencias(): PreferenciasDeSesion {
+    return {
+      recordarUsuario: leerBandera(RECORDAR_USUARIO_KEY),
+      mantenerConectado: mantenerConectado(),
+    };
+  }
+
+  async login(
+    nickname: string,
+    password: string,
+    preferencias?: PreferenciasDeSesion,
+  ): Promise<ResultadoLogin> {
+    // ⚠️ Las preferencias se aplican ANTES de guardar la sesión: de ellas
+    // depende en qué almacén va el token.
+    if (preferencias) {
+      guardarBandera(MANTENER_CONECTADO_KEY, preferencias.mantenerConectado);
+      guardarUsuarioRecordado(nickname, preferencias.recordarUsuario);
+    }
+
     try {
       const res = await firstValueFrom(
         this.http.post<RespuestaLogin>(this.serverConfig.loginUrl, { nickname, password }),
@@ -90,8 +129,9 @@ export class AuthService {
         return { ok: false, mensaje: this.mensajeCredenciales(res?.message ?? res?.mensaje) };
       }
 
-      localStorage.setItem(AUTH_TOKEN_KEY, res.token);
-      localStorage.setItem(AUTH_USER_ID_KEY, String(res.usuarioId));
+      // Dónde se guarda depende de "mantenerme conectado": `localStorage`
+      // si está prendido, `sessionStorage` si no.
+      guardarSesion(res.token, res.usuarioId);
       this._sucursal.set(res.sucursal ?? null);
 
       return {
@@ -120,9 +160,15 @@ export class AuthService {
     }
   }
 
+  /**
+   * Cierra la sesión.
+   *
+   * ⚠️ **No borra el usuario recordado.** Recordar el nombre es una
+   * preferencia del dispositivo, no parte de la sesión: si se borrara acá,
+   * el cajero tendría que volver a escribirlo cada vez que sale.
+   */
   async logout(navegar = true): Promise<void> {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(AUTH_USER_ID_KEY);
+    limpiarSesion();
     this._usuario.set(null);
     this._sucursal.set(null);
     if (navegar) {

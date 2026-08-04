@@ -7,6 +7,7 @@ export class Moneda {
   id?: number;
   denominacion?: string;
   simbolo?: string;
+  activo?: boolean;
   pais?: Pais;
   creadoEn?: Date;
   usuario?: Usuario;

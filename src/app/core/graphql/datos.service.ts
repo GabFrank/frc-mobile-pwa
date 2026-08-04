@@ -313,6 +313,28 @@ export class ErrorDatos extends Error {
   }
 }
 
+/**
+ * `true` si el fallo es de transporte y no del servidor rechazando algo.
+ *
+ * La distinción importa al restaurar la sesión: un token inválido hay que
+ * descartarlo, pero "no llegué al servidor" es transitorio y no debería
+ * costarle al usuario volver a escribir su contraseña.
+ *
+ * Se detecta por el `status` de `HttpErrorResponse`: `0` es un fallo de red
+ * —el navegador no obtuvo respuesta—, y 5xx es el servidor caído o
+ * reiniciándose. Un 401 o 403, en cambio, es una respuesta legítima que
+ * dice que la credencial no sirve.
+ */
+export function esFalloDeTransporte(err: unknown): boolean {
+  const causa = err instanceof ErrorDatos ? err.causa : err;
+  const status = (causa as { status?: unknown } | null)?.status;
+  if (typeof status === 'number') {
+    return status === 0 || status >= 500;
+  }
+  const mensaje = err instanceof Error ? err.message : String(err ?? '');
+  return /failed to fetch|networkerror|err_connection|unknown error|0 unknown/i.test(mensaje);
+}
+
 function mensajeDeError(err: unknown): string {
   if (err instanceof ErrorDatos) {
     return err.message;

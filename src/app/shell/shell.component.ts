@@ -86,8 +86,13 @@ import { DESTINOS } from './nav';
       min-width: 0;
       position: relative;
       display: grid;
-      grid-template-rows: 1fr;
-      grid-template-columns: 1fr;
+      /*
+        minmax(0, 1fr), no 1fr: una pista 1fr toma como mínimo el min-content
+        de su item, así que una pantalla ancha estiraba la pista en vez de
+        obligar al contenido a reflowear.
+      */
+      grid-template-rows: minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
     }
     .area > router-outlet { display: none; }
 

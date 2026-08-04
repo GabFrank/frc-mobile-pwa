@@ -27,6 +27,7 @@ export const monedasConDenominacionesQuery = gql`
       id
       denominacion
       simbolo
+      activo
       cambio
       monedaBilleteList {
         id

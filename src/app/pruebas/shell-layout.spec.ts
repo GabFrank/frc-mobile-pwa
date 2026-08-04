@@ -80,7 +80,7 @@ describe('Layout del shell', () => {
     // El contenedor estira solo: una celda de grid, sin selector que apunte
     // al hijo.
     expect(sinEspacios).toMatch(/\.area\{[^}]*display:grid/);
-    expect(sinEspacios).toMatch(/\.area\{[^}]*grid-template-columns:1fr/);
+    expect(sinEspacios).toMatch(/\.area\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
     // El outlet sale del grid en vez de reservar celda.
     expect(sinEspacios).toContain('.area>router-outlet{display:none;}');
     // Y no vuelve a aparecer una regla scopeada sobre los hijos de `.area`,

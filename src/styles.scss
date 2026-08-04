@@ -130,6 +130,26 @@ html {
   --mat-button-tonal-container-shape: var(--radius-sm);
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+//  La pantalla ruteada puede encogerse
+//
+//  Un item de grid trae `min-width: auto`, que significa "no me encojas por
+//  debajo de mi min-content". Con una pantalla cuyo contenido no baja de
+//  cierto ancho —acá, un contenedor con scroll vertical, que suma el ancho
+//  de su barra al min-content— el item se desbordaba de su celda y la app
+//  scrolleaba de costado, dejando la última columna cortada.
+//
+//  Esta regla NO puede vivir en los estilos del shell: la pantalla la crea
+//  el router, no la plantilla del shell, así que no lleva su atributo de
+//  encapsulación y ningún selector scopeado la alcanza. Va acá, global.
+//
+//  Lo que no entre igual no se pierde: cada bloque ancho scrollea dentro de
+//  su propio contenedor.
+// ═══════════════════════════════════════════════════════════════════════
+frc-shell .area > *:not(router-outlet) {
+  min-width: 0;
+}
+
 // El autocompletado de Chrome pinta el campo con su propio color y rompe el
 // tema. Se fuerza la superficie y el texto del sistema.
 input:-webkit-autofill,

@@ -200,11 +200,21 @@ describe('Arqueo — monedas dinámicas', () => {
     return f;
   };
 
-  it('crea un tab por cada moneda que manda el servidor', () => {
+  it('crea un tab por cada moneda arqueable que manda el servidor', () => {
     const f = crear([
       guarani([billete(1, 50_000)]),
-      Object.assign(new Moneda(), { id: 2, denominacion: 'REAL', simbolo: 'R$' }),
-      Object.assign(new Moneda(), { id: 3, denominacion: 'DOLAR', simbolo: 'US$' }),
+      Object.assign(new Moneda(), {
+        id: 2,
+        denominacion: 'REAL',
+        simbolo: 'R$',
+        monedaBilleteList: [billete(5, 100)],
+      }),
+      Object.assign(new Moneda(), {
+        id: 3,
+        denominacion: 'DOLAR',
+        simbolo: 'US$',
+        monedaBilleteList: [billete(6, 20)],
+      }),
     ]);
 
     const tabs = f.nativeElement.querySelectorAll('.mat-mdc-tab');
@@ -251,5 +261,76 @@ describe('Arqueo — monedas dinámicas', () => {
     escribirEn(form.monedas()[1]!.monedaBilleteList![0]!, '2');
 
     expect(form.totalGs()).toBe(70_000);
+  });
+});
+
+describe('Arqueo — monedas que no se pueden contar', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+  });
+
+  const crear = (monedas: Moneda[]) => {
+    const f = TestBed.createComponent(ConteoFormComponent);
+    f.componentRef.setInput('monedas', monedas);
+    f.detectChanges();
+    return f;
+  };
+
+  it('no muestra una moneda sin denominaciones cargadas', () => {
+    const f = crear([
+      guarani([billete(1, 50_000)]),
+      Object.assign(new Moneda(), { id: 2, denominacion: 'REAL', monedaBilleteList: [] }),
+      Object.assign(new Moneda(), { id: 3, denominacion: 'DOLAR' }),
+    ]);
+
+    expect(f.componentInstance.visibles().map((m) => m.denominacion)).toEqual(['GUARANI']);
+    expect(f.nativeElement.querySelectorAll('.mat-mdc-tab').length).toBe(1);
+  });
+
+  it('no muestra una moneda dada de baja', () => {
+    const f = crear([
+      guarani([billete(1, 50_000)]),
+      Object.assign(new Moneda(), {
+        id: 2,
+        denominacion: 'REAL',
+        activo: false,
+        monedaBilleteList: [billete(5, 100)],
+      }),
+    ]);
+
+    expect(f.componentInstance.visibles().map((m) => m.denominacion)).toEqual(['GUARANI']);
+  });
+
+  it('no muestra una moneda cuyas denominaciones están todas dadas de baja', () => {
+    const f = crear([
+      guarani([billete(1, 50_000)]),
+      Object.assign(new Moneda(), {
+        id: 2,
+        denominacion: 'REAL',
+        monedaBilleteList: [billete(5, 100, { activo: false })],
+      }),
+    ]);
+
+    expect(f.componentInstance.visibles()).toHaveLength(1);
+  });
+
+  it('tampoco la cuenta al armar el conteo', () => {
+    const oculta = billete(5, 100);
+    const f = crear([
+      guarani([billete(1, 50_000)]),
+      Object.assign(new Moneda(), {
+        id: 2,
+        denominacion: 'REAL',
+        activo: false,
+        monedaBilleteList: [oculta],
+      }),
+    ]);
+    const form = f.componentInstance;
+    const input = document.createElement('input');
+    input.value = '7';
+    form.contar(oculta, { target: input } as unknown as Event);
+
+    expect(form.totalRs()).toBe(0);
+    expect(form.armar().conteoMonedaList).toHaveLength(0);
   });
 });

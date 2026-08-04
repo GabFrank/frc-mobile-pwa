@@ -107,21 +107,27 @@ html {
   --mat-sys-corner-large: var(--radius-md);
 }
 
-// Los botones de texto y contorno pintan la marca como TEXTO sobre una
-// superficie clara, donde `--brand` no alcanza el contraste mínimo.
+// Los botones de texto y contorno pintan la marca como TEXTO sobre la
+// superficie, donde el rojo de relleno no alcanza el contraste mínimo.
 .mat-mdc-button,
 .mat-mdc-outlined-button {
-  --mdc-text-button-label-text-color: var(--brand-text);
-  --mdc-outlined-button-label-text-color: var(--brand-text);
+  --mat-button-text-label-text-color: var(--brand-text);
+  --mat-button-outlined-label-text-color: var(--brand-text);
 }
 
 // Los botones de Material traen su propio radio de píldora, que no sale de
 // `--mat-sys-corner-*`.
+//
+// ⚠️ Los tokens son `--mat-button-*`, NO `--mdc-*-button-*`. Con los nombres
+// viejos las reglas se aplicaban sin error y los botones seguían saliendo
+// como píldoras, contra los 8 px del diseño aprobado. Mismo caso que el
+// snackbar: Material 21 renombró la familia y el CSS no avisa.
 .mat-mdc-button-base {
-  --mdc-filled-button-container-shape: var(--radius-sm);
-  --mdc-outlined-button-container-shape: var(--radius-sm);
-  --mdc-text-button-container-shape: var(--radius-sm);
-  --mdc-protected-button-container-shape: var(--radius-sm);
+  --mat-button-filled-container-shape: var(--radius-sm);
+  --mat-button-outlined-container-shape: var(--radius-sm);
+  --mat-button-text-container-shape: var(--radius-sm);
+  --mat-button-protected-container-shape: var(--radius-sm);
+  --mat-button-tonal-container-shape: var(--radius-sm);
 }
 
 // El autocompletado de Chrome pinta el campo con su propio color y rompe el

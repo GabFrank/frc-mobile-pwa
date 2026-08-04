@@ -62,11 +62,19 @@ export const valesPendientesAprobacionMobileQuery = gql`
   }
 `;
 
+// ⚠️ NO pidas `vacacion` acá. El tipo `VacacionPeriodo` del central no tiene
+// ese campo —ni ningún otro que lleve al funcionario—, así que la query
+// portada de `frc-mobile` fallaba entera con
+// "Field 'vacacion' in type 'VacacionPeriodo' is undefined": la bandeja de
+// aprobaciones de vacaciones no podía funcionar.
+//
+// Consecuencia operativa: **el servidor no dice de quién es cada pedido**.
+// La pantalla lo aclara en vez de mostrar un nombre inventado. Resolverlo
+// requiere agregar el vínculo al funcionario en el schema del central.
 export const vacacionesPendientesAprobacionMobileQuery = gql`
   query {
     data: vacacionesPendientesAprobacionMobile {
-      id fechaDesde fechaHasta diasUsados estado
-      vacacion { id funcionario { id persona { id nombre } } }
+      id fechaDesde fechaHasta diasUsados estado observacion
     }
   }
 `;

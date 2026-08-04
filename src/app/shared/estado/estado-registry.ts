@@ -42,6 +42,31 @@ const REGISTRO: Record<ClaveEstado, EstadoVisual> = {
   'TipoDevolucion.CON_PROVEEDOR': { etiqueta: 'Con proveedor', tono: 'info',    icono: 'sucursal' },
   'TipoDevolucion.SIN_PROVEEDOR': { etiqueta: 'Sin proveedor', tono: 'neutral', icono: 'documento' },
 
+  // ─── RRHH ──────────────────────────────────────────────────────────────
+  'LiquidacionSueldoEstado.BORRADOR': { etiqueta: 'Borrador', tono: 'neutral', icono: 'documento' },
+  'LiquidacionSueldoEstado.APROBADA': { etiqueta: 'Aprobada', tono: 'info',    icono: 'check' },
+  'LiquidacionSueldoEstado.PAGADA':   { etiqueta: 'Pagada',   tono: 'ok',      icono: 'checkCirculo' },
+  'LiquidacionSueldoEstado.ANULADA':  { etiqueta: 'Anulada',  tono: 'danger',  icono: 'cancelar' },
+
+  // Un vale DESCONTADO ya se cobró en la liquidación: es el final feliz del
+  // ciclo, no un problema. CONFIRMADO es "aprobado pero todavía no cobrado".
+  'ValeEstado.SOLICITADO': { etiqueta: 'Solicitado', tono: 'warn',    icono: 'reloj' },
+  'ValeEstado.CONFIRMADO': { etiqueta: 'Confirmado', tono: 'info',    icono: 'check' },
+  'ValeEstado.DESCONTADO': { etiqueta: 'Descontado', tono: 'ok',      icono: 'checkCirculo' },
+  'ValeEstado.ANULADO':    { etiqueta: 'Anulado',    tono: 'danger',  icono: 'cancelar' },
+
+  'VacacionPeriodoEstado.SOLICITADA': { etiqueta: 'Solicitada', tono: 'warn',    icono: 'reloj' },
+  'VacacionPeriodoEstado.PROGRAMADA': { etiqueta: 'Programada', tono: 'info',    icono: 'check' },
+  'VacacionPeriodoEstado.EN_CURSO':   { etiqueta: 'En curso',   tono: 'info',    icono: 'reloj' },
+  'VacacionPeriodoEstado.GOZADA':     { etiqueta: 'Gozada',     tono: 'ok',      icono: 'checkCirculo' },
+  'VacacionPeriodoEstado.CANCELADA':  { etiqueta: 'Cancelada',  tono: 'danger',  icono: 'cancelar' },
+
+  // AUSENTE es rojo y no naranja a propósito: un día sin marcar tiene
+  // consecuencias en la liquidación, no es un pendiente administrativo.
+  'EstadoJornada.NORMAL':     { etiqueta: 'Normal',     tono: 'ok',      icono: 'checkCirculo' },
+  'EstadoJornada.INCOMPLETO': { etiqueta: 'Incompleto', tono: 'warn',    icono: 'alerta' },
+  'EstadoJornada.AUSENTE':    { etiqueta: 'Ausente',    tono: 'danger',  icono: 'error' },
+
   // ─── Caja ──────────────────────────────────────────────────────────────
   'PdvCajaEstado.EN_PROCESO':                        { etiqueta: 'En proceso',              tono: 'warn',   icono: 'reloj' },
   'PdvCajaEstado.CONCLUIDO':                         { etiqueta: 'Concluido',               tono: 'ok',     icono: 'checkCirculo' },

@@ -41,10 +41,16 @@ export function fechaLegible(valor: string | Date | null | undefined): string | 
   if (valor instanceof Date) {
     return Number.isNaN(valor.getTime()) ? null : formatDate(valor, 'dd/MM/yyyy HH:mm', 'en-US');
   }
-  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(valor);
+  // La hora es OPCIONAL. El central manda `yyyy-MM-dd HH:mm` para lo que
+  // ocurre en un momento —la apertura de una caja— y `yyyy-MM-dd` para lo que
+  // ocurre en un día —la fecha de un vale, una jornada—. Exigir la hora hacía
+  // que estas últimas devolvieran null y la pantalla mostrara "Sin fecha"
+  // teniendo el dato.
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(valor);
   if (!m) {
     return null;
   }
   const [, anio, mes, dia, hora, minuto] = m;
-  return `${dia}/${mes}/${anio} ${hora}:${minuto}`;
+  const fecha = `${dia}/${mes}/${anio}`;
+  return hora != null ? `${fecha} ${hora}:${minuto}` : fecha;
 }

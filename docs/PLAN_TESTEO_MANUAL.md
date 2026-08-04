@@ -386,6 +386,75 @@ npx http-server dist/mobile-pwa/browser -p 4300
 
 ---
 
+## Bloque 7 — Abrir y cerrar caja *(nuevo, sin probar)*
+
+⚠️ **Nada de este bloque se probó contra el central real.** La apertura se
+proxea a la filial y necesita que la sucursal tenga IP configurada; si tu
+sesión está en una sucursal sin filial detrás, el central va a rechazar la
+operación. Ahora lo dice en vez de festejar un éxito falso.
+
+### 7.1 · La pantalla carga
+1. Operaciones → Caja → **Abrir caja**
+
+**Esperado:** un tab por moneda, con las denominaciones que manda el servidor.
+Las monedas inactivas o sin denominaciones **no** aparecen. El selector de
+maletín solo ofrece los que no están en uso por otra caja.
+
+### 7.2 · El campo de cantidad no se mueve
+1. Escribir `2` en una denominación y `250` en otra
+
+**Esperado:** los campos quedan alineados. El total de la moneda, arriba,
+sube en vivo. Ningún campo se desplaza mientras escribís.
+
+### 7.3 · Cantidades inválidas
+1. Escribir `-2` en una denominación
+2. Escribir `2.7` en otra
+
+**Esperado:** `-2` no suma nada; `2.7` cuenta como 2. Una cantidad negativa
+restaría del arqueo sin verse en el total.
+
+### 7.4 · Abrir sin maletín
+1. Sin elegir maletín, tocar **Abrir caja**
+
+**Esperado:** avisa que falta el maletín. No llama al servidor.
+
+### 7.5 · Abrir con arqueo en cero
+1. Elegir maletín, no contar nada, **Abrir caja**
+
+**Esperado:** pregunta si querés abrir sin efectivo. **No lo bloquea** —una
+caja nueva sin fondo inicial es legítima—.
+
+### 7.6 · **Apertura real**
+1. Elegir maletín, cargar un arqueo, **Abrir caja**, confirmar
+
+**Esperado:** aviso de éxito y vuelta a la lista, con la caja nueva. Si el
+central rechaza, un aviso rojo con el motivo — **nunca** "Caja abierta" sobre
+una operación fallida.
+
+> Si falla, mirá los logs del central: busca `ABRIR CAJA`. Los motivos
+> habituales son sucursal sin IP o filial inaccesible.
+
+### 7.7 · El maletín queda tomado
+1. Volver a **Abrir caja**
+
+**Esperado:** el maletín recién usado **ya no aparece** en la lista.
+
+### 7.8 · Cierre con diferencia
+1. Detalle de la caja abierta → **Cerrar caja**
+2. Cargar un arqueo distinto al esperado
+
+**Esperado:** mientras cargás se ve **Esperado** y **Diferencia**, la
+diferencia en rojo cuando no es cero. Al confirmar, la diferencia que queda
+registrada es la del backend, no la de la pantalla.
+
+### 7.9 · Cerrar sin cargar nada
+1. En el cierre, tocar **Cerrar caja** sin contar
+
+**Esperado:** avisa que falta el arqueo. A diferencia de la apertura, acá sí
+se bloquea: cerrar sin contar haría la diferencia incalculable.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -396,7 +465,6 @@ Para que no se reporte como falla:
 | Operaciones | Solo Caja. Faltan pedidos, devoluciones, solicitud de gastos, venta-tarjeta |
 | Inventario, transferencias, producto | No portados |
 | Marcación, mis-RRHH, notificaciones | No portados |
-| Abrir y cerrar caja | El servicio existe; falta la pantalla |
 | Escáner de códigos | No implementado (llega con producto) |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
 | Cámara, GPS, biometría | No implementados |
@@ -413,7 +481,8 @@ Para que no se reporte como falla:
 | 4 · Sistema de diseño | 10 | | | |
 | 5 · PWA | 4 | | | |
 | 6 · Accesibilidad | 5 | | | |
-| **Total** | **40** | | | |
+| 7 · Abrir y cerrar caja | 9 | | | |
+| **Total** | **49** | | | |
 
 ### Los cinco que más importan
 

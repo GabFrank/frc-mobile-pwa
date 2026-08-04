@@ -16,7 +16,8 @@ Esto existe porque el repo anterior acumuló, sin que nadie lo decidiera: 14 val
 |---|---|
 | Espaciado | `--sp-1` 4 · `--sp-2` 8 · `--sp-3` 12 · `--sp-4` 16 · `--sp-6` 24 · `--sp-8` 32 · `--sp-12` 48 |
 | Radios | `--radius-sm` 8 · `--radius-md` 12 · `--radius-full` 999 |
-| Marca | `--brand` `#db392e` · `--brand-accent` `#f57c00` |
+| Marca | `--brand-fill` (fondo) · `--brand-text` (texto e íconos) · `--brand-accent` |
+| Rellenos | `--brand-fill` · `--ok-fill` · `--warn-fill` · `--danger-fill` · `--info-fill` · `--neutral-fill` · `--on-tono` |
 | Estado | `--ok` · `--warn` · `--danger` · `--info` · `--neutral` (+ sus `-bg`) |
 | Superficies | `--bg` · `--surface` · `--surface-sunken` · `--border` · `--border-light` |
 | Texto | `--text` · `--text-soft` · `--text-mute` |
@@ -24,6 +25,19 @@ Esto existe porque el repo anterior acumuló, sin que nadie lo decidiera: 14 val
 | Elevación | `--elev-0/1/2` |
 
 **El rojo de marca identifica, no comunica estado.** Se usa en la acción principal y en la navegación activa, nunca para decir "error" — para eso está `--danger`.
+
+**Relleno y texto son tokens distintos, y no es una sutileza.** Un tono como fondo de botón necesita ser oscuro para aguantar una etiqueta blanca; el mismo tono como color de texto sobre una superficie oscura necesita ser claro para no verse apagado. Son requisitos opuestos:
+
+| Uso | Token | Por qué |
+|---|---|---|
+| Fondo de botón, toast, barra superior | `--*-fill` | No cambia con el tema. La etiqueta siempre es `--on-tono` (blanco), entre 4,53:1 y 6,07:1 |
+| Texto e íconos sobre la superficie | `--brand-text`, `--ok`, `--warn`… | En oscuro son claros. Blanco encima de ellos daría 1,94:1 en `--warn` |
+
+Confundirlos produce exactamente dos síntomas: botones desteñidos, o íconos que "se ven apagados".
+
+**Los contrastes se miden, no se juzgan a ojo.** `src/app/pruebas/contraste.spec.ts` calcula el ratio WCAG de cada combinación en los dos temas. Existe porque el juicio visual falló en las dos direcciones: creí que un texto oscuro sobre rojo no alcanzaba (daba 4,83:1, pasaba) y no vi que el naranja de advertencia daba 2,75:1 sobre su chip.
+
+**En oscuro la card se despega aclarando la superficie, no con sombra.** Una sombra sobre casi-negro no se ve. El test exige 1,15× entre `--surface` y `--bg`; en tema claro no, porque ahí la sombra y el borde sí se ven.
 
 **Tema oscuro incluido desde el día uno.** `prefers-color-scheme` como señal por defecto, y `data-theme` en `:root` cuando el usuario elige explícitamente.
 
@@ -149,3 +163,18 @@ La duración del toast la fija el tono, no el llamador: un error necesita más t
 - Excepción documentada: `<frc-card>` y `<frc-pagina>` usan `@Output() EventEmitter` porque necesitan `.observed` para saber si hay quien escuche — la API de signals no lo expone.
 - Los estilos van inline en el componente, usando tokens.
 - Todo lo interactivo tiene estado de foco visible.
+- **Nunca un backtick dentro de `template:` o `styles:`** — rompe el literal, y el error que sale no señala la causa.
+- **Nunca un token `--mdc-*`.** Material 21 renombró toda esa familia a `--mat-*`, y los nombres viejos fallan en silencio: la regla se aplica, la variable queda definida y el componente conserva su valor por defecto. Ya costó tres veces (toasts grises, botones píldora, color de etiqueta). Hay un test que lo impide.
+
+## Estirar contenido que uno no puede seleccionar
+
+Aparece dos veces y con la misma solución, así que conviene tenerlo presente: **el contenido proyectado y las pantallas ruteadas no llevan el atributo de encapsulación del componente que los aloja.** Un selector como `.area > *` o `.acciones > *` nunca los alcanza.
+
+La salida no es `::ng-deep` ni una regla global por caso, sino **que el reparto lo decida el contenedor**:
+
+| Caso | Solución |
+|---|---|
+| Pantalla ruteada dentro del shell | `display: grid` con una celda: el item la ocupa sin que haga falta apuntarlo |
+| Barra de acciones de `frc-pagina` | `grid-auto-flow: column` + `grid-auto-columns: 1fr`: un botón llena, dos se reparten |
+
+También conviene recordar que `router-outlet` **no envuelve** al componente ruteado — Angular lo inserta como hermano — así que compite por el espacio si no se lo saca del flujo.

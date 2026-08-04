@@ -66,6 +66,8 @@ Sin el alias, el resultado llega `undefined` **sin error ni log**.
 
 Esto existe porque el repo anterior acumuló 14 valores de espaciado, 8 radios y `#f44336` hardcodeado 50 veces.
 
+**Relleno y texto son tokens distintos.** `--brand-fill` es el fondo de un botón y siempre lleva etiqueta blanca (`--on-tono`); `--brand-text` es el rojo para íconos y texto sobre la superficie, que en tema oscuro tiene que ser claro. Confundirlos da botones desteñidos o íconos ilegibles. Lo mismo para los cinco tonos semánticos.
+
 ### 3 · Componentes genéricos por regla de tres
 
 Un componente se vuelve genérico cuando aparece en **3 o más pantallas de módulos distintos**, o cuando **encapsula una regla de negocio** que no debe duplicarse — como el importe en guaraníes, que no lleva decimales.
@@ -103,11 +105,13 @@ src/
 
 **Fase 2 del plan de migración, con la Ola A iniciada.**
 
-Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con restauración de sesión, shell responsivo, módulo de caja (lista y detalle), galería viva en `/design-system`.
+Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con «recordar usuario» y «mantenerme conectado», shell responsivo, **módulo de caja completo** (lista, detalle, apertura y cierre con arqueo), galería viva en `/design-system`.
 
-Pendiente: el resto de los módulos, escáner, cámara, GPS, biometría y el transporte WebSocket para suscripciones.
+Pendiente: el resto de la Ola A (`solicitud-pago`, `pago`, `mis-rrhh`, `mis-finanzas`), las olas B a D, escáner, cámara, GPS, biometría y el transporte WebSocket para suscripciones.
 
-Verificación: **210 tests**, cero errores de tipos, AOT en verde, y una pasada manual contra el central real (ver el estado de ejecución en el plan de testeo).
+**Falta el test manual de apertura y cierre de caja** — bloque 7 del plan. Es lo único implementado que no se ejecutó contra el central real, porque la apertura se proxea a la filial.
+
+Verificación: **249 tests**, cero errores de tipos, AOT en verde, y dos pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
@@ -121,3 +125,5 @@ Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.
 4. Calcular dinero en el cliente
 5. Push directo a `master` o `develop` — siempre vía PR
 6. Dar por terminado un módulo sin sus estados de carga, vacío y error
+7. Escribir un token `--mdc-*`: Material 21 renombró toda esa familia a `--mat-*` y los nombres viejos **fallan en silencio** — la regla se aplica, la variable queda definida y el componente sigue con su valor por defecto. Hay un test que lo impide
+8. Escribir un backtick dentro de `template:` o `styles:` de un componente: rompe el literal y el error que sale no señala la causa

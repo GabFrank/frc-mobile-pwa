@@ -334,3 +334,28 @@ describe('Arqueo — monedas que no se pueden contar', () => {
     expect(form.armar().conteoMonedaList).toHaveLength(0);
   });
 });
+
+/*
+  Un campo que se mueve mientras se tipea es difícil de usar, y contando
+  efectivo hace perder el lugar. Pasaba porque la fila tenía una tercera
+  columna con el subtotal, dimensionada por su propio texto: al escribir una
+  cantidad, el subtotal crecía de "Gs. 0" a "Gs. 20.000" y empujaba el campo.
+*/
+describe('Arqueo — el campo de cantidad no se mueve', () => {
+  const css = (ShellDeEstilos: unknown) =>
+    (ShellDeEstilos as { ɵcmp: { styles: string[] } }).ɵcmp.styles
+      .join('\n')
+      .replace(/\[_nghost-%COMP%\]|\[_ngcontent-%COMP%\]/g, '')
+      .replace(/\s+/g, '');
+
+  it('la columna de la cantidad tiene ancho fijo', () => {
+    const estilos = css(ConteoFormComponent);
+
+    expect(estilos).toMatch(/\.fila\{[^}]*grid-template-columns:minmax\(0,1fr\)5\.5rem/);
+  });
+
+  it('no queda ninguna columna dimensionada por su contenido', () => {
+    // `auto` en la última pista es exactamente lo que hacía moverse al campo.
+    expect(css(ConteoFormComponent)).not.toMatch(/\.fila\{[^}]*minmax\(0,auto\)/);
+  });
+});

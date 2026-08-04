@@ -113,13 +113,6 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
                   (input)="contar(b, $event)"
                   [attr.aria-label]="'Cantidad de ' + etiqueta(b, m)"
                 />
-                <span class="subtotal">
-                  <frc-importe
-                    [valor]="subtotalDe(b)"
-                    [moneda]="m.denominacion ?? null"
-                    [simbolo]="m.simbolo ?? null"
-                  />
-                </span>
               </div>
             }
 
@@ -186,15 +179,25 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
     }
 
     /*
-      Tres columnas: denominación, cantidad y subtotal. Las laterales pueden
-      encogerse con minmax(0, ...) y la fila nunca desborda: en 320 px un
-      desborde horizontal deja el campo de cantidad fuera de alcance.
+      Dos columnas, y la de la cantidad con ancho FIJO.
+
+      Antes había una tercera con el subtotal de la fila, dimensionada por su
+      texto: al escribir una cantidad el subtotal pasaba de "Gs. 0" a
+      "Gs. 20.000" y empujaba el campo hacia la izquierda. Un input que se
+      mueve mientras se tipea es difícil de usar y, contando efectivo, hace
+      perder el lugar.
+
+      El subtotal además no aportaba: es una multiplicación trivial, y el
+      total de la moneda ya está arriba y se actualiza en vivo.
+
+      La columna de la izquierda puede encogerse (minmax con 0) para que la
+      fila no desborde en 320 px.
     */
     .fila {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, auto);
+      grid-template-columns: minmax(0, 1fr) 5.5rem;
       align-items: center;
-      gap: var(--sp-2);
+      gap: var(--sp-3);
       padding: var(--sp-2) 0;
       border-bottom: 1px solid var(--border-light);
     }
@@ -221,13 +224,6 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
       outline: 2px solid var(--brand-text);
       outline-offset: -1px;
     }
-    .subtotal {
-      text-align: right;
-      color: var(--text-soft);
-      font-size: var(--fs-label);
-      overflow: hidden;
-    }
-
     .cierre {
       display: flex;
       flex-direction: column;
@@ -320,6 +316,7 @@ export class ConteoFormComponent {
     return this.cantidades().get(b.id ?? -1) ?? 0;
   }
 
+  /** Aporte de una denominación al total. Ya no se muestra por fila. */
   subtotalDe(b: MonedaBillete): number {
     return this.cantidadDe(b) * (b.valor ?? 0);
   }

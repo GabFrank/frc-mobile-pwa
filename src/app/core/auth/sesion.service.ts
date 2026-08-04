@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { UsuarioLoginGQL } from 'src/app/graphql/personas/usuario/graphql/usuarioLogin';
@@ -23,6 +23,9 @@ import { AuthService } from './auth.service';
  */
 @Injectable({ providedIn: 'root' })
 export class SesionService {
+  /** Motivo del último fallo al cargar la sesión. Para mostrar y diagnosticar. */
+  readonly ultimoError = signal<string | null>(null);
+
   private readonly datos = inject(DatosService);
   private readonly auth = inject(AuthService);
   private readonly usuarioLoginGQL = inject(UsuarioLoginGQL);
@@ -34,6 +37,7 @@ export class SesionService {
    * usuario deja la app en un estado ambiguo.
    */
   async cargarUsuario(usuarioId: number): Promise<boolean> {
+    this.ultimoError.set(null);
     try {
       const usuario = await firstValueFrom(
         this.datos.porId<Usuario>(this.usuarioLoginGQL, usuarioId, undefined, {
@@ -42,13 +46,30 @@ export class SesionService {
         }),
       );
       if (!usuario?.id) {
+        this.registrarFallo('El servidor no devolvió datos para este usuario.');
         return false;
       }
       this.auth.establecerUsuario(usuario);
       return true;
-    } catch {
+    } catch (error) {
+      this.registrarFallo(
+        error instanceof Error ? error.message : 'Error desconocido al cargar el usuario.',
+      );
       return false;
     }
+  }
+
+  /**
+   * Deja rastro del motivo del fallo.
+   *
+   * Sin esto, un error en la query de sesión se tragaba en silencio y la
+   * pantalla solo decía "no se pudieron cargar tus datos", sin ninguna pista
+   * de por qué — que fue exactamente lo que pasó cuando la query pedía un
+   * campo inexistente en el schema del central.
+   */
+  private registrarFallo(mensaje: string): void {
+    this.ultimoError.set(mensaje);
+    console.error('[sesión] No se pudo cargar el usuario:', mensaje);
   }
 
   /**

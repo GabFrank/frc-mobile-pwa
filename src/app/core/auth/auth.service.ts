@@ -105,11 +105,18 @@ export class AuthService {
     }
   }
 
-  /** Publica el usuario ya resuelto por GraphQL tras el login o al restaurar. */
+  /**
+   * Publica el usuario ya resuelto por GraphQL tras el login o al restaurar.
+   *
+   * La sucursal se toma de `inicioSesion.sucursal`: el tipo `Usuario` del
+   * central no tiene campo `sucursal` propio. En el login normal ya viene por
+   * la respuesta REST, pero al restaurar sesión esta es la única fuente.
+   */
   establecerUsuario(usuario: Usuario | null): void {
     this._usuario.set(usuario);
-    if (usuario?.sucursal) {
-      this._sucursal.set(usuario.sucursal);
+    const deLaSesion = usuario?.inicioSesion?.sucursal;
+    if (deLaSesion) {
+      this._sucursal.set(deLaSesion);
     }
   }
 

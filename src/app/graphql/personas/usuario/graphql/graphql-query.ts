@@ -69,6 +69,7 @@ export const usuarioQuery = gql`
         }
         sucursal {
           id
+          nombre
         }
         tipoDespositivo
         idDispositivo
@@ -94,9 +95,10 @@ export const usuarioQuery = gql`
 // texto plano— y quedaba en memoria del cliente sin ninguna necesidad. Ver
 // REPORTE_VULNERABILIDADES.md del workspace.
 //
-// Sí pide `sucursal`: los roles y la sucursal son lo que la UI necesita para
-// decidir qué mostrar, y al restaurar sesión no hay respuesta REST de login
-// de donde sacarla.
+// La sucursal se toma de `inicioSesion.sucursal`. ⚠️ El tipo `Usuario` del
+// central NO tiene campo `sucursal` — pedirlo hace fallar toda la query, y
+// con ella el arranque de sesión. Verificado contra
+// central/src/main/resources/graphql/personas/usuario.graphqls.
 export const usuarioLoginQuery = gql`
   query ($id: ID!) {
     data: usuario(id: $id) {
@@ -109,10 +111,6 @@ export const usuarioLoginQuery = gql`
         email
         nacimiento
         imagenes
-      }
-      sucursal {
-        id
-        nombre
       }
       creadoEn
       usuario {
@@ -128,6 +126,7 @@ export const usuarioLoginQuery = gql`
         }
         sucursal {
           id
+          nombre
         }
         tipoDespositivo
         idDispositivo
@@ -164,6 +163,7 @@ export const usuarioPorPersonaIdQuery = gql`
         }
         sucursal {
           id
+          nombre
         }
         tipoDespositivo
         idDispositivo
@@ -199,6 +199,7 @@ export const saveUsuario = gql`
         }
         sucursal {
           id
+          nombre
         }
         tipoDespositivo
         idDispositivo
@@ -239,6 +240,7 @@ export const inicioSesionListPorUsuarioIdAndAbiertoGQL = gql`
         }
         sucursal {
           id
+          nombre
         }
         tipoDespositivo
         idDispositivo

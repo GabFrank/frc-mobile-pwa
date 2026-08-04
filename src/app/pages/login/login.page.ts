@@ -171,7 +171,14 @@ export class LoginPage {
     if (usuarioId == null || !(await this.sesion.cargarUsuario(usuarioId))) {
       this.enviando.set(false);
       await this.auth.logout(false);
-      this.error.set('Entraste, pero no se pudieron cargar tus datos. Intentá de nuevo.');
+      // Se muestra el motivo real: "intentá de nuevo" no ayuda si el problema
+      // es del servidor o de la query, que es lo habitual acá.
+      const motivo = this.sesion.ultimoError();
+      this.error.set(
+        motivo
+          ? `Entraste, pero no se pudieron cargar tus datos: ${motivo}`
+          : 'Entraste, pero no se pudieron cargar tus datos. Intentá de nuevo.',
+      );
       return;
     }
 

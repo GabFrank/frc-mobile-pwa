@@ -23,6 +23,18 @@ html {
   ));
 }
 
+// ⚠️ `border-box` en todo. Faltaba, y con el default `content-box` el padding
+// se SUMA al ancho declarado: un footer con `width: 100%` y 16 px de padding
+// medía 32 px más que su contenedor y se desbordaba. Lo mismo con cualquier
+// panel al que se le dé un ancho y un padding a la vez, que es casi todo.
+//
+// Es la línea que hace que `width` signifique lo que uno espera.
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   // Sigue la preferencia del sistema; el toggle in-app la pisa
   // vía [data-theme] en :root (ver _tokens.scss).

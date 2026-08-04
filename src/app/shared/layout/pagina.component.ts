@@ -83,13 +83,27 @@ import { IconoComponent } from '../icono/icono.component';
       gap: var(--sp-3);
     }
     .acciones:empty { display: none; }
+    /*
+      Grid y no flex: el contenido de esta barra lo proyecta la PANTALLA, no
+      esta plantilla, así que no lleva el atributo de encapsulación de
+      frc-pagina y ninguna regla de acá puede apuntarlo: un selector como
+      .acciones > algun-hijo nunca lo alcanzaría.
+
+      Con grid-auto-columns 1fr el reparto lo decide el contenedor: un
+      botón ocupa todo el ancho, dos se reparten mitad y mitad, sin que la
+      pantalla tenga que declarar nada. Antes el envoltorio se encogía a su
+      contenido y el botón principal quedaba de 112 px en una barra de 430.
+    */
     .acciones {
       flex-shrink: 0;
       padding: var(--sp-3) var(--sp-4);
       border-top: 1px solid var(--border);
       background: var(--surface);
-      display: flex;
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
       gap: var(--sp-2);
+      padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
     }
   `,
 })

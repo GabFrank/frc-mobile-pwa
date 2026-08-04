@@ -68,7 +68,7 @@ import { IconoComponent } from '../icono/icono.component';
     .card.clickable { cursor: pointer; }
     .card.clickable:hover { background: var(--surface-sunken); }
     .card.clickable:focus-visible {
-      outline: 2px solid var(--brand);
+      outline: 2px solid var(--brand-text);
       outline-offset: 2px;
     }
     .thumb {

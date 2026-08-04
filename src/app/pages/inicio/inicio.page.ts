@@ -58,7 +58,7 @@ interface AccesoRapido {
       cursor: pointer;
       text-align: center;
     }
-    .acceso frc-icono { color: var(--brand); }
+    .acceso frc-icono { color: var(--brand-text); }
     .acceso:hover { background: var(--surface-sunken); }
   `,
 })

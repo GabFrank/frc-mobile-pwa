@@ -102,7 +102,7 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
       width: 64px;
       height: 64px;
       border-radius: var(--radius-full);
-      background: var(--brand);
+      background: var(--brand-fill);
       color: var(--on-brand);
       display: grid;
       place-items: center;

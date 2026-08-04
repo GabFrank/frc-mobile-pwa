@@ -118,8 +118,8 @@ import { DESTINOS } from './nav';
       text-decoration: none;
       padding: var(--sp-2) var(--sp-1);
     }
-    .destino.activo { color: var(--brand); }
-    .destino:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+    .destino.activo { color: var(--brand-text); }
+    .destino:focus-visible { outline: 2px solid var(--brand-text); outline-offset: -2px; }
 
     .bottom {
       display: flex;

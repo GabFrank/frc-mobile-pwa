@@ -56,7 +56,7 @@ export interface ConfirmacionData {
       max-width: 40ch;
     }
     .destructivo {
-      --mat-button-filled-container-color: var(--danger);
+      --mat-button-filled-container-color: var(--danger-fill);
       --mat-button-filled-label-text-color: var(--on-tono);
     }
   `,

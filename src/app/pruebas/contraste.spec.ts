@@ -38,7 +38,6 @@ const CLARO = {
   dangerBg: '#fbeaea',
   infoBg: '#e8eff8',
   neutralBg: '#f0eeed',
-  onTono: '#ffffff',
   bg: '#f7f5f4',
   surface: '#ffffff',
   text: '#1c1917',
@@ -60,7 +59,6 @@ const OSCURO = {
   dangerBg: '#331d1d',
   infoBg: '#1a2836',
   neutralBg: '#332e2b',
-  onTono: '#1c1917',
   bg: '#16130f',
   surface: '#2a2523',
   text: '#f2ede9',
@@ -129,12 +127,32 @@ describe.each([
     1,94:1 sobre `--warn`. Un aviso de advertencia era prácticamente
     invisible sobre su propio fondo.
   */
-  it.each(['ok', 'warn', 'danger', 'info', 'neutral'] as const)(
-    'el texto sobre un relleno de %s se lee',
-    (tono) => {
-      expect(contraste(t.onTono, t[tono])).toBeGreaterThanOrEqual(AA);
-    },
-  );
+});
+
+/*
+  Los RELLENOS son los mismos en los dos temas y siempre llevan etiqueta
+  blanca: un botón rojo se ve igual en claro y en oscuro.
+
+  Es una decisión, no una casualidad. El valor de un tono como relleno no
+  puede ser el mismo que como texto: el de texto tiene que resaltar contra
+  la superficie, y en oscuro eso lo obliga a ser claro —blanco encima daría
+  1.94:1 en `--warn`—. La alternativa era relleno claro con texto oscuro:
+  da los números, pero se lee como un botón desteñido.
+*/
+const RELLENOS = {
+  brand: '#db392e',
+  ok: '#2a7030',
+  warn: '#b34d00',
+  danger: '#c62828',
+  info: '#1565c0',
+  neutral: '#6b6462',
+};
+const BLANCO = '#ffffff';
+
+describe('Contraste — rellenos', () => {
+  it.each(Object.entries(RELLENOS))('la etiqueta blanca sobre el relleno %s', (_n, relleno) => {
+    expect(contraste(BLANCO, relleno)).toBeGreaterThanOrEqual(AA);
+  });
 });
 
 /*

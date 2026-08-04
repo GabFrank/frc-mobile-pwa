@@ -142,7 +142,7 @@ export type ConfigBuscador<T> = ConfigBuscadorLocal<T> | ConfigBuscadorPaginado<
       color: var(--text);
     }
     .fila:hover { background: var(--surface-sunken); }
-    .fila:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+    .fila:focus-visible { outline: 2px solid var(--brand-text); outline-offset: -2px; }
     .detalle { font-size: var(--fs-caption); color: var(--text-soft); }
     .mas { align-self: center; }
   `,

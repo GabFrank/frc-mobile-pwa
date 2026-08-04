@@ -42,13 +42,24 @@
   --info-bg:    #e8eff8;
   --neutral-bg: #f0eeed;
 
-  // Texto sobre un tono usado como RELLENO: toasts, botón destructivo.
+  // ─── Rellenos ────────────────────────────────────────────────
+  // Un tono como RELLENO —toast, botón destructivo— no puede ser el mismo
+  // valor que como TEXTO. El de texto tiene que resaltar contra la
+  // superficie: en oscuro eso lo obliga a ser claro. El de relleno tiene
+  // que aguantar la etiqueta encima.
   //
-  // Un solo valor cubre los cinco tonos porque en cada tema los cinco caen
-  // del mismo lado: en claro son oscuros (blanco encima da 5.28:1 a 6.07:1),
-  // en oscuro son claros (blanco encima caería a 1.94:1 en `--warn`
-  // —ilegible— mientras que texto oscuro da 5.02:1 a 9.00:1).
-  // Si alguna vez un tono se sale de ese rango, acá es donde se corrige.
+  // Estos valores NO cambian con el tema, y por eso la etiqueta siempre es
+  // blanca: un botón rojo se ve igual en claro y en oscuro. La alternativa
+  // era relleno claro con texto oscuro, que da los números pero se lee como
+  // un botón desteñido.
+  --brand-fill:   #db392e;  // blanco encima: 4.53:1
+  --ok-fill:      #2a7030;  // 6.07:1
+  --warn-fill:    #b34d00;  // 5.28:1
+  --danger-fill:  #c62828;  // 5.62:1
+  --info-fill:    #1565c0;  // 5.75:1
+  --neutral-fill: #6b6462;  // 5.79:1
+
+  /** Texto sobre cualquiera de los rellenos de arriba. */
   --on-tono: #ffffff;
 
   // ─── Superficies y texto ─────────────────────────────────────
@@ -132,10 +143,14 @@
 // Subir la superficie obligó a retocar `--danger` (quedaba en 4.34) y
 // `--neutral-bg` (quedaba idéntico a la superficie: el chip desaparecía).
 @mixin dark-tokens {
-  --brand:        #ff7368;  // 5.70:1 sobre la superficie (antes 4.67)
+  // El relleno de marca (--brand-fill) NO se redefine acá: es el mismo rojo
+  // en los dos temas, con la etiqueta blanca. Lo que sí cambia es el rojo
+  // como COLOR DE TEXTO E ÍCONO, que sobre una superficie oscura tiene que
+  // ser claro para no verse apagado.
+  --brand:        #ff7368;  // 5.70:1 sobre la superficie
   --brand-hover:  #ff8c82;
   --brand-accent: #ffa726;
-  --on-brand:     #1c1917;  // 6.58:1 encima del relleno de marca
+  --on-brand:     #ffffff;
   --brand-text:   #ff7368;
 
   --ok:      #66bb6a;
@@ -149,9 +164,6 @@
   --danger-bg:  #331d1d;
   --info-bg:    #1a2836;
   --neutral-bg: #332e2b;  // separado de --surface, si no el chip se pierde
-
-  // En oscuro los tonos son claros: encima va texto oscuro, no blanco.
-  --on-tono: #1c1917;
 
   --bg:             #16130f;
   --surface:        #2a2523;  // 1.22x sobre el fondo (antes 1.10x)
@@ -179,7 +191,6 @@
   --brand-text: #c43026;
   --ok: #2a7030; --warn: #b34d00; --danger: #c62828; --info: #1565c0; --neutral: #6b6462;
   --ok-bg: #e8f3e9; --warn-bg: #fdf0e3; --danger-bg: #fbeaea; --info-bg: #e8eff8; --neutral-bg: #f0eeed;
-  --on-tono: #ffffff;
   --bg: #f7f5f4; --surface: #ffffff; --surface-sunken: #efecea;
   --border: rgba(30, 20, 18, 0.12); --border-light: rgba(30, 20, 18, 0.06);
   --text: #1c1917; --text-soft: #6b6462; --text-mute: #767068;

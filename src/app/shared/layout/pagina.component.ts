@@ -50,7 +50,7 @@ import { IconoComponent } from '../icono/icono.component';
       align-items: center;
       gap: var(--sp-3);
       padding: var(--sp-3) var(--sp-4);
-      background: var(--brand);
+      background: var(--brand-fill);
       color: var(--on-brand);
       flex-shrink: 0;
     }

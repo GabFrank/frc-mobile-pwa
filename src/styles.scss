@@ -69,20 +69,20 @@ video {
 // ═══════════════════════════════════════════════════════════════════════
 html {
   // Marca y acción principal
-  --mat-sys-primary: var(--brand);
+  --mat-sys-primary: var(--brand-fill);
   --mat-sys-on-primary: var(--on-brand);
   --mat-sys-primary-container: var(--danger-bg);
-  --mat-sys-on-primary-container: var(--brand);
-  --mat-sys-inverse-primary: var(--brand);
+  --mat-sys-on-primary-container: var(--brand-text);
+  --mat-sys-inverse-primary: var(--brand-text);
 
   // Semántica de error
-  --mat-sys-error: var(--danger);
+  --mat-sys-error: var(--danger-fill);
   --mat-sys-on-error: var(--on-tono);
   --mat-sys-error-container: var(--danger-bg);
   --mat-sys-on-error-container: var(--danger);
 
   // Acento
-  --mat-sys-tertiary: var(--brand-accent);
+  --mat-sys-tertiary: var(--warn-fill);
   --mat-sys-on-tertiary: var(--on-tono);
 
   // Superficies y texto
@@ -144,7 +144,7 @@ input:-webkit-autofill:focus {
 // Foco visible en todo lo interactivo. Requisito de accesibilidad y,
 // en una app operada a las apuradas, de usabilidad.
 :focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-text);
   outline-offset: 2px;
 }
 
@@ -166,10 +166,10 @@ input:-webkit-autofill:focus {
 // se aplicaban sin error y el toast seguía saliendo con el gris de
 // `--mat-sys-inverse-surface`. Los nombres van en el contenedor, que es
 // donde Material los resuelve.
-.frc-snack--ok      { --mat-snack-bar-container-color: var(--ok); }
-.frc-snack--warn    { --mat-snack-bar-container-color: var(--warn); }
-.frc-snack--danger  { --mat-snack-bar-container-color: var(--danger); }
-.frc-snack--neutral { --mat-snack-bar-container-color: var(--neutral); }
+.frc-snack--ok      { --mat-snack-bar-container-color: var(--ok-fill); }
+.frc-snack--warn    { --mat-snack-bar-container-color: var(--warn-fill); }
+.frc-snack--danger  { --mat-snack-bar-container-color: var(--danger-fill); }
+.frc-snack--neutral { --mat-snack-bar-container-color: var(--neutral-fill); }
 .frc-snack--ok, .frc-snack--warn, .frc-snack--danger, .frc-snack--neutral {
   --mat-snack-bar-supporting-text-color: var(--on-tono);
   --mat-snack-bar-button-color: var(--on-tono);

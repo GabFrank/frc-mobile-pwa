@@ -58,7 +58,7 @@ export const cajasPorUsuarioIdQuery = gql`
 
 export const cajasPorFecha = gql`
   query ($inicio: String, $fin: String, $sucId:ID) {
-    data: cajasPorFecha(inicio: $inicio, fin: $fin, sucId:$susId) {
+    data: cajasPorFecha(inicio: $inicio, fin: $fin, sucId:$sucId) {
       id
       descripcion
       activo
@@ -460,6 +460,11 @@ export const abrirCajaDesdeServidorQuery = gql`
   }
 `;
 
+// ⚠️ El central NO tiene una mutation `cerrarCajaDesdeServidor`.
+// Apertura y cierre son la MISMA mutation: `abrirCajaDesdeServidor`.
+// Lo que las distingue es `cajaId`: si viene, el resolver lo trata como
+// cierre (`boolean esCierre = cajaId != null`, PdvCajaGraphQL.java:221).
+// El nombre de la operación es solo una etiqueta para los logs de red.
 export const cerrarCajaDesdeServidorQuery = gql`
   mutation cerrarCajaDesdeServidor($input:PdvCajaInput!, $conteoInput: ConteoInput!, $conteoMonedaInputList: [ConteoMonedaInput], $cajaId: ID!) {
     data: abrirCajaDesdeServidor(input:$input, conteoInput: $conteoInput, conteoMonedaInputList: $conteoMonedaInputList, cajaId: $cajaId) {
@@ -511,7 +516,12 @@ export const cajasAbiertasDesdeFilialesQuery = gql`
 `;
 
 // Query local del central sobre pdv_caja replicada (rápida, sin loop HTTP a filiales).
-// Selección liviana: list-venta-tarjeta y scan-venta-tarjeta solo necesitan id/sucursal/estado.
+// Selección liviana a propósito: no trae conteos ni balance.
+//
+// `estado` y `fechaApertura` SÍ se piden aunque el repo anterior no lo hiciera:
+// la lista muestra un chip de estado, y sin el campo el chip renderizaba "—"
+// en todas las filas. Son dos columnas de la misma fila ya cargada: no agregan
+// un join ni una consulta extra.
 export const cajaAbiertoPorUsuarioIdLocalQuery = gql`
   query ($id: ID!) {
     data: cajaAbiertoPorUsuarioId(id: $id) {
@@ -519,6 +529,8 @@ export const cajaAbiertoPorUsuarioIdLocalQuery = gql`
       sucursalId
       activo
       descripcion
+      estado
+      fechaApertura
       sucursal {
         id
         nombre
@@ -611,7 +623,7 @@ export const imprimirBalanceQuery = gql`
     $local: String
     $sucId: ID
     ) {
-    imprimirBalance(
+    data: imprimirBalance(
       id: $id
       printerName: $printerName
       local: $local,

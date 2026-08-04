@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { PdvCaja } from 'src/app/domains/caja/caja.model';
+import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
@@ -48,11 +49,28 @@ import { CajaService } from './caja.service';
             icono="dinero"
             (abrir)="abrir(caja)"
           >
-            <frc-estado-chip pie enumerado="PdvCajaEstado" [valor]="caja.estado ?? null" />
+            <!--
+              El chip solo aparece si hay estado. En la tabla replicada del
+              central, el estado viene null en las cajas viejas que quedaron
+              con activo = true; un chip vacío mostraba un guión en cada fila,
+              ocupando lugar sin decir nada. La fecha de apertura sí está y
+              es lo que permite reconocer una caja olvidada abierta.
+            -->
+            @if (caja.estado) {
+              <frc-estado-chip pie enumerado="PdvCajaEstado" [valor]="caja.estado" />
+            } @else if (desde(caja); as fecha) {
+              <span pie class="desde">Abierta el {{ fecha }}</span>
+            }
           </frc-card>
         }
       }
     </frc-pagina>
+  `,
+  styles: `
+    .desde {
+      font-size: var(--fs-caption);
+      color: var(--text-soft);
+    }
   `,
 })
 export class CajaListaPage {
@@ -89,6 +107,10 @@ export class CajaListaPage {
         this.cargando.set(false);
       },
     });
+  }
+
+  desde(caja: PdvCaja): string | null {
+    return fechaLegible(caja.fechaApertura);
   }
 
   abrir(caja: PdvCaja): void {

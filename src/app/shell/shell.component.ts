@@ -63,8 +63,33 @@ import { DESTINOS } from './nav';
     .shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
     .shell.tablet { flex-direction: row; }
 
-    .area { flex: 1; min-height: 0; min-width: 0; position: relative; display: flex; }
-    .area > * { flex: 1; min-width: 0; }
+    /*
+      ⚠️ Dos cosas hacen que esta zona sea delicada, y las dos juntas hacían
+      que la app entera renderizara a media pantalla y pegada a la derecha:
+
+      1. router-outlet NO envuelve al componente ruteado. Angular lo inserta
+         como HERMANO, justo después. Así que .area tiene dos hijos y el
+         outlet —vacío— competía por el ancho.
+      2. El componente ruteado lo crea el router, no esta plantilla, así que
+         NO lleva el atributo de encapsulación del shell. Cualquier regla
+         del tipo ".area > *" queda scopeada y nunca lo alcanza: la pantalla
+         se quedaba sin ancho asignado y colapsaba a su contenido.
+
+      Por eso el estiramiento NO se pide con una regla sobre los hijos, sino
+      que lo da el contenedor: en grid, el item ocupa la celda sin que haga
+      falta un selector que lo apunte. Y el outlet, con display:none, sale
+      del grid en vez de reservar una celda.
+    */
+    .area {
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+      position: relative;
+      display: grid;
+      grid-template-rows: 1fr;
+      grid-template-columns: 1fr;
+    }
+    .area > router-outlet { display: none; }
 
     .barra-carga {
       position: absolute;

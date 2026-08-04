@@ -1,6 +1,12 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
-/** Bloque con título, para agrupar contenido dentro de una pantalla. */
+/**
+ * Bloque con título, para agrupar contenido dentro de una pantalla.
+ *
+ * ⚠️ El cuerpo es una columna flex, así que **estira a sus hijos a lo ancho**.
+ * Es lo correcto para listas de cards, pero un botón suelto adentro ocupa
+ * todo el ancho. Envolvelo en un contenedor propio si no querés eso.
+ */
 @Component({
   selector: 'frc-seccion',
   standalone: true,

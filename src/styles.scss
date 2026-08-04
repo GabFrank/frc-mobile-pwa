@@ -55,6 +55,86 @@ video {
   max-width: 100%;
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PUENTE ENTRE MATERIAL Y NUESTROS TOKENS
+//
+//  `mat.theme()` genera su propia paleta a partir de `mat.$red-palette`,
+//  que NO es el rojo de marca: en tema oscuro daba `#ffb4a8` donde nuestro
+//  `--brand` es `#e8544a`. El resultado eran botones rosados con texto de
+//  bajo contraste, ajenos al sistema de diseño aprobado.
+//
+//  Acá se reasignan los tokens de sistema de Material a los nuestros. Como
+//  nuestras variables ya cambian con el tema, alcanza con apuntarlas una vez.
+// ═══════════════════════════════════════════════════════════════════════
+html {
+  // Marca y acción principal
+  --mat-sys-primary: var(--brand);
+  --mat-sys-on-primary: var(--on-brand);
+  --mat-sys-primary-container: var(--danger-bg);
+  --mat-sys-on-primary-container: var(--brand);
+  --mat-sys-inverse-primary: var(--brand);
+
+  // Semántica de error
+  --mat-sys-error: var(--danger);
+  --mat-sys-on-error: #fff;
+  --mat-sys-error-container: var(--danger-bg);
+  --mat-sys-on-error-container: var(--danger);
+
+  // Acento
+  --mat-sys-tertiary: var(--brand-accent);
+  --mat-sys-on-tertiary: #fff;
+
+  // Superficies y texto
+  --mat-sys-surface: var(--surface);
+  --mat-sys-surface-container: var(--surface);
+  --mat-sys-surface-container-low: var(--surface);
+  --mat-sys-surface-container-high: var(--surface-sunken);
+  --mat-sys-surface-container-highest: var(--surface-sunken);
+  --mat-sys-surface-variant: var(--surface-sunken);
+  --mat-sys-on-surface: var(--text);
+  --mat-sys-on-surface-variant: var(--text-soft);
+  --mat-sys-outline: var(--border);
+  --mat-sys-outline-variant: var(--border-light);
+  --mat-sys-background: var(--bg);
+  --mat-sys-on-background: var(--text);
+
+  // Radios. Material 3 usa forma de píldora por defecto (`9999px`); el
+  // diseño aprobado usa 8 px en botones y campos.
+  --mat-sys-corner-extra-small: var(--radius-sm);
+  --mat-sys-corner-small: var(--radius-sm);
+  --mat-sys-corner-medium: var(--radius-md);
+  --mat-sys-corner-large: var(--radius-md);
+}
+
+// Los botones de texto y contorno pintan la marca como TEXTO sobre una
+// superficie clara, donde `--brand` no alcanza el contraste mínimo.
+.mat-mdc-button,
+.mat-mdc-outlined-button {
+  --mdc-text-button-label-text-color: var(--brand-text);
+  --mdc-outlined-button-label-text-color: var(--brand-text);
+}
+
+// Los botones de Material traen su propio radio de píldora, que no sale de
+// `--mat-sys-corner-*`.
+.mat-mdc-button-base {
+  --mdc-filled-button-container-shape: var(--radius-sm);
+  --mdc-outlined-button-container-shape: var(--radius-sm);
+  --mdc-text-button-container-shape: var(--radius-sm);
+  --mdc-protected-button-container-shape: var(--radius-sm);
+}
+
+// El autocompletado de Chrome pinta el campo con su propio color y rompe el
+// tema. Se fuerza la superficie y el texto del sistema.
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+  caret-color: var(--text);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 // Cifras alineadas donde se comparan.
 .frc-num {
   font-family: var(--font-num);

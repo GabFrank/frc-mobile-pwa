@@ -62,9 +62,11 @@ import type { ConfigBuscadorLocal } from '../shared/buscador/buscador.component'
       </p>
 
       <frc-seccion titulo="Tema">
-        <button matButton="outlined" (click)="tema.alternar()">
-          Cambiar a {{ tema.esOscuroEfectivo() ? 'claro' : 'oscuro' }}
-        </button>
+        <div class="fila">
+          <button matButton="outlined" (click)="tema.alternar()">
+            Cambiar a {{ tema.esOscuroEfectivo() ? 'claro' : 'oscuro' }}
+          </button>
+        </div>
       </frc-seccion>
 
       <frc-seccion titulo="Botones">

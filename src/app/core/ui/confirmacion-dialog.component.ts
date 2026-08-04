@@ -30,13 +30,18 @@ export interface ConfirmacionData {
       <p class="mensaje">{{ data.mensaje }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button matButton (click)="cerrar(false)">
+      <!--
+        En un diálogo destructivo el foco inicial va en Cancelar, no en el
+        botón que borra: si no, un Enter reflejo confirma la eliminación.
+        En los no destructivos el foco va en la acción, que es lo esperado.
+      -->
+      <button matButton [attr.cdkFocusInitial]="data.destructivo ? '' : null" (click)="cerrar(false)">
         {{ data.cancelar ?? 'Cancelar' }}
       </button>
       <button
         matButton="filled"
         [class.destructivo]="data.destructivo"
-        cdkFocusInitial
+        [attr.cdkFocusInitial]="data.destructivo ? null : ''"
         (click)="cerrar(true)"
       >
         {{ data.confirmar ?? 'Confirmar' }}

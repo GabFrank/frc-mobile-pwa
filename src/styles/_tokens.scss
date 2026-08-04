@@ -20,12 +20,18 @@
   --brand-hover:  #b33026;
   --brand-accent: #f57c00;
   --on-brand:     #ffffff;
+  // El rojo de marca como RELLENO pasa (blanco encima: 4.53:1), pero como
+  // COLOR DE TEXTO sobre superficie clara da 4.17:1 — insuficiente. Esta es
+  // la variante para ese uso: 5.53:1, y sigue siendo el mismo rojo.
+  --brand-text:   #c43026;
 
   // ─── Semántica de estado ─────────────────────────────────────
   // Vocabulario cerrado. Todo estado de toda máquina del sistema
   // se mapea a uno de estos cinco tonos. Ver estado-registry.ts
-  --ok:      #2e7d32;
-  --warn:    #ef6c00;
+  --ok:      #2a7030;
+  // El naranja de Material (#ef6c00) sobre su propio fondo tintado daba
+  // 2.75:1: ilegible. Este da 4.71:1 en el chip y 5.28:1 como texto.
+  --warn:    #b34d00;
   --danger:  #c62828;
   --info:    #1565c0;
   --neutral: #6b6462;
@@ -101,6 +107,8 @@
   --brand-hover:  #f06a60;
   --brand-accent: #ffa726;
   --on-brand:     #1c1917;
+  // En oscuro el mismo rojo ya alcanza como texto (5.11:1).
+  --brand-text:   #e8544a;
 
   --ok:      #66bb6a;
   --warn:    #ffa726;
@@ -137,7 +145,8 @@
 :root[data-theme='dark']  { @include dark-tokens; }
 :root[data-theme='light'] {
   --brand: #db392e; --brand-hover: #b33026; --brand-accent: #f57c00; --on-brand: #ffffff;
-  --ok: #2e7d32; --warn: #ef6c00; --danger: #c62828; --info: #1565c0; --neutral: #6b6462;
+  --brand-text: #c43026;
+  --ok: #2a7030; --warn: #b34d00; --danger: #c62828; --info: #1565c0; --neutral: #6b6462;
   --ok-bg: #e8f3e9; --warn-bg: #fdf0e3; --danger-bg: #fbeaea; --info-bg: #e8eff8; --neutral-bg: #f0eeed;
   --bg: #f7f5f4; --surface: #ffffff; --surface-sunken: #efecea;
   --border: rgba(30, 20, 18, 0.12); --border-light: rgba(30, 20, 18, 0.06);

@@ -1,22 +1,42 @@
 <!doctype html>
-<html lang="en">
+<html lang="es-PY">
   <head>
     <meta charset="utf-8" />
-    <title>MobilePwa</title>
+    <title>Bodega Franco</title>
     <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;display=swap"
-      rel="stylesheet"
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Operaciones del ERP Franco Systems: recepción, caja, inventario, devoluciones y marcación."
     />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="manifest" href="manifest.webmanifest" />
+
+    <!--
+      Color de la barra del sistema con la PWA instalada. Sigue al tema:
+      rojo de marca en claro, superficie oscura en oscuro.
+    -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#db392e" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#201c1a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Bodega Franco" />
+
+    <!--
+      ⚠️ NO agregar enlaces a fonts.googleapis.com ni a ningún CDN.
+
+      El schematic de Angular Material los inserta por defecto (Roboto y
+      Material Icons), y se quitaron: este proyecto no los necesita. La
+      tipografía es `system-ui` —que en Android ya es Roboto y en iOS San
+      Francisco— y los íconos son SVG inline (`frc-icono`).
+
+      El motivo es operativo, no de peso: una sucursal con la LAN funcionando
+      pero sin salida a internet tiene que poder trabajar. Es la misma razón
+      por la que el motor de reconocimiento facial no debe cargar sus modelos
+      desde jsDelivr (TODO_TECNICO #52).
+    -->
   </head>
   <body>
     <app-root></app-root>
-    <noscript>Please enable JavaScript to continue using this application.</noscript>
+    <noscript>Esta aplicación necesita JavaScript para funcionar.</noscript>
   </body>
 </html>

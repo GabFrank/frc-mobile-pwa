@@ -42,6 +42,19 @@ body {
   overscroll-behavior-y: none;
 }
 
+// El cuerpo nunca scrollea de costado: el contenido ancho —tablas, código—
+// scrollea dentro de su propio contenedor. En una pantalla de 320 px, un
+// desborde horizontal deja controles fuera de alcance.
+body {
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
 // Cifras alineadas donde se comparan.
 .frc-num {
   font-family: var(--font-num);

@@ -4,6 +4,58 @@ Para validar lo implementado hasta ahora en `frc-mobile-pwa`. **No arrancar hast
 
 ---
 
+## Estado de la ejecución — 2026-08-04
+
+Se ejecutó una **primera pasada automatizada**. La extensión de Chrome no estaba conectada, así que los casos que dependen de percepción visual o de dispositivo físico quedan para vos.
+
+### Ya verificado, no hace falta repetirlo
+
+| Casos | Cómo se verificó | Resultado |
+|---|---|---|
+| 1.1 · Saludo con el nombre | Test de integración | ✅ |
+| 1.2 · Accesos según rol | Test de integración, con y sin rol | ✅ |
+| 1.4 / 1.5 · Mensajes de credenciales vs. servidor caído | Test de `AuthService` | ✅ |
+| 1.6 · Cambiar servidor invalida la sesión | Test de `ServerConfigService` | ✅ |
+| 1.8 · Cerrar sesión borra las claves | Test | ✅ |
+| 2.4 · Ruta protegida redirige al login | Test del guard | ✅ |
+| 3.1 · Estado vacío de la lista | Test de integración | ✅ |
+| 3.2 · Cards con chip de estado | Test de integración | ✅ |
+| 3.3 · Skeleton de carga | Test de integración | ✅ |
+| 3.4 · **Detalle de caja abre con datos** | Test de integración | ✅ |
+| 3.5 · Guaraníes sin decimales | Test de integración | ✅ |
+| 3.6 · Diferencia marcada, sin `-0` | Test de integración | ✅ |
+| 3.8 · Error de red con reintento | Test de integración | ✅ |
+| 4.4 / 4.5 · Formato y parseo de importes | 25 tests de `moneda.util` y del campo | ✅ |
+| 5.1 · Service worker generado | Build de producción — 49 assets precacheados | ✅ |
+| 5.2 · Marca en título y `theme-color` | Build de producción | ✅ |
+| 5.4 · Update no bloqueante | `registerWhenStable` | ✅ |
+
+### Fallos encontrados y corregidos en esta pasada
+
+1. **`index.html` cargaba fuentes desde el CDN de Google.** El schematic de Angular Material insertó Roboto y Material Icons. Rompía la regla del proyecto y dejaba la app dependiendo de internet para tipografía e íconos, en un sistema pensado para operar en LAN. **Quitados**: la tipografía es `system-ui` y los íconos son SVG inline.
+2. **El título de la página era `MobilePwa`** y el idioma `en`. Ahora `Bodega Franco` y `es-PY`.
+3. **Faltaban `theme-color` y los metadatos de instalación en iOS.** Agregados, con variante para tema claro y oscuro.
+4. **No había garantía contra scroll horizontal.** Agregada.
+
+### Lo que queda para vos
+
+Requieren navegador con extensión conectada, credenciales reales o teléfono físico:
+
+- **1.3** · Recargar mantiene la sesión *(el código está testeado; falta verlo end-to-end contra el central)*
+- **1.7** · Mostrar/ocultar contraseña
+- **2.1 / 2.2** · Barra inferior en teléfono y riel en tablet
+- **2.3** · Barra de progreso
+- **3.7** · Volver desde el detalle
+- **4.1** · Tema oscuro — que nada quede ilegible
+- **4.2 / 4.3 / 4.6 / 4.7 / 4.8 / 4.9 / 4.10** · Todo lo visual de la galería
+- **4.5 en el teléfono** · ⚠️ El caso más importante que queda: escribir `10.50` con el **teclado del sistema**, idealmente con el teléfono en inglés
+- **5.1 / 5.3** · Instalar la PWA y rotar
+- **6.1 a 6.5** · Teclado, texto grande, pantalla angosta, doble toque, sesión caducada
+
+Y todo el **Bloque 3 contra datos reales**, que necesita un usuario del central con cajas.
+
+---
+
 ## Antes de empezar
 
 ### Qué necesitás

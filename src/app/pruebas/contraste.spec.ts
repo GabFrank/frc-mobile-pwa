@@ -43,27 +43,29 @@ const CLARO = {
   surface: '#ffffff',
   text: '#1c1917',
   textSoft: '#6b6462',
+  textMute: '#767068',
 };
 
 const OSCURO = {
-  brand: '#e8544a',
-  brandText: '#e8544a',
+  brand: '#ff7368',
+  brandText: '#ff7368',
   onBrand: '#1c1917',
   ok: '#66bb6a',
   warn: '#ffa726',
-  danger: '#ef5350',
+  danger: '#ff6f6a',
   info: '#64b5f6',
   neutral: '#a39c99',
   okBg: '#1b2e1d',
   warnBg: '#32261a',
   dangerBg: '#331d1d',
   infoBg: '#1a2836',
-  neutralBg: '#2a2523',
+  neutralBg: '#332e2b',
   onTono: '#1c1917',
   bg: '#16130f',
-  surface: '#201c1a',
+  surface: '#2a2523',
   text: '#f2ede9',
   textSoft: '#b3aaa5',
+  textMute: '#9a918c',
 };
 
 describe.each([
@@ -77,6 +79,22 @@ describe.each([
 
   it('el texto secundario sobre la superficie', () => {
     expect(contraste(t.textSoft, t.surface)).toBeGreaterThanOrEqual(AA);
+  });
+
+  /*
+    `--text-mute` no estaba cubierto y daba 3.71:1 en oscuro. No es un token
+    decorativo: es el gris de las etiquetas de la barra inferior, de las
+    notas y de los textos de ayuda. Se descubrió mirando la app en un
+    teléfono real, no acá — que es exactamente lo que este test evita que
+    vuelva a pasar.
+  */
+  it('el texto terciario sobre la superficie', () => {
+    expect(contraste(t.textMute, t.surface)).toBeGreaterThanOrEqual(AA);
+    expect(contraste(t.textMute, t.bg)).toBeGreaterThanOrEqual(AA);
+  });
+
+  it('el fondo tintado del chip neutral no se confunde con la superficie', () => {
+    expect(t.neutralBg).not.toBe(t.surface);
   });
 
   it('el contenido sobre el relleno de marca', () => {
@@ -117,4 +135,21 @@ describe.each([
       expect(contraste(t.onTono, t[tono])).toBeGreaterThanOrEqual(AA);
     },
   );
+});
+
+/*
+  Separación entre la card y el fondo. Es un mínimo perceptual, no WCAG, y
+  aplica SOLO al tema oscuro: la elevación la damos con una sombra, y una
+  sombra sobre casi-negro no se ve. Si además la superficie no se distingue
+  del fondo, la pantalla entera se lee como una sola plancha —que fue
+  justamente el reporte: "parece que el brillo está bajo"—.
+
+  En tema claro no corresponde exigirlo: la sombra y el borde sí se ven, y
+  las referencias van de 1.06x (GitHub) a 1.10x (Material). Nuestro tema
+  claro está en 1.09x y no tiene el problema.
+*/
+describe('Separación de superficies — solo tema oscuro', () => {
+  it('la card se despega del fondo', () => {
+    expect(contraste(OSCURO.surface, OSCURO.bg)).toBeGreaterThanOrEqual(1.15);
+  });
 });

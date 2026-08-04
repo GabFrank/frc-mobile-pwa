@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { SesionService } from 'src/app/core/auth/sesion.service';
 import { ServerConfigService } from 'src/app/core/config/server-config.service';
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 
@@ -138,6 +139,7 @@ export class LoginPage {
   private readonly router = inject(Router);
   private readonly notificacion = inject(NotificacionService);
   readonly servidor = inject(ServerConfigService);
+  private readonly dialogo = inject(DialogoService);
 
   readonly form = this.fb.nonNullable.group({
     nickname: ['', Validators.required],
@@ -191,9 +193,15 @@ export class LoginPage {
     await this.router.navigate(['/inicio']);
   }
 
-  cambiarServidor(): void {
+  async cambiarServidor(): Promise<void> {
     const actual = this.servidor.baseUrl();
-    const nuevo = globalThis.prompt('URL del servidor', actual);
+    const nuevo = await this.dialogo.pedirTexto({
+      titulo: 'Servidor',
+      etiqueta: 'URL del servidor',
+      valor: actual,
+      ayuda: 'Ejemplo: http://172.25.1.200:8081',
+      tipo: 'url',
+    });
     if (!nuevo || nuevo === actual) {
       return;
     }

@@ -6,6 +6,7 @@ import {
   ConfirmacionData,
   ConfirmacionDialogComponent,
 } from './confirmacion-dialog.component';
+import { TextoDialogComponent, TextoDialogData } from './texto-dialog.component';
 
 /**
  * Diálogos de la app.
@@ -17,6 +18,37 @@ import {
 @Injectable({ providedIn: 'root' })
 export class DialogoService {
   private readonly dialog = inject(MatDialog);
+
+  /**
+   * Pide un texto corto. Devuelve `undefined` si el usuario canceló.
+   *
+   * Existe para que nadie tenga que recurrir a `window.prompt`, que se ve
+   * ajeno a la app y que los navegadores suprimen cuando la página corre
+   * como PWA instalada.
+   */
+  async pedirTexto(data: TextoDialogData): Promise<string | undefined> {
+    const ref = this.dialog.open<TextoDialogComponent, TextoDialogData, string | undefined>(
+      TextoDialogComponent,
+      {
+        data,
+        width: '380px',
+        maxWidth: '92vw',
+        autoFocus: 'first-tabbable',
+        restoreFocus: true,
+        /*
+          Anclado arriba, no centrado.
+
+          Este diálogo enfoca su campo al abrirse, así que en el teléfono el
+          teclado sube siempre. El teclado tapa la mitad inferior de la
+          pantalla pero NO achica el viewport de layout, así que un diálogo
+          centrado queda con sus botones debajo del teclado: se veía el
+          campo y no se podía confirmar. Verificado en un Motorola real.
+        */
+        position: { top: '8vh' },
+      },
+    );
+    return await firstValueFrom(ref.afterClosed());
+  }
 
   /** `true` si el usuario confirmó. */
   async confirmar(data: ConfirmacionData): Promise<boolean> {

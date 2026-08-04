@@ -62,7 +62,12 @@
 
   --text:      #1c1917;
   --text-soft: #6b6462;
-  --text-mute: #a09895;
+  // 4.90:1 sobre la superficie. Antes era #a09895 y daba 2.83:1 — el peor
+  // valor de toda la paleta, en el gris de las etiquetas de la barra
+  // inferior. Para pasar AA tiene que acercarse mucho a --text-soft: en
+  // tema claro la jerarquía entre secundario y terciario la marcan el
+  // tamaño y el peso, no el color.
+  --text-mute: #767068;
 
   // ─── Espaciado — escala de 4 ─────────────────────────────────
   // Siete valores. El repo anterior acumuló catorce.
@@ -111,17 +116,31 @@
 //  tokens: ninguna regla de componente vive dentro del media query.
 // ═══════════════════════════════════════════════════════════════
 
+// Revisión del 2026-08-04, después de mirar la app en un teléfono real: se
+// veía "apagada", como con el brillo bajo. Medido contra Material 3, GitHub,
+// iOS y Slack, el texto principal (14.5:1) y el secundario (7.4:1) estaban
+// bien —arriba de varias de esas referencias—. Los problemas eran otros tres:
+//
+//   1. `--text-mute` daba 3.71:1: REPROBABA AA. Es el gris de las etiquetas
+//      de la barra inferior y de los textos de ayuda.
+//   2. El rojo de marca daba 4.67:1, el valor más bajo de toda la paleta,
+//      justo en el piso. De ahí los íconos "apagados".
+//   3. Las cards no se despegaban del fondo. La separación numérica estaba
+//      en rango, pero la dábamos con una SOMBRA, y una sombra sobre
+//      casi-negro no se ve. Material 3 separa aclarando la superficie.
+//
+// Subir la superficie obligó a retocar `--danger` (quedaba en 4.34) y
+// `--neutral-bg` (quedaba idéntico a la superficie: el chip desaparecía).
 @mixin dark-tokens {
-  --brand:        #e8544a;
-  --brand-hover:  #f06a60;
+  --brand:        #ff7368;  // 5.70:1 sobre la superficie (antes 4.67)
+  --brand-hover:  #ff8c82;
   --brand-accent: #ffa726;
-  --on-brand:     #1c1917;
-  // En oscuro el mismo rojo ya alcanza como texto (5.11:1).
-  --brand-text:   #e8544a;
+  --on-brand:     #1c1917;  // 6.58:1 encima del relleno de marca
+  --brand-text:   #ff7368;
 
   --ok:      #66bb6a;
   --warn:    #ffa726;
-  --danger:  #ef5350;
+  --danger:  #ff6f6a;  // 5.57:1 (antes 4.34 con la superficie nueva)
   --info:    #64b5f6;
   --neutral: #a39c99;
 
@@ -129,20 +148,20 @@
   --warn-bg:    #32261a;
   --danger-bg:  #331d1d;
   --info-bg:    #1a2836;
-  --neutral-bg: #2a2523;
+  --neutral-bg: #332e2b;  // separado de --surface, si no el chip se pierde
 
   // En oscuro los tonos son claros: encima va texto oscuro, no blanco.
   --on-tono: #1c1917;
 
   --bg:             #16130f;
-  --surface:        #201c1a;
+  --surface:        #2a2523;  // 1.22x sobre el fondo (antes 1.10x)
   --surface-sunken: #171412;
   --border:         rgba(255, 244, 240, 0.14);
   --border-light:   rgba(255, 244, 240, 0.07);
 
   --text:      #f2ede9;
   --text-soft: #b3aaa5;
-  --text-mute: #7d7470;
+  --text-mute: #9a918c;  // 4.90:1 sobre la superficie (antes 3.71, reprobaba)
 
   --elev-1: 0 1px 3px rgba(0, 0, 0, 0.5);
   --elev-2: 0 4px 14px rgba(0, 0, 0, 0.6);
@@ -163,7 +182,7 @@
   --on-tono: #ffffff;
   --bg: #f7f5f4; --surface: #ffffff; --surface-sunken: #efecea;
   --border: rgba(30, 20, 18, 0.12); --border-light: rgba(30, 20, 18, 0.06);
-  --text: #1c1917; --text-soft: #6b6462; --text-mute: #a09895;
+  --text: #1c1917; --text-soft: #6b6462; --text-mute: #767068;
   --elev-1: 0 1px 3px rgba(30, 20, 18, 0.10);
   --elev-2: 0 4px 14px rgba(30, 20, 18, 0.14);
 }

@@ -25,12 +25,12 @@ Guía para trabajar en este repositorio.
 ## Comandos
 
 ```bash
-npm start          # ng serve → http://localhost:4200
+npm start          # ng serve → http://localhost:4300
 npm run build      # build de producción — el gate real
 npm test           # tests unitarios
 ```
 
-> **`localhost` es contexto seguro.** Cámara, geolocalización y service worker funcionan en desarrollo sin HTTPS. Para probar en un celular Android por USB: `adb reverse tcp:4200 tcp:4200`, y el teléfono lo ve como `localhost` — con las mismas APIs habilitadas.
+> **`localhost` es contexto seguro.** Cámara, geolocalización y service worker funcionan en desarrollo sin HTTPS. Para probar en un celular Android por USB: `adb reverse tcp:4300 tcp:4300`, y el teléfono lo ve como `localhost` — con las mismas APIs habilitadas.
 
 ## Documentación
 

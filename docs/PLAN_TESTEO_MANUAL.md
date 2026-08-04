@@ -76,16 +76,16 @@ Y todo el **Bloque 3 contra datos reales**, que necesita un usuario del central 
 ```bash
 cd frc-comercial/mobile-pwa
 npm start
-# → http://localhost:4200
+# → http://localhost:4300
 ```
 
 Para probar en un Android real, con el teléfono conectado por USB y depuración activada:
 
 ```bash
-adb reverse tcp:4200 tcp:4200
+adb reverse tcp:4300 tcp:4300
 ```
 
-Y abrir `http://localhost:4200` **en el teléfono**. Así el navegador lo trata como origen seguro y habilita cámara, GPS y service worker.
+Y abrir `http://localhost:4300` **en el teléfono**. Así el navegador lo trata como origen seguro y habilita cámara, GPS y service worker.
 
 ### Cómo reportar
 
@@ -99,7 +99,7 @@ En ❌ y ⚠️, anotá **qué esperabas**, **qué pasó** y **cómo reproducirl
 Lo más importante de esta ronda: la revisión encontró que la sesión no cargaba el usuario, y se corrigió. **Estos casos verifican esa corrección.**
 
 ### 1.1 · Login correcto
-1. Abrir `http://localhost:4200`
+1. Abrir `http://localhost:4300`
 2. Verificar que redirige a `/login`
 3. Comprobar que abajo del título se ve la URL del servidor
 4. Ingresar usuario y contraseña válidos
@@ -182,14 +182,14 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 ### 2.4 · Ruta protegida sin sesión
 1. Cerrar sesión
-2. Pegar `http://localhost:4200/operaciones/caja` en la barra de direcciones
+2. Pegar `http://localhost:4300/operaciones/caja` en la barra de direcciones
 
 **Esperado:** redirige a `/login`. **No** muestra la pantalla.
 
 > En `frc-mobile` esto no estaba bloqueado.
 
 ### 2.5 · Ruta inexistente
-1. Ir a `http://localhost:4200/no-existe`
+1. Ir a `http://localhost:4300/no-existe`
 
 **Esperado:** redirige a Inicio, sin pantalla en blanco ni error.
 
@@ -250,7 +250,7 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 ## Bloque 4 — Sistema de diseño
 
-Todo este bloque en `http://localhost:4200/design-system` (solo en desarrollo).
+Todo este bloque en `http://localhost:4300/design-system` (solo en desarrollo).
 
 ### 4.1 · Tema oscuro
 1. Tocar "Cambiar a oscuro"

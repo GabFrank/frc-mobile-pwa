@@ -107,7 +107,7 @@ Implementado: capa de datos completa (~450 archivos portados), sistema de diseñ
 
 Pendiente: el resto de los módulos, escáner, cámara, GPS, biometría y el transporte WebSocket para suscripciones.
 
-Verificación: **147 tests**, cero errores de tipos, AOT en verde.
+Verificación: **210 tests**, cero errores de tipos, AOT en verde, y una pasada manual contra el central real (ver el estado de ejecución en el plan de testeo).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

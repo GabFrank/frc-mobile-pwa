@@ -53,7 +53,12 @@ export class DialogoService {
       data,
       width: ancho,
       maxWidth: '95vw',
-      autoFocus: false,
+      // Igual que en `confirmar()`: con `false`, Material ni siquiera mira
+      // `cdkFocusInitial`, y el foco se quedaba en el contenedor del
+      // diálogo. Un componente que quiera decidir dónde empieza el foco lo
+      // marca; el resto arranca en su primer elemento enfocable.
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
     });
     return await firstValueFrom(ref.afterClosed());
   }

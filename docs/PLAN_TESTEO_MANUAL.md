@@ -6,53 +6,72 @@ Para validar lo implementado hasta ahora en `frc-mobile-pwa`. **No arrancar hast
 
 ## Estado de la ejecución — 2026-08-04
 
-Se ejecutó una **primera pasada automatizada**. La extensión de Chrome no estaba conectada, así que los casos que dependen de percepción visual o de dispositivo físico quedan para vos.
+Dos pasadas. La **primera automatizada**, sin navegador. La **segunda con la extensión de Chrome conectada y el central real en `http://localhost:8081`**, con sesión iniciada por el usuario.
 
-### Ya verificado, no hace falta repetirlo
+### Verificado contra el central real (segunda pasada)
 
 | Casos | Cómo se verificó | Resultado |
 |---|---|---|
-| 1.1 · Saludo con el nombre | Test de integración | ✅ |
-| 1.2 · Accesos según rol | Test de integración, con y sin rol | ✅ |
+| 1.1 · Saludo con el nombre | Login real: "Hola, FRANCO" | ✅ |
+| 1.2 · Accesos según rol | 4 accesos visibles para el usuario 1 | ✅ |
+| 1.3 · **Sesión sobrevive a recargar** | Recarga completa, la sesión se restaura | ✅ |
+| 2.1 · Barra inferior | 4 destinos, con el activo marcado | ✅ |
+| 2.5 · Ruta inexistente | `/no-existe` redirige a `/inicio` | ✅ |
+| 3.2 · Lista con cajas | 6 cajas abiertas reales, de 6 sucursales | ✅ |
+| 3.4 · Detalle con datos | Caja 19 de SUC. CENTRAL, balance y diferencia | ✅ |
+| 3.6 · La diferencia salta a la vista | −5.000 en rojo, con el aviso de verificación | ✅ |
+| 3.7 · Volver | Vuelve a la lista sin apilar historial | ✅ |
+| 4.1 · Tema oscuro y claro | Galería completa en ambos | ✅ |
+| 4.7 · Diálogos | Confirmación destructiva: el foco arranca en "Cancelar" | ✅ |
+| 4.8 · Buscador | Filtra y devuelve el elegido | ✅ |
+| Cuenta | Usuario, persona y sucursal reales | ✅ |
+
+### Verificado por test automatizado (primera pasada)
+
+| Casos | Cómo se verificó | Resultado |
+|---|---|---|
 | 1.4 / 1.5 · Mensajes de credenciales vs. servidor caído | Test de `AuthService` | ✅ |
 | 1.6 · Cambiar servidor invalida la sesión | Test de `ServerConfigService` | ✅ |
 | 1.8 · Cerrar sesión borra las claves | Test | ✅ |
 | 2.4 · Ruta protegida redirige al login | Test del guard | ✅ |
 | 3.1 · Estado vacío de la lista | Test de integración | ✅ |
-| 3.2 · Cards con chip de estado | Test de integración | ✅ |
 | 3.3 · Skeleton de carga | Test de integración | ✅ |
-| 3.4 · **Detalle de caja abre con datos** | Test de integración | ✅ |
 | 3.5 · Guaraníes sin decimales | Test de integración | ✅ |
-| 3.6 · Diferencia marcada, sin `-0` | Test de integración | ✅ |
 | 3.8 · Error de red con reintento | Test de integración | ✅ |
 | 4.4 / 4.5 · Formato y parseo de importes | 25 tests de `moneda.util` y del campo | ✅ |
 | 5.1 · Service worker generado | Build de producción — 49 assets precacheados | ✅ |
 | 5.2 · Marca en título y `theme-color` | Build de producción | ✅ |
 | 5.4 · Update no bloqueante | `registerWhenStable` | ✅ |
 
-### Fallos encontrados y corregidos en esta pasada
+### Fallos encontrados y corregidos
+
+**Primera pasada:**
 
 1. **`index.html` cargaba fuentes desde el CDN de Google.** El schematic de Angular Material insertó Roboto y Material Icons. Rompía la regla del proyecto y dejaba la app dependiendo de internet para tipografía e íconos, en un sistema pensado para operar en LAN. **Quitados**: la tipografía es `system-ui` y los íconos son SVG inline.
 2. **El título de la página era `MobilePwa`** y el idioma `en`. Ahora `Bodega Franco` y `es-PY`.
 3. **Faltaban `theme-color` y los metadatos de instalación en iOS.** Agregados, con variante para tema claro y oscuro.
 4. **No había garantía contra scroll horizontal.** Agregada.
 
+**Segunda pasada, contra el central real:**
+
+5. **El login entraba pero no cargaba el usuario.** La query pedía `Usuario.sucursal`, un campo que el schema del central no tiene, y GraphQL rechazaba la operación entera. La sucursal viene de `inicioSesion.sucursal`. El error además se tragaba en silencio: ahora se muestra el motivo.
+6. **Toda la app renderizaba a media pantalla**, comprimida contra la derecha. Dos causas apiladas en el shell: `router-outlet` es *hermano* de la pantalla ruteada y competía por el ancho como flex item; y la pantalla ruteada, creada por el router, no lleva el atributo de encapsulación del shell, así que la regla `.area > *` nunca la alcanzaba. Ahora estira el contenedor (grid de una celda) y el outlet sale del flujo.
+7. **El balance de caja mostraba ₲ 0 en todo.** La pantalla leía seis totales que la query nunca pedía. La Caja 19 abrió con ₲ 1.000 y vendió ₲ 4.000.
+8. **El detalle podía abrir la caja de otra sucursal.** El id de caja no es único: cada filial numera desde 1 y la lista mostraba cuatro "Caja 1". La sucursal ahora viaja en la URL.
+9. **Los toasts nunca tomaban su color semántico.** Las reglas usaban tokens `--mdc-snackbar-*`, que Material 21 ya no lee; salían todos grises.
+10. **Texto blanco sobre los tonos en tema oscuro.** 1,94:1 sobre `--warn` — un aviso prácticamente invisible sobre su propio fondo. Nuevo token `--on-tono`, que cambia con el tema, y el caso "tono como relleno" incorporado a la suite de contraste.
+11. **El chip de estado de la lista mostraba un guión en cada fila.** La query no pedía `estado`, y en las cajas replicadas viejas viene null igual. Donde no hay estado, la card muestra la fecha de apertura.
+12. **El buscador abría sin foco en el campo.** En el teléfono eso significa que no aparece el teclado, en un componente cuyo único propósito es escribir.
+13. **Bugs latentes en abrir/cerrar caja** (todavía sin pantalla): se mandaba `cajaInput` donde la mutation declara `$input`; el cierre omitía `$input` y mandaba un `sucursalId` no declarado; el resultado es un objeto `{ exito, cajaId }`, así que el aviso de éxito salía también con `exito: false`. Más un `$susId` inexistente en `cajasPorFecha` y un `imprimirBalance` sin alias `data:`.
+
 ### Lo que queda para vos
 
-Requieren navegador con extensión conectada, credenciales reales o teléfono físico:
-
-- **1.3** · Recargar mantiene la sesión *(el código está testeado; falta verlo end-to-end contra el central)*
 - **1.7** · Mostrar/ocultar contraseña
-- **2.1 / 2.2** · Barra inferior en teléfono y riel en tablet
+- **2.2** · Riel lateral en tablet *(no se pudo: el navegador quedó fijo en emulación de teléfono)*
 - **2.3** · Barra de progreso
-- **3.7** · Volver desde el detalle
-- **4.1** · Tema oscuro — que nada quede ilegible
-- **4.2 / 4.3 / 4.6 / 4.7 / 4.8 / 4.9 / 4.10** · Todo lo visual de la galería
-- **4.5 en el teléfono** · ⚠️ El caso más importante que queda: escribir `10.50` con el **teclado del sistema**, idealmente con el teléfono en inglés
+- **4.5 en el teléfono** · ⚠️ **El caso más importante que queda**: escribir `10.50` con el **teclado del sistema**, idealmente con el teléfono en inglés
 - **5.1 / 5.3** · Instalar la PWA y rotar
 - **6.1 a 6.5** · Teclado, texto grande, pantalla angosta, doble toque, sesión caducada
-
-Y todo el **Bloque 3 contra datos reales**, que necesita un usuario del central con cajas.
 
 ---
 

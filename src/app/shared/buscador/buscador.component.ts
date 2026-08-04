@@ -65,7 +65,19 @@ export type ConfigBuscador<T> = ConfigBuscadorLocal<T> | ConfigBuscadorPaginado<
     <mat-dialog-content class="cuerpo">
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
         <mat-label>{{ config.placeholder ?? 'Buscar' }}</mat-label>
-        <input matInput [value]="consulta()" (input)="alEscribir($event)" autocomplete="off" />
+        <!--
+          cdkFocusInitial: al abrirse, el foco va al campo. Sin esto el
+          diálogo enfocaba su propio contenedor y en el teléfono el teclado
+          no aparecía — había que tocar el campo antes de poder escribir,
+          en un componente cuyo único propósito es escribir.
+        -->
+        <input
+          matInput
+          cdkFocusInitial
+          [value]="consulta()"
+          (input)="alEscribir($event)"
+          autocomplete="off"
+        />
       </mat-form-field>
 
       @if (cargando()) {

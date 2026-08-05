@@ -117,6 +117,16 @@ const REGISTRO: Record<ClaveEstado, EstadoVisual> = {
   'VentaTarjetaEstado.PENDIENTE':  { etiqueta: 'Pendiente',  tono: 'warn', icono: 'reloj' },
   'VentaTarjetaEstado.COMPLETADO': { etiqueta: 'Completado', tono: 'ok',   icono: 'checkCirculo' },
 
+  // ─── Compras a crédito por convenio ────────────────────────────────────
+  // ABIERTO es neutro y no naranja: para el funcionario un convenio abierto
+  // es lo normal —recién se salda con la liquidación del mes—, no algo
+  // pendiente de su parte. EN_MORA sí es su problema.
+  'EstadoVentaCredito.ABIERTO':     { etiqueta: 'Abierto',     tono: 'neutral', icono: 'documento' },
+  'EstadoVentaCredito.FINALIZADO':  { etiqueta: 'Finalizado',  tono: 'ok',      icono: 'checkCirculo' },
+  'EstadoVentaCredito.EN_MORA':     { etiqueta: 'En mora',     tono: 'danger',  icono: 'alerta' },
+  'EstadoVentaCredito.INCOBRABLE':  { etiqueta: 'Incobrable',  tono: 'danger',  icono: 'error' },
+  'EstadoVentaCredito.CANCELADO':   { etiqueta: 'Cancelado',   tono: 'danger',  icono: 'cancelar' },
+
   // ─── Marcación ─────────────────────────────────────────────────────────
   'TipoMarcacion.ENTRADA': { etiqueta: 'Entrada', tono: 'ok',      icono: 'entrada' },
   'TipoMarcacion.SALIDA':  { etiqueta: 'Salida',  tono: 'neutral', icono: 'salida' },

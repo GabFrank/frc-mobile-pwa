@@ -455,6 +455,82 @@ se bloquea: cerrar sin contar haría la diferencia incalculable.
 
 ---
 
+## Bloque 8 — Mi trabajo *(nuevo)*
+
+### 8.1 · Las cuatro pestañas
+1. Inicio → **Mi trabajo**
+
+**Esperado:** el orden es Marcación · Vales · Recibos · Vacaciones, y abrir la
+pantalla dispara **una** consulta, no cuatro: solo se carga la pestaña activa.
+El resumen de arriba muestra saldo de vacaciones, vales pendientes y último
+recibo.
+
+### 8.2 · Cargar más
+1. Ir a Marcación con un funcionario con más de 30 jornadas
+2. Bajar hasta el final y tocar **Cargar más**
+
+**Esperado:** se agregan filas al final, sin repetir las que ya estaban y sin
+volver a cargar la lista desde arriba. Cuando ya no hay más, el botón
+desaparece. Con menos filas que el tamaño de página el botón **no aparece**:
+es lo correcto, no un bug.
+
+### 8.3 · Solicitar un vale
+1. Vales → **Solicitar vale** (ocupa todo el ancho)
+2. Cargar monto y motivo, confirmar
+
+**Esperado:** el vale aparece en la lista como **Solicitado**. El campo de
+importe muestra `₲` sin pisar la etiqueta.
+
+### 8.4 · Solicitar vacaciones
+1. Vacaciones → **Solicitar vacaciones**, elegir un rango
+
+**Esperado:** un rango invertido se rechaza **antes** de ir al servidor.
+
+### 8.5 · Ver un recibo
+1. Recibos → tocar un recibo pagado
+
+**Esperado:** abre el PDF. Solo se listan los **pagados**.
+
+---
+
+## Bloque 9 — Mis finanzas *(nuevo)*
+
+### 9.1 · El resumen de crédito
+1. Inicio → **Mis finanzas**
+
+**Esperado:** Límite, Utilizado y Disponible. `Disponible = Límite −
+Utilizado`, y si es negativo sale en rojo. **Utilizado** es la suma de los
+convenios **abiertos**, no de la página que se está viendo.
+
+### 9.2 · Páginas numeradas
+1. Con más de 10 convenios abiertos, ir al pie de la lista
+
+**Esperado:** `1 / N · X items` y las flechas. Avanzar trae convenios
+distintos; la flecha de atrás está deshabilitada en la primera página.
+
+### 9.3 · Historial
+1. Tocar la pestaña **Historial**
+
+**Esperado:** aparecen **todos** los convenios, no solo los abiertos —también
+finalizados y cancelados—, y la paginación vuelve a la página 1.
+
+> ⚠️ Requiere el central con el fix de `estado` nulo en
+> `ventaCreditoPorClientePage`. Sin él, el Historial sale vacío.
+
+### 9.4 · Detalle de la venta
+1. En cualquier convenio, **Ver detalle**
+
+**Esperado:** los ítems de la venta con cantidad, precio y total. Abre la
+venta de **esa** sucursal: el id de venta se repite entre filiales.
+
+### 9.5 · Funcionario sin convenio
+1. Entrar con un usuario cuya persona no sea cliente
+
+**Esperado:** «No tenés convenio» explicando por qué, no un error ni una
+lista en blanco.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -464,7 +540,9 @@ Para que no se reporte como falla:
 | Buscar (pestaña) | Placeholder — llega con la ola de producto |
 | Operaciones | Solo Caja. Faltan pedidos, devoluciones, solicitud de gastos, venta-tarjeta |
 | Inventario, transferencias, producto | No portados |
-| Marcación, mis-RRHH, notificaciones | No portados |
+| Notificaciones | No portadas |
+| Confirmar convenio por QR | Falta el escáner (infraestructura compartida) |
+| Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
 | Escáner de códigos | No implementado (llega con producto) |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
 | Cámara, GPS, biometría | No implementados |
@@ -482,7 +560,9 @@ Para que no se reporte como falla:
 | 5 · PWA | 4 | | | |
 | 6 · Accesibilidad | 5 | | | |
 | 7 · Abrir y cerrar caja | 9 | | | |
-| **Total** | **49** | | | |
+| 8 · Mi trabajo | 5 | | | |
+| 9 · Mis finanzas | 5 | | | |
+| **Total** | **59** | | | |
 
 ### Los cinco que más importan
 

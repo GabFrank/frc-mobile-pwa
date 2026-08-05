@@ -2,6 +2,8 @@
 
 Módulos de **autoservicio del funcionario**: consultar lo suyo y hacer solicitudes sin pasar por administración.
 
+> **Estado en `frc-mobile-pwa`:** `mis-rrhh` implementado como **«Mi trabajo»** (`/mi-trabajo`) y `mis-finanzas` implementado (`/mis-finanzas`). Los dos con paginación en el servidor. Ver [«Qué cambió en la PWA»](#qué-cambió-en-la-pwa) al final.
+
 ---
 
 # mis-rrhh
@@ -115,3 +117,79 @@ Se accede desde "Mi cuenta → Mis finanzas" en el menú lateral.
 Contiene solo `documento/documento.model.ts`, el modelo `Documento` que consume [`operaciones/pedidos`](operaciones-pedidos.md) (`NotaRecepcion.documento`).
 
 > ⚠️ **Gotcha — `pages/financiero/` no es un módulo de páginas.** Es una carpeta con un solo modelo, ubicada bajo `pages/` por razones históricas. No busques pantallas ahí. Su lugar natural sería `domains/`. Anotado en el TODO.
+
+---
+
+# Qué cambió en la PWA
+
+## Pantallas
+
+| Ruta | Componente | Estado |
+|---|---|---|
+| `/mi-trabajo` | `MiTrabajoPage` | ✅ |
+| `/mi-trabajo/aprobaciones` | `AprobacionesPage` | ⚠️ el backend no dice de quién es la solicitud |
+| `/mis-finanzas` | `MisFinanzasPage` | ✅ |
+
+**«Mis RRHH» pasó a llamarse «Mi trabajo».** El nombre viejo era la sigla del
+módulo del backend, no algo que el empleado reconozca como suyo.
+
+**El dashboard de dos tarjetas de `mis-finanzas` desapareció.** Una de las dos
+llevaba a la lista de convenios y la otra abría el escáner; con el escáner
+todavía sin portar, quedaba una pantalla intermedia con un solo destino. La
+lista **es** la pantalla.
+
+## Todo lo que crece se pagina en el servidor
+
+Las cuatro listas del repo anterior traían la tabla entera. La de marcaciones
+crece una fila por día trabajado para siempre: abrir la pestaña costaba más
+cuanta más antigüedad tuviera el empleado.
+
+| Lista | Página | Por qué ese tamaño |
+|---|---|---|
+| Marcación | 30 | Un mes son ~22 jornadas |
+| Recibos | 12 | Un año son 12 sueldos |
+| Vales | 10 | |
+| Convenios | 10 | |
+
+El tamaño se elige para que **el caso habitual entre en la primera página** y
+nadie tenga que pedir más.
+
+Las tres listas de RRHH usan un botón **«Cargar más»** y los convenios,
+**páginas numeradas**. No es inconsistencia: `ventaCreditoPorClientePage`
+devuelve una `Page` de Spring con el total de elementos, y las operaciones
+`*Mobile` de RRHH devuelven una lista pelada. Sin total no se puede dibujar
+«3 / 12», así que se muestra lo único que se sabe: si vino una página
+completa, puede haber más.
+
+> ⚠️ **Filtrar después de paginar es un bug silencioso.** `misRecibos` traía
+> todas las liquidaciones y filtraba las `PAGADA` en Java. Paginar así
+> devuelve páginas de menos de `size` filas —o vacías— sin que el cliente
+> pueda distinguirlo del fin de la lista. El filtro se movió **a la
+> consulta**.
+
+## Operaciones nuevas en el central
+
+Todas con parámetros **opcionales**: sin `page`/`size` se comportan como
+antes, así que el desktop y cualquier cliente viejo siguen andando.
+
+`misRecibosMobile(page, size)` · `misValesMobile(page, size)` · `misMarcacionesMobile(page, size)`
+
+## Bugs corregidos al portar
+
+| Qué | Consecuencia |
+|---|---|
+| `ventaCreditoPorClientePage` se tipaba `VentaCredito[]` | Devuelve una `Page`. El tipo decía array donde llega un objeto: cualquier `.map()` reventaba en runtime sin que el compilador avisara |
+| `ventaCreditoPorClientePage` con `estado` nulo devolvía cero filas | La consulta derivada `…AndEstado…` traduce el nulo a `estado IS NULL`. El schema declara el argumento opcional, pero esa opcionalidad no existía. Se agregó la variante sin estado en el repositorio |
+| `vacacionesPendientesAprobacionMobile` pedía el campo `vacacion` | `VacacionPeriodo` no lo expone: la query entera fallaba y la bandeja de aprobaciones **nunca pudo haber funcionado** |
+| `fechaLegible` exigía hora | Las fechas sin hora —vales, jornadas— mostraban «Sin fecha» |
+| `countByClienteIdAndEstado` no existe en el schema del central | El `CountVentaCreditoByClienteAndEstadoGQL` del repo anterior no podía resolver. No se portó |
+
+## Lo que falta
+
+- **Confirmar convenios por QR.** El repo anterior escaneaba con un plugin de
+  Capacitor. En la PWA hace falta un escáner con `BarcodeDetector` y cámara,
+  que es **infraestructura compartida** con venta-tarjeta y solicitud-gastos:
+  se construye una vez, no una por módulo.
+- **La bandeja de aprobaciones no puede decir de quién es la solicitud.**
+  `rrhh.vacacion_periodo.vacacion_id` existe en la base; falta exponerlo en
+  el tipo `VacacionPeriodo`. Es un campo de schema.

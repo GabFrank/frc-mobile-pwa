@@ -78,6 +78,7 @@ export class InicioPage {
     { etiqueta: 'Operaciones', ruta: '/operaciones', icono: 'caja' },
     { etiqueta: 'Buscar producto', ruta: '/buscar', icono: 'buscar' },
     { etiqueta: 'Mi trabajo', ruta: '/mi-trabajo', icono: 'persona' },
+    { etiqueta: 'Mis finanzas', ruta: '/mis-finanzas', icono: 'dinero' },
     { etiqueta: 'Mi cuenta', ruta: '/cuenta', icono: 'cuenta' },
   ];
 

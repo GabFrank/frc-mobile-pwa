@@ -36,6 +36,11 @@ export const routes: Routes = [
           import('./pages/mi-trabajo/mi-trabajo.routes').then((m) => m.rutasMiTrabajo),
       },
       {
+        path: 'mis-finanzas',
+        loadChildren: () =>
+          import('./pages/mis-finanzas/mis-finanzas.routes').then((m) => m.rutasMisFinanzas),
+      },
+      {
         path: 'buscar',
         loadComponent: () => import('./pages/buscar/buscar.page').then((m) => m.BuscarPage),
       },

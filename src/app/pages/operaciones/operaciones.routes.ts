@@ -11,4 +11,9 @@ export const rutasOperaciones: Routes = [
     path: 'caja',
     loadChildren: () => import('./caja/caja.routes').then((m) => m.rutasCaja),
   },
+  {
+    path: 'devolucion',
+    loadChildren: () =>
+      import('./devolucion/devolucion.routes').then((m) => m.rutasDevolucion),
+  },
 ];

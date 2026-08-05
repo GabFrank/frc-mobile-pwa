@@ -21,6 +21,13 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
           (abrir)="ir('/operaciones/caja')"
         />
       }
+
+      <frc-card
+        titulo="Devoluciones"
+        subtitulo="Productos averiados o vencidos"
+        icono="tirar"
+        (abrir)="ir('/operaciones/devolucion')"
+      />
     </frc-pagina>
   `,
 })

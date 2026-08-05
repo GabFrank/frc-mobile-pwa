@@ -83,6 +83,7 @@ const LOTE = 10;
           [value]="texto()"
           (input)="alEscribir($event)"
           (keydown.enter)="buscar()"
+          [attr.cdkFocusInitial]="autoFoco() ? '' : null"
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
@@ -210,6 +211,15 @@ export class BuscadorProductoComponent {
   private readonly dialogo = inject(DialogoService);
 
   readonly opciones = input<OpcionesBuscador>({});
+  /**
+   * Arranca con el foco en el campo.
+   *
+   * Solo tiene sentido cuando el buscador se abrió **para elegir algo** —un
+   * diálogo selector, el modo kiosco—. En una pestaña que se abre navegando,
+   * robar el foco levanta el teclado sin que nadie lo haya pedido y tapa
+   * media pantalla.
+   */
+  readonly autoFoco = input(false);
 
   readonly seleccion = output<SeleccionProducto>();
 

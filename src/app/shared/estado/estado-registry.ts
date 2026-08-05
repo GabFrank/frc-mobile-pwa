@@ -114,8 +114,9 @@ const REGISTRO: Record<ClaveEstado, EstadoVisual> = {
   'PagoEstado.CANCELADO': { etiqueta: 'Cancelado', tono: 'danger',  icono: 'cancelar' },
 
   // ─── Venta con tarjeta ─────────────────────────────────────────────────
-  'VentaTarjetaEstado.PENDIENTE':  { etiqueta: 'Pendiente',  tono: 'warn', icono: 'reloj' },
-  'VentaTarjetaEstado.COMPLETADO': { etiqueta: 'Completado', tono: 'ok',   icono: 'checkCirculo' },
+  // PENDIENTE = cobrada pero sin cupón registrado; COMPLETADO = conciliada.
+  'VentaTarjetaEstado.PENDIENTE':  { etiqueta: 'Sin registrar', tono: 'warn', icono: 'reloj' },
+  'VentaTarjetaEstado.COMPLETADO': { etiqueta: 'Registrado',    tono: 'ok',   icono: 'checkCirculo' },
 
   // ─── Compras a crédito por convenio ────────────────────────────────────
   // ABIERTO es neutro y no naranja: para el funcionario un convenio abierto

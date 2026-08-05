@@ -12,6 +12,11 @@ export const rutasOperaciones: Routes = [
     loadChildren: () => import('./caja/caja.routes').then((m) => m.rutasCaja),
   },
   {
+    path: 'venta-tarjeta',
+    loadChildren: () =>
+      import('./venta-tarjeta/venta-tarjeta.routes').then((m) => m.rutasVentaTarjeta),
+  },
+  {
     path: 'devolucion',
     loadChildren: () =>
       import('./devolucion/devolucion.routes').then((m) => m.rutasDevolucion),

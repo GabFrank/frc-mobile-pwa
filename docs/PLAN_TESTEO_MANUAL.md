@@ -811,13 +811,54 @@ abre su detalle.
 
 ---
 
+## Bloque 14 — Venta con tarjeta *(nuevo)*
+
+> Requiere la función **habilitada en el central** y una **caja abierta**.
+> Sin caja, la pantalla lo dice y no deja escanear.
+
+### 14.1 · El guard
+1. Operaciones → **Venta con tarjeta**
+
+**Esperado:** entra. Volver y entrar de nuevo debe ser **instantáneo** — el
+flag queda cacheado 5 minutos.
+
+### 14.2 · Sin caja abierta
+1. Entrar sin tener caja abierta
+
+**Esperado:** «Sin caja abierta» explicando por qué, y **no** aparece el
+botón de escanear.
+
+### 14.3 · Escanear el cupón
+1. Con caja abierta, **Escanear cupón** y leer el QR del punto de venta
+
+**Esperado:** va al registro con la venta y el monto ya cargados.
+
+### 14.4 · El QR de otra caja se rechaza *(el más importante)*
+1. Escanear un QR generado desde **otra** caja
+
+**Esperado:** «Este QR pertenece a otra caja…» y **no** navega. Es lo que
+impide que un cupón se impute a la caja equivocada y descuadre dos arqueos.
+
+### 14.5 · Registrar
+1. Cargar código de autorización y número de boleta, **Guardar**
+
+**Esperado:** vuelve a la lista y el cupón figura como **Registrado**. El
+contador de «Sin registrar» baja en uno. El monto **no se puede editar**.
+
+### 14.6 · Los dos campos son obligatorios
+1. Dejar uno vacío
+
+**Esperado:** el botón de guardar queda deshabilitado.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
 
 | Área | Estado |
 |---|---|
-| Operaciones | Solo Caja. Faltan pedidos, devoluciones, solicitud de gastos, venta-tarjeta |
+| Operaciones | Faltan pedidos y solicitud de gastos |
 | Inventario y transferencias | No portados |
 | Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
 | Notificaciones | No portadas |
@@ -845,7 +886,8 @@ Para que no se reporte como falla:
 | 11 · iOS real *(necesita dispositivo)* | 7 | | | |
 | 12 · Buscar producto | 9 | | | |
 | 13 · Devoluciones | 7 | | | |
-| **Total** | **90** | | | |
+| 14 · Venta con tarjeta | 6 | | | |
+| **Total** | **96** | | | |
 
 ### Los cinco que más importan
 

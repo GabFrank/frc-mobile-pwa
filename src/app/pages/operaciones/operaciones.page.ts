@@ -23,6 +23,13 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
       }
 
       <frc-card
+        titulo="Venta con tarjeta"
+        subtitulo="Registrar el cupón del POS"
+        icono="etiqueta"
+        (abrir)="ir('/operaciones/venta-tarjeta')"
+      />
+
+      <frc-card
         titulo="Devoluciones"
         subtitulo="Productos averiados o vencidos"
         icono="tirar"

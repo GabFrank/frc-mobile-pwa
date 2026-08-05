@@ -19,22 +19,24 @@ import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { RrhhService } from './rrhh.service';
+import { RrhhService, TAMANO_PAGINA } from './rrhh.service';
 import {
-  SolicitudRrhhData,
-  SolicitudRrhhDialogComponent,
-  SolicitudRrhhResultado,
+  SolicitudData,
+  SolicitudDialogComponent,
+  SolicitudResultado,
   TipoSolicitud,
-} from './solicitud-rrhh-dialog.component';
+} from './solicitud-dialog.component';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 
 type Segmento = 'recibos' | 'vales' | 'vacaciones' | 'marcaciones';
 
+// El orden sigue la frecuencia de consulta: la marcación se mira todos los
+// días, las vacaciones un par de veces al año.
 const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
-  { clave: 'recibos', etiqueta: 'Recibos' },
+  { clave: 'marcaciones', etiqueta: 'Marcación' },
   { clave: 'vales', etiqueta: 'Vales' },
+  { clave: 'recibos', etiqueta: 'Recibos' },
   { clave: 'vacaciones', etiqueta: 'Vacaciones' },
-  { clave: 'marcaciones', etiqueta: 'Marcaciones' },
 ];
 
 /**
@@ -46,7 +48,7 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
  * y vale la pena conservarlo.
  */
 @Component({
-  selector: 'frc-mis-rrhh',
+  selector: 'frc-mi-trabajo',
   standalone: true,
   imports: [
     PaginaComponent,
@@ -64,9 +66,15 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .aprobar { --mat-button-text-label-text-color: var(--on-brand); }
+    /*
+      La barra reparte el ancho entre sus hijos, pero el botón de Material
+      trae ancho automático: sin esto queda chico dentro de su celda.
+    */
+    .ancho { width: 100%; }
+    .mas { align-self: center; margin-top: var(--sp-3); }
   `,
   template: `
-    <frc-pagina titulo="Mis RRHH" [conVolver]="true">
+    <frc-pagina titulo="Mi trabajo" [conVolver]="true">
       @if (puedeAprobar()) {
         <button accionBarra matButton class="aprobar" (click)="irAAprobaciones()">
           Aprobaciones
@@ -137,7 +145,7 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
             } @empty {
               <frc-estado-vacio
                 titulo="No tenés vales"
-                detalle="Pedí un vale o un adelanto con el botón de abajo."
+                detalle="Solicitá un vale o un adelanto con el botón de abajo."
                 icono="dinero"
               />
             }
@@ -180,19 +188,31 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
                 icono="reloj"
               />
             }
+            @if (hayMasMarcaciones()) {
+              <button
+                matButton="outlined"
+                class="mas"
+                [disabled]="cargandoMas()"
+                (click)="masMarcaciones()"
+              >
+                {{ cargandoMas() ? 'Cargando…' : 'Cargar más' }}
+              </button>
+            }
           }
         }
       }
 
       @if (accion(); as a) {
         <div acciones>
-          <button matButton="filled" (click)="solicitar(a.tipo)">{{ a.etiqueta }}</button>
+          <button matButton="filled" class="ancho" (click)="solicitar(a.tipo)">
+            {{ a.etiqueta }}
+          </button>
         </div>
       }
     </frc-pagina>
   `,
 })
-export class MisRrhhPage {
+export class MiTrabajoPage {
   private readonly rrhh = inject(RrhhService);
   private readonly auth = inject(AuthService);
   private readonly roleService = inject(RoleService);
@@ -216,13 +236,22 @@ export class MisRrhhPage {
   /** Segmentos ya traídos: no se vuelve a consultar al cambiar de pestaña. */
   private readonly traidos = new Set<Segmento>();
 
+  /**
+   * Paginación de marcaciones. Es el único segmento paginado: hay una fila
+   * por día trabajado y crece para siempre, mientras que vales, recibos y
+   * vacaciones son unas pocas decenas en toda la vida laboral.
+   */
+  private paginaMarcaciones = 0;
+  readonly hayMasMarcaciones = signal(false);
+  readonly cargandoMas = signal(false);
+
   /** La acción del pie depende del segmento: no hay una sola para toda la pantalla. */
   readonly accion = computed<{ tipo: TipoSolicitud; etiqueta: string } | null>(() => {
     switch (this.segmento()) {
       case 'vales':
-        return { tipo: 'vale', etiqueta: 'Pedir vale o adelanto' };
+        return { tipo: 'vale', etiqueta: 'Solicitar vale' };
       case 'vacaciones':
-        return { tipo: 'vacacion', etiqueta: 'Pedir vacaciones' };
+        return { tipo: 'vacacion', etiqueta: 'Solicitar vacaciones' };
       default:
         return null;
     }
@@ -290,10 +319,10 @@ export class MisRrhhPage {
     }
 
     const resultado = await this.dialogo.abrir<
-      SolicitudRrhhDialogComponent,
-      SolicitudRrhhData,
-      SolicitudRrhhResultado
-    >(SolicitudRrhhDialogComponent, {
+      SolicitudDialogComponent,
+      SolicitudData,
+      SolicitudResultado
+    >(SolicitudDialogComponent, {
       tipo,
       diasDisponibles: this.resumen()?.saldoVacacionesDias,
     });
@@ -382,12 +411,46 @@ export class MisRrhhPage {
         });
         break;
       case 'marcaciones':
-        this.rrhh.marcaciones(usuarioId).subscribe({
-          next: (d) => { this.marcaciones.set(d ?? []); listo(); },
+        this.paginaMarcaciones = 0;
+        this.rrhh.marcaciones(usuarioId, 0).subscribe({
+          next: (d) => {
+            const filas = d ?? [];
+            this.marcaciones.set(filas);
+            // Una página completa es la única señal de que puede haber más:
+            // el central devuelve una lista, no un total.
+            this.hayMasMarcaciones.set(filas.length === TAMANO_PAGINA);
+            listo();
+          },
           error: fallo,
         });
         break;
     }
+  }
+
+  /**
+   * Trae la página siguiente de marcaciones y la agrega al final.
+   *
+   * Se corta cuando el servidor devuelve menos de una página completa. No hay
+   * total: la operación devuelve una lista, no un `Page`.
+   */
+  masMarcaciones(): void {
+    const usuarioId = this.auth.usuario()?.id ?? this.auth.usuarioIdGuardado;
+    if (usuarioId == null || this.cargandoMas()) {
+      return;
+    }
+    const siguiente = this.paginaMarcaciones + 1;
+    this.cargandoMas.set(true);
+
+    this.rrhh.marcaciones(usuarioId, siguiente).subscribe({
+      next: (d) => {
+        const filas = d ?? [];
+        this.paginaMarcaciones = siguiente;
+        this.marcaciones.update((previas) => [...previas, ...filas]);
+        this.hayMasMarcaciones.set(filas.length === TAMANO_PAGINA);
+        this.cargandoMas.set(false);
+      },
+      error: () => this.cargandoMas.set(false),
+    });
   }
 
   /** `true` si el usuario puede entrar a la bandeja de aprobaciones. */
@@ -396,6 +459,6 @@ export class MisRrhhPage {
   );
 
   irAAprobaciones(): void {
-    void this.router.navigate(['/mis-rrhh/aprobaciones']);
+    void this.router.navigate(['/mi-trabajo/aprobaciones']);
   }
 }

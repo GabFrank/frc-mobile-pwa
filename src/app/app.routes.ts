@@ -31,9 +31,9 @@ export const routes: Routes = [
           import('./pages/operaciones/operaciones.routes').then((m) => m.rutasOperaciones),
       },
       {
-        path: 'mis-rrhh',
+        path: 'mi-trabajo',
         loadChildren: () =>
-          import('./pages/mis-rrhh/mis-rrhh.routes').then((m) => m.rutasMisRrhh),
+          import('./pages/mi-trabajo/mi-trabajo.routes').then((m) => m.rutasMiTrabajo),
       },
       {
         path: 'buscar',

@@ -85,9 +85,12 @@ export const aprobarVacacionMobileMutation = gql`
   }
 `;
 
+// `page`/`size` son opcionales en el schema para no romper clientes viejos,
+// pero acá se mandan siempre: sin ellos el central devuelve una fila por cada
+// día trabajado desde que el funcionario entró.
 export const misMarcacionesMobileQuery = gql`
-  query ($usuarioId: ID!) {
-    data: misMarcacionesMobile(usuarioId: $usuarioId) {
+  query ($usuarioId: ID!, $page: Int, $size: Int) {
+    data: misMarcacionesMobile(usuarioId: $usuarioId, page: $page, size: $size) {
       id fecha minutosTrabajados minutosExtras minutosLlegadaTardia estado
     }
   }

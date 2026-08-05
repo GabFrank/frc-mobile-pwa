@@ -9,13 +9,13 @@ import { CampoImporteComponent } from 'src/app/shared/campos/campo-importe.compo
 
 export type TipoSolicitud = 'vale' | 'vacacion';
 
-export interface SolicitudRrhhData {
+export interface SolicitudData {
   tipo: TipoSolicitud;
   /** Días disponibles, para avisar si el pedido los excede. */
   diasDisponibles?: number;
 }
 
-export interface SolicitudRrhhResultado {
+export interface SolicitudResultado {
   monto?: number;
   esAdelanto?: boolean;
   desde?: string;
@@ -45,7 +45,7 @@ function diasEntre(desde: string, hasta: string): number {
  * resultado.
  */
 @Component({
-  selector: 'frc-solicitud-rrhh',
+  selector: 'frc-solicitud',
   standalone: true,
   imports: [
     MatDialogModule,
@@ -138,10 +138,10 @@ function diasEntre(desde: string, hasta: string): number {
     }
   `,
 })
-export class SolicitudRrhhDialogComponent {
-  readonly data = inject<SolicitudRrhhData>(MAT_DIALOG_DATA);
+export class SolicitudDialogComponent {
+  readonly data = inject<SolicitudData>(MAT_DIALOG_DATA);
   private readonly ref =
-    inject<MatDialogRef<SolicitudRrhhDialogComponent, SolicitudRrhhResultado | undefined>>(
+    inject<MatDialogRef<SolicitudDialogComponent, SolicitudResultado | undefined>>(
       MatDialogRef,
     );
 

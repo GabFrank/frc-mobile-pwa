@@ -30,7 +30,7 @@ import { RrhhService } from './rrhh.service';
  * del central (`RrhhSecurityService`).
  */
 @Component({
-  selector: 'frc-aprobaciones-rrhh',
+  selector: 'frc-aprobaciones',
   standalone: true,
   imports: [
     PaginaComponent,
@@ -115,7 +115,7 @@ import { RrhhService } from './rrhh.service';
     }
   `,
 })
-export class AprobacionesRrhhPage {
+export class AprobacionesPage {
   private readonly rrhh = inject(RrhhService);
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);

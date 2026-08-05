@@ -32,6 +32,14 @@ import { ValesPendientesAprobacionMobileGQL } from 'src/app/graphql/rrhh/ValesPe
  * ⚠️ Devuelve tipos concretos. En `frc-mobile` todos los métodos devolvían
  * `any` y los componentes usaban `any[]`.
  */
+/**
+ * Filas por página en marcaciones.
+ *
+ * Un mes de trabajo son ~22 jornadas: 30 cubre el mes en curso sin que la
+ * mayoría necesite tocar "Cargar más".
+ */
+export const TAMANO_PAGINA = 30;
+
 @Injectable({ providedIn: 'root' })
 export class RrhhService {
   private readonly datos = inject(DatosService);
@@ -65,8 +73,15 @@ export class RrhhService {
     return this.datos.consultar<Vacacion[]>(this.vacacionesGQL, { usuarioId });
   }
 
-  marcaciones(usuarioId: number): Observable<Jornada[]> {
-    return this.datos.consultar<Jornada[]>(this.marcacionesGQL, { usuarioId });
+  /**
+   * Marcaciones, de la más reciente a la más antigua.
+   *
+   * ⚠️ **Siempre paginado.** Hay una jornada por día trabajado —unas 250 al
+   * año— y sin `page`/`size` el servidor las devuelve todas: el costo de
+   * abrir la pestaña crecería con la antigüedad del empleado.
+   */
+  marcaciones(usuarioId: number, page = 0, size = TAMANO_PAGINA): Observable<Jornada[]> {
+    return this.datos.consultar<Jornada[]>(this.marcacionesGQL, { usuarioId, page, size });
   }
 
   /** El recibo en PDF, en base64. El prefijo lo limpia `PdfService`. */

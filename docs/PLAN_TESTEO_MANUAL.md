@@ -955,13 +955,52 @@ vuelve a su posición y avisa.
 
 ---
 
+## Bloque 17 — Caja chica *(nuevo)*
+
+> Las solicitudes se crean hoy desde el desktop: la PWA todavía no las da de
+> alta. Para probar hace falta al menos una solicitud existente.
+
+### 17.1 · Lista
+1. Operaciones → **Caja chica**
+
+**Esperado:** las solicitudes con su monto y su estado. La etiqueta y el color
+del estado los manda el backend — si ves un estado que la app no conoce, está
+bien que se muestre igual.
+
+### 17.2 · Detalle
+1. Tocar una solicitud
+
+**Esperado:** montos solicitado, retirado, rendido y **a devolver**. Si tiene
+rendición, aparece su propio estado aparte del estado de la solicitud.
+
+### 17.3 · Escanear una solicitud
+1. **Escanear solicitud** y leer el QR que muestra el funcionario
+
+**Esperado:** abre el detalle de esa solicitud.
+
+### 17.4 · Confirmar retiro *(el que mueve plata)*
+1. En una solicitud sin retiro confirmado, **Confirmar retiro** y aceptar
+
+**Esperado:** queda registrado con la fecha de retiro y el botón desaparece.
+
+> El botón **solo aparece** si la solicitud no tiene retiro confirmado y hay
+> token. Sin token no se puede confirmar: es lo que ata el retiro a esa
+> solicitud y no a otra.
+
+### 17.5 · Un código que no es de la app
+1. En **Escanear solicitud**, cargar a mano `123456`
+
+**Esperado:** «Ese código no es de esta aplicación», sin navegar.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
 
 | Área | Estado |
 |---|---|
-| Operaciones | Faltan pedidos y solicitud de gastos |
+| Operaciones | Falta pedidos. De caja chica, el alta y la rendición |
 | Inventario y transferencias | No portados |
 | Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
 | Recibir push (FCM) | No portado — la bandeja sí |
@@ -992,7 +1031,8 @@ Para que no se reporte como falla:
 | 14 · Venta con tarjeta | 6 | | | |
 | 15 · Marcación | 7 | | | |
 | 16 · Notificaciones | 7 | | | |
-| **Total** | **110** | | | |
+| 17 · Caja chica | 5 | | | |
+| **Total** | **115** | | | |
 
 ### Los cinco que más importan
 

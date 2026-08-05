@@ -188,3 +188,66 @@ Es un servicio con estado, no solo un wrapper de queries. `cargarDatosIniciales(
 2. Cualquier cálculo de montos debe pasar por `monto-moneda.util.ts` — el guaraní sin decimales rompe todo lo demás.
 3. Los métodos de retiro y rendición lanzan excepciones: manejalas.
 4. `estado` y `estadoRendicion` son independientes.
+
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** portados las **reglas de tipo de gasto**, la consulta de
+> solicitudes y el **retiro con QR**. El alta de solicitud y la rendición no.
+
+| Ruta | Componente |
+|---|---|
+| `/operaciones/gastos` | `GastosListaPage` |
+| `/operaciones/gastos/:id/:sucursalId` | `GastosDetallePage` |
+
+Una sola ruta, no dos: `frc-mobile` registraba el módulo en
+`/operaciones/solicitud-gastos` **y** en `/solicitud-gastos`.
+
+## Las reglas se portaron enteras, con tests
+
+`domains/gastos/tipo-gasto.reglas.ts` es lógica pura y se llevó **verbatim**,
+con un test por rama. Cada una tiene consecuencias: imputar un gasto al
+activo equivocado, o no pedirlo cuando hace falta, deja el gasto sin dueño.
+
+Las tres que más cuestan de adivinar leyendo el código:
+
+- **Los siete servicios continuos se imputan a un `INMUEBLE`**, no a su
+  propio módulo. La luz o el agua las consume un local.
+- **`EQUIPOS` (plural) mapea a `EQUIPO` (singular).** Comparar directo falla.
+- **Un `esPagoCuotaActivo` explícito manda sobre la naturaleza**, porque es
+  una decisión que alguien ya tomó para esa solicitud. `null` no cuenta como
+  explícito.
+
+## Los estados los presenta el backend
+
+`estadoEtiqueta`, `estadoColor` y `estadoIcono` vienen calculados y **no se
+recalculan acá**. Es el único módulo del repo que lo hace, y es el patrón
+correcto: un estado nuevo en el central aparece en la UI sin tocar el
+cliente.
+
+Lo único que se traduce es el **color** — el backend manda nombres de Ionic
+(`success`, `warning`) y el sistema de diseño habla de tonos semánticos. Esa
+traducción está en un solo lugar.
+
+⚠️ **`estado` y `estadoRendicion` se muestran los dos.** Son máquinas
+separadas: una solicitud puede estar retirada y con la rendición pendiente.
+
+## El retiro se escanea
+
+El QR de la solicitud lleva el `qrToken`, que **ata el retiro a esa solicitud
+puntual**. Escanearlo abre el detalle con el token en la URL; si la solicitud
+ya se cargó, se usa el suyo.
+
+⚠️ El retiro se imputa a la **persona**, no al usuario. Un usuario sin
+persona asociada da un error de datos, no de pantalla.
+
+## Lo que falta
+
+| Qué | Espera a |
+|---|---|
+| **Alta de solicitud** | los buscadores paginados de personas, proveedores, vehículos, muebles, inmuebles y equipos — seis, uno por tipo de activo |
+| **Rendición** | subida de fotos de factura y producto |
+| Devolución de vuelto | la rendición |
+| Validaciones del formulario (`validarFormulario`) | el alta. La regla dura: **una moneda por detalle, sin repetir** |

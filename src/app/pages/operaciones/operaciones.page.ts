@@ -23,6 +23,13 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
       }
 
       <frc-card
+        titulo="Caja chica"
+        subtitulo="Solicitudes de gasto y retiros"
+        icono="documento"
+        (abrir)="ir('/operaciones/gastos')"
+      />
+
+      <frc-card
         titulo="Venta con tarjeta"
         subtitulo="Registrar el cupón del POS"
         icono="etiqueta"

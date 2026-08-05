@@ -41,7 +41,8 @@ Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 | [apollo-graphql.md](arquitectura/apollo-graphql.md) | Histórico: cómo era en `frc-mobile` |
 | [autenticacion-sesion.md](arquitectura/autenticacion-sesion.md) | Login REST, token, biometría, `InicioSesion`, logout |
 | [configuracion-servidor.md](arquitectura/configuracion-servidor.md) | `serverIp`/`serverPort`, `conectionConfig.ts`, cambio de servidor |
-| **[escaner.md](arquitectura/escaner.md)** | **Vigente.** Lectura de códigos con la cámara: `BarcodeDetector`, carga manual, linterna |
+| **[escaner.md](arquitectura/escaner.md)** | **Vigente.** Lectura de códigos con la cámara: `BarcodeDetector`, ZXing para iOS, carga manual, linterna |
+| **[pdf.md](arquitectura/pdf.md)** | **Vigente.** Abrir PDFs en base64, con un camino por plataforma |
 | [capacitor-nativo.md](arquitectura/capacitor-nativo.md) | Histórico: Capacitor 7, plugins, permisos, `cap sync` |
 | [actualizaciones-app.md](arquitectura/actualizaciones-app.md) | Cómo se actualiza la app realmente (Play Store in-app update) y canales |
 | [ui-ionic.md](arquitectura/ui-ionic.md) | Convenciones de UI: servicios wrapper, colores, ciclo de vida Ionic, formularios |

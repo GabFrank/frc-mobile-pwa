@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 
+import { esInstalada, esIos } from '../dispositivo/plataforma';
 import { NotificacionService } from './notificacion.service';
 
 /**
@@ -7,15 +8,18 @@ import { NotificacionService } from './notificacion.service';
  *
  * Reemplaza al `PdfViewerService` de `frc-mobile`, que dependía de plugins de
  * Capacitor para escribir el archivo y lanzarlo con un visor nativo. Acá se
- * hace con APIs del navegador: `Blob` + `URL.createObjectURL`, que funcionan
- * igual en escritorio, en el teléfono y con la PWA instalada.
+ * hace con APIs del navegador: `Blob` + `URL.createObjectURL`.
+ *
+ * ⚠️ **Abrir un PDF no es igual en todas las plataformas**, y las diferencias
+ * no se detectan preguntando por una capacidad: Safari no falla, abre algo
+ * que no sirve. Ver `docs/arquitectura/pdf.md`.
  */
 @Injectable({ providedIn: 'root' })
 export class PdfService {
   private readonly notificacion = inject(NotificacionService);
 
   /**
-   * Abre el PDF en una pestaña nueva.
+   * Abre el PDF de la forma que funcione en esta plataforma.
    *
    * ⚠️ **Tiene que llamarse desde el manejador del clic**, sin `await` en el
    * medio. Los navegadores permiten abrir una ventana solo mientras dura el
@@ -30,26 +34,64 @@ export class PdfService {
     }
 
     const url = URL.createObjectURL(blob);
-    const ventana = window.open(url, '_blank');
 
-    if (!ventana) {
-      // Sin ventana, se descarga: es preferible a no dar nada.
-      const enlace = document.createElement('a');
-      enlace.href = url;
-      enlace.download = nombre;
-      enlace.click();
+    if (esIos()) {
+      this.abrirEnIos(url, nombre);
+    } else {
+      this.abrirEnElResto(url, nombre);
     }
 
     // No se revoca en el acto: la pestaña recién abierta todavía no leyó el
     // blob y quedaría en blanco. Un minuto alcanza de sobra y evita retener
     // el archivo en memoria por el resto de la sesión.
+    //
+    // Si la navegación fue en la misma pestaña, este timer muere con el
+    // documento y el navegador libera el blob solo al descartarlo.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 
-    // ⚠️ PENDIENTE DE VERIFICAR EN iOS. Safari es el caso flojo de este
-    // camino: bloquea `window.open` con más ganas y su soporte de `download`
-    // sobre blobs es despareja, sobre todo con la PWA instalada. Si falla,
-    // la salida conocida es un visor propio con el PDF embebido en vez de
-    // delegar en el navegador. Ver la regla 7 de CLAUDE.md.
+  /**
+   * iOS.
+   *
+   * Tres cosas que Safari hace distinto y que juntas rompían este camino:
+   *
+   * 1. **Instalada, `window.open` se va a Safari.** La PWA no tiene pestañas:
+   *    abrir una saca al usuario de la app, con un PDF en otro programa y sin
+   *    forma obvia de volver. Navegando en la misma vista, el visor de PDF de
+   *    Safari toma el control **dentro** de la app y el gesto de volver
+   *    regresa a la pantalla anterior.
+   * 2. **El atributo `download` no sirve como plan B.** iOS lo trata como una
+   *    navegación normal en varias versiones, así que como red de contención
+   *    no contiene nada: se termina en el mismo lugar, pero después de haber
+   *    intentado otra cosa.
+   * 3. **`window.open` bloqueado devuelve `null` sin avisar.** Sin un plan B
+   *    real, el usuario toca «Ver recibo» y no pasa absolutamente nada.
+   */
+  private abrirEnIos(url: string, nombre: string): void {
+    if (esInstalada()) {
+      window.location.href = url;
+      return;
+    }
+
+    const ventana = window.open(url, '_blank');
+    if (!ventana) {
+      // En el navegador, con el popup bloqueado, la navegación en la misma
+      // pestaña es lo único que queda: acá el botón de atrás existe.
+      this.notificacion.warn(`Abriendo ${nombre}. Usá el botón de atrás para volver.`);
+      window.location.href = url;
+    }
+  }
+
+  /** Chromium y Firefox: pestaña nueva y, si está bloqueada, descarga. */
+  private abrirEnElResto(url: string, nombre: string): void {
+    const ventana = window.open(url, '_blank');
+    if (ventana) {
+      return;
+    }
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombre;
+    enlace.click();
   }
 
   /**

@@ -78,6 +78,17 @@ Fuera de eso, no. Las cards por módulo, los formularios por entidad y los layou
 
 Carga, vacío y error. Es parte de la definición de terminado, no una mejora posterior.
 
+### 4.1 · Ni sin su guía de prueba manual
+
+Toda implementación termina con **dos entregas**, las dos:
+
+1. Un bloque numerado en [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md), con «Esperado» por caso, y la tabla de totales actualizada.
+2. **Los pasos escritos en la respuesta**, no un link al archivo.
+
+Haber validado en Chrome no reemplaza esto. Esa validación corre contra un estado de datos puntual, no puede tocar diálogos del navegador —permisos de cámara, descargas—, no usa el teléfono real y no conoce el flujo operativo.
+
+Marcar siempre **qué quedó sin verificar**: eso es justamente lo que hay que probar a mano.
+
 ### 5 · Antes de tocar el backend, verificá si lo usa el desktop
 
 Si lo usa, se crea un método paralelo con sufijo `Mobile`. El desktop es producto en producción en farmacias y bodegas. Ver `docs/REGLAS_DESARROLLO.md`.

@@ -553,6 +553,78 @@ lista en blanco.
 
 ---
 
+## Bloque 10 — Escáner y PDF en iOS *(nuevo, sin probar)*
+
+⚠️ **Nada de este bloque se probó en un iPhone.** Los tests fijan qué camino
+toma cada plataforma, no que Safari muestre bien lo que recibe. Es lo único
+que no se puede verificar sin el dispositivo.
+
+Hace falta un iPhone o iPad en la misma red, y la app servida por **HTTPS** —
+`adb reverse` es solo para Android—. Sirve exponer el dev server con un túnel
+(`cloudflared tunnel --url http://localhost:4300`) y abrir esa URL en el
+iPhone.
+
+### 10.1 · Escanear en Safari
+1. Abrir la app en Safari del iPhone, ir a Mis finanzas
+2. **Confirmar compra por QR**, dar permiso a la cámara
+3. Apuntar al QR de un convenio generado desde el desktop
+
+**Esperado:** se ve la imagen de la cámara con el marco de guía y **lee el
+código**. Safari no tiene `BarcodeDetector`: acá se está ejercitando la vía de
+ZXing, que en Android nunca se usa.
+
+> Si queda en «Abriendo la cámara…» o cae en la carga manual, la vía de ZXing
+> no arrancó. Es el fallo que más importa reportar de todo este bloque.
+
+### 10.2 · Escanear con la PWA instalada en iOS
+1. En Safari: **Compartir → Añadir a inicio**
+2. Abrir la app desde el ícono y repetir 10.1
+
+**Esperado:** igual que en Safari. La app instalada es el caso más
+restrictivo; si algo se rompe, se rompe acá.
+
+### 10.3 · Un recibo en PDF desde la PWA instalada de iOS
+1. Con la app instalada, Mi trabajo → Recibos → tocar un recibo pagado
+
+**Esperado:** el PDF se abre **dentro de la app**, no salta a Safari. El gesto
+de volver regresa a la lista de recibos.
+
+> Este es el caso que motivó todo el camino aparte. Si el PDF abre en Safari y
+> deja la app, o si al volver la app arranca de cero, hay que ir a un visor
+> propio con el PDF embebido: reportalo así.
+
+### 10.4 · El mismo recibo en Safari normal
+1. Sin instalar, abrir el mismo recibo
+
+**Esperado:** abre en una pestaña nueva. Si Safari bloquea el popup, navega
+en la misma pestaña con un aviso, y el botón de atrás vuelve.
+
+### 10.5 · Que no se haya roto Android
+1. Repetir 10.3 y 10.4 en el Android
+
+**Esperado:** igual que antes de estos cambios — pestaña nueva, y descarga si
+está bloqueada. Es el caso de regresión: lo de iOS no debe haber tocado esto.
+
+### 10.6 · Linterna
+1. En el escáner, con poca luz, tocar el ícono del rayo
+
+**Esperado:** prende el flash y el ícono queda marcado. Si el teléfono no la
+soporta, **el botón no aparece** — no aparece apagado ni sin efecto.
+
+### 10.7 · Códigos de balanza *(el que más importa para producto)*
+1. Abrir el escáner y apuntar a una **etiqueta térmica de balanza**, de las
+   de prefijo `20`, de las gastadas que están en circulación
+
+**Esperado:** lee el EAN-13 completo. La lógica de peso (`barcodeUtils.ts`) no
+cambió; lo que se está probando es que el motor lea la etiqueta real.
+
+> Probarlo en un **equipo viejo de sucursal**, no en un teléfono bueno. Ese es
+> el caso de prueba que decide si el escaneo por cámara sirve. Si no rinde, la
+> salida conocida son los lectores Bluetooth HID, que se comportan como
+> teclado y funcionan igual en el navegador.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -583,7 +655,8 @@ Para que no se reporte como falla:
 | 7 · Abrir y cerrar caja | 9 | | | |
 | 8 · Mi trabajo | 5 | | | |
 | 9 · Mis finanzas | 7 | | | |
-| **Total** | **61** | | | |
+| 10 · Escáner y PDF en iOS | 7 | | | |
+| **Total** | **68** | | | |
 
 ### Los cinco que más importan
 

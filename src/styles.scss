@@ -212,3 +212,15 @@ input:-webkit-autofill:focus {
   --mat-snack-bar-supporting-text-color: var(--on-tono);
   --mat-snack-bar-button-color: var(--on-tono);
 }
+
+// ─── Escáner a pantalla completa ───────────────────────────────────────
+// La superficie del diálogo trae padding y esquinas redondeadas, que sobre
+// una imagen de cámara dejan un marco blanco y recortan el video. El panel
+// se anula acá porque es la superficie que crea Material, no una plantilla
+// nuestra: ningún estilo encapsulado del componente la alcanza.
+.frc-escaner-panel .mat-mdc-dialog-surface {
+  padding: 0;
+  border-radius: 0;
+  background: #000;
+  overflow: hidden;
+}

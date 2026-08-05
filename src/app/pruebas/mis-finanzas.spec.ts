@@ -6,6 +6,8 @@ import { EMPTY, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
+import { EscanerService } from '../core/dispositivo/escaner.service';
+import { NotificacionService } from '../core/ui/notificacion.service';
 import { Cliente } from '../domains/cliente/cliente.model';
 import type { PageInfo } from '../domains/page-info.model';
 import type { Persona } from '../domains/personas/persona.model';
@@ -20,6 +22,13 @@ describe('Mis finanzas · convenios', () => {
     conveniosPagina: ReturnType<typeof vi.fn>;
     conveniosAbiertos: ReturnType<typeof vi.fn>;
     venta: ReturnType<typeof vi.fn>;
+    autorizarPorQr: ReturnType<typeof vi.fn>;
+  };
+  let escaner: { escanear: ReturnType<typeof vi.fn>; disponible: boolean };
+  let notificacion: {
+    ok: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    danger: ReturnType<typeof vi.fn>;
   };
 
   const texto = (f: { nativeElement: HTMLElement }) => f.nativeElement.textContent ?? '';
@@ -54,13 +63,18 @@ describe('Mis finanzas · convenios', () => {
       conveniosPagina: vi.fn(() => of(pagina([]))),
       conveniosAbiertos: vi.fn(() => of([])),
       venta: vi.fn(() => of({})),
+      autorizarPorQr: vi.fn(() => of(true)),
     };
+    escaner = { escanear: vi.fn(async () => undefined), disponible: true };
+    notificacion = { ok: vi.fn(), warn: vi.fn(), danger: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: MisFinanzasService, useValue: servicio },
+        { provide: EscanerService, useValue: escaner },
+        { provide: NotificacionService, useValue: notificacion },
       ],
     });
     TestBed.inject(AuthService).establecerUsuario(
@@ -159,5 +173,86 @@ describe('Mis finanzas · convenios', () => {
     f.detectChanges();
 
     expect(texto(f)).toContain('sin conexión');
+  });
+
+  describe('confirmar compra por QR', () => {
+    // frc-{sucursal}-{tipoEntidad}-{idOrigen}-{idCentral}-{componente}-{data}-{timestamp}
+    const qr = (partes: Partial<Record<'suc' | 'tipo' | 'origen' | 'clave' | 'ts', string>> = {}) =>
+      [
+        'frc',
+        partes.suc ?? '3',
+        partes.tipo ?? 'VENTA_CREDITO',
+        partes.origen ?? '11',
+        '0',
+        '',
+        partes.clave ?? 'abc123',
+        partes.ts ?? '1770000000000',
+      ].join('-');
+
+    const montar = (leido: string | undefined) => {
+      escaner.escanear.mockResolvedValue(leido);
+      const f = TestBed.createComponent(MisFinanzasPage);
+      f.detectChanges();
+      return f;
+    };
+
+    it('pide solo el formato QR', async () => {
+      const f = montar(qr());
+      await f.componentInstance.confirmarPorQr();
+
+      expect(escaner.escanear).toHaveBeenCalledWith(
+        expect.objectContaining({ formatos: ['qr_code'] }),
+      );
+    });
+
+    it('autoriza con la persona de la sesión y los datos del QR', async () => {
+      servicio.autorizarPorQr.mockReturnValue(of(true));
+      const f = montar(qr());
+      await f.componentInstance.confirmarPorQr();
+
+      expect(servicio.autorizarPorQr).toHaveBeenCalledWith(11, '1770000000000', 3, 'abc123');
+      expect(notificacion.ok).toHaveBeenCalled();
+    });
+
+    it('rechaza el QR de otra persona sin ir al servidor', async () => {
+      const f = montar(qr({ origen: '99' }));
+      await f.componentInstance.confirmarPorQr();
+
+      expect(servicio.autorizarPorQr).not.toHaveBeenCalled();
+      expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('otra persona'));
+    });
+
+    it('rechaza un QR que no es de una compra a crédito', async () => {
+      const f = montar(qr({ tipo: 'PRODUCTO' }));
+      await f.componentInstance.confirmarPorQr();
+
+      expect(servicio.autorizarPorQr).not.toHaveBeenCalled();
+      expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('compra a crédito'));
+    });
+
+    it('rechaza un código que no es de esta app', async () => {
+      const f = montar('7840001234567');
+      await f.componentInstance.confirmarPorQr();
+
+      expect(servicio.autorizarPorQr).not.toHaveBeenCalled();
+      expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('no es de esta'));
+    });
+
+    it('cancelar el escáner no hace nada', async () => {
+      const f = montar(undefined);
+      await f.componentInstance.confirmarPorQr();
+
+      expect(servicio.autorizarPorQr).not.toHaveBeenCalled();
+      expect(notificacion.warn).not.toHaveBeenCalled();
+    });
+
+    it('un false del central se avisa: el QR venció o ya se usó', async () => {
+      servicio.autorizarPorQr.mockReturnValue(of(false));
+      const f = montar(qr());
+      await f.componentInstance.confirmarPorQr();
+
+      expect(notificacion.ok).not.toHaveBeenCalled();
+      expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('venció'));
+    });
   });
 });

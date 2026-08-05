@@ -184,12 +184,30 @@ antes, así que el desktop y cualquier cliente viejo siguen andando.
 | `fechaLegible` exigía hora | Las fechas sin hora —vales, jornadas— mostraban «Sin fecha» |
 | `countByClienteIdAndEstado` no existe en el schema del central | El `CountVentaCreditoByClienteAndEstadoGQL` del repo anterior no podía resolver. No se portó |
 
+## Confirmar la compra por QR
+
+El botón de acción de `/mis-finanzas` abre el
+[escáner](../arquitectura/escaner.md), lee el QR que muestra la caja y llama a
+`ventaCreditoQrAuth`. El central publica la autorización por suscripción y el
+desktop, que está esperando, cierra la venta.
+
+El QR lo genera el desktop al armar el convenio
+(`add-venta-credito-dialog.component.ts`) y lleva la persona del cliente, la
+sucursal, una clave de un solo uso y el momento en que se creó.
+
+> ⚠️ **En `frc-mobile` el resultado terminaba en un `console.log`.** El
+> empleado escaneaba y la pantalla no decía nada, ni al salir bien ni al salir
+> mal. Tampoco se validaba el contenido: escanear el QR de otra persona —o el
+> código de barras de un producto— disparaba igual una llamada al servidor que
+> no podía prosperar.
+
+Ahora se valida antes de llamar: que sea un QR de esta app, que su
+`tipoEntidad` sea `VENTA_CREDITO`, que el `idOrigen` sea la persona en sesión
+y que traiga sucursal. Cada rechazo dice cuál falló. Un `false` del central
+—QR vencido o ya usado— también se avisa.
+
 ## Lo que falta
 
-- **Confirmar convenios por QR.** El repo anterior escaneaba con un plugin de
-  Capacitor. En la PWA hace falta un escáner con `BarcodeDetector` y cámara,
-  que es **infraestructura compartida** con venta-tarjeta y solicitud-gastos:
-  se construye una vez, no una por módulo.
 - **La bandeja de aprobaciones no puede decir de quién es la solicitud.**
   `rrhh.vacacion_periodo.vacacion_id` existe en la base; falta exponerlo en
   el tipo `VacacionPeriodo`. Es un campo de schema.

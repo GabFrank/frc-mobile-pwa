@@ -3,11 +3,16 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
+import { FORMATOS_QR } from 'src/app/core/dispositivo/escaner.types';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { Cliente } from 'src/app/domains/cliente/cliente.model';
+import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
 import type { PageInfo } from 'src/app/domains/page-info.model';
 import { EstadoVentaCredito, VentaCredito } from 'src/app/domains/venta-credito/venta-credito.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
+import { descodificarQr } from 'src/app/generic/utils/qrUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
@@ -56,6 +61,14 @@ const FILTROS: readonly { clave: Filtro; etiqueta: string; estado: EstadoVentaCr
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Mis finanzas" [conVolver]="true">
+      @if (!sinCliente()) {
+        <div acciones>
+          <button matButton="filled" class="ancho" [disabled]="autorizando()" (click)="confirmarPorQr()">
+            Confirmar compra por QR
+          </button>
+        </div>
+      }
+
       @if (cliente(); as c) {
         <frc-seccion titulo="Crédito" [panel]="true">
           <frc-dato etiqueta="Límite">
@@ -130,11 +143,16 @@ const FILTROS: readonly { clave: Filtro; etiqueta: string; estado: EstadoVentaCr
       }
     </frc-pagina>
   `,
+  styles: `
+    .ancho { width: 100%; }
+  `,
 })
 export class MisFinanzasPage {
   private readonly finanzas = inject(MisFinanzasService);
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);
+  private readonly escaner = inject(EscanerService);
+  private readonly notificacion = inject(NotificacionService);
 
   readonly filtros = FILTROS;
 
@@ -148,6 +166,7 @@ export class MisFinanzasPage {
   readonly error = signal<string | null>(null);
   /** Distingue «no es cliente» de «es cliente sin convenios». */
   readonly sinCliente = signal(false);
+  readonly autorizando = signal(false);
 
   readonly indiceFiltro = computed(() =>
     FILTROS.findIndex((f) => f.clave === this.filtroActivo()),
@@ -255,6 +274,80 @@ export class MisFinanzasPage {
   subtitulo(convenio: VentaCredito): string {
     const partes = [convenio.sucursal?.nombre, fechaLegible(convenio.creadoEn)].filter(Boolean);
     return partes.join(' · ');
+  }
+
+  /**
+   * Autoriza una compra a crédito escaneando el QR que muestra la caja.
+   *
+   * El QR lo genera el desktop al armar el convenio y lleva la persona del
+   * cliente, la sucursal, una clave de un solo uso y el momento en que se
+   * creó. El central publica la autorización por suscripción y el desktop,
+   * que está esperando, cierra la venta.
+   *
+   * ⚠️ En `frc-mobile` el resultado terminaba en un `console.log`: el
+   * empleado escaneaba y la pantalla no decía nada, ni al salir bien ni al
+   * salir mal. Y no se validaba nada del contenido, así que escanear el QR
+   * de otra persona —o el código de barras de un producto— disparaba igual
+   * una llamada al servidor que no podía prosperar.
+   */
+  async confirmarPorQr(): Promise<void> {
+    const personaId = this.auth.usuario()?.persona?.id;
+    if (personaId == null) {
+      this.notificacion.danger('No se pudo identificar a la persona en sesión.');
+      return;
+    }
+
+    const texto = await this.escaner.escanear({
+      titulo: 'Confirmar compra',
+      ayuda: 'Apuntá al QR que muestra la caja',
+      // Solo QR: con los formatos de producto habilitados, la cámara podría
+      // leer el código de barras de lo que está sobre el mostrador.
+      formatos: FORMATOS_QR,
+      etiquetaManual: 'Código del convenio',
+    });
+    if (!texto) {
+      return;
+    }
+
+    const datos = descodificarQr(texto);
+    if (!datos) {
+      this.notificacion.warn('Ese código no es de esta aplicación.');
+      return;
+    }
+    if (datos.tipoEntidad !== TipoEntidad.VENTA_CREDITO) {
+      this.notificacion.warn('Ese QR no corresponde a una compra a crédito.');
+      return;
+    }
+    if (String(datos.idOrigen) !== String(personaId)) {
+      this.notificacion.warn('Ese QR fue generado para otra persona.');
+      return;
+    }
+
+    const sucursalId = Number(datos.sucursalId);
+    if (!Number.isFinite(sucursalId)) {
+      this.notificacion.warn('El QR no trae la sucursal.');
+      return;
+    }
+
+    this.autorizando.set(true);
+    this.finanzas
+      .autorizarPorQr(personaId, datos.timestamp ?? '', sucursalId, datos.data ?? '')
+      .subscribe({
+        next: (ok) => {
+          this.autorizando.set(false);
+          if (ok) {
+            this.notificacion.ok('Compra confirmada. Ya podés retirar en la caja.');
+            this.cargar();
+          } else {
+            // El central devuelve false con un QR vencido o ya usado.
+            this.notificacion.warn('El código no es válido o ya venció. Pedí uno nuevo en la caja.');
+          }
+        },
+        error: (err: Error) => {
+          this.autorizando.set(false);
+          this.notificacion.danger(err.message);
+        },
+      });
   }
 
   async verDetalle(convenio: VentaCredito): Promise<void> {

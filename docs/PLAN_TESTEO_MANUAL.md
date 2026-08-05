@@ -523,7 +523,29 @@ finalizados y cancelados—, y la paginación vuelve a la página 1.
 **Esperado:** los ítems de la venta con cantidad, precio y total. Abre la
 venta de **esa** sucursal: el id de venta se repite entre filiales.
 
-### 9.5 · Funcionario sin convenio
+### 9.5 · Confirmar por QR — **en el teléfono**
+1. `adb reverse tcp:4300 tcp:4300`, abrir `http://localhost:4300` en el Android
+2. Mis finanzas → **Confirmar compra por QR**, dar permiso a la cámara
+3. Que alguien genere el QR del convenio desde el desktop y apuntar
+
+**Esperado:** marco de guía, botón de linterna si el teléfono la tiene, y al
+leer el código la pantalla vuelve con «Compra confirmada». En el desktop la
+venta se cierra sola.
+
+Probar también los rechazos: escanear el código de barras de un producto
+(«no es de esta aplicación»), y el QR generado para otra persona («fue
+generado para otra persona»). **Ninguno de los dos debe llamar al servidor.**
+
+> Sin `adb reverse` no funciona: `getUserMedia` exige HTTPS o `localhost`.
+> Servir por IP de red no alcanza.
+
+### 9.6 · Cargar el código a mano
+1. En el escáner, tocar **Ingresar a mano**
+
+**Esperado:** el campo abre **con el teclado desplegado**. El código escrito
+pasa por las mismas validaciones que el escaneado.
+
+### 9.7 · Funcionario sin convenio
 1. Entrar con un usuario cuya persona no sea cliente
 
 **Esperado:** «No tenés convenio» explicando por qué, no un error ni una
@@ -541,9 +563,8 @@ Para que no se reporte como falla:
 | Operaciones | Solo Caja. Faltan pedidos, devoluciones, solicitud de gastos, venta-tarjeta |
 | Inventario, transferencias, producto | No portados |
 | Notificaciones | No portadas |
-| Confirmar convenio por QR | Falta el escáner (infraestructura compartida) |
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
-| Escáner de códigos | No implementado (llega con producto) |
+| Escáner de códigos | Implementado — falta probarlo en dispositivos de sucursal |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
 | Cámara, GPS, biometría | No implementados |
 
@@ -561,8 +582,8 @@ Para que no se reporte como falla:
 | 6 · Accesibilidad | 5 | | | |
 | 7 · Abrir y cerrar caja | 9 | | | |
 | 8 · Mi trabajo | 5 | | | |
-| 9 · Mis finanzas | 5 | | | |
-| **Total** | **59** | | | |
+| 9 · Mis finanzas | 7 | | | |
+| **Total** | **61** | | | |
 
 ### Los cinco que más importan
 

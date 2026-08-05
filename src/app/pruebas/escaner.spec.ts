@@ -6,6 +6,42 @@ import { EscanerDialogComponent } from '../core/dispositivo/escaner-dialog.compo
 import { FORMATOS_QR } from '../core/dispositivo/escaner.types';
 
 /**
+ * ZXing es el camino de Safari e iOS. Se reemplaza por un doble para poder
+ * ejercitarlo sin cámara: sin esto, el único motor con test sería el de
+ * Chromium, que es justo el que **no** hace falta cuidar.
+ */
+const zxing = vi.hoisted(() => ({
+  emitir: null as ((texto: string) => void) | null,
+  detener: vi.fn(),
+  pistas: null as unknown,
+  fallar: false,
+}));
+
+vi.mock('@zxing/browser', () => ({
+  BrowserMultiFormatReader: class {
+    constructor(pistas?: unknown) {
+      zxing.pistas = pistas;
+    }
+    async decodeFromStream(
+      _stream: unknown,
+      _video: unknown,
+      callback: (resultado?: { getText(): string }) => void,
+    ) {
+      if (zxing.fallar) {
+        throw new Error('sin soporte');
+      }
+      zxing.emitir = (texto) => callback({ getText: () => texto });
+      return { stop: zxing.detener };
+    }
+  },
+}));
+
+vi.mock('@zxing/library', () => ({
+  BarcodeFormat: { QR_CODE: 11, EAN_13: 3 },
+  DecodeHintType: { POSSIBLE_FORMATS: 2 },
+}));
+
+/**
  * El escáner toca tres APIs del navegador que jsdom no trae: `mediaDevices`,
  * `BarcodeDetector` y la reproducción de `<video>`. Se arman acá y se
  * desarman después de cada caso, para que un test no le deje la cámara
@@ -72,10 +108,16 @@ describe('Escáner de códigos', () => {
     return f;
   }
 
-  /** Deja correr las promesas pendientes sin esperar el intervalo real. */
+  /**
+   * Deja correr lo pendiente sin esperar el intervalo real de detección.
+   *
+   * Alterna micro y macrotareas porque el arranque encadena las dos: los
+   * `await` del componente y el `import()` dinámico de ZXing.
+   */
   const asentar = async () => {
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
     }
   };
 
@@ -83,6 +125,10 @@ describe('Escáner de códigos', () => {
     detener = vi.fn();
     capacidades = {};
     restricciones = [];
+    zxing.emitir = null;
+    zxing.pistas = null;
+    zxing.fallar = false;
+    zxing.detener.mockClear();
     // jsdom no implementa la reproducción ni expone un readyState útil.
     HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(HTMLMediaElement.prototype, 'readyState', {
@@ -136,9 +182,31 @@ describe('Escáner de códigos', () => {
     expect(f.nativeElement.querySelector('input')).toBeTruthy();
   });
 
-  it('sin BarcodeDetector ofrece la carga manual', async () => {
+  it('sin BarcodeDetector lee con ZXing — el camino de iOS', async () => {
     montarCamara();
     delete (globalThis as Record<string, unknown>)['BarcodeDetector'];
+
+    const f = crear({ formatos: ['qr_code'] });
+    await asentar();
+    f.detectChanges();
+
+    // La cámara arrancó: no cayó en la carga manual.
+    expect(f.nativeElement.querySelector('input')).toBeFalsy();
+    expect(zxing.emitir).toBeTruthy();
+
+    // Los formatos se acotan también acá: sin eso ZXing prueba todos los
+    // decodificadores en cada frame.
+    expect((zxing.pistas as Map<number, number[]>).get(2)).toEqual([11]);
+
+    zxing.emitir?.('frc-3-VENTA_CREDITO-11-0--clave-1770000000000');
+    expect(cerrar).toHaveBeenCalledWith('frc-3-VENTA_CREDITO-11-0--clave-1770000000000');
+    expect(zxing.detener).toHaveBeenCalled();
+  });
+
+  it('si tampoco anda ZXing ofrece la carga manual', async () => {
+    montarCamara();
+    delete (globalThis as Record<string, unknown>)['BarcodeDetector'];
+    zxing.fallar = true;
 
     const f = crear();
     await asentar();

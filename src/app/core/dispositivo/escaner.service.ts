@@ -3,7 +3,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 
 import { EscanerDialogComponent } from './escaner-dialog.component';
-import { OpcionesEscaneo, detectorNativo, hayCamara } from './escaner.types';
+import { OpcionesEscaneo, hayCamara } from './escaner.types';
 
 /**
  * Lectura de códigos de barra y QR.
@@ -21,9 +21,15 @@ import { OpcionesEscaneo, detectorNativo, hayCamara } from './escaner.types';
 export class EscanerService {
   private readonly dialog = inject(MatDialog);
 
-  /** `true` si este navegador puede leer con la cámara. */
+  /**
+   * `true` si este navegador puede leer con la cámara.
+   *
+   * Alcanza con tener cámara: sin `BarcodeDetector` —Safari, Firefox— el
+   * diálogo carga ZXing. Condicionar esto al detector nativo dejaría a los
+   * iPhone sin escáner por una capacidad que no necesitan.
+   */
   get disponible(): boolean {
-    return hayCamara() && detectorNativo() !== null;
+    return hayCamara();
   }
 
   /**

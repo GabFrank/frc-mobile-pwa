@@ -29,19 +29,28 @@ Devuelve un `string` o `undefined`. La pantalla **no sabe** de dónde salió el
 código: de la cámara, de la carga manual o —el día que haga falta— de un
 lector Bluetooth. Esa es toda la razón de que exista el servicio.
 
-## Las dos vías
+## Las tres vías
 
 | # | Vía | Dónde funciona |
 |---|---|---|
-| 1 | `BarcodeDetector` | Chromium sobre Android y escritorio. Por debajo es ML Kit: **el mismo motor** que el plugin de Capacitor del repo anterior |
-| 2 | Carga manual | Siempre |
+| 1 | `BarcodeDetector` | Chromium, Android incluido. Por debajo es ML Kit: **el mismo motor** que el plugin de Capacitor del repo anterior |
+| 2 | **ZXing** | **Safari y Firefox** — el camino de iOS |
+| 3 | Carga manual | Siempre |
 
-> ⚠️ **No hay fallback de ZXing**, que sí tiene la implementación de
-> referencia de `frc-gourmet`. Haría falta para escanear con cámara en Safari
-> o Firefox, que no traen `BarcodeDetector`. Hoy la flota es Android/Chromium
-> y no hay iOS; la librería son ~200 kB en un bundle que ya excede su
-> presupuesto. El punto de inserción es **uno solo** y está marcado en
-> `escaner-dialog.component.ts` con el comentario `SIN DETECTOR NATIVO`.
+La cámara se pide **una sola vez** y recién después se elige el motor. Así el
+permiso, la traducción de errores y la linterna son los mismos por los dos
+caminos: lo único que cambia entre Android e iOS es quién mira los frames.
+
+### ZXing no cuesta nada en Android
+
+Entra por `import()` dinámico, así que queda en un **chunk aparte de 460 kB
+crudos / 91 kB transferidos que Chromium nunca descarga**. El bundle inicial
+no se mueve.
+
+> ⚠️ **iOS no es un caso futuro.** Soportar iPhone es uno de los motivos de
+> esta migración: es lo que la APK no podía dar. Que hoy no haya iPhones en la
+> flota no es razón para dejar Safari sin camino. Ver la **regla 7** de
+> [`../../CLAUDE.md`](../../CLAUDE.md).
 
 ## La carga manual no es solo el plan B
 
@@ -105,7 +114,9 @@ botón desaparece en vez de quedar sin efecto.
   La lógica de parseo (`barcodeUtils.ts`) no cambia —opera sobre el string ya
   leído—; lo que falta confirmar es que `BarcodeDetector` los lea bien.
 - **Dispositivos viejos de sucursal**, que es el caso de prueba que importa.
-  Un iPhone de escritorio no dice nada.
+- **La vía de ZXing en un iPhone real.** Está cubierta por tests con un doble,
+  que prueban que el camino existe y se corta bien — no que ZXing lea un EAN-13
+  con la cámara de un iPhone. Eso pide un dispositivo.
 
 Si el escaneo por cámara no rinde, la salida es la de siempre: los lectores
 Bluetooth HID se comportan como teclado y funcionan igual en el navegador.

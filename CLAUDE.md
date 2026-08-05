@@ -86,6 +86,23 @@ Si lo usa, se crea un método paralelo con sufijo `Mobile`. El desktop es produc
 
 Balances de caja, diferencias de arqueo, distribución de cantidades entre notas de recepción. El cliente muestra, no calcula.
 
+### 7 · iOS es un objetivo, no un caso futuro
+
+**Soportar iPhone es uno de los motivos de esta migración.** La APK no podía darlo; la PWA sí. Que hoy no haya un solo iPhone en la flota no cambia nada: es la razón por la que el repo existe.
+
+En la práctica, toda capacidad de dispositivo necesita su camino en **Safari**, no solo en Chromium:
+
+| Capacidad | Chromium | Safari / iOS |
+|---|---|---|
+| Lectura de códigos | `BarcodeDetector` | **ZXing** por `import()` dinámico |
+| Cámara | `getUserMedia` | `getUserMedia` + `playsinline` y `muted` obligatorios en el `<video>` |
+| Notificaciones push | Web Push | Solo con la PWA **instalada** (iOS 16.4+) |
+| Instalación | Prompt del navegador | Solo desde «Compartir → Añadir a inicio»; no hay prompt |
+
+Lo que se carga solo para Safari va en un **chunk aparte**: el peso no lo paga Android. Es la diferencia entre «no lo agrego porque pesa» y «lo agrego donde no cuesta».
+
+> ⚠️ Ya pasó una vez: el escáner se escribió sin fallback «porque hoy no hay iOS». Eso invierte el orden — el soporte de iOS es el requisito, no una consecuencia de tener usuarios de iOS.
+
 ## Estructura
 
 ```
@@ -127,3 +144,4 @@ Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.
 6. Dar por terminado un módulo sin sus estados de carga, vacío y error
 7. Escribir un token `--mdc-*`: Material 21 renombró toda esa familia a `--mat-*` y los nombres viejos **fallan en silencio** — la regla se aplica, la variable queda definida y el componente sigue con su valor por defecto. Hay un test que lo impide
 8. Escribir un backtick dentro de `template:` o `styles:` de un componente: rompe el literal y el error que sale no señala la causa
+9. Dejar una capacidad de dispositivo sin camino en Safari «porque hoy no hay iOS» — ver la regla 7

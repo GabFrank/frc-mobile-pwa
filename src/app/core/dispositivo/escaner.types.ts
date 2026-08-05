@@ -43,6 +43,24 @@ export const FORMATOS_PRODUCTO: readonly FormatoCodigo[] = [
 /** Solo QR. Para los códigos internos de la app (`frc-…`). */
 export const FORMATOS_QR: readonly FormatoCodigo[] = ['qr_code'];
 
+/**
+ * Nombre de cada formato en el enum `BarcodeFormat` de ZXing.
+ *
+ * Las claves son las de `BarcodeDetector` —que es el vocabulario que usa la
+ * app— y los valores, los de ZXing. La tabla existe porque los dos motores
+ * nombran distinto lo mismo, no porque haya dos vocabularios propios.
+ */
+export const FORMATO_ZXING: Readonly<Record<string, string>> = {
+  qr_code: 'QR_CODE',
+  ean_13: 'EAN_13',
+  ean_8: 'EAN_8',
+  upc_a: 'UPC_A',
+  upc_e: 'UPC_E',
+  code_128: 'CODE_128',
+  code_39: 'CODE_39',
+  itf: 'ITF',
+};
+
 export interface OpcionesEscaneo {
   /** Texto de la barra superior. */
   titulo?: string;

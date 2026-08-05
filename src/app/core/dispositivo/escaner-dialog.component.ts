@@ -17,6 +17,7 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import {
   DetectorDeCodigos,
   FORMATOS_PRODUCTO,
+  FORMATO_ZXING,
   OpcionesEscaneo,
   detectorNativo,
   hayCamara,
@@ -37,21 +38,22 @@ type Estado = 'iniciando' | 'escaneando' | 'manual';
 /**
  * Escáner de códigos con la cámara.
  *
- * Dos caminos, en orden:
+ * Tres caminos, en orden:
  *
- * 1. **`BarcodeDetector`** — API del navegador, presente en Chromium sobre
- *    Android. Por debajo es ML Kit: el mismo motor que usaba el plugin de
- *    Capacitor del repo anterior.
- * 2. **Carga manual** — siempre disponible, no solo cuando algo falla. Un
+ * 1. **`BarcodeDetector`** — API del navegador, presente en Chromium. Por
+ *    debajo es ML Kit: el mismo motor que usaba el plugin de Capacitor del
+ *    repo anterior.
+ * 2. **ZXing** — para **Safari y Firefox**, que no traen `BarcodeDetector` y
+ *    no está previsto que lo traigan. Es el camino de iOS. Entra por
+ *    `import()` dinámico, así que Chromium nunca descarga esos kilobytes.
+ * 3. **Carga manual** — siempre disponible, no solo cuando algo falla. Un
  *    código térmico gastado no se lee ni con el mejor motor, y el cajero
  *    necesita poder seguir.
  *
- * ⚠️ **No se incluye el fallback de ZXing** que sí tiene `frc-gourmet`. Haría
- * falta para escanear con cámara en Safari o Firefox, que no traen
- * `BarcodeDetector`. Hoy la flota es Android/Chromium, no hay iOS, y sumar la
- * librería son ~200 kB en un bundle que ya excede su presupuesto. El punto de
- * inserción es único y está marcado abajo con `SIN DETECTOR NATIVO`; si algún
- * día entra iOS, es un `import()` dinámico ahí y nada más.
+ * ⚠️ **iOS no es un caso futuro: es uno de los motivos de la migración.**
+ * Soportar iPhone es lo que la APK no podía dar. Cualquier capacidad nueva
+ * de dispositivo necesita su camino en Safari, aunque hoy no haya ningún
+ * iPhone en la flota. Ver la regla 7 en `CLAUDE.md`.
  */
 @Component({
   selector: 'frc-escaner-dialog',
@@ -267,6 +269,7 @@ export class EscanerDialogComponent {
 
   private stream: MediaStream | null = null;
   private detector: DetectorDeCodigos | null = null;
+  private controlesZxing: { stop(): void } | null = null;
   private cerrado = false;
 
   constructor() {
@@ -277,43 +280,120 @@ export class EscanerDialogComponent {
     void this.iniciar();
   }
 
+  /**
+   * Abre la cámara y arranca el motor de lectura que corresponda.
+   *
+   * La cámara se pide **una sola vez, acá**, y recién después se decide el
+   * motor. Así el permiso, la traducción de errores y la linterna son los
+   * mismos por los dos caminos: lo único que cambia entre Android e iOS es
+   * quién mira los frames.
+   */
   private async iniciar(): Promise<void> {
     if (!hayCamara()) {
       this.pasarAManual('Este navegador no da acceso a la cámara.');
       return;
     }
 
-    const Detector = detectorNativo();
-    if (!Detector) {
-      // ── SIN DETECTOR NATIVO ──────────────────────────────────────────
-      // Acá iría el `await import('@zxing/library')` para Safari/Firefox.
-      // Ver la nota del encabezado del componente.
-      this.pasarAManual('Este navegador no puede leer códigos con la cámara.');
-      return;
-    }
+    const formatos = [...(this.datos.formatos ?? FORMATOS_PRODUCTO)];
 
     try {
-      const formatos = await this.formatosUsables(Detector);
-      if (formatos.length === 0) {
-        this.pasarAManual('La cámara no soporta los códigos que hay que leer.');
-        return;
-      }
-      this.detector = new Detector({ formats: formatos });
-
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       });
-
-      const video = this.videoRef().nativeElement;
-      video.srcObject = this.stream;
-      await video.play();
-
-      this.capacidadLinterna.set(this.soportaLinterna());
-      this.estado.set('escaneando');
-      void this.bucle();
     } catch (err) {
       this.pasarAManual(this.explicar(err));
+      return;
+    }
+
+    const video = this.videoRef().nativeElement;
+    video.srcObject = this.stream;
+    try {
+      // iOS exige `playsinline` y `muted` —los dos están en la plantilla—,
+      // y aun así puede rechazar el play si no viene de un gesto. El
+      // diálogo se abre desde un clic, así que el gesto está.
+      await video.play();
+    } catch {
+      /* algunos navegadores reproducen igual con autoplay */
+    }
+
+    this.capacidadLinterna.set(this.soportaLinterna());
+
+    const arrancado = (await this.arrancarNativo(formatos)) || (await this.arrancarZxing(formatos));
+    if (!arrancado) {
+      this.pasarAManual('Este navegador no puede leer códigos con la cámara.');
+      return;
+    }
+
+    this.estado.set('escaneando');
+  }
+
+  /** `BarcodeDetector`. Chromium, Android incluido. */
+  private async arrancarNativo(formatos: string[]): Promise<boolean> {
+    const Detector = detectorNativo();
+    if (!Detector) {
+      return false;
+    }
+    try {
+      const usables = await this.formatosUsables(Detector, formatos);
+      if (usables.length === 0) {
+        return false;
+      }
+      this.detector = new Detector({ formats: usables });
+      void this.bucle();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * ZXing en WebAssembly/JS, para **Safari y Firefox**.
+   *
+   * iOS no tiene `BarcodeDetector` y no está previsto que lo tenga. Sin este
+   * camino, un iPhone solo podría cargar códigos a mano — y soportar iOS es
+   * de los motivos por los que esta app dejó de ser una APK.
+   *
+   * Se carga con `import()` dinámico: queda en un chunk aparte que Chromium
+   * nunca descarga.
+   */
+  private async arrancarZxing(formatos: string[]): Promise<boolean> {
+    if (!this.stream) {
+      return false;
+    }
+    try {
+      const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
+        import('@zxing/browser'),
+        import('@zxing/library'),
+      ]);
+
+      const posibles = formatos
+        .map((f) => BarcodeFormat[FORMATO_ZXING[f] as keyof typeof BarcodeFormat])
+        .filter((f) => f !== undefined);
+
+      const pistas = new Map();
+      if (posibles.length > 0) {
+        // Sin acotar los formatos, ZXing prueba todos los decodificadores en
+        // cada frame: en un teléfono se nota.
+        pistas.set(DecodeHintType.POSSIBLE_FORMATS, posibles);
+      }
+
+      const lector = new BrowserMultiFormatReader(pistas);
+      this.controlesZxing = await lector.decodeFromStream(
+        this.stream,
+        this.videoRef().nativeElement,
+        (resultado) => {
+          const texto = resultado?.getText();
+          if (texto) {
+            this.emitir(texto);
+          }
+          // El callback también se invoca sin resultado en cada frame que no
+          // trae código. No es un error: es lo normal mientras se apunta.
+        },
+      );
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -326,8 +406,8 @@ export class EscanerDialogComponent {
    */
   private async formatosUsables(
     Detector: { getSupportedFormats?(): Promise<string[]> },
-    ): Promise<string[]> {
-    const pedidos = [...(this.datos.formatos ?? FORMATOS_PRODUCTO)];
+    pedidos: string[],
+  ): Promise<string[]> {
     if (!Detector.getSupportedFormats) {
       return pedidos;
     }
@@ -433,6 +513,16 @@ export class EscanerDialogComponent {
 
   private detener(): void {
     this.detector = null;
+    if (this.controlesZxing) {
+      // Corta el bucle de decodificación de ZXing. Sin esto sigue leyendo
+      // frames aunque el diálogo ya no exista.
+      try {
+        this.controlesZxing.stop();
+      } catch {
+        /* ya estaba detenido */
+      }
+      this.controlesZxing = null;
+    }
     if (this.stream) {
       this.stream.getTracks().forEach((pista) => pista.stop());
       this.stream = null;

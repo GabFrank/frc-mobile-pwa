@@ -44,6 +44,12 @@ export class PdfService {
     // blob y quedaría en blanco. Un minuto alcanza de sobra y evita retener
     // el archivo en memoria por el resto de la sesión.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+    // ⚠️ PENDIENTE DE VERIFICAR EN iOS. Safari es el caso flojo de este
+    // camino: bloquea `window.open` con más ganas y su soporte de `download`
+    // sobre blobs es despareja, sobre todo con la PWA instalada. Si falla,
+    // la salida conocida es un visor propio con el PDF embebido en vez de
+    // delegar en el navegador. Ver la regla 7 de CLAUDE.md.
   }
 
   /**

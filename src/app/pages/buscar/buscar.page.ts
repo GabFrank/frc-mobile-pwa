@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { esSucursalOperable } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { BuscadorProductoComponent } from 'src/app/shared/producto/buscador-producto.component';
 import { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/buscador.types';
@@ -37,12 +38,20 @@ export class BuscarPage {
    *
    * Es la que el usuario pregunta por defecto. Para ver las demás está la
    * opción del menú `⋮`, que abre el diálogo por sucursal.
+   *
+   * ⚠️ **Solo si esa sucursal tiene depósito.** Una sucursal virtual
+   * —`SERVIDOR`, `COMPRAS`— no mueve stock: preguntarle la existencia de un
+   * producto devuelve un número sin significado. Un usuario con la sesión
+   * ahí es normal, no un error. Ver `sucursal.util.ts`.
    */
-  readonly opciones = computed<OpcionesBuscador>(() => ({
-    devuelve: 'presentacion',
-    mostrarPrecio: true,
-    sucursalId: this.auth.sucursal()?.id,
-  }));
+  readonly opciones = computed<OpcionesBuscador>(() => {
+    const sucursal = this.auth.sucursal();
+    return {
+      devuelve: 'presentacion',
+      mostrarPrecio: true,
+      sucursalId: esSucursalOperable(sucursal) ? sucursal?.id : undefined,
+    };
+  });
 
   alElegir(_seleccion: SeleccionProducto): void {
     // Consulta pura: no hay a dónde devolver. Lo elegido ya se ve en la card

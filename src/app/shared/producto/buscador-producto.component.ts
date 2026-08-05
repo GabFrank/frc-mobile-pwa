@@ -12,7 +12,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Subscription } from 'rxjs';
 
-import { esSucursalReal } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
 import { FORMATOS_PRODUCTO } from 'src/app/core/dispositivo/escaner.types';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
@@ -276,12 +275,15 @@ export class BuscadorProductoComponent {
   /**
    * Existencia del producto, o `null` si no corresponde mostrarla.
    *
-   * Sin sucursal no hay stock que mostrar —la existencia es siempre de un
-   * local—, y **el servidor no es un local**: `sucursal_id = 0` es la fila
-   * `SERVIDOR`, que no tiene depósito. Ver `sucursal.util.ts`.
+   * Sin sucursal no hay stock: la existencia es siempre de un depósito.
+   *
+   * ⚠️ **Quién decide si la sucursal sirve es el llamador**, no esta
+   * pantalla. Una sucursal sin depósito es virtual y no mueve stock, pero
+   * eso se sabe mirando el objeto `Sucursal` —`deposito`—, no el id, y el
+   * buscador solo recibe un id. Ver `sucursal.util.ts`.
    */
   stockDe(producto: Producto): number | null {
-    if (!esSucursalReal(this.opciones().sucursalId) || producto.id == null) {
+    if (this.opciones().sucursalId == null || producto.id == null) {
       return null;
     }
     return this.stocks()[producto.id] ?? null;
@@ -366,8 +368,8 @@ export class BuscadorProductoComponent {
     }
 
     const sucursalId = this.opciones().sucursalId;
-    if (esSucursalReal(sucursalId) && this.stocks()[id] == null) {
-      this.busqueda.stock(id, sucursalId!).subscribe({
+    if (sucursalId != null && this.stocks()[id] == null) {
+      this.busqueda.stock(id, sucursalId).subscribe({
         next: (cantidad) => this.stocks.update((previo) => ({ ...previo, [id]: cantidad })),
         // El stock es información de apoyo: si falla, la card sigue sirviendo
         // para elegir.

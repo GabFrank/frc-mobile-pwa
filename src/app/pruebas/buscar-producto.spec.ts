@@ -7,8 +7,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EscanerService } from '../core/dispositivo/escaner.service';
 import {
-  esSucursalReal,
-  soloLocales,
+  esSucursalOperable,
+  esSucursalOperableId,
+  soloOperables,
 } from '../domains/empresarial/sucursal/sucursal.util';
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
@@ -192,22 +193,6 @@ describe('Buscador de producto', () => {
       f.componentInstance.alExpandir(conPresentaciones);
 
       expect(busqueda.detalle).not.toHaveBeenCalled();
-    });
-
-    it('el SERVIDOR no es una sucursal: no consulta stock', () => {
-      // La sesión puede estar en la sucursal 0 —pasa en la instancia real— y
-      // el id llega como string desde GraphQL: "0" tiene que quedar afuera
-      // igual que 0.
-      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto()]));
-      for (const servidor of [0, '0' as unknown as number]) {
-        busqueda.stock.mockClear();
-        const f = montar({ sucursalId: servidor });
-        buscarPor(f, 'coca');
-        f.componentInstance.alExpandir(producto());
-
-        expect(busqueda.stock).not.toHaveBeenCalled();
-        expect(f.componentInstance.stockDe(producto())).toBeNull();
-      }
     });
 
     it('sin sucursal no consulta stock ni lo muestra', () => {
@@ -463,39 +448,51 @@ describe('Presentaciones', () => {
   });
 });
 
-describe('Sucursal servidor', () => {
-  it('el id 0 no es un local, venga como número o como string', () => {
-    // GraphQL serializa ID como string: la sesión real trae "0".
-    expect(esSucursalReal(0)).toBe(false);
-    expect(esSucursalReal('0')).toBe(false);
+describe('Sucursales operables', () => {
+  /**
+   * Lo que decide es `deposito`: con depósito la sucursal mueve stock y
+   * participa de las operaciones; sin depósito es virtual. En la base son
+   * exactamente dos las virtuales — SERVIDOR (0) y COMPRAS (999) —, y las dos
+   * vienen `activo = true`.
+   */
+  const SERVIDOR = { id: 0, nombre: 'SERVIDOR', deposito: false, activo: true };
+  const COMPRAS = { id: 999, nombre: 'COMPRAS', deposito: false, activo: true };
+  const CENTRAL = { id: 1, nombre: 'SUC. CENTRAL', deposito: true, activo: true };
+  const CERRADA = { id: 15, nombre: 'SUC. SAN PEDRO', deposito: true, activo: false };
+
+  it('sin depósito no opera, aunque esté activa', () => {
+    expect(esSucursalOperable(SERVIDOR)).toBe(false);
+    expect(esSucursalOperable(COMPRAS)).toBe(false);
   });
 
-  it('sin sucursal tampoco hay local', () => {
-    expect(esSucursalReal(null)).toBe(false);
-    expect(esSucursalReal(undefined)).toBe(false);
-    expect(esSucursalReal('')).toBe(false);
+  it('con depósito y activa, sí', () => {
+    expect(esSucursalOperable(CENTRAL)).toBe(true);
   });
 
-  it('COMPRAS tampoco es un local', () => {
-    // Segunda fila que no es un punto de venta: id 999. `frc-mobile` la
-    // descarta por nombre en seis pantallas.
-    expect(esSucursalReal(999)).toBe(false);
-    expect(esSucursalReal('999')).toBe(false);
+  it('una sucursal cerrada no recibe operaciones nuevas', () => {
+    // `activo` es otra dimensión: hay 8 con depósito que están cerradas.
+    expect(esSucursalOperable(CERRADA)).toBe(false);
   });
 
-  it('cualquier otra sí lo es', () => {
-    expect(esSucursalReal(1)).toBe(true);
-    expect(esSucursalReal('13')).toBe(true);
+  it('sin sucursal no hay nada que decidir', () => {
+    expect(esSucursalOperable(null)).toBe(false);
+    expect(esSucursalOperable(undefined)).toBe(false);
   });
 
-  it('soloLocales descarta por id y también por nombre', () => {
-    const todas = [
-      { id: 0, nombre: 'SERVIDOR' },
-      { id: 999, nombre: 'COMPRAS' },
-      // Por si los ids difirieran entre bases: el nombre igual la saca.
-      { id: 500, nombre: 'Compras' },
-      { id: 1, nombre: 'SUC. CENTRAL' },
-    ];
-    expect(soloLocales(todas).map((s) => s.id)).toEqual([1]);
+  it('soloOperables deja las que pueden trabajar', () => {
+    expect(soloOperables([SERVIDOR, COMPRAS, CERRADA, CENTRAL]).map((s) => s.id)).toEqual([1]);
+  });
+
+  it('resolver por id compara por valor: GraphQL manda strings', () => {
+    const todas = [SERVIDOR, CENTRAL];
+    // La sucursal de la sesión llega como "0": un === contra 0 la dejaría
+    // pasar, que es justo el caso a bloquear.
+    expect(esSucursalOperableId('0', todas)).toBe(false);
+    expect(esSucursalOperableId('1', todas)).toBe(true);
+    expect(esSucursalOperableId(1, todas)).toBe(true);
+  });
+
+  it('un id que no está en la lista no opera', () => {
+    expect(esSucursalOperableId(77, [CENTRAL])).toBe(false);
   });
 });

@@ -3,7 +3,10 @@ import { forkJoin } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 
-import { esSucursalReal } from 'src/app/domains/empresarial/sucursal/sucursal.util';
+import {
+  esSucursalOperableId,
+  soloOperables,
+} from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
 import { Producto } from 'src/app/domains/productos/producto.model';
@@ -33,9 +36,9 @@ interface FilaStock {
  * otra consulta de la app queda esperando. Medido contra la instancia real,
  * mediana de 6 productos: **32 ms contra 83 ms**.
  *
- * ⚠️ **La sucursal `0` es el SERVIDOR y se excluye.** No es un local, no
- * tiene depósito, y preguntarle el stock de un producto no significa nada.
- * Ver `sucursal.util.ts`.
+ * ⚠️ **Solo las sucursales con depósito.** Una sin depósito es virtual: no
+ * mueve stock, así que su existencia no significa nada. Ver
+ * `sucursal.util.ts`.
  *
  * ⚠️ **Una sucursal sin movimientos no vuelve en la consulta**: no hay filas
  * que sumar. Se muestra en cero, que es lo que significa.
@@ -152,11 +155,13 @@ export class StockSucursalesDialogComponent {
         // «sucursal» dejaba el diálogo vacío: se filtraba a la 0 y después
         // se la descartaba por no ser un local. Sin local al que acotar, se
         // muestran todos, que es justo lo que se vino a ver.
-        const objetivo = esSucursalReal(this.data.sucursalId) ? this.data.sucursalId : null;
+        const operables = soloOperables(sucursales ?? []);
+        const objetivo = esSucursalOperableId(this.data.sucursalId, operables)
+          ? this.data.sucursalId
+          : null;
 
         this.filas.set(
-          (sucursales ?? [])
-            .filter((s) => esSucursalReal(s.id))
+          operables
             // Comparación por valor: los ids llegan como string desde GraphQL.
             .filter((s) => objetivo == null || String(s.id) === String(objetivo))
             .map((s) => ({

@@ -19,11 +19,17 @@ describe('Stock por sucursal', () => {
 
   const producto = Object.assign(new Producto(), { id: 1, descripcion: 'COCA COLA 2L' });
 
-  /** La fila 0 es SERVIDOR y está activa: así viene de la base real. */
+  /**
+   * Así viene de la base real: SERVIDOR y COMPRAS están activas pero **no
+   * tienen depósito**, así que no mueven stock. `deposito` es lo que
+   * discrimina, no el id ni el nombre.
+   */
   const TODAS = [
-    { id: 0, nombre: 'SERVIDOR' },
-    { id: 1, nombre: 'SUC. CENTRAL' },
-    { id: 3, nombre: 'SUC. ROTONDA' },
+    { id: 0, nombre: 'SERVIDOR', deposito: false, activo: true },
+    { id: 999, nombre: 'COMPRAS', deposito: false, activo: true },
+    { id: 1, nombre: 'SUC. CENTRAL', deposito: true, activo: true },
+    { id: 3, nombre: 'SUC. ROTONDA', deposito: true, activo: true },
+    { id: 15, nombre: 'SUC. SAN PEDRO', deposito: true, activo: false },
   ];
 
   beforeEach(() => {
@@ -48,11 +54,18 @@ describe('Stock por sucursal', () => {
     return f;
   };
 
-  it('excluye al SERVIDOR: no es un local y no tiene stock', () => {
+  it('excluye las sucursales sin depósito: no mueven stock', () => {
     const f = montar();
 
     expect(texto(f)).not.toContain('SERVIDOR');
+    expect(texto(f)).not.toContain('COMPRAS');
     expect(texto(f)).toContain('SUC. CENTRAL');
+  });
+
+  it('excluye también las cerradas', () => {
+    const f = montar();
+
+    expect(texto(f)).not.toContain('SAN PEDRO');
   });
 
   it('pide el stock una sola vez, no una por sucursal', () => {
@@ -72,10 +85,10 @@ describe('Stock por sucursal', () => {
     expect(texto(f)).toContain('0');
   });
 
-  it('con la sesión parada en el SERVIDOR muestra todas, no ninguna', () => {
-    // Caso real: la sucursal de la sesión llega como "0". Acotar a ella
-    // dejaba el diálogo vacío — se filtraba a la 0 y después se la
-    // descartaba por no ser un local.
+  it('con la sesión en una sucursal virtual muestra todas, no ninguna', () => {
+    // Caso real: la sucursal de la sesión llega como "0" y no tiene depósito.
+    // Acotar a ella dejaba el diálogo vacío — se filtraba a la 0 y después se
+    // la descartaba por no operar.
     const f = montar({ sucursalId: '0' as unknown as number });
 
     expect(texto(f)).not.toContain('No hay sucursales');
@@ -83,7 +96,7 @@ describe('Stock por sucursal', () => {
     expect(texto(f)).toContain('SUC. ROTONDA');
   });
 
-  it('acotado a una sucursal real muestra solo esa', () => {
+  it('acotado a una sucursal con depósito muestra solo esa', () => {
     const f = montar({ sucursalId: 3 });
 
     expect(texto(f)).toContain('SUC. ROTONDA');

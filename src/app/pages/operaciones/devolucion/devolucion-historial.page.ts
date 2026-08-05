@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
-import { esSucursalReal } from 'src/app/domains/empresarial/sucursal/sucursal.util';
+import { esSucursalOperable } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { EstadoDevolucion } from 'src/app/domains/devolucion/devolucion.enums';
 import { Devolucion } from 'src/app/domains/devolucion/devolucion.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
@@ -119,7 +119,7 @@ export class DevolucionHistorialPage {
   }
 
   cargar(agregando = false): void {
-    const sucursalId = this.auth.sucursal()?.id;
+    const sucursal = this.auth.sucursal();
     if (!agregando) {
       this.pagina = 0;
       this.cargando.set(true);
@@ -132,11 +132,11 @@ export class DevolucionHistorialPage {
         // Solo las de la sucursal donde estoy: una devolución se atiende
         // donde está el producto.
         //
-        // ⚠️ Salvo que la sesión esté en el SERVIDOR, que no es un local:
-        // filtrar por él no devuelve nada, porque ninguna devolución nace
-        // ahí. En ese caso se muestran todas — es la sesión de HQ, que mira
-        // toda la red. Ver `sucursal.util.ts`.
-        sucursalId: esSucursalReal(sucursalId) ? sucursalId : undefined,
+        // ⚠️ Salvo que la sesión esté en una sucursal **virtual** —sin
+        // depósito—, que no puede ser origen de ninguna devolución: filtrar
+        // por ella no devuelve nada. En ese caso se muestran todas, que es
+        // lo que quiere ver esa sesión. Ver `sucursal.util.ts`.
+        sucursalId: esSucursalOperable(sucursal) ? sucursal?.id : undefined,
         estado: FILTROS[this.indice()].estado,
         page: this.pagina,
         size: TAMANO,

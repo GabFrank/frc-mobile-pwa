@@ -70,6 +70,10 @@ export const usuarioQuery = gql`
         sucursal {
           id
           nombre
+          # Con estos dos se decide si la sucursal de la sesion puede operar:
+          # sin deposito es virtual. Ver sucursal.util.ts
+          deposito
+          activo
         }
         tipoDespositivo
         idDispositivo
@@ -127,6 +131,10 @@ export const usuarioLoginQuery = gql`
         sucursal {
           id
           nombre
+          # Con estos dos se decide si la sucursal de la sesion puede operar:
+          # sin deposito es virtual. Ver sucursal.util.ts
+          deposito
+          activo
         }
         tipoDespositivo
         idDispositivo
@@ -164,6 +172,10 @@ export const usuarioPorPersonaIdQuery = gql`
         sucursal {
           id
           nombre
+          # Con estos dos se decide si la sucursal de la sesion puede operar:
+          # sin deposito es virtual. Ver sucursal.util.ts
+          deposito
+          activo
         }
         tipoDespositivo
         idDispositivo
@@ -200,6 +212,10 @@ export const saveUsuario = gql`
         sucursal {
           id
           nombre
+          # Con estos dos se decide si la sucursal de la sesion puede operar:
+          # sin deposito es virtual. Ver sucursal.util.ts
+          deposito
+          activo
         }
         tipoDespositivo
         idDispositivo
@@ -241,6 +257,10 @@ export const inicioSesionListPorUsuarioIdAndAbiertoGQL = gql`
         sucursal {
           id
           nombre
+          # Con estos dos se decide si la sucursal de la sesion puede operar:
+          # sin deposito es virtual. Ver sucursal.util.ts
+          deposito
+          activo
         }
         tipoDespositivo
         idDispositivo

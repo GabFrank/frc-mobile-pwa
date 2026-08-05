@@ -6,8 +6,8 @@ import { AuthService } from 'src/app/core/auth/auth.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import {
-  esSucursalReal,
-  soloLocales,
+  esSucursalOperableId,
+  soloOperables,
 } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
@@ -49,8 +49,9 @@ import { DevolucionService } from './devolucion.service';
  * quien carga puede estar cubriendo otra. Es el diseño de `frc-mobile`
  * (`devolucion.component.ts:74`) y se conserva.
  *
- * ⚠️ **`SERVIDOR` y `COMPRAS` no se ofrecen**: no son locales. Ver
- * `sucursal.util.ts`.
+ * ⚠️ **Solo se ofrecen sucursales con depósito.** Una sin depósito es
+ * virtual: no mueve stock, así que no puede ser el origen de una devolución.
+ * Ver `sucursal.util.ts`.
  */
 @Component({
   selector: 'frc-devolucion-nueva',
@@ -146,18 +147,21 @@ export class DevolucionNuevaPage {
     ),
   );
   readonly puedeGuardar = computed(
-    () => this.items().length > 0 && !this.guardando() && esSucursalReal(this.sucursalId()),
+    () =>
+      this.items().length > 0 &&
+      !this.guardando() &&
+      esSucursalOperableId(this.sucursalId(), this.sucursales()),
   );
 
   constructor() {
     this.sucursalesService.todas().subscribe({
       next: (todas) => {
-        const locales = soloLocales(todas ?? []);
+        const locales = soloOperables(todas ?? []);
         this.sucursales.set(locales);
         // La de la sesión como valor por defecto, si es un local. Si no
         // —caso SERVIDOR—, la primera, igual que `frc-mobile`.
         const deLaSesion = this.auth.sucursal()?.id;
-        const preferida = locales.find((s) => String(s.id) === String(deLaSesion));
+        const preferida = locales.find((s: Sucursal) => String(s.id) === String(deLaSesion));
         this.sucursalId.set(preferida?.id ?? locales[0]?.id ?? null);
       },
       error: () => this.notificacion.warn('No se pudieron cargar las sucursales.'),
@@ -262,7 +266,7 @@ export class DevolucionNuevaPage {
       this.notificacion.danger('La sesión no tiene usuario.');
       return;
     }
-    if (!esSucursalReal(sucursalId)) {
+    if (!esSucursalOperableId(sucursalId, this.sucursales())) {
       this.notificacion.warn('Elegí la sucursal donde está el producto.');
       return;
     }

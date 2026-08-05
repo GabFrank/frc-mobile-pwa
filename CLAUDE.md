@@ -100,7 +100,7 @@ Los documentos de `docs/modulos/` son buenos pero **no cubren todo**. Si algo de
 Dos cosas que costó aprender así:
 
 - **No existe «entrar a una sucursal».** La app está **siempre conectada al central**. La sucursal del usuario viene de `inicioSesion.sucursal` y sirve como valor por defecto; las pantallas que necesitan una la **seleccionan**.
-- **`SERVIDOR` (id 0) y `COMPRAS` (id 999) no son locales.** Vienen `activo = true` en `sucursales()` como cualquier otra, y `frc-mobile` las descarta en **seis** pantallas. Se filtran con `soloLocales()` / `esSucursalReal()`; filtrar por `activo` no alcanza. Ver [`docs/infraestructura/domains-modelos.md`](docs/infraestructura/domains-modelos.md).
+- **Qué sucursal puede operar lo dice `deposito`.** Con depósito mueve stock; sin depósito es virtual —`SERVIDOR` y `COMPRAS`— y no participa de devoluciones, inventarios ni transferencias. Se filtra con `soloOperables()` / `esSucursalOperable()`, que además exigen `activo`. `frc-mobile` las descarta por nombre en seis pantallas; filtrar por `deposito` deja afuera sola a cualquier virtual nueva. Ver [`docs/infraestructura/domains-modelos.md`](docs/infraestructura/domains-modelos.md).
 
 ### 6 · El dinero lo calcula el backend
 

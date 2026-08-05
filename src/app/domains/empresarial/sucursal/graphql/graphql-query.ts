@@ -1,11 +1,17 @@
 import gql from 'graphql-tag';
 
+/**
+ * ⚠️ Pide **`deposito` y `activo`**: son los dos campos con los que se decide
+ * si una sucursal puede participar de una operación. Ver `sucursal.util.ts`.
+ */
 export const sucursalesQuery = gql
   `{
     data: sucursales {
       id
       nombre
       localizacion
+      deposito
+      activo
       ciudad{
         id
       }

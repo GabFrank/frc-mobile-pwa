@@ -6,6 +6,7 @@ import { Subject, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EscanerService } from '../core/dispositivo/escaner.service';
+import { esSucursalReal } from '../domains/empresarial/sucursal/sucursal.util';
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
 import { ProductoBusquedaService } from '../domains/productos/producto-busqueda.service';
@@ -188,6 +189,22 @@ describe('Buscador de producto', () => {
       f.componentInstance.alExpandir(conPresentaciones);
 
       expect(busqueda.detalle).not.toHaveBeenCalled();
+    });
+
+    it('el SERVIDOR no es una sucursal: no consulta stock', () => {
+      // La sesión puede estar en la sucursal 0 —pasa en la instancia real— y
+      // el id llega como string desde GraphQL: "0" tiene que quedar afuera
+      // igual que 0.
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto()]));
+      for (const servidor of [0, '0' as unknown as number]) {
+        busqueda.stock.mockClear();
+        const f = montar({ sucursalId: servidor });
+        buscarPor(f, 'coca');
+        f.componentInstance.alExpandir(producto());
+
+        expect(busqueda.stock).not.toHaveBeenCalled();
+        expect(f.componentInstance.stockDe(producto())).toBeNull();
+      }
     });
 
     it('sin sucursal no consulta stock ni lo muestra', () => {
@@ -440,5 +457,24 @@ describe('Presentaciones', () => {
   it('una cantidad fraccionada conserva sus decimales, con coma', () => {
     // Coma decimal: es es-PY. Con el pipe `number` de Angular saldría "0.50".
     expect(etiquetaPresentacion({ cantidad: 0.5 } as never)).toBe('Cantidad: 0,50');
+  });
+});
+
+describe('Sucursal servidor', () => {
+  it('el id 0 no es un local, venga como número o como string', () => {
+    // GraphQL serializa ID como string: la sesión real trae "0".
+    expect(esSucursalReal(0)).toBe(false);
+    expect(esSucursalReal('0')).toBe(false);
+  });
+
+  it('sin sucursal tampoco hay local', () => {
+    expect(esSucursalReal(null)).toBe(false);
+    expect(esSucursalReal(undefined)).toBe(false);
+    expect(esSucursalReal('')).toBe(false);
+  });
+
+  it('cualquier otra sí lo es', () => {
+    expect(esSucursalReal(1)).toBe(true);
+    expect(esSucursalReal('13')).toBe(true);
   });
 });

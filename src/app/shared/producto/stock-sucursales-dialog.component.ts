@@ -157,10 +157,16 @@ export class StockSucursalesDialogComponent {
 
     this.sucursales.todas().subscribe({
       next: (todas) => {
-        const objetivo = this.data.sucursalId;
+        // Acotar a una sucursal solo tiene sentido si es un local de verdad.
+        // Con la sesión parada en el SERVIDOR —caso real— restringir a esa
+        // «sucursal» dejaba el diálogo vacío: se filtraba a la 0 y después
+        // se la descartaba por no ser un local. Sin local al que acotar, se
+        // muestran todos, que es justo lo que se vino a ver.
+        const objetivo = esSucursalReal(this.data.sucursalId) ? this.data.sucursalId : null;
         const lista = (todas ?? [])
           .filter((s) => esSucursalReal(s.id))
-          .filter((s) => objetivo == null || s.id === objetivo);
+          // Comparación por valor: los ids llegan como string desde GraphQL.
+          .filter((s) => objetivo == null || String(s.id) === String(objetivo));
 
         this.filas.set(
           lista.map((s) => ({

@@ -11,7 +11,19 @@
  */
 export const SUCURSAL_SERVIDOR_ID = 0;
 
-/** `false` para el servidor, para `null` y para `undefined`. */
-export function esSucursalReal(id: number | null | undefined): boolean {
-  return id != null && id !== SUCURSAL_SERVIDOR_ID;
+/**
+ * `false` para el servidor, para `null` y para `undefined`.
+ *
+ * ⚠️ **Compara por valor, no por identidad.** GraphQL serializa `ID` como
+ * **string**, así que la sucursal de la sesión llega como `"0"` y un
+ * `id !== 0` la daba por buena: la primera versión de esta función dejaba
+ * pasar exactamente el caso que existe para bloquear. Es el mismo problema
+ * que ya está documentado en `frc-selector`, donde los ids se comparan con
+ * `String(a) === String(b)` por esta razón.
+ */
+export function esSucursalReal(id: number | string | null | undefined): boolean {
+  if (id == null || id === '') {
+    return false;
+  }
+  return Number(id) !== SUCURSAL_SERVIDOR_ID;
 }

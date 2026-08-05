@@ -69,7 +69,7 @@ Dos pasadas. La **primera automatizada**, sin navegador. La **segunda con la ext
 - **1.7** · Mostrar/ocultar contraseña
 - **2.2** · Riel lateral en tablet *(no se pudo: el navegador quedó fijo en emulación de teléfono)*
 - **2.3** · Barra de progreso
-- **4.5 en el teléfono** · ⚠️ **El caso más importante que queda**: escribir `10.50` con el **teclado del sistema**, idealmente con el teléfono en inglés
+- ~~**4.5 en el teléfono** · escribir `10.50` con el teclado del sistema~~ — ✅ validado el 2026-08-05
 - **5.1 / 5.3** · Instalar la PWA y rotar
 - **6.1 a 6.5** · Teclado, texto grande, pantalla angosta, doble toque, sesión caducada
 
@@ -673,7 +673,7 @@ cambió; lo que se prueba es que el motor lea la etiqueta real.
 
 ---
 
-## Bloque 12 — Buscar producto *(nuevo)*
+## Bloque 12 — Buscar producto — ✅ **PASÓ** (Android, 2026-08-05)
 
 Verificado por mí contra tu base: búsqueda por texto (10 resultados de
 «coca»), por código (`7840058000750` → un solo resultado), paginación
@@ -757,7 +757,7 @@ Para que no se reporte como falla:
 | 9 · Mis finanzas | 7 | | | |
 | 10 · Escáner, vía ZXing (Safari en Mac) | 6 | 6 | | |
 | 11 · iOS real *(necesita dispositivo)* | 7 | | | |
-| 12 · Buscar producto | 6 | | | |
+| 12 · Buscar producto | 6 | 6 | | |
 | **Total** | **80** | | | |
 
 ### Los cinco que más importan

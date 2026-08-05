@@ -41,7 +41,17 @@ import {
     },
   ],
   template: `
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
+    <!--
+      Con símbolo, la etiqueta flota SIEMPRE. Material la coloca al lado del
+      prefijo mientras no flota, y "₲ Monto" se lee como un solo texto: no
+      queda claro si el campo se llama así o si ya tiene contenido.
+    -->
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="campo"
+      [floatLabel]="simbolo() ? 'always' : 'auto'"
+    >
       <mat-label>{{ etiqueta() }}</mat-label>
       @if (simbolo()) {
         <span matTextPrefix class="simbolo">{{ simbolo() }}&nbsp;</span>

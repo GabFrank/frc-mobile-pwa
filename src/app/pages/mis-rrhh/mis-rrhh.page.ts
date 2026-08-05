@@ -117,7 +117,7 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
             } @empty {
               <frc-estado-vacio
                 titulo="No tenés recibos"
-                detalle="Aparecen acá cuando se liquida tu sueldo."
+                detalle="Aparecen acá cuando el sueldo ya fue pagado. Una liquidación aprobada pero sin pagar todavía no se muestra."
                 icono="documento"
               />
             }
@@ -168,7 +168,10 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
                 icono="reloj"
                 [clickable]="false"
               >
-                <frc-estado-chip pie enumerado="EstadoJornada" [valor]="j.estado ?? null" />
+                <!-- Sin estado no hay chip: uno vacío ocupa lugar sin decir nada. -->
+                @if (j.estado) {
+                  <frc-estado-chip pie enumerado="EstadoJornada" [valor]="j.estado" />
+                }
               </frc-card>
             } @empty {
               <frc-estado-vacio

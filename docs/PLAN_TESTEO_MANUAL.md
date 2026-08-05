@@ -553,75 +553,119 @@ lista en blanco.
 
 ---
 
-## Bloque 10 — Escáner y PDF en iOS *(nuevo, sin probar)*
+## Bloque 10 — Escáner: la vía de ZXing *(se puede hacer HOY, en Safari de la Mac)*
 
-⚠️ **Nada de este bloque se probó en un iPhone.** Los tests fijan qué camino
-toma cada plataforma, no que Safari muestre bien lo que recibe. Es lo único
-que no se puede verificar sin el dispositivo.
+**Safari de escritorio tampoco tiene `BarcodeDetector`.** Es el mismo motor de
+render que iOS y toma exactamente la misma rama del código. Así que la vía que
+en Android nunca corre —la única sin verificar en un navegador real— **se
+puede ejercitar sin un iPhone**.
 
-Hace falta un iPhone o iPad en la misma red, y la app servida por **HTTPS** —
-`adb reverse` es solo para Android—. Sirve exponer el dev server con un túnel
-(`cloudflared tunnel --url http://localhost:4300`) y abrir esa URL en el
-iPhone.
+Lo que esto **sí** cubre: que ZXing cargue, que arranque, que lea un código
+real, que corte bien al cerrar, y que la Mac **no** se confunda con iOS.
+Lo que **no** cubre: nada de lo específico de iOS —pantalla táctil, cámara
+trasera, PWA instalada sin barra de direcciones, visor de PDF de iOS—. Eso es
+el bloque 11 y queda pendiente.
 
-### 10.1 · Escanear en Safari
-1. Abrir la app en Safari del iPhone, ir a Mis finanzas
-2. **Confirmar compra por QR**, dar permiso a la cámara
-3. Apuntar al QR de un convenio generado desde el desktop
+Con `npm start` andando, abrir `http://localhost:4300` **en Safari**.
 
-**Esperado:** se ve la imagen de la cámara con el marco de guía y **lee el
-código**. Safari no tiene `BarcodeDetector`: acá se está ejercitando la vía de
-ZXing, que en Android nunca se usa.
+### 10.1 · ZXing arranca y lee
+1. Mis finanzas → **Confirmar compra por QR**
+2. Dar permiso a la cámara de la Mac
+3. Mostrarle un QR de convenio a la webcam — sirve el generado desde el
+   desktop, o la pantalla del teléfono con el QR
 
-> Si queda en «Abriendo la cámara…» o cae en la carga manual, la vía de ZXing
-> no arrancó. Es el fallo que más importa reportar de todo este bloque.
+**Esperado:** se ve la imagen de la webcam con el marco de guía, y al mostrar
+el código **lo lee**.
 
-### 10.2 · Escanear con la PWA instalada en iOS
-1. En Safari: **Compartir → Añadir a inicio**
-2. Abrir la app desde el ícono y repetir 10.1
+> Si queda en «Abriendo la cámara…» o cae en la carga manual, **la vía de
+> ZXing no arrancó** y ningún iPhone va a poder escanear. Es el fallo que más
+> importa encontrar de todo el bloque, y por eso vale hacerlo hoy.
 
-**Esperado:** igual que en Safari. La app instalada es el caso más
-restrictivo; si algo se rompe, se rompe acá.
+### 10.2 · La cámara se suelta
+1. Después de leer el código, mirar el led verde de la webcam
 
-### 10.3 · Un recibo en PDF desde la PWA instalada de iOS
-1. Con la app instalada, Mi trabajo → Recibos → tocar un recibo pagado
+**Esperado:** se apaga solo. Si queda prendido, ZXing sigue leyendo con el
+diálogo ya cerrado.
 
-**Esperado:** el PDF se abre **dentro de la app**, no salta a Safari. El gesto
-de volver regresa a la lista de recibos.
+### 10.3 · Sin linterna, sin botón
+1. Volver a abrir el escáner y mirar la barra de arriba
 
-> Este es el caso que motivó todo el camino aparte. Si el PDF abre en Safari y
+**Esperado:** **no** hay ícono de linterna. Una webcam no tiene flash: el
+botón tiene que no existir, no aparecer apagado ni sin efecto.
+
+### 10.4 · Los rechazos del QR
+1. En el escáner, **Ingresar a mano**
+2. Escribir `7840001234567` y confirmar
+3. Repetir con `frc-3-VENTA_CREDITO-99-0--clave-1770000000000`
+
+**Esperado:** «Ese código no es de esta aplicación» y «Ese QR fue generado
+para otra persona». *(Verificado ya en Chrome; acá se confirma que el camino
+manual de Safari llega al mismo lugar.)*
+
+### 10.5 · La Mac no es iOS
+1. En Mi trabajo → Recibos, abrir un recibo pagado
+
+**Esperado:** abre en **pestaña nueva**, como en Chrome. Si en cambio navega
+en la misma pestaña, la Mac se está detectando como iOS y el `maxTouchPoints`
+que distingue un iPad de un Mac no está funcionando.
+
+### 10.6 · Que no se haya roto Chrome
+1. Repetir 10.1 y 10.5 en Chrome
+
+**Esperado:** igual que siempre. Chrome usa `BarcodeDetector`, no ZXing: es el
+caso de regresión de todo este cambio.
+
+---
+
+## Bloque 11 — iOS real *(pendiente: hace falta un iPhone o iPad)*
+
+Requiere el dispositivo y la app por **HTTPS** — `adb reverse` es solo
+Android—. Sirve un túnel: `cloudflared tunnel --url http://localhost:4300`.
+
+### 11.1 · Escanear en Safari de iOS
+Igual que 10.1, en el iPhone.
+**Esperado:** además de leer, usa la **cámara trasera**, no la frontal.
+
+### 11.2 · Escanear con la PWA instalada
+1. **Compartir → Añadir a inicio**, abrir desde el ícono, repetir 11.1
+
+**Esperado:** igual. La app instalada es el caso más restrictivo: si algo se
+rompe, se rompe acá.
+
+### 11.3 · Un recibo en PDF desde la PWA instalada
+1. Mi trabajo → Recibos → tocar un recibo pagado
+
+**Esperado:** el PDF abre **dentro de la app**, no salta a Safari, y el gesto
+de volver regresa a la lista.
+
+> Es el caso que motivó todo el camino aparte del PDF. Si salta a Safari y
 > deja la app, o si al volver la app arranca de cero, hay que ir a un visor
 > propio con el PDF embebido: reportalo así.
 
-### 10.4 · El mismo recibo en Safari normal
-1. Sin instalar, abrir el mismo recibo
+### 11.4 · El mismo recibo en Safari de iOS sin instalar
+**Esperado:** pestaña nueva. Si Safari bloquea el popup, navega en la misma
+con un aviso, y el botón de atrás vuelve.
 
-**Esperado:** abre en una pestaña nueva. Si Safari bloquea el popup, navega
-en la misma pestaña con un aviso, y el botón de atrás vuelve.
+### 11.5 · Linterna
+1. Con poca luz, tocar el ícono del rayo
 
-### 10.5 · Que no se haya roto Android
-1. Repetir 10.3 y 10.4 en el Android
+**Esperado:** prende el flash y el ícono queda marcado.
 
-**Esperado:** igual que antes de estos cambios — pestaña nueva, y descarga si
-está bloqueada. Es el caso de regresión: lo de iOS no debe haber tocado esto.
-
-### 10.6 · Linterna
-1. En el escáner, con poca luz, tocar el ícono del rayo
-
-**Esperado:** prende el flash y el ícono queda marcado. Si el teléfono no la
-soporta, **el botón no aparece** — no aparece apagado ni sin efecto.
-
-### 10.7 · Códigos de balanza *(el que más importa para producto)*
-1. Abrir el escáner y apuntar a una **etiqueta térmica de balanza**, de las
-   de prefijo `20`, de las gastadas que están en circulación
+### 11.6 · Códigos de balanza *(el que decide si el escaneo por cámara sirve)*
+1. Apuntar a una **etiqueta térmica de balanza** de prefijo `20`, de las
+   gastadas que están en circulación
 
 **Esperado:** lee el EAN-13 completo. La lógica de peso (`barcodeUtils.ts`) no
-cambió; lo que se está probando es que el motor lea la etiqueta real.
+cambió; lo que se prueba es que el motor lea la etiqueta real.
 
-> Probarlo en un **equipo viejo de sucursal**, no en un teléfono bueno. Ese es
-> el caso de prueba que decide si el escaneo por cámara sirve. Si no rinde, la
-> salida conocida son los lectores Bluetooth HID, que se comportan como
-> teclado y funcionan igual en el navegador.
+> Probarlo en un **equipo viejo de sucursal**, no en un teléfono bueno. Si no
+> rinde, la salida conocida son los lectores Bluetooth HID, que se comportan
+> como teclado y funcionan igual en el navegador.
+
+### 11.7 · Regresión en Android
+1. Repetir 11.3 y 11.4 en el Android
+
+**Esperado:** igual que antes — pestaña nueva, descarga si está bloqueada.
 
 ---
 
@@ -655,8 +699,9 @@ Para que no se reporte como falla:
 | 7 · Abrir y cerrar caja | 9 | | | |
 | 8 · Mi trabajo | 5 | | | |
 | 9 · Mis finanzas | 7 | | | |
-| 10 · Escáner y PDF en iOS | 7 | | | |
-| **Total** | **68** | | | |
+| 10 · Escáner, vía ZXing (Safari en Mac) | 6 | | | |
+| 11 · iOS real *(necesita dispositivo)* | 7 | | | |
+| **Total** | **74** | | | |
 
 ### Los cinco que más importan
 

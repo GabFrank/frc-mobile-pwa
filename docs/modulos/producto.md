@@ -172,13 +172,24 @@ La card es `frc-producto-card` y el buscador entero, `frc-buscador-producto`
 > [issue #208 del desktop](https://github.com/GabFrank/frc-sistemas-integrados-angular/issues/208).
 > Una sucursal sin movimientos **no vuelve** en el resultado: se muestra en cero.
 
-## Lo que falta
+## Lo que falta, y cuándo se hace
 
-- **Detalle de producto.** Hoy tocar un resultado consulta el stock de la
-  sucursal en sesión y lo muestra en un aviso. Falta la pantalla con
-  presentaciones, precios por tipo y stock por sucursal.
-- **Modo kiosco** (`mostrar-precio`). Necesita foco permanente en el campo,
-  que en el repo anterior se forzaba con `setTimeout` en cuatro lugares y era
-  frágil. Con un lector HID conectado es el caso de uso más rentable de la
-  pantalla.
-- **Edición y alta**, con el rol `NUEVO-PRODUCTO`.
+El buscador está **terminado para consultar**. Lo que queda no está olvidado:
+se implementa **cuando aparezca el consumidor que lo necesita**. Adelantarlo
+sería adivinar la forma sin el caso de uso, que es lo que llevó al componente
+original a 442 líneas y a que transferencias lo copiara.
+
+El inventario completo, función por función, está en
+[`../analisis/buscador-producto-inventario.md`](../analisis/buscador-producto-inventario.md) §6 y §7.
+
+| Qué | Cuándo |
+|---|---|
+| **Abrirlo como diálogo selector** — `(seleccion)` ya emite, falta el envoltorio | Con **devolución**, el primer consumidor real |
+| **Foco automático en el campo** | Con el modo diálogo. En una pestaña, robar el foco levanta el teclado sin que nadie lo pida |
+| **Ver imagen del producto** — `imagenPrincipal` viene en la query, la card muestra un ícono | Con el detalle de producto |
+| **FAB «subir»** | Si las listas se vuelven largas. Con 10 por tanda no hace falta |
+| **Stock de origen y destino** en la card | Con **transferencias** |
+| **Modo inventario** — cantidad, vencimiento, estado | Con **inventario**, en su propia pantalla: es un formulario, no un selector |
+| **Detalle de producto** | Con la ola de producto |
+| **Modo kiosco** (`mostrar-precio`) | Con la ola de producto. Con un lector HID es el caso más rentable |
+| **Edición y alta**, rol `NUEVO-PRODUCTO` | Con la ola de producto |

@@ -192,10 +192,56 @@ vencidos — cinco pantallas de módulos distintos.
 
 ---
 
-## 6. Orden sugerido
+## 6. Estado de implementación — 2026-08-05
 
-1. `ProductoCardComponent` — expandible, con menú contextual y carga perezosa
-2. Modos A y B en la pantalla Buscar que ya existe
-3. Diálogo de stock por sucursal (función 10)
-4. Modo E (transferencias) reusando la card, **sin copiar la pantalla**
-5. Modo D en el módulo de inventario, con su propia pantalla
+### Modos
+
+| Modo | Estado |
+|---|---|
+| **A** · Elegir presentación | ✅ |
+| **B** · Elegir producto | ✅ implementado, **sin consumidor todavía** |
+| **C** · Solo consultar | ✅ es la pestaña Buscar |
+| **D** · Cargar ítem de inventario | ⏸ va en el módulo de inventario, no acá |
+| **E** · Transferencia | ⏸ necesita stock de origen **y** destino |
+
+### Las 22 funciones
+
+| # | Función | Estado |
+|---|---|---|
+| 1 | Buscar por texto | ✅ |
+| 2 | Buscar por código | ✅ |
+| 3 | Pesable | ✅ |
+| 4 | Escanear con cámara | ✅ |
+| 5 | Cargar más | ✅ |
+| 6 | Aviso de vacío | ✅ como estado vacío, no como toast |
+| 7 | **Foco automático en el campo** | ⏸ |
+| 8 | Expandir → presentaciones | ✅ |
+| 9 | Expandir → stock | ✅ |
+| 10 | Ver stock por sucursal | ✅ una sola consulta |
+| 11 | **Ver imagen ampliada** | ⏸ |
+| 12 | Elegir presentación | ✅ |
+| 13 | Mostrar precio | ✅ |
+| 14 | Stock de la presentación | ✅ |
+| 15 | Código de barra | ✅ |
+| 16–20 | Modo inventario | ⏸ va en inventario |
+| 21 | **FAB «subir»** | ⏸ |
+| 22 | Volver: ruta vs diálogo | ➖ la pestaña no vuelve a ningún lado |
+
+---
+
+## 7. Lo que falta y cuándo se hace
+
+Nada de esto está olvidado: **se implementa cuando aparezca el consumidor que
+lo necesita**, no antes. Adelantarlo sería adivinar la forma sin el caso de
+uso, que es exactamente lo que llevó al componente original a 442 líneas.
+
+| Qué | Cuándo | Por qué esperar |
+|---|---|---|
+| **Abrirlo como diálogo selector** | Con devolución, el primer consumidor real | `(seleccion)` ya emite; falta el `DialogoService.abrir()` que lo envuelva y devuelva. Sin un llamador no se sabe qué ancho ni qué título necesita |
+| **Foco automático en el campo** (7) | Con el modo diálogo y con el kiosco | En una pestaña que se abre por navegación, robar el foco levanta el teclado sin que nadie lo pida. En un diálogo de selección **sí** corresponde |
+| **Ver imagen ampliada** (11) | Con el detalle de producto | Hoy la card muestra un ícono genérico. `imagenPrincipal` viene en la query pero no se usa |
+| **FAB «subir»** (21) | Si las listas se vuelven largas | Con 10 por tanda no hace falta. Aparece cuando alguien se queje de scrollear |
+| **Stock de dos sucursales** (modo E) | Con transferencias | La card recibe un `stock`. Para origen y destino hay que decidir si son dos inputs o una lista de pares — con la pantalla real delante |
+| **Modo inventario** (D, 16–20) | Con el módulo de inventario | Es un formulario de carga, no un selector. Ver §4 |
+| **Detalle de producto** | Con la ola de producto | Presentaciones, precios por tipo y stock por sucursal en su propia pantalla |
+| **Modo kiosco** (`mostrar-precio`) | Con la ola de producto | Necesita foco permanente. Con un lector HID es el caso más rentable del módulo |

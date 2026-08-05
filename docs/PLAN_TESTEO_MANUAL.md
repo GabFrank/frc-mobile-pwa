@@ -673,7 +673,12 @@ cambió; lo que se prueba es que el motor lea la etiqueta real.
 
 ---
 
-## Bloque 12 — Buscar producto — ✅ **PASÓ** (Android, 2026-08-05)
+## Bloque 12 — Buscar producto — ⚠️ **REPASAR**
+
+> Los 6 casos pasaron en Android el 2026-08-05, **pero la pantalla cambió
+> después**: la lista ahora usa cards expandibles con menú `⋮`, el stock sale
+> de una sola consulta y la presentación se rotula `Cantidad: N (Nombre)`.
+> Hay que correr 12.1 a 12.6 de nuevo, más 12.7 a 12.9.
 
 Verificado por mí contra tu base: búsqueda por texto (10 resultados de
 «coca»), por código (`7840058000750` → un solo resultado), paginación
@@ -717,11 +722,36 @@ trata como código.
 **Esperado:** el botón trae 10 más, sin repetir los de arriba y sin volver al
 principio de la lista. Con menos de 10 resultados el botón **no aparece**.
 
-### 12.6 · Stock de tu sucursal
-1. Tocar cualquier resultado
+### 12.6 · Expandir un producto
+1. Tocar la card de un resultado
 
-**Esperado:** un aviso con la existencia. Puede ser negativa: así está en la
-base, no es un error de la pantalla.
+**Esperado:** se abre mostrando sus presentaciones, cada una como
+**`Cantidad: 1 (UNIDAD)`** con su código y su precio. El chevron gira. Las
+presentaciones se piden recién al abrir, no antes.
+
+### 12.7 · Stock por sucursal *(nuevo)*
+1. Tocar el `⋮` de cualquier producto → **Ver stock por sucursal**
+
+**Esperado:** la lista de sucursales con su existencia, **de una sola vez**.
+`SERVIDOR` **no** aparece: no es un local. Una sucursal sin movimientos sale
+en `0`. Las negativas van en rojo — así están en la base, no es un error.
+
+### 12.8 · El stock en la card *(necesita un usuario de sucursal real)*
+1. Entrar con un usuario cuya sesión **no** esté en el SERVIDOR
+2. Buscar y expandir un producto
+
+**Esperado:** la card muestra `Stock N` de esa sucursal, y cada presentación
+el suyo convertido —una caja de 12 muestra la doceava parte—. Con el usuario
+de siempre, que está en el SERVIDOR, **no debe aparecer stock en ningún
+lado**.
+
+> Es el caso que no pude verificar: mi sesión está en la sucursal `0`.
+
+### 12.9 · Buscar mientras carga *(nuevo)*
+1. Buscar algo, y **antes de que termine**, escribir otra cosa y buscar
+
+**Esperado:** gana la última búsqueda. La primera no debe pisar los
+resultados aunque conteste después.
 
 ---
 
@@ -757,8 +787,8 @@ Para que no se reporte como falla:
 | 9 · Mis finanzas | 7 | | | |
 | 10 · Escáner, vía ZXing (Safari en Mac) | 6 | 6 | | |
 | 11 · iOS real *(necesita dispositivo)* | 7 | | | |
-| 12 · Buscar producto | 6 | 6 | | |
-| **Total** | **80** | | | |
+| 12 · Buscar producto | 9 | | | |
+| **Total** | **83** | | | |
 
 ### Los cinco que más importan
 

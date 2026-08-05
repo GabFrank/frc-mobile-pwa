@@ -140,6 +140,9 @@ const LOTE = 10;
           [acciones]="accionesDe()"
           [mostrarPrecio]="opciones().mostrarPrecio ?? false"
           [stock]="stockDe(producto)"
+          [stockDestino]="stockDestinoDe(producto)"
+          [etiquetaStock]="opciones().etiquetaStock ?? 'Stock'"
+          [etiquetaStockDestino]="opciones().etiquetaStockDestino ?? 'Destino'"
           [cargando]="cargandoDetalle() === producto.id"
           [expandible]="opciones().devuelve !== 'producto'"
           (expandir)="alExpandir($event)"
@@ -237,6 +240,8 @@ export class BuscadorProductoComponent {
   private offset = 0;
   /** Existencia por producto, cargada al expandir. */
   private readonly stocks = signal<Record<number, number>>({});
+  /** Ídem en la sucursal de destino, cuando hay dos. */
+  private readonly stocksDestino = signal<Record<number, number>>({});
 
   /**
    * Búsqueda en vuelo.
@@ -289,6 +294,13 @@ export class BuscadorProductoComponent {
     return this.stocks()[producto.id] ?? null;
   }
 
+  stockDestinoDe(producto: Producto): number | null {
+    if (this.opciones().sucursalDestinoId == null || producto.id == null) {
+      return null;
+    }
+    return this.stocksDestino()[producto.id] ?? null;
+  }
+
   alEscribir(evento: Event): void {
     this.texto.set((evento.target as HTMLInputElement).value);
   }
@@ -316,6 +328,7 @@ export class BuscadorProductoComponent {
       this.cargando.set(true);
       this.resultados.set([]);
       this.stocks.set({});
+      this.stocksDestino.set({});
     }
     this.error.set(null);
     this.ultimaBusqueda.set(consulta);
@@ -373,6 +386,14 @@ export class BuscadorProductoComponent {
         next: (cantidad) => this.stocks.update((previo) => ({ ...previo, [id]: cantidad })),
         // El stock es información de apoyo: si falla, la card sigue sirviendo
         // para elegir.
+        error: () => undefined,
+      });
+    }
+
+    const destinoId = this.opciones().sucursalDestinoId;
+    if (destinoId != null && this.stocksDestino()[id] == null) {
+      this.busqueda.stock(id, destinoId).subscribe({
+        next: (cantidad) => this.stocksDestino.update((previo) => ({ ...previo, [id]: cantidad })),
         error: () => undefined,
       });
     }

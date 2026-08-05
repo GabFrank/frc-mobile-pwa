@@ -994,6 +994,48 @@ rendición, aparece su propio estado aparte del estado de la solicitud.
 
 ---
 
+## Bloque 18 — Transferencias *(nuevo)*
+
+> Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes: la PWA
+> todavía no las crea.
+
+### 18.1 · Los tres puntos de vista
+1. Inicio → **Transferencias**
+
+**Esperado:** pestañas **Salen · Llegan · Todas**. «Salen» trae aquellas donde
+tu sucursal es el origen; «Llegan», donde es el destino.
+
+### 18.2 · Detalle con las cuatro etapas *(lo que importa)*
+1. Abrir una transferencia que ya haya avanzado
+
+**Esperado:** por cada producto, una línea por etapa: **Pedido · Preparado ·
+Despachado · Recibido**, con su cantidad.
+
+> Si se pidieron 10 y llegaron 7, tenés que poder ver **en qué etapa** se
+> perdieron. Si ves una sola cifra, el port perdió la trazabilidad y hay que
+> reportarlo.
+
+### 18.3 · Las etapas que no pasaron no aparecen
+1. Abrir una transferencia recién creada
+
+**Esperado:** solo la línea **Pedido**. Las otras tres **no** deben figurar
+en cero: todavía no ocurrieron.
+
+### 18.4 · La presentación de cada etapa
+1. Buscar un ítem pedido en cajas y despachado en unidades
+
+**Esperado:** cada línea muestra su propio `× N`. Sin eso, 2 cajas y 24
+unidades parecen una diferencia y no lo son.
+
+### 18.5 · Tu rol
+1. Mirar «Tu rol» en el detalle
+
+**Esperado:** dice si estás en origen, en destino, en los dos, o si es solo
+consulta — y coincide con lo que la transferencia realmente es para tu
+sucursal.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -1001,7 +1043,7 @@ Para que no se reporte como falla:
 | Área | Estado |
 |---|---|
 | Operaciones | Falta pedidos. De caja chica, el alta y la rendición |
-| Inventario y transferencias | No portados |
+| Inventario | No portado |
 | Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
 | Recibir push (FCM) | No portado — la bandeja sí |
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
@@ -1032,7 +1074,8 @@ Para que no se reporte como falla:
 | 15 · Marcación | 7 | | | |
 | 16 · Notificaciones | 7 | | | |
 | 17 · Caja chica | 5 | | | |
-| **Total** | **115** | | | |
+| 18 · Transferencias | 5 | | | |
+| **Total** | **120** | | | |
 
 ### Los cinco que más importan
 

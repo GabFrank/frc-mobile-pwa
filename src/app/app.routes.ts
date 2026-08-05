@@ -36,6 +36,13 @@ export const routes: Routes = [
           import('./pages/mi-trabajo/mi-trabajo.routes').then((m) => m.rutasMiTrabajo),
       },
       {
+        path: 'transferencias',
+        loadChildren: () =>
+          import('./pages/transferencias/transferencias.routes').then(
+            (m) => m.rutasTransferencias,
+          ),
+      },
+      {
         path: 'notificaciones',
         loadChildren: () =>
           import('./pages/notificaciones/notificaciones.routes').then(

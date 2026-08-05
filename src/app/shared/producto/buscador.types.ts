@@ -23,6 +23,13 @@ export interface OpcionesBuscador {
    * sucursal es el stock, y si no viene **no se muestra stock en absoluto**.
    */
   sucursalId?: number;
+  /**
+   * Segunda sucursal, para mirar el producto **entre dos**: una
+   * transferencia necesita el stock de origen y el de destino a la vez.
+   */
+  sucursalDestinoId?: number;
+  etiquetaStock?: string;
+  etiquetaStockDestino?: string;
   mostrarPrecio?: boolean;
   /** Acciones extra del menú `⋮`, además de las que el buscador ya pone. */
   acciones?: AccionProducto[];

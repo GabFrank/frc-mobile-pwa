@@ -70,7 +70,12 @@ export interface AccionProducto {
               }
             </span>
             @if (stock() != null) {
-              <span class="stock">Stock {{ stockLegible() }}</span>
+              <span class="stock">
+                {{ etiquetaStock() }} {{ stockLegible() }}
+                @if (stockDestino() != null) {
+                  · {{ etiquetaStockDestino() }} {{ stockDestinoLegible() }}
+                }
+              </span>
             }
           </span>
 
@@ -122,7 +127,12 @@ export interface AccionProducto {
                     <frc-importe [valor]="precio(p)" moneda="Guaraní" simbolo="₲" />
                   }
                   @if (stock() != null) {
-                    <span class="p-stock">Stock {{ stockDe(p) }}</span>
+                    <span class="p-stock">
+                      {{ etiquetaStock() }} {{ stockDe(p) }}
+                      @if (stockDestino() != null) {
+                        · {{ etiquetaStockDestino() }} {{ stockDestinoDe(p) }}
+                      }
+                    </span>
                   }
                 </span>
               </button>
@@ -280,6 +290,18 @@ export class ProductoCardComponent {
    * es un dato: hay que poder distinguirlos.
    */
   readonly stock = input<number | null>(null);
+  /**
+   * Segunda existencia, para cuando el producto se mira **entre dos
+   * sucursales** — una transferencia mira origen y destino a la vez.
+   *
+   * Es el motivo por el que `TransaferenciaListProductosComponent` copió la
+   * pantalla entera del buscador en `frc-mobile`: hacía falta una columna
+   * más y el componente no la aceptaba.
+   */
+  readonly stockDestino = input<number | null>(null);
+  /** Cómo se llama cada existencia cuando hay dos. */
+  readonly etiquetaStock = input('Stock');
+  readonly etiquetaStockDestino = input('Destino');
   readonly cargando = input(false);
   /**
    * `false` convierte la card en un botón: tocarla elige el producto en vez
@@ -303,6 +325,7 @@ export class ProductoCardComponent {
 
   readonly presentaciones = computed(() => this.producto().presentaciones ?? []);
   readonly stockLegible = computed(() => formatearCantidad(this.stock(), 0));
+  readonly stockDestinoLegible = computed(() => formatearCantidad(this.stockDestino(), 0));
 
   alternar(): void {
     if (!this.expandible()) {
@@ -342,7 +365,14 @@ export class ProductoCardComponent {
    * nuevo. Se muestra con decimales porque una caja incompleta es normal.
    */
   stockDe(p: Presentacion): string {
-    const total = this.stock();
+    return this.convertir(this.stock(), p);
+  }
+
+  stockDestinoDe(p: Presentacion): string {
+    return this.convertir(this.stockDestino(), p);
+  }
+
+  private convertir(total: number | null, p: Presentacion): string {
     if (total == null) {
       return '—';
     }

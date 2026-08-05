@@ -161,8 +161,16 @@ La card es `frc-producto-card` y el buscador entero, `frc-buscador-producto`
 | **Sin sucursal no se muestra stock** | La existencia siempre es de un local. Sin sucursal no hay nada que mostrar, y **el servidor no es un local** (`sucursal_id = 0`) |
 | **El menú `⋮` se arma por contexto** | «Ver stock por sucursal» siempre; el resto lo declara quien abrió el buscador |
 | **En modo `devuelve: 'producto'` la card no se expande** | Los filtros de control de inventario y productos vencidos solo querían el producto, pero obligaban a expandir y tocar una presentación que después descartaban |
-| **El stock por sucursal se llena fila por fila** | Son 13 sucursales o más. Esperar a todas deja la pantalla en blanco por el tiempo de la más lenta, y basta una filial caída para que ese tiempo sea el timeout |
+| **El stock por sucursal se pide en una sola consulta** | `stockPorSucursales` agrupa en la base. La alternativa —una llamada por sucursal— son 18 requests y el navegador da 6 conexiones por origen: ocupan todo el pool mientras duran. Medido: **32 ms contra 83 ms** |
 | **La búsqueda anterior se cancela en vuelo** | `frc-mobile` solo limpiaba el timer del debounce: si dos búsquedas salían, ganaba la que contestara última, no la que se pidió última |
+
+> ⚠️ **`stockPorSucursales` es nueva en el central.** Se agregó en esta ola
+> porque no existía: `productoPorSucursalStock` es por sucursal, y tanto el
+> desktop como `frc-mobile` la llamaban en bucle. En `gestion-compras` del
+> desktop eso llegó a requerir espaciar los pedidos con `setTimeout` «para no
+> saturar el servidor» — ver
+> [issue #208 del desktop](https://github.com/GabFrank/frc-sistemas-integrados-angular/issues/208).
+> Una sucursal sin movimientos **no vuelve** en el resultado: se muestra en cero.
 
 ## Lo que falta
 

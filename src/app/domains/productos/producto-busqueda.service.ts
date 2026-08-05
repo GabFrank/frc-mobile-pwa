@@ -17,6 +17,10 @@ import { ProductoPorCodigoGQL } from 'src/app/graphql/productos/productoPorCodig
 import { ProductoPorIdGQL } from 'src/app/graphql/productos/productoPorId';
 import { ProductoSearchGQL } from 'src/app/graphql/productos/productoSearch';
 import { ProductoStockGQL } from 'src/app/graphql/productos/productoStock';
+import {
+  StockPorSucursal,
+  StockPorSucursalesGQL,
+} from 'src/app/graphql/productos/stockPorSucursales';
 import { resolverPresentacionPorCodigo, tienePresentaciones } from 'src/app/shared/producto/presentacion.util';
 
 /** Un pesable devuelve producto **y** cantidad: el peso viene en el código. */
@@ -52,6 +56,7 @@ export class ProductoBusquedaService {
   private readonly porIdGQL = inject(ProductoPorIdGQL);
   private readonly codigoGQL = inject(CodigoPorCodigoGQL);
   private readonly stockGQL = inject(ProductoStockGQL);
+  private readonly stockTodasGQL = inject(StockPorSucursalesGQL);
 
   /**
    * Búsqueda general: primero por código, después por descripción.
@@ -126,6 +131,35 @@ export class ProductoBusquedaService {
         );
       }),
     );
+  }
+
+  /**
+   * Existencia en **todas** las sucursales, en una sola consulta.
+   *
+   * ⚠️ **No pedir esto en un bucle por sucursal.** Es exactamente lo que
+   * hacen hoy el desktop y `frc-mobile`: 18 requests para una sola pregunta,
+   * y el navegador abre 6 conexiones por origen. En `gestion-compras` del
+   * desktop llegó a hacer falta espaciar los pedidos con `setTimeout` para no
+   * saturar el servidor.
+   *
+   * Las sucursales sin movimientos no vuelven en la lista: se muestran en
+   * cero.
+   */
+  stockPorSucursales(productoId: number): Observable<Map<string, number>> {
+    return this.datos
+      .consultar<StockPorSucursal[]>(this.stockTodasGQL, { proId: productoId })
+      .pipe(
+        map((filas) => {
+          // Clave string: los ids llegan como string desde GraphQL y como
+          // número desde los modelos. Comparar por valor evita el mismo bug
+          // que ya apareció con la sucursal 0.
+          const porSucursal = new Map<string, number>();
+          for (const fila of filas ?? []) {
+            porSucursal.set(String(fila.sucursalId), fila.cantidad ?? 0);
+          }
+          return porSucursal;
+        }),
+      );
   }
 
   /** Existencia en una sucursal. */

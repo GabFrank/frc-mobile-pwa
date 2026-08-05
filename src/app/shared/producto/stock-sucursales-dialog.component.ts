@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { forkJoin } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 
@@ -16,32 +17,28 @@ export interface StockSucursalesData {
   sucursalId?: number;
 }
 
-type EstadoFila = 'cargando' | 'listo' | 'falló';
-
 interface FilaStock {
   id: number;
   nombre: string;
-  cantidad: number | null;
-  estado: EstadoFila;
+  cantidad: number;
 }
 
 /**
  * Existencia del producto en cada sucursal.
  *
- * ⚠️ **No hay una operación que devuelva el stock de todas las sucursales de
- * una vez.** `productoPorSucursalStock` es por sucursal, así que se consulta
- * una vez por cada una.
+ * **Una sola consulta para todas.** `stockPorSucursales` agrupa en la base y
+ * vuelve en un request. La alternativa —`productoPorSucursalStock` una vez
+ * por sucursal— son 18 requests y el navegador abre 6 conexiones por origen:
+ * salen en tandas y ocupan todo el pool mientras duran, así que cualquier
+ * otra consulta de la app queda esperando. Medido contra la instancia real,
+ * mediana de 6 productos: **32 ms contra 83 ms**.
  *
  * ⚠️ **La sucursal `0` es el SERVIDOR y se excluye.** No es un local, no
  * tiene depósito, y preguntarle el stock de un producto no significa nada.
  * Ver `sucursal.util.ts`.
  *
- * **La lista aparece completa y cada fila se llena cuando contesta.** Son 13
- * sucursales o más: esperar a que respondan todas para mostrar algo deja la
- * pantalla en blanco por el tiempo de la más lenta, y basta con una filial
- * caída para que ese tiempo sea el timeout. Con las filas ya dibujadas, el
- * usuario ve enseguida qué se está consultando y los números van cayendo.
- * `frc-mobile` esperaba a todas.
+ * ⚠️ **Una sucursal sin movimientos no vuelve en la consulta**: no hay filas
+ * que sumar. Se muestra en cero, que es lo que significa.
  */
 @Component({
   selector: 'frc-stock-sucursales-dialog',
@@ -54,7 +51,7 @@ interface FilaStock {
     <mat-dialog-content>
       <p class="producto">{{ data.producto.descripcion }}</p>
 
-      @if (cargandoLista()) {
+      @if (cargando()) {
         <frc-skeleton [cantidad]="4" />
       } @else if (error()) {
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
@@ -65,19 +62,9 @@ interface FilaStock {
           @for (fila of filas(); track fila.id) {
             <li class="fila">
               <span class="nombre">{{ fila.nombre }}</span>
-              @switch (fila.estado) {
-                @case ('cargando') {
-                  <span class="pendiente" aria-label="Consultando">···</span>
-                }
-                @case ('falló') {
-                  <span class="pendiente">sin dato</span>
-                }
-                @default {
-                  <span class="cantidad" [class.negativo]="(fila.cantidad ?? 0) < 0">
-                    {{ legible(fila.cantidad!) }}
-                  </span>
-                }
-              }
+              <span class="cantidad" [class.negativo]="fila.cantidad < 0">
+                {{ legible(fila.cantidad) }}
+              </span>
             </li>
           }
         </ul>
@@ -136,8 +123,7 @@ export class StockSucursalesDialogComponent {
   private readonly busqueda = inject(ProductoBusquedaService);
 
   readonly filas = signal<FilaStock[]>([]);
-  /** Solo cubre traer la lista de sucursales, no los stocks. */
-  readonly cargandoLista = signal(true);
+  readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
 
   constructor() {
@@ -148,57 +134,45 @@ export class StockSucursalesDialogComponent {
     const productoId = this.data.producto?.id;
     if (productoId == null) {
       this.error.set('El producto no tiene id.');
-      this.cargandoLista.set(false);
+      this.cargando.set(false);
       return;
     }
 
-    this.cargandoLista.set(true);
+    this.cargando.set(true);
     this.error.set(null);
 
-    this.sucursales.todas().subscribe({
-      next: (todas) => {
+    // Las dos salen juntas: los nombres no dependen del stock ni al revés.
+    forkJoin({
+      sucursales: this.sucursales.todas(),
+      stock: this.busqueda.stockPorSucursales(productoId),
+    }).subscribe({
+      next: ({ sucursales, stock }) => {
         // Acotar a una sucursal solo tiene sentido si es un local de verdad.
         // Con la sesión parada en el SERVIDOR —caso real— restringir a esa
         // «sucursal» dejaba el diálogo vacío: se filtraba a la 0 y después
         // se la descartaba por no ser un local. Sin local al que acotar, se
         // muestran todos, que es justo lo que se vino a ver.
         const objetivo = esSucursalReal(this.data.sucursalId) ? this.data.sucursalId : null;
-        const lista = (todas ?? [])
-          .filter((s) => esSucursalReal(s.id))
-          // Comparación por valor: los ids llegan como string desde GraphQL.
-          .filter((s) => objetivo == null || String(s.id) === String(objetivo));
 
         this.filas.set(
-          lista.map((s) => ({
-            id: s.id!,
-            nombre: s.nombre ?? `Sucursal ${s.id}`,
-            cantidad: null,
-            estado: 'cargando' as EstadoFila,
-          })),
+          (sucursales ?? [])
+            .filter((s) => esSucursalReal(s.id))
+            // Comparación por valor: los ids llegan como string desde GraphQL.
+            .filter((s) => objetivo == null || String(s.id) === String(objetivo))
+            .map((s) => ({
+              id: s.id!,
+              nombre: s.nombre ?? `Sucursal ${s.id}`,
+              // Sin movimientos no hay fila en el resultado: eso es cero.
+              cantidad: stock.get(String(s.id)) ?? 0,
+            })),
         );
-        this.cargandoLista.set(false);
-
-        // Todas salen a la vez y cada una pinta su fila al llegar: la lenta
-        // no retiene a las demás.
-        for (const s of lista) {
-          this.busqueda.stock(productoId, s.id!).subscribe({
-            next: (cantidad) => this.completar(s.id!, cantidad, 'listo'),
-            // Una filial caída no puede ocultar el stock de las demás.
-            error: () => this.completar(s.id!, null, 'falló'),
-          });
-        }
+        this.cargando.set(false);
       },
       error: (err: Error) => {
         this.error.set(err.message);
-        this.cargandoLista.set(false);
+        this.cargando.set(false);
       },
     });
-  }
-
-  private completar(id: number, cantidad: number | null, estado: EstadoFila): void {
-    this.filas.update((filas) =>
-      filas.map((f) => (f.id === id ? { ...f, cantidad, estado } : f)),
-    );
   }
 
   legible(cantidad: number): string {

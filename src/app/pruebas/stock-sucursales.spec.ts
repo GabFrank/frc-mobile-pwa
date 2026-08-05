@@ -13,7 +13,7 @@ import {
 
 describe('Stock por sucursal', () => {
   let sucursales: { todas: ReturnType<typeof vi.fn> };
-  let busqueda: { stock: ReturnType<typeof vi.fn> };
+  let busqueda: { stockPorSucursales: ReturnType<typeof vi.fn> };
 
   const texto = (f: { nativeElement: HTMLElement }) => f.nativeElement.textContent ?? '';
 
@@ -28,7 +28,9 @@ describe('Stock por sucursal', () => {
 
   beforeEach(() => {
     sucursales = { todas: vi.fn(() => of(TODAS)) };
-    busqueda = { stock: vi.fn(() => of(7)) };
+    // Una sola consulta devuelve el mapa completo. La sucursal 3 no está:
+    // sin movimientos no vuelve fila, y eso significa cero.
+    busqueda = { stockPorSucursales: vi.fn(() => of(new Map([['1', 7]]))) };
 
     TestBed.configureTestingModule({
       providers: [
@@ -51,7 +53,23 @@ describe('Stock por sucursal', () => {
 
     expect(texto(f)).not.toContain('SERVIDOR');
     expect(texto(f)).toContain('SUC. CENTRAL');
-    expect(busqueda.stock).toHaveBeenCalledTimes(2);
+  });
+
+  it('pide el stock una sola vez, no una por sucursal', () => {
+    montar();
+
+    // Es la razón de existir de `stockPorSucursales`: 18 requests ocupaban
+    // las 6 conexiones que el navegador da por origen.
+    expect(busqueda.stockPorSucursales).toHaveBeenCalledTimes(1);
+    expect(busqueda.stockPorSucursales).toHaveBeenCalledWith(1);
+  });
+
+  it('una sucursal sin movimientos se muestra en cero, no vacía', () => {
+    // El GROUP BY no devuelve filas para sucursales sin movimientos.
+    const f = montar();
+
+    expect(texto(f)).toContain('SUC. ROTONDA');
+    expect(texto(f)).toContain('0');
   });
 
   it('con la sesión parada en el SERVIDOR muestra todas, no ninguna', () => {
@@ -70,37 +88,20 @@ describe('Stock por sucursal', () => {
 
     expect(texto(f)).toContain('SUC. ROTONDA');
     expect(texto(f)).not.toContain('SUC. CENTRAL');
-    expect(busqueda.stock).toHaveBeenCalledTimes(1);
   });
 
   it('compara ids por valor: el string "3" acota igual que el número', () => {
     const f = montar({ sucursalId: '3' as unknown as number });
 
     expect(texto(f)).toContain('SUC. ROTONDA');
-    expect(busqueda.stock).toHaveBeenCalledTimes(1);
+    expect(texto(f)).not.toContain('SUC. CENTRAL');
   });
 
-  it('dibuja las filas antes de tener los números', () => {
-    const lenta = new Subject<number>();
-    busqueda.stock.mockReturnValue(lenta);
+  it('un fallo de la consulta se muestra como error, no como ceros', () => {
+    busqueda.stockPorSucursales.mockReturnValue(throwError(() => new Error('sin red')));
     const f = montar();
 
-    // La lista ya está: el usuario ve qué se está consultando.
-    expect(texto(f)).toContain('SUC. CENTRAL');
-    expect(texto(f)).toContain('···');
-
-    lenta.next(12);
-    f.detectChanges();
-    expect(texto(f)).toContain('12');
+    expect(texto(f)).toContain('sin red');
   });
 
-  it('una filial caída no oculta el stock de las demás', () => {
-    busqueda.stock.mockImplementation((_id: number, sucId: number) =>
-      sucId === 1 ? throwError(() => new Error('sin red')) : of(9),
-    );
-    const f = montar();
-
-    expect(texto(f)).toContain('sin dato');
-    expect(texto(f)).toContain('9');
-  });
 });

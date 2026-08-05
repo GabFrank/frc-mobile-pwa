@@ -166,3 +166,23 @@ export const productoStockQuery = gql`
     data: productoPorSucursalStock(proId: $proId, sucId: $sucId)
   }
 `;
+
+/**
+ * Existencia en **todas** las sucursales, en una sola consulta.
+ *
+ * ⚠️ **Preferirla a llamar `productoPorSucursalStock` por sucursal.** Son 18
+ * sucursales y el navegador abre 6 conexiones por origen: 18 requests salen
+ * en tandas y ocupan todo el pool mientras duran, así que cualquier otra
+ * consulta de la app hace cola detrás.
+ *
+ * Las sucursales sin movimientos **no vienen en la lista** — no hay filas que
+ * sumar—, así que el llamador las muestra en cero.
+ */
+export const stockPorSucursalesQuery = gql`
+  query ($proId: ID!) {
+    data: stockPorSucursales(proId: $proId) {
+      sucursalId
+      cantidad
+    }
+  }
+`;

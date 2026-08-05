@@ -6,7 +6,10 @@ import { Subject, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EscanerService } from '../core/dispositivo/escaner.service';
-import { esSucursalReal } from '../domains/empresarial/sucursal/sucursal.util';
+import {
+  esSucursalReal,
+  soloLocales,
+} from '../domains/empresarial/sucursal/sucursal.util';
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
 import { ProductoBusquedaService } from '../domains/productos/producto-busqueda.service';
@@ -473,8 +476,26 @@ describe('Sucursal servidor', () => {
     expect(esSucursalReal('')).toBe(false);
   });
 
+  it('COMPRAS tampoco es un local', () => {
+    // Segunda fila que no es un punto de venta: id 999. `frc-mobile` la
+    // descarta por nombre en seis pantallas.
+    expect(esSucursalReal(999)).toBe(false);
+    expect(esSucursalReal('999')).toBe(false);
+  });
+
   it('cualquier otra sí lo es', () => {
     expect(esSucursalReal(1)).toBe(true);
     expect(esSucursalReal('13')).toBe(true);
+  });
+
+  it('soloLocales descarta por id y también por nombre', () => {
+    const todas = [
+      { id: 0, nombre: 'SERVIDOR' },
+      { id: 999, nombre: 'COMPRAS' },
+      // Por si los ids difirieran entre bases: el nombre igual la saca.
+      { id: 500, nombre: 'Compras' },
+      { id: 1, nombre: 'SUC. CENTRAL' },
+    ];
+    expect(soloLocales(todas).map((s) => s.id)).toEqual([1]);
   });
 });

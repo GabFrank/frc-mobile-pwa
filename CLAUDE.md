@@ -93,9 +93,14 @@ Marcar siempre **qué quedó sin verificar**: eso es justamente lo que hay que p
 
 Si lo usa, se crea un método paralelo con sufijo `Mobile`. El desktop es producto en producción en farmacias y bodegas. Ver `docs/REGLAS_DESARROLLO.md`.
 
-### 5.1 · La sucursal `0` es el SERVIDOR, no un local
+### 5.1 · Antes de portar una pantalla, leé cómo la hace `frc-mobile`
 
-Está `activo = true` y viene en `sucursales()` como una más, pero no tiene depósito: preguntarle el stock de un producto no significa nada. Se descarta con `esSucursalReal()` en todo lo que sea existencias, movimientos o listados de locales — filtrar por `activo` no alcanza. Ver [`docs/infraestructura/domains-modelos.md`](docs/infraestructura/domains-modelos.md).
+Los documentos de `docs/modulos/` son buenos pero **no cubren todo**. Si algo del repo viejo parece un error, verificalo antes de «corregirlo»: suele codificar una regla del negocio que no está escrita en ningún lado.
+
+Dos cosas que costó aprender así:
+
+- **No existe «entrar a una sucursal».** La app está **siempre conectada al central**. La sucursal del usuario viene de `inicioSesion.sucursal` y sirve como valor por defecto; las pantallas que necesitan una la **seleccionan**.
+- **`SERVIDOR` (id 0) y `COMPRAS` (id 999) no son locales.** Vienen `activo = true` en `sucursales()` como cualquier otra, y `frc-mobile` las descarta en **seis** pantallas. Se filtran con `soloLocales()` / `esSucursalReal()`; filtrar por `activo` no alcanza. Ver [`docs/infraestructura/domains-modelos.md`](docs/infraestructura/domains-modelos.md).
 
 ### 6 · El dinero lo calcula el backend
 

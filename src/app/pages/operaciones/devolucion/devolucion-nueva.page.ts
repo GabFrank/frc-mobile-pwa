@@ -3,7 +3,12 @@ import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
-import { esSucursalReal } from 'src/app/domains/empresarial/sucursal/sucursal.util';
+import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
+import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
+import {
+  esSucursalReal,
+  soloLocales,
+} from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { EstadoDevolucion, TipoDevolucion } from 'src/app/domains/devolucion/devolucion.enums';
@@ -17,6 +22,10 @@ import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.com
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
+import {
+  OpcionSeleccion,
+  SelectorComponent,
+} from 'src/app/shared/selector/selector.component';
 import { BuscadorProductoDialogComponent } from 'src/app/shared/producto/buscador-producto-dialog.component';
 import { SeleccionProducto } from 'src/app/shared/producto/buscador.types';
 import { etiquetaPresentacion } from 'src/app/shared/producto/presentacion.util';
@@ -34,10 +43,14 @@ import { DevolucionService } from './devolucion.service';
  * todavía en góndola. Separarla —imprimir la etiqueta y apartarla
  * físicamente— es un paso aparte que se hace desde el detalle.
  *
- * ⚠️ **La sucursal de origen es la de la sesión y no se elige.** Es dónde se
- * detectó el producto; quien carga está parado ahí. En `frc-mobile` era un
- * selector, y eso permitía cargar una devolución a nombre de otra sucursal
- * por error.
+ * ⚠️ **La sucursal de origen se elige.** La app está **siempre conectada al
+ * central**: no existe «entrar a una sucursal». La que trae la sesión sale de
+ * `inicioSesion.sucursal` del usuario y sirve como valor por defecto, pero
+ * quien carga puede estar cubriendo otra. Es el diseño de `frc-mobile`
+ * (`devolucion.component.ts:74`) y se conserva.
+ *
+ * ⚠️ **`SERVIDOR` y `COMPRAS` no se ofrecen**: no son locales. Ver
+ * `sucursal.util.ts`.
  */
 @Component({
   selector: 'frc-devolucion-nueva',
@@ -48,6 +61,7 @@ import { DevolucionService } from './devolucion.service';
     DatoComponent,
     CardComponent,
     EstadoVacioComponent,
+    SelectorComponent,
     MatButtonModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,7 +75,12 @@ import { DevolucionService } from './devolucion.service';
       </div>
 
       <frc-seccion titulo="Devolución" [panel]="true">
-        <frc-dato etiqueta="Sucursal" [valor]="sucursalNombre()" />
+        <frc-selector
+          etiqueta="Sucursal de origen"
+          [opciones]="opcionesSucursal()"
+          [valor]="sucursalId()"
+          (valorChange)="sucursalId.set($event)"
+        />
         <frc-dato etiqueta="Productos" [valor]="items().length" />
         <frc-dato etiqueta="Unidades" [valor]="totalUnidades()" />
       </frc-seccion>
@@ -108,12 +127,18 @@ export class DevolucionNuevaPage {
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
   private readonly router = inject(Router);
+  private readonly sucursalesService = inject(SucursalService);
 
   readonly items = signal<DevolucionItemDraft[]>([]);
   readonly guardando = signal(false);
   private readonly motivos = signal<MotivoAveria[]>([]);
 
-  readonly sucursalNombre = computed(() => this.auth.sucursal()?.nombre ?? '—');
+  /** Locales disponibles, sin SERVIDOR ni COMPRAS. */
+  readonly sucursales = signal<Sucursal[]>([]);
+  readonly sucursalId = signal<unknown>(null);
+  readonly opcionesSucursal = computed<OpcionSeleccion[]>(() =>
+    this.sucursales().map((s) => ({ valor: s.id, texto: String(s.nombre ?? `Sucursal ${s.id}`) })),
+  );
   readonly totalUnidades = computed(() =>
     formatearCantidad(
       this.items().reduce((suma, i) => suma + (i.cantidad ?? 0), 0),
@@ -121,10 +146,23 @@ export class DevolucionNuevaPage {
     ),
   );
   readonly puedeGuardar = computed(
-    () => this.items().length > 0 && !this.guardando() && esSucursalReal(this.auth.sucursal()?.id),
+    () => this.items().length > 0 && !this.guardando() && esSucursalReal(this.sucursalId()),
   );
 
   constructor() {
+    this.sucursalesService.todas().subscribe({
+      next: (todas) => {
+        const locales = soloLocales(todas ?? []);
+        this.sucursales.set(locales);
+        // La de la sesión como valor por defecto, si es un local. Si no
+        // —caso SERVIDOR—, la primera, igual que `frc-mobile`.
+        const deLaSesion = this.auth.sucursal()?.id;
+        const preferida = locales.find((s) => String(s.id) === String(deLaSesion));
+        this.sucursalId.set(preferida?.id ?? locales[0]?.id ?? null);
+      },
+      error: () => this.notificacion.warn('No se pudieron cargar las sucursales.'),
+    });
+
     this.servicio.motivos().subscribe({
       next: (lista) => this.motivos.set(lista),
       error: () => this.notificacion.warn('No se pudieron cargar los motivos de avería.'),
@@ -163,7 +201,8 @@ export class DevolucionNuevaPage {
         titulo: 'Producto a devolver',
         opciones: {
           devuelve: 'presentacion',
-          sucursalId: this.auth.sucursal()?.id,
+          // El stock que importa es el de la sucursal que se está cargando.
+          sucursalId: this.sucursalId(),
         },
       },
       '95vw',
@@ -218,19 +257,13 @@ export class DevolucionNuevaPage {
 
   guardar(): void {
     const usuarioId = this.auth.usuario()?.id;
-    const sucursalId = this.auth.sucursal()?.id;
+    const sucursalId = this.sucursalId();
     if (usuarioId == null) {
       this.notificacion.danger('La sesión no tiene usuario.');
       return;
     }
-    // ⚠️ El origen es dónde se detectó el producto, y tiene que ser un local
-    // de verdad. Con la sesión parada en el SERVIDOR se guardaría una
-    // devolución cuyo origen no existe físicamente: nadie podría ir a
-    // separarla. Se bloquea acá porque el backend acepta cualquier id.
     if (!esSucursalReal(sucursalId)) {
-      this.notificacion.warn(
-        'Tu sesión no está en una sucursal: entrá desde la sucursal donde está el producto.',
-      );
+      this.notificacion.warn('Elegí la sucursal donde está el producto.');
       return;
     }
 

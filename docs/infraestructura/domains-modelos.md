@@ -83,30 +83,54 @@ Es el más grande y el que más flags de negocio concentra:
 | `codigoPrincipal` | Código preferido para mostrar |
 | `presentaciones: Presentacion[]` | Unidad, caja, pack… cada una con su precio |
 
-## ⚠️ La sucursal `0` es el SERVIDOR, no un local
+## ⚠️ `SERVIDOR` y `COMPRAS` no son locales
 
-En `empresarial.sucursal` la fila con **`id = 0` se llama `SERVIDOR`** y está
-`activo = true`, así que la query `sucursales` la devuelve como una más. **No
-es un punto de venta:** no tiene depósito ni mostrador, y preguntarle el stock
-de un producto no significa nada.
+`empresarial.sucursal` tiene **dos filas que no representan un punto de
+venta**, y las dos vienen `activo = true`:
+
+| id | nombre |
+|---|---|
+| 0 | `SERVIDOR` |
+| 999 | `COMPRAS` |
+
+Ninguna tiene depósito ni mostrador: preguntarles el stock de un producto, o
+cargarles una devolución, no significa nada.
+
+`frc-mobile` las descarta **por nombre** en seis pantallas
+(`s.nombre != 'SERVIDOR' && s.nombre != 'COMPRAS'`): devolución, colecta,
+retiro a proveedor, lista de devoluciones, control de inventario y productos
+vencidos.
 
 Hay que descartarla **explícitamente** en todo lo que sea existencias,
 movimientos o listados de locales. Filtrar por `activo` no alcanza — está
 activa.
 
 ```ts
-import { esSucursalReal } from 'src/app/domains/empresarial/sucursal/sucursal.util';
+import { soloLocales, esSucursalReal } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 
-const locales = sucursales.filter((s) => esSucursalReal(s.id));
+// Para poblar un selector de sucursal:
+const locales = soloLocales(sucursales);
+
+// Para decidir si una sucursal suelta sirve:
+if (esSucursalReal(id)) { … }
 ```
+
+`soloLocales()` descarta por id **y** por nombre: el id es más barato, y el
+nombre cubre el caso de que los ids difieran entre bases.
 
 `esSucursalReal()` devuelve `false` también para `null` y `undefined`, que es
 lo que hace falta en el otro caso frecuente: **sin sucursal no hay stock que
 mostrar**, porque la existencia siempre es de un local.
 
-Ya está aplicado en el buscador de productos y en el diálogo de stock por
-sucursal. Al portar inventario, transferencias y movimiento de stock hay que
-volver a aplicarlo.
+> ⚠️ **No existe «entrar a una sucursal».** La app está siempre conectada al
+> central. La sucursal del usuario sale de `inicioSesion.sucursal` y sirve
+> como **valor por defecto**; la pantalla que necesita una la **selecciona**.
+> Un usuario cuya sesión está en el `SERVIDOR` es normal, no un error de
+> configuración.
+
+Ya está aplicado en el buscador de productos, en el diálogo de stock por
+sucursal y en la carga de devoluciones. Al portar inventario, transferencias
+y movimiento de stock hay que volver a aplicarlo.
 
 > ⚠️ **Gotcha — `Producto` tiene campos comentados en el modelo.** `subfamilia`, `sucursales`, `productoUltimasCompras` y `costo` están comentados en `producto.model.ts`, pero `ProductoInput` **sí** declara `subfamiliaId`. O sea: se puede enviar la subfamilia pero no leerla desde el modelo tipado. Si necesitás ese dato, la query debe pedirlo y hay que acceder sin tipo.
 

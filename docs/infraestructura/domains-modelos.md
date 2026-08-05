@@ -83,6 +83,31 @@ Es el más grande y el que más flags de negocio concentra:
 | `codigoPrincipal` | Código preferido para mostrar |
 | `presentaciones: Presentacion[]` | Unidad, caja, pack… cada una con su precio |
 
+## ⚠️ La sucursal `0` es el SERVIDOR, no un local
+
+En `empresarial.sucursal` la fila con **`id = 0` se llama `SERVIDOR`** y está
+`activo = true`, así que la query `sucursales` la devuelve como una más. **No
+es un punto de venta:** no tiene depósito ni mostrador, y preguntarle el stock
+de un producto no significa nada.
+
+Hay que descartarla **explícitamente** en todo lo que sea existencias,
+movimientos o listados de locales. Filtrar por `activo` no alcanza — está
+activa.
+
+```ts
+import { esSucursalReal } from 'src/app/domains/empresarial/sucursal/sucursal.util';
+
+const locales = sucursales.filter((s) => esSucursalReal(s.id));
+```
+
+`esSucursalReal()` devuelve `false` también para `null` y `undefined`, que es
+lo que hace falta en el otro caso frecuente: **sin sucursal no hay stock que
+mostrar**, porque la existencia siempre es de un local.
+
+Ya está aplicado en el buscador de productos y en el diálogo de stock por
+sucursal. Al portar inventario, transferencias y movimiento de stock hay que
+volver a aplicarlo.
+
 > ⚠️ **Gotcha — `Producto` tiene campos comentados en el modelo.** `subfamilia`, `sucursales`, `productoUltimasCompras` y `costo` están comentados en `producto.model.ts`, pero `ProductoInput` **sí** declara `subfamiliaId`. O sea: se puede enviar la subfamilia pero no leerla desde el modelo tipado. Si necesitás ese dato, la query debe pedirlo y hay que acceder sin tipo.
 
 > ⚠️ **Gotcha — `ProductoInput.tiempoGarantia` está tipado `boolean`** (`producto.model.ts`), mientras que `Producto.tiempoGarantia` es `number`. Es un error de tipado en el input: el valor real que espera el backend es numérico. TypeScript no te va a ayudar acá.

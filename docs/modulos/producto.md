@@ -150,6 +150,20 @@ El escaneo usa el [escáner compartido](../arquitectura/escaner.md) con
 > de `moneda.util.ts`, que usa `es-PY`. El bug se coló en la primera versión y
 > lo encontró un test.
 
+## La lista de productos
+
+La card es `frc-producto-card` y el buscador entero, `frc-buscador-producto`
+— los dos en `shared/producto/`, genéricos por la regla de tres.
+
+| Decisión | Por qué |
+|---|---|
+| **La cantidad lidera la presentación**: `Cantidad: 12 (Caja)` | Es lo que decide el precio y lo que se compara entre filas. El nombre es contexto. `frc-mobile` mostraba solo `Presentación: {{cantidad}}`, sin nombre |
+| **Sin sucursal no se muestra stock** | La existencia siempre es de un local. Sin sucursal no hay nada que mostrar, y **el servidor no es un local** (`sucursal_id = 0`) |
+| **El menú `⋮` se arma por contexto** | «Ver stock por sucursal» siempre; el resto lo declara quien abrió el buscador |
+| **En modo `devuelve: 'producto'` la card no se expande** | Los filtros de control de inventario y productos vencidos solo querían el producto, pero obligaban a expandir y tocar una presentación que después descartaban |
+| **El stock por sucursal se llena fila por fila** | Son 13 sucursales o más. Esperar a todas deja la pantalla en blanco por el tiempo de la más lenta, y basta una filial caída para que ese tiempo sea el timeout |
+| **La búsqueda anterior se cancela en vuelo** | `frc-mobile` solo limpiaba el timer del debounce: si dos búsquedas salían, ganaba la que contestara última, no la que se pidió última |
+
 ## Lo que falta
 
 - **Detalle de producto.** Hoy tocar un resultado consulta el stock de la

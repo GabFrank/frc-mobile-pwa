@@ -17,7 +17,7 @@ import { ProductoPorCodigoGQL } from 'src/app/graphql/productos/productoPorCodig
 import { ProductoPorIdGQL } from 'src/app/graphql/productos/productoPorId';
 import { ProductoSearchGQL } from 'src/app/graphql/productos/productoSearch';
 import { ProductoStockGQL } from 'src/app/graphql/productos/productoStock';
-import { resolverPresentacionPorCodigo, tienePresentaciones } from './presentacion.util';
+import { resolverPresentacionPorCodigo, tienePresentaciones } from 'src/app/shared/producto/presentacion.util';
 
 /** Un pesable devuelve producto **y** cantidad: el peso viene en el código. */
 export interface ResultadoPesable {

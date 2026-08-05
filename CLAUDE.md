@@ -93,6 +93,10 @@ Marcar siempre **qué quedó sin verificar**: eso es justamente lo que hay que p
 
 Si lo usa, se crea un método paralelo con sufijo `Mobile`. El desktop es producto en producción en farmacias y bodegas. Ver `docs/REGLAS_DESARROLLO.md`.
 
+### 5.1 · La sucursal `0` es el SERVIDOR, no un local
+
+Está `activo = true` y viene en `sucursales()` como una más, pero no tiene depósito: preguntarle el stock de un producto no significa nada. Se descarta con `esSucursalReal()` en todo lo que sea existencias, movimientos o listados de locales — filtrar por `activo` no alcanza. Ver [`docs/infraestructura/domains-modelos.md`](docs/infraestructura/domains-modelos.md).
+
 ### 6 · El dinero lo calcula el backend
 
 Balances de caja, diferencias de arqueo, distribución de cantidades entre notas de recepción. El cliente muestra, no calcula.

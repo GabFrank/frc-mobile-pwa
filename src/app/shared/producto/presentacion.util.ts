@@ -1,6 +1,7 @@
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
 import { normalizarCodigo } from 'src/app/generic/utils/barcodeUtils';
+import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
 
 /**
  * Qué presentación corresponde a los códigos dados.
@@ -51,12 +52,25 @@ export function precioDe(presentacion: Presentacion | null | undefined): number 
   return activo?.precio ?? null;
 }
 
-/** `Unidad`, `Caja x12`… para mostrar junto al precio. */
+/**
+ * `Cantidad: 12 (Caja)` — la cantidad adelante.
+ *
+ * ⚠️ **El dato principal de una presentación es cuántas unidades trae**, no
+ * cómo se llama. Es lo que decide el precio y lo que el operador compara
+ * entre filas; la descripción es contexto. `frc-mobile` mostraba solo
+ * `Presentación: {{cantidad}}`, sin nombre.
+ *
+ * La descripción sale de la presentación y, si no tiene, de su tipo. Si no
+ * hay ninguna, no se inventa un paréntesis vacío.
+ */
 export function etiquetaPresentacion(presentacion: Presentacion): string {
-  // `TipoPresentacion.descripcion` está tipado como el wrapper `String` en el
-  // modelo portado. No se toca el modelo —lo usan otras pantallas— y se
-  // normaliza acá.
-  const tipo = String(presentacion.tipoPresentacion?.descripcion ?? 'Presentación');
-  const cantidad = presentacion.cantidad ?? 1;
-  return cantidad > 1 ? `${tipo} x${cantidad}` : tipo;
+  const cantidad = formatearCantidad(
+    presentacion.cantidad ?? 1,
+    Number.isInteger(presentacion.cantidad ?? 1) ? 0 : 2,
+  );
+  // `descripcion` está tipada como el wrapper `String` en los modelos
+  // portados. No se tocan —los usan otras pantallas— y se normaliza acá.
+  const crudo = presentacion.descripcion ?? presentacion.tipoPresentacion?.descripcion;
+  const nombre = crudo != null ? String(crudo).trim() : '';
+  return nombre ? `Cantidad: ${cantidad} (${nombre})` : `Cantidad: ${cantidad}`;
 }

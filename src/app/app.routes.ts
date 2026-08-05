@@ -36,6 +36,13 @@ export const routes: Routes = [
           import('./pages/mi-trabajo/mi-trabajo.routes').then((m) => m.rutasMiTrabajo),
       },
       {
+        path: 'notificaciones',
+        loadChildren: () =>
+          import('./pages/notificaciones/notificaciones.routes').then(
+            (m) => m.rutasNotificaciones,
+          ),
+      },
+      {
         path: 'marcacion',
         loadComponent: () =>
           import('./pages/marcacion/marcacion.page').then((m) => m.MarcacionPage),

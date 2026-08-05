@@ -903,6 +903,58 @@ horas trabajadas siguen contando bien al volver.
 
 ---
 
+## Bloque 16 — Notificaciones *(nuevo)*
+
+> Para que haya algo que ver hace falta un evento real: un retiro, una venta
+> con stock negativo, una diferencia de maletín, o una solicitud de RRHH —
+> esas ya notifican a los aprobadores.
+
+### 16.1 · Bandeja
+1. Inicio → **Notificaciones**
+
+**Esperado:** arranca en **Sin leer**. Cada fila muestra el mensaje y la
+fecha, y las no leídas están marcadas.
+
+### 16.2 · Abrir marca como leída
+1. Tocar una notificación sin leer
+
+**Esperado:** abre el hilo de comentarios y, al volver, esa fila ya no está
+en «Sin leer».
+
+### 16.3 · Comentar
+1. En el hilo, escribir un comentario y **Enviar**
+
+**Esperado:** aparece en la lista con tu nombre y la hora.
+
+### 16.4 · Responder
+1. Tocar **Responder** en un comentario, escribir y enviar
+
+**Esperado:** la respuesta queda **indentada bajo ese comentario**.
+
+2. Responder a una respuesta
+
+**Esperado:** queda al mismo nivel que la anterior, **no más adentro**.
+
+### 16.5 · Marcar todas
+1. Volver a la bandeja y **Marcar todas como leídas**
+
+**Esperado:** «Sin leer» queda vacío.
+
+### 16.6 · Preferencias
+1. **Preferencias** desde la barra superior
+
+**Esperado:** una fila por tipo. Las obligatorias —diferencia de maletín, por
+ejemplo— aparecen **con el interruptor deshabilitado** y el texto «Siempre se
+envía». No están escondidas.
+
+### 16.7 · Apagar una opcional
+1. Apagar un tipo opcional, salir y volver
+
+**Esperado:** queda apagado. Si el servidor rechaza el cambio, el interruptor
+vuelve a su posición y avisa.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -912,7 +964,7 @@ Para que no se reporte como falla:
 | Operaciones | Faltan pedidos y solicitud de gastos |
 | Inventario y transferencias | No portados |
 | Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
-| Notificaciones | No portadas |
+| Recibir push (FCM) | No portado — la bandeja sí |
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
 | Escáner de códigos | Implementado — falta probarlo en dispositivos de sucursal |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
@@ -939,7 +991,8 @@ Para que no se reporte como falla:
 | 13 · Devoluciones | 7 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
 | 15 · Marcación | 7 | | | |
-| **Total** | **103** | | | |
+| 16 · Notificaciones | 7 | | | |
+| **Total** | **110** | | | |
 
 ### Los cinco que más importan
 

@@ -77,6 +77,7 @@ export class InicioPage {
     { etiqueta: 'Caja', ruta: '/operaciones/caja', icono: 'dinero', roles: [ROLES.ADMIN, ROLES.VENTA_TOUCH] },
     { etiqueta: 'Operaciones', ruta: '/operaciones', icono: 'caja' },
     { etiqueta: 'Buscar producto', ruta: '/buscar', icono: 'buscar' },
+    { etiqueta: 'Notificaciones', ruta: '/notificaciones', icono: 'bandeja' },
     { etiqueta: 'Marcación', ruta: '/marcacion', icono: 'reloj' },
     { etiqueta: 'Mi trabajo', ruta: '/mi-trabajo', icono: 'persona' },
     { etiqueta: 'Mis finanzas', ruta: '/mis-finanzas', icono: 'dinero' },

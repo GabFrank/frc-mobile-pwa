@@ -11,16 +11,16 @@ export const miResumenRrhhMobileQuery = gql`
 `;
 
 export const misRecibosMobileQuery = gql`
-  query ($usuarioId: ID!) {
-    data: misRecibosMobile(usuarioId: $usuarioId) {
+  query ($usuarioId: ID!, $page: Int, $size: Int) {
+    data: misRecibosMobile(usuarioId: $usuarioId, page: $page, size: $size) {
       id periodo totalNeto estado fechaPago
     }
   }
 `;
 
 export const misValesMobileQuery = gql`
-  query ($usuarioId: ID!) {
-    data: misValesMobile(usuarioId: $usuarioId) {
+  query ($usuarioId: ID!, $page: Int, $size: Int) {
+    data: misValesMobile(usuarioId: $usuarioId, page: $page, size: $size) {
       id monto fecha estado esAdelanto motivo { id }
     }
   }

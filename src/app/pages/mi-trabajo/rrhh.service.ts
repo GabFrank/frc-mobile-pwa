@@ -33,12 +33,18 @@ import { ValesPendientesAprobacionMobileGQL } from 'src/app/graphql/rrhh/ValesPe
  * `any` y los componentes usaban `any[]`.
  */
 /**
- * Filas por página en marcaciones.
+ * Filas por página, por lista.
  *
- * Un mes de trabajo son ~22 jornadas: 30 cubre el mes en curso sin que la
- * mayoría necesite tocar "Cargar más".
+ * No son todas iguales porque la unidad natural de cada una es distinta: un
+ * mes de trabajo son ~22 jornadas, un año de sueldos son 12 recibos. Elegir
+ * el tamaño así hace que el caso habitual —"lo del mes", "lo del año"— entre
+ * en la primera página y nadie tenga que tocar "Cargar más".
  */
-export const TAMANO_PAGINA = 30;
+export const TAMANO_PAGINA = {
+  marcaciones: 30,
+  recibos: 12,
+  vales: 10,
+} as const;
 
 @Injectable({ providedIn: 'root' })
 export class RrhhService {
@@ -61,12 +67,14 @@ export class RrhhService {
     return this.datos.consultar<ResumenRrhh>(this.resumenGQL, { usuarioId });
   }
 
-  recibos(usuarioId: number): Observable<Recibo[]> {
-    return this.datos.consultar<Recibo[]>(this.recibosGQL, { usuarioId });
+  /** Recibos pagados, del más reciente al más antiguo. Siempre paginado. */
+  recibos(usuarioId: number, page = 0, size = TAMANO_PAGINA.recibos): Observable<Recibo[]> {
+    return this.datos.consultar<Recibo[]>(this.recibosGQL, { usuarioId, page, size });
   }
 
-  vales(usuarioId: number): Observable<Vale[]> {
-    return this.datos.consultar<Vale[]>(this.valesGQL, { usuarioId });
+  /** Vales, del más reciente al más antiguo. Siempre paginado. */
+  vales(usuarioId: number, page = 0, size = TAMANO_PAGINA.vales): Observable<Vale[]> {
+    return this.datos.consultar<Vale[]>(this.valesGQL, { usuarioId, page, size });
   }
 
   vacaciones(usuarioId: number): Observable<Vacacion[]> {
@@ -80,7 +88,7 @@ export class RrhhService {
    * año— y sin `page`/`size` el servidor las devuelve todas: el costo de
    * abrir la pestaña crecería con la antigüedad del empleado.
    */
-  marcaciones(usuarioId: number, page = 0, size = TAMANO_PAGINA): Observable<Jornada[]> {
+  marcaciones(usuarioId: number, page = 0, size = TAMANO_PAGINA.marcaciones): Observable<Jornada[]> {
     return this.datos.consultar<Jornada[]>(this.marcacionesGQL, { usuarioId, page, size });
   }
 

@@ -188,17 +188,14 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
                 icono="reloj"
               />
             }
-            @if (hayMasMarcaciones()) {
-              <button
-                matButton="outlined"
-                class="mas"
-                [disabled]="cargandoMas()"
-                (click)="masMarcaciones()"
-              >
-                {{ cargandoMas() ? 'Cargando…' : 'Cargar más' }}
-              </button>
-            }
+
           }
+        }
+
+        @if (hayMas()) {
+          <button matButton="outlined" class="mas" [disabled]="cargandoMas()" (click)="cargarMas()">
+            {{ cargandoMas() ? 'Cargando…' : 'Cargar más' }}
+          </button>
         }
       }
 
@@ -237,12 +234,26 @@ export class MiTrabajoPage {
   private readonly traidos = new Set<Segmento>();
 
   /**
-   * Paginación de marcaciones. Es el único segmento paginado: hay una fila
-   * por día trabajado y crece para siempre, mientras que vales, recibos y
-   * vacaciones son unas pocas decenas en toda la vida laboral.
+   * Página actual de cada lista paginada.
+   *
+   * Vacaciones queda afuera: es un registro por año de servicio, así que ni
+   * una carrera entera llena una página.
    */
-  private paginaMarcaciones = 0;
-  readonly hayMasMarcaciones = signal(false);
+  private readonly pagina: Record<'marcaciones' | 'recibos' | 'vales', number> = {
+    marcaciones: 0,
+    recibos: 0,
+    vales: 0,
+  };
+
+  /**
+   * Si el segmento activo puede tener más filas.
+   *
+   * Se deduce de que la última página haya venido completa: el central
+   * devuelve una lista, no un `Page`, así que no hay total con el que
+   * comparar. El costo es una consulta de más cuando el total es múltiplo
+   * exacto del tamaño de página.
+   */
+  readonly hayMas = signal(false);
   readonly cargandoMas = signal(false);
 
   /** La acción del pie depende del segmento: no hay una sola para toda la pantalla. */
@@ -379,10 +390,8 @@ export class MiTrabajoPage {
     this.cargando.set(true);
     this.error.set(null);
 
-    // Un caso por segmento en vez de un mapa con cast: el mapa obligaba a
-    // castear la señal destino a `unknown` porque TypeScript no puede
-    // relacionar la clave con el tipo que le corresponde.
-    const listo = () => {
+    const listo = (filas: unknown[], tamano?: number) => {
+      this.hayMas.set(tamano != null && filas.length === tamano);
       this.traidos.add(segmento);
       this.cargando.set(false);
     };
@@ -391,36 +400,33 @@ export class MiTrabajoPage {
       this.cargando.set(false);
     };
 
+    // Un caso por segmento en vez de un mapa: TypeScript no puede relacionar
+    // la clave con el tipo de la señal destino, y el mapa obligaba a castear.
     switch (segmento) {
-      case 'recibos':
-        this.rrhh.recibos(usuarioId).subscribe({
-          next: (d) => { this.recibos.set(d ?? []); listo(); },
+      case 'marcaciones':
+        this.pagina.marcaciones = 0;
+        this.rrhh.marcaciones(usuarioId, 0).subscribe({
+          next: (d) => { this.marcaciones.set(d ?? []); listo(d ?? [], TAMANO_PAGINA.marcaciones); },
           error: fallo,
         });
         break;
       case 'vales':
-        this.rrhh.vales(usuarioId).subscribe({
-          next: (d) => { this.vales.set(d ?? []); listo(); },
+        this.pagina.vales = 0;
+        this.rrhh.vales(usuarioId, 0).subscribe({
+          next: (d) => { this.vales.set(d ?? []); listo(d ?? [], TAMANO_PAGINA.vales); },
+          error: fallo,
+        });
+        break;
+      case 'recibos':
+        this.pagina.recibos = 0;
+        this.rrhh.recibos(usuarioId, 0).subscribe({
+          next: (d) => { this.recibos.set(d ?? []); listo(d ?? [], TAMANO_PAGINA.recibos); },
           error: fallo,
         });
         break;
       case 'vacaciones':
         this.rrhh.vacaciones(usuarioId).subscribe({
-          next: (d) => { this.vacaciones.set(d ?? []); listo(); },
-          error: fallo,
-        });
-        break;
-      case 'marcaciones':
-        this.paginaMarcaciones = 0;
-        this.rrhh.marcaciones(usuarioId, 0).subscribe({
-          next: (d) => {
-            const filas = d ?? [];
-            this.marcaciones.set(filas);
-            // Una página completa es la única señal de que puede haber más:
-            // el central devuelve una lista, no un total.
-            this.hayMasMarcaciones.set(filas.length === TAMANO_PAGINA);
-            listo();
-          },
+          next: (d) => { this.vacaciones.set(d ?? []); listo(d ?? []); },
           error: fallo,
         });
         break;
@@ -428,29 +434,48 @@ export class MiTrabajoPage {
   }
 
   /**
-   * Trae la página siguiente de marcaciones y la agrega al final.
+   * Trae la página siguiente del segmento activo y la agrega al final.
    *
-   * Se corta cuando el servidor devuelve menos de una página completa. No hay
-   * total: la operación devuelve una lista, no un `Page`.
+   * Se corta cuando el servidor devuelve menos de una página completa.
    */
-  masMarcaciones(): void {
+  cargarMas(): void {
     const usuarioId = this.auth.usuario()?.id ?? this.auth.usuarioIdGuardado;
-    if (usuarioId == null || this.cargandoMas()) {
+    const segmento = this.segmento();
+    if (usuarioId == null || this.cargandoMas() || segmento === 'vacaciones') {
       return;
     }
-    const siguiente = this.paginaMarcaciones + 1;
+
+    const siguiente = this.pagina[segmento] + 1;
+    const tamano = TAMANO_PAGINA[segmento];
     this.cargandoMas.set(true);
 
-    this.rrhh.marcaciones(usuarioId, siguiente).subscribe({
-      next: (d) => {
-        const filas = d ?? [];
-        this.paginaMarcaciones = siguiente;
-        this.marcaciones.update((previas) => [...previas, ...filas]);
-        this.hayMasMarcaciones.set(filas.length === TAMANO_PAGINA);
-        this.cargandoMas.set(false);
-      },
-      error: () => this.cargandoMas.set(false),
-    });
+    const alLlegar = (filas: unknown[]) => {
+      this.pagina[segmento] = siguiente;
+      this.hayMas.set(filas.length === tamano);
+      this.cargandoMas.set(false);
+    };
+    const alFallar = () => this.cargandoMas.set(false);
+
+    switch (segmento) {
+      case 'marcaciones':
+        this.rrhh.marcaciones(usuarioId, siguiente).subscribe({
+          next: (d) => { this.marcaciones.update((p) => [...p, ...(d ?? [])]); alLlegar(d ?? []); },
+          error: alFallar,
+        });
+        break;
+      case 'vales':
+        this.rrhh.vales(usuarioId, siguiente).subscribe({
+          next: (d) => { this.vales.update((p) => [...p, ...(d ?? [])]); alLlegar(d ?? []); },
+          error: alFallar,
+        });
+        break;
+      case 'recibos':
+        this.rrhh.recibos(usuarioId, siguiente).subscribe({
+          next: (d) => { this.recibos.update((p) => [...p, ...(d ?? [])]); alLlegar(d ?? []); },
+          error: alFallar,
+        });
+        break;
+    }
   }
 
   /** `true` si el usuario puede entrar a la bandeja de aprobaciones. */

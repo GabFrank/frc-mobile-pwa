@@ -274,7 +274,16 @@ export class ConteoFormComponent {
   );
 
   readonly indiceActivo = signal(0);
-  readonly monedaActiva = computed(() => this.visibles()[this.indiceActivo()] ?? null);
+  /*
+    El tipo se anota a mano porque TypeScript infiere `Moneda` para un
+    acceso por índice —da por hecho que existe— y entonces marcaba el `?.`
+    de la plantilla como innecesario. Sí lo es: entre que cambian las
+    monedas visibles y se reajusta el índice activo, el acceso devuelve
+    `undefined`.
+  */
+  readonly monedaActiva = computed<Moneda | null>(
+    () => this.visibles()[this.indiceActivo()] ?? null,
+  );
 
   /**
    * Cantidades por id de denominación.

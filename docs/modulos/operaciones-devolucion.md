@@ -184,3 +184,67 @@ Desarrollado entre el **2026-07-08 y el 2026-07-16**, integrado a `develop` vía
 3. `onRetirarEnBloque` es parcialmente exitoso: revisá `resultados[]`.
 4. Los motivos de avería vienen del backend con sus flags — `generaGasto` y `aplicaProveedor` deciden a dónde puede terminar la devolución.
 5. Consultá `devolucionConfiguracion` antes de ofrecer el retiro manual.
+
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** el **circuito de carga** está portado — lista, nueva y detalle.
+> La colecta y el retiro al proveedor no: los hacen otros actores.
+
+## Pantallas
+
+| Ruta | Componente | Estado |
+|---|---|---|
+| `/operaciones/devolucion` | `DevolucionHistorialPage` | ✅ |
+| `/operaciones/devolucion/nueva` | `DevolucionNuevaPage` | ✅ |
+| `/operaciones/devolucion/detalle/:id` | `DevolucionDetallePage` | ✅ solo avanza a `SEPARADO` |
+
+## Es el primer consumidor del buscador de productos
+
+Agregar un producto abre `BuscadorProductoDialogComponent`, que envuelve el
+buscador compartido y cierra con lo elegido. Dos piezas del buscador
+esperaban justamente este llamador:
+
+- **El envoltorio de diálogo.** `(seleccion)` ya emitía; faltaba quién lo
+  escuchara.
+- **`autoFoco`.** El foco arranca en el campo **solo acá**: en la pestaña
+  Buscar, que se abre navegando, levantar el teclado sin que nadie lo pida
+  tapa media pantalla.
+
+Un **pesable** no vuelve a pedir la cantidad: el peso viene en el código y
+entra directo al diálogo del ítem.
+
+## La sucursal se elige, no se hereda
+
+⚠️ **No existe «entrar a una sucursal»:** la app está siempre conectada al
+central. La del usuario sale de `inicioSesion.sucursal` y es el **valor por
+defecto**; quien carga puede estar cubriendo otra.
+
+Solo se ofrecen sucursales **con depósito y activas** — una sucursal virtual
+no mueve stock, así que no puede ser el origen de una devolución. Ver
+[`../infraestructura/domains-modelos.md`](../infraestructura/domains-modelos.md).
+
+## El motivo dice su consecuencia mientras se elige
+
+Cada `MotivoAveria` trae `generaGasto` y `aplicaProveedor`. El diálogo del
+ítem muestra cuál es el destino económico **antes de guardar** —«se le puede
+reclamar al proveedor» o «la pérdida es de la empresa»—, no al final del
+circuito cuando ya no se puede cambiar.
+
+## La máquina de estados no se replica
+
+Solo se ofrece **Separar**, y solo desde `PENDIENTE`. Qué transición es legal
+lo contesta el central. Las etiquetas se piden **después** de que confirme:
+imprimirlas antes pegaría una etiqueta de un estado que no llegó a existir.
+
+## Lo que falta, y de qué depende
+
+| Qué | Espera a |
+|---|---|
+| Colecta y su historial | el actor que colecta |
+| Retiro a proveedor, consolidado y remitos | ese actor |
+| Elegir proveedor y tipo `CON_PROVEEDOR` | el módulo de personas. Hoy toda devolución nace `SIN_PROVEEDOR`, el tipo que solo puede terminar en `DESCARTADO` |
+| Editar o quitar ítems de una devolución guardada | — |
+| Revertir estado | la pantalla que lo necesite |

@@ -755,6 +755,62 @@ resultados aunque conteste después.
 
 ---
 
+## Bloque 13 — Devoluciones *(nuevo)*
+
+### 13.1 · Cargar una devolución
+1. Operaciones → **Devoluciones** → *Nueva devolución*
+2. Elegir la sucursal de origen
+3. **Agregar producto**, buscar uno, expandirlo y tocar una presentación
+4. Cargar cantidad y motivo, **Agregar**
+
+**Esperado:** la fila aparece con su cantidad y su motivo. El resumen de
+arriba suma productos y unidades.
+
+> El selector de sucursal **no ofrece SERVIDOR ni COMPRAS**: no tienen
+> depósito. Tampoco las sucursales cerradas.
+
+### 13.2 · El motivo dice a dónde va la pérdida
+1. En el diálogo del ítem, cambiar entre motivos
+
+**Esperado:** debajo del selector cambia el texto entre «se le puede reclamar
+al proveedor» y «la pérdida es de la empresa», según el motivo.
+
+### 13.3 · Escanear en vez de buscar
+1. En **Agregar producto**, tocar el ícono de escanear y leer un código
+
+**Esperado:** encuentra el producto. Con una **etiqueta de balanza**, la
+cantidad viene cargada con el peso y no hay que escribirla.
+
+### 13.4 · Salir sin guardar
+1. Con productos cargados, tocar el botón de volver
+
+**Esperado:** pregunta antes de salir. Sin productos, sale directo.
+
+### 13.5 · Guardar
+1. **Guardar**
+
+**Esperado:** aviso de éxito y va al detalle de la devolución recién creada,
+en estado **Pendiente**. Volver desde ahí **no** debe regresar al formulario.
+
+### 13.6 · Separar e imprimir etiqueta
+1. En el detalle de una devolución **Pendiente**, *Separar e imprimir etiqueta*
+2. Confirmar
+
+**Esperado:** pasa a **Separado** y se abre el PDF de etiquetas. Si el PDF
+falla, la devolución igual quedó separada y se avisa aparte.
+
+> El botón **solo aparece en Pendiente**. En cualquier otro estado no está:
+> el resto de las transiciones las hacen otras pantallas que no están
+> portadas.
+
+### 13.7 · Historial y filtros
+1. Volver a Devoluciones y recorrer las pestañas Pendientes / Separadas / Todas
+
+**Esperado:** cada una trae lo suyo, con «Cargar más» de a 10. Tocar una
+abre su detalle.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -788,7 +844,8 @@ Para que no se reporte como falla:
 | 10 · Escáner, vía ZXing (Safari en Mac) | 6 | 6 | | |
 | 11 · iOS real *(necesita dispositivo)* | 7 | | | |
 | 12 · Buscar producto | 9 | | | |
-| **Total** | **83** | | | |
+| 13 · Devoluciones | 7 | | | |
+| **Total** | **90** | | | |
 
 ### Los cinco que más importan
 

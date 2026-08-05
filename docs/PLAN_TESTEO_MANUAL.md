@@ -553,7 +553,11 @@ lista en blanco.
 
 ---
 
-## Bloque 10 — Escáner: la vía de ZXing *(se puede hacer HOY, en Safari de la Mac)*
+## Bloque 10 — Escáner: la vía de ZXing — ✅ **PASÓ** (Safari en Mac, 2026-08-05)
+
+> Los 6 casos en verde. **Queda verificado que ZXing carga, arranca y lee en un
+> navegador sin `BarcodeDetector`** — que era el riesgo abierto del soporte de
+> iOS. Lo que resta es lo propio del dispositivo: bloque 11.
 
 **Safari de escritorio tampoco tiene `BarcodeDetector`.** Es el mismo motor de
 render que iOS y toma exactamente la misma rama del código. Así que la vía que
@@ -669,15 +673,67 @@ cambió; lo que se prueba es que el motor lea la etiqueta real.
 
 ---
 
+## Bloque 12 — Buscar producto *(nuevo)*
+
+Verificado por mí contra tu base: búsqueda por texto (10 resultados de
+«coca»), por código (`7840058000750` → un solo resultado), paginación
+(10 → 20 sin repetidos), stock, y un pesable real
+(`2010007015003` → CHORTI PUNTA DE PECHO, 1,500 kg × ₲ 67.000 = ₲ 100.500).
+Lo que sigue es lo que no pude cubrir.
+
+### 12.1 · Escanear un producto de verdad
+1. En el Android con `adb reverse tcp:4300 tcp:4300`, ir a **Buscar**
+2. Tocar el ícono de escanear y apuntar a un código de barras real
+
+**Esperado:** encuentra el producto y lo muestra solo. El texto del campo
+queda con el código escaneado.
+
+### 12.2 · Escanear una etiqueta de balanza
+1. Escanear una etiqueta térmica de balanza (prefijo `20`)
+
+**Esperado:** aparece el panel **Producto pesado** con el peso en kilos, el
+precio por kilo y el total. El peso lleva **coma** decimal —`1,500 kg`—, no
+punto.
+
+> Si el producto no aparece, fijate si el código interno de 5 dígitos está
+> cargado en el sistema: el código completo de balanza casi nunca lo está, y
+> la búsqueda cae al interno.
+
+### 12.3 · Un código que no existe
+1. Escribir un código inventado, por ejemplo `9999999999999`, y buscar
+
+**Esperado:** «Sin resultados» diciendo qué se buscó — no una lista vacía ni
+un error.
+
+### 12.4 · Buscar por descripción con varias palabras
+1. Escribir algo como `coca 2l` y buscar
+
+**Esperado:** trae resultados por descripción. Un texto con espacios **no** se
+trata como código.
+
+### 12.5 · Cargar más
+1. Buscar algo con muchos resultados y bajar al final
+
+**Esperado:** el botón trae 10 más, sin repetir los de arriba y sin volver al
+principio de la lista. Con menos de 10 resultados el botón **no aparece**.
+
+### 12.6 · Stock de tu sucursal
+1. Tocar cualquier resultado
+
+**Esperado:** un aviso con la existencia. Puede ser negativa: así está en la
+base, no es un error de la pantalla.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
 
 | Área | Estado |
 |---|---|
-| Buscar (pestaña) | Placeholder — llega con la ola de producto |
 | Operaciones | Solo Caja. Faltan pedidos, devoluciones, solicitud de gastos, venta-tarjeta |
-| Inventario, transferencias, producto | No portados |
+| Inventario y transferencias | No portados |
+| Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
 | Notificaciones | No portadas |
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
 | Escáner de códigos | Implementado — falta probarlo en dispositivos de sucursal |
@@ -699,9 +755,10 @@ Para que no se reporte como falla:
 | 7 · Abrir y cerrar caja | 9 | | | |
 | 8 · Mi trabajo | 5 | | | |
 | 9 · Mis finanzas | 7 | | | |
-| 10 · Escáner, vía ZXing (Safari en Mac) | 6 | | | |
+| 10 · Escáner, vía ZXing (Safari en Mac) | 6 | 6 | | |
 | 11 · iOS real *(necesita dispositivo)* | 7 | | | |
-| **Total** | **74** | | | |
+| 12 · Buscar producto | 6 | | | |
+| **Total** | **80** | | | |
 
 ### Los cinco que más importan
 

@@ -100,3 +100,63 @@ Permite apuntar el kiosco a un servidor concreto. Escribe `serverIp`, `serverPor
 3. El código resuelve **presentación**, no solo producto.
 4. `SearchProductoDialogComponent` tiene consumidores externos.
 5. En las pantallas de kiosco, verificá el foco en device real.
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** la **búsqueda** está implementada. La edición, el modo kiosco y
+> el reporte de vencidos no.
+
+## Pantallas
+
+| Ruta | Componente | Estado |
+|---|---|---|
+| `/buscar` | `BuscarPage` | ✅ búsqueda por texto, por código y de balanza |
+
+**Dejó de ser un diálogo.** En `frc-mobile`, `SearchProductoDialogComponent`
+se abría desde adentro de otros flujos. Acá es la pestaña **Buscar** de la
+barra inferior: buscar un producto se hace todo el día, no es un paso dentro
+de otra cosa.
+
+## Las tres reglas se conservan enteras
+
+`ProductoBusquedaService` se portó con su lógica intacta, porque es la parte
+más cargada de negocio de toda la búsqueda:
+
+1. **Un escaneo produce varios códigos candidatos**, que se prueban en orden
+   con `concatMap` —no `mergeMap`—: el orden *es* la prioridad, y lanzarlos en
+   paralelo devolvería el que conteste primero, no el más específico.
+2. **Los pesables traen la cantidad.** El escaneo de un código de balanza no
+   entra por la búsqueda común: iría a `productoSearch` y el peso se perdería.
+3. **El código resuelve la presentación.** Está en `presentacion.util.ts` con
+   sus tests: escanear la caja y cobrar la unidad es el bug que evita.
+
+El escaneo usa el [escáner compartido](../arquitectura/escaner.md) con
+`FORMATOS_PRODUCTO` — los ocho del retail paraguayo, balanza incluida.
+
+## Detalles que salieron de probar contra el central real
+
+> ⚠️ **El tamaño de tanda no lo elige el cliente: son 10, escritos a mano en
+> el backend.** `ProductoRepository.java:53` tiene `limit 10` en la consulta
+> nativa de `productoSearch`. La constante `LOTE` de la pantalla existe solo
+> para detectar «hay más» comparando la cantidad recibida; con otro valor, el
+> botón «Cargar más» no aparece nunca. Si el backend cambia el límite, hay que
+> cambiarla.
+
+> ⚠️ **El peso no se formatea con el pipe `number` de Angular.** La app no
+> registra `LOCALE_ID`, así que el pipe usa `en-US` y 1,5 kg sale como
+> `1.500 kg` — que acá se lee «mil quinientos». Va por `formatearCantidad()`
+> de `moneda.util.ts`, que usa `es-PY`. El bug se coló en la primera versión y
+> lo encontró un test.
+
+## Lo que falta
+
+- **Detalle de producto.** Hoy tocar un resultado consulta el stock de la
+  sucursal en sesión y lo muestra en un aviso. Falta la pantalla con
+  presentaciones, precios por tipo y stock por sucursal.
+- **Modo kiosco** (`mostrar-precio`). Necesita foco permanente en el campo,
+  que en el repo anterior se forzaba con `setTimeout` en cuatro lugares y era
+  frágil. Con un lector HID conectado es el caso de uso más rentable de la
+  pantalla.
+- **Edición y alta**, con el rol `NUEVO-PRODUCTO`.

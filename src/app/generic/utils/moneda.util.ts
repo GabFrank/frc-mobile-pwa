@@ -129,3 +129,28 @@ export function redondearAMoneda(
 export function esEntero(n: number): boolean {
   return Number.isFinite(n) && n % 1 === 0;
 }
+
+/**
+ * Cantidades que no son dinero: pesos en kilos, unidades.
+ *
+ * ⚠️ **No usar el pipe `number` de Angular para esto.** La app no registra
+ * `LOCALE_ID`, así que el pipe formatea en `en-US` y un peso de 1,5 kg sale
+ * como `1.500 kg` — que acá se lee «mil quinientos kilos». El punto y la coma
+ * están invertidos respecto de lo que espera un usuario paraguayo, y el
+ * resultado no parece un error de formato: parece otro número.
+ *
+ * Todo lo que sea dinero va por `formatearImporte`, que además resuelve la
+ * precisión según la moneda.
+ */
+export function formatearCantidad(
+  valor: number | null | undefined,
+  decimales = 0,
+): string {
+  if (valor == null || !Number.isFinite(valor)) {
+    return '';
+  }
+  return new Intl.NumberFormat(LOCALE, {
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
+  }).format(valor);
+}

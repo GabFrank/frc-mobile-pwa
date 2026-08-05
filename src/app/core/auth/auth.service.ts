@@ -169,6 +169,10 @@ export class AuthService {
    */
   async logout(navegar = true): Promise<void> {
     limpiarSesion();
+    // La sucursal de marcación es del **funcionario**, no del dispositivo: si
+    // no se borra, el próximo que entre en ese teléfono marca contra la
+    // sucursal del anterior.
+    localStorage.removeItem('frc.marcacion.sucursal');
     this._usuario.set(null);
     this._sucursal.set(null);
     if (navegar) {

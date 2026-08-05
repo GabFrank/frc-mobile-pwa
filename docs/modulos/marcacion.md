@@ -126,3 +126,65 @@ El historial de marcaciones también aparece en [`mis-rrhh`](mis-rrhh-y-finanzas
 4. Las jornadas las calcula el backend.
 5. `esSalidaAlmuerzo` no cierra la jornada.
 6. El manejo de `localStorage` de este módulo es el patrón correcto: copialo.
+
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** portado el **marcado con validación de ubicación**. El
+> **reconocimiento facial no**.
+
+| Ruta | Componente |
+|---|---|
+| `/marcacion` | `MarcacionPage` |
+
+La cascada de rutas anidadas del repo anterior —tipo → ubicación →
+identificación— desaparece: sin paso facial queda **una sola pantalla** que
+muestra el estado del día, la sucursal y el botón que corresponda.
+
+## El GPS se reimplementó, no se perdió
+
+`GeoService` en `core/dispositivo/` reemplaza al `NativeLocationPlugin`, un
+plugin Java de 155 líneas sobre `FusedLocationProvider`. La web no ofrece el
+fusionado de sensores, pero **el patrón que lo hacía útil sí**: calentar,
+exigir varias lecturas, filtrar por precisión y promediar. Se conservan sus
+constantes (`±33 m`, 700 ms de calentamiento, 6,3 s de tope, 2 lecturas).
+
+> ⚠️ **Es la pérdida técnica más concreta de la migración.** Sin fusionado
+> nativo la precisión empeora en interiores, que es justo donde se marca.
+
+**Por eso la distancia no bloquea: avisa.** Si la marcación queda lejos, se
+pide confirmación y se guarda igual — con `precisionGps` y
+`distanciaSucursalMetros`. Bloquear con un umbral que todavía no está
+calibrado dejaría gente sin poder marcar; guardar la evidencia permite
+recalibrarlo con datos reales, que es lo que el módulo ya hacía.
+
+Si no hay ubicación en absoluto, también se puede marcar confirmando: queda
+registrado sin GPS, que es un dato honesto.
+
+## Una sola acción a la vez
+
+El backend dice qué corresponde (`accionPendiente`) y la pantalla ofrece
+**solo eso**. Mostrar entrada y salida juntas permite dos entradas seguidas.
+
+`esSalidaAlmuerzo` viaja aparte del `tipo`: una salida de almuerzo es
+`SALIDA` pero **no cierra la jornada**.
+
+## La sucursal persistida, con su gotcha
+
+Se guarda en `localStorage` con el patrón correcto del repo anterior —
+`removeItem`, no `setItem(clave, null)`, y `JSON.parse` en `try/catch` que
+limpia la clave si está corrupta.
+
+⚠️ **Se borra al cerrar sesión** (`auth.service.ts`): la sucursal es del
+funcionario, no del dispositivo. Sin eso, el próximo que entre en ese
+teléfono marca contra la sucursal del anterior.
+
+## Lo que falta
+
+| Qué | Espera a |
+|---|---|
+| **Reconocimiento facial** | portar el motor on-device. `frc-gourmet` ya lo resolvió en web; los umbrales (3 frames, 3 aciertos, 0,75 verificación / 0,55 búsqueda) **no se bajan** |
+| Alta de rostros (`ingreso-persona`) | lo anterior |
+| Historial propio | ya está en «Mi trabajo» → Marcación |

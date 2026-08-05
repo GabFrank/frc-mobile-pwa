@@ -852,6 +852,57 @@ contador de «Sin registrar» baja en uno. El monto **no se puede editar**.
 
 ---
 
+## Bloque 15 — Marcación *(nuevo)*
+
+> Necesita **HTTPS o `localhost`**: sin contexto seguro no hay GPS. En
+> Android, `adb reverse tcp:4300 tcp:4300`.
+
+### 15.1 · Estado del día
+1. Inicio → **Marcación**
+
+**Esperado:** muestra si estás en jornada y **un solo botón**, el de la
+acción que corresponde. Nunca entrada y salida a la vez.
+
+### 15.2 · Permiso de ubicación
+1. Tocar el botón de marcar y aceptar el permiso
+
+**Esperado:** el panel de ubicación muestra el avance y la precisión
+(`±N m`). Si negás el permiso, ofrece marcar igual avisando que queda sin
+GPS.
+
+### 15.3 · Marcar entrada
+1. Estando **en la sucursal**, marcar
+
+**Esperado:** se registra, aparece la hora de entrada y el botón pasa a la
+siguiente acción.
+
+### 15.4 · Marcar lejos *(el caso a calibrar)*
+1. Marcar desde lejos de la sucursal
+
+**Esperado:** avisa la distancia y la precisión y **pide confirmación** — no
+bloquea. Al confirmar, queda registrado con esos datos.
+
+> Anotá qué distancia y qué precisión te dio: son los números con los que hay
+> que decidir si el umbral de ±33 m sirve o hay que cambiarlo.
+
+### 15.5 · La sucursal se recuerda
+1. Elegir otra sucursal, salir de la pantalla y volver
+
+**Esperado:** queda la última elegida.
+
+### 15.6 · Y se borra al cerrar sesión
+1. Cerrar sesión, entrar con **otro usuario** e ir a Marcación
+
+**Esperado:** **no** aparece la sucursal del usuario anterior.
+
+### 15.7 · Salida de almuerzo
+1. Con la jornada abierta, marcar la salida de almuerzo y después el retorno
+
+**Esperado:** la jornada **no se cierra** con la salida de almuerzo; las
+horas trabajadas siguen contando bien al volver.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -865,7 +916,7 @@ Para que no se reporte como falla:
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
 | Escáner de códigos | Implementado — falta probarlo en dispositivos de sucursal |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
-| Cámara, GPS, biometría | No implementados |
+| Reconocimiento facial | No portado |
 
 ---
 
@@ -887,7 +938,8 @@ Para que no se reporte como falla:
 | 12 · Buscar producto | 9 | | | |
 | 13 · Devoluciones | 7 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
-| **Total** | **96** | | | |
+| 15 · Marcación | 7 | | | |
+| **Total** | **103** | | | |
 
 ### Los cinco que más importan
 

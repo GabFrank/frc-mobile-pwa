@@ -36,6 +36,11 @@ export const routes: Routes = [
           import('./pages/mi-trabajo/mi-trabajo.routes').then((m) => m.rutasMiTrabajo),
       },
       {
+        path: 'marcacion',
+        loadComponent: () =>
+          import('./pages/marcacion/marcacion.page').then((m) => m.MarcacionPage),
+      },
+      {
         path: 'mis-finanzas',
         loadChildren: () =>
           import('./pages/mis-finanzas/mis-finanzas.routes').then((m) => m.rutasMisFinanzas),

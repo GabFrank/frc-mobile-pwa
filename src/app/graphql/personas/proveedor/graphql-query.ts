@@ -28,3 +28,22 @@ export const proveedoresPorTextoQuery = gql`
     }
   }
 `;
+
+/**
+ * Un proveedor por id.
+ *
+ * Existe para las pantallas que reciben el id por la URL y necesitan mostrar
+ * el nombre —la solicitud de pago abierta desde una recepción—. Pide lo
+ * mismo que la búsqueda: nombrar al proveedor, nada más.
+ */
+export const proveedorPorIdQuery = gql`
+  query ($id: ID!) {
+    data: proveedor(id: $id) {
+      id
+      persona {
+        id
+        nombre
+      }
+    }
+  }
+`;

@@ -7,6 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
@@ -125,6 +126,25 @@ const FILTROS: OpcionFiltro[] = [
           <frc-dato etiqueta="Notas" [valor]="r.notas?.length ?? 0" />
         </frc-seccion>
 
+        <!--
+          El pago se pide después de recibir, nunca antes: el backend solo
+          acepta notas en RECEPCION_COMPLETA. Por eso este bloque aparece con
+          la recepción finalizada y no antes.
+
+          Va acá abajo y no en la barra de arriba porque serían tres botones
+          en una fila: en un teléfono la etiqueta no entra y queda cortada.
+        -->
+        @if (finalizada()) {
+          <frc-seccion titulo="Pago al proveedor" [panel]="true">
+            <p class="ayuda">
+              La mercadería ya entró. Se puede pedir autorización para pagar
+              estas notas.
+            </p>
+            <button matButton="filled" class="solicitar" (click)="solicitarPago()">
+              Solicitar pago
+            </button>
+          </frc-seccion>
+        }
 
         <div class="filtros">
           @for (f of filtros; track f.etiqueta) {
@@ -186,6 +206,8 @@ const FILTROS: OpcionFiltro[] = [
     }
     /* Sin acciones el envoltorio queda vacío y la barra tiene que ocultarse. */
     .botonera:empty { display: none; }
+    .ayuda { color: var(--text-mute); font-size: var(--fs-caption); margin: 0; }
+    .solicitar { align-self: stretch; margin-top: var(--sp-2); }
     .filtros { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     .filtro {
       border: 1px solid var(--border);
@@ -220,6 +242,7 @@ export class RecepcionDetallePage {
   private readonly dialog = inject(MatDialog);
   private readonly notificacion = inject(NotificacionService);
   private readonly pdf = inject(PdfService);
+  private readonly router = inject(Router);
 
   /** Input opcional: el router lo asigna después de construir (NG0950). */
   readonly id = input<string>();
@@ -544,6 +567,29 @@ export class RecepcionDetallePage {
     });
   }
 
+  /**
+   * Abre el alta de solicitud de pago con esta recepción precargada.
+   *
+   * Se pasa también el proveedor: la pantalla lo necesita para poder agregar
+   * más notas por número, que se buscan siempre por proveedor.
+   *
+   * ⚠️ **No se pregunta nada acá.** Crear la solicitud no es lo que pasa al
+   * tocar el botón: se abre un formulario que el operador todavía puede
+   * abandonar. `frc-mobile` mostraba un «¿Realmente desea solicitar el pago?»
+   * antes de navegar, que confirmaba algo que no estaba por ocurrir.
+   */
+  solicitarPago(): void {
+    const recepcion = this.recepcion();
+    if (recepcion?.id == null) {
+      return;
+    }
+    void this.router.navigate(['/operaciones/solicitud-pago/nueva'], {
+      queryParams: {
+        recepcionId: recepcion.id,
+        proveedorId: recepcion.proveedor?.id ?? null,
+      },
+    });
+  }
 
   /**
    * Los productos que quedarían sin verificar.

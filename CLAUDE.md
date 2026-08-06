@@ -140,15 +140,19 @@ src/
 
 ## Estado
 
-**Fase 2 del plan de migración, con la Ola A iniciada.**
+**Fase 2 del plan de migración, con la Ola A cerrada.**
 
-Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con «recordar usuario» y «mantenerme conectado», shell responsivo, **módulo de caja completo** (lista, detalle, apertura y cierre con arqueo), **«Mi trabajo»** (autoservicio de RRHH: marcación, vales, recibos, vacaciones y solicitudes), **«Mis finanzas»** (compras a crédito por convenio), **escáner de códigos** (`BarcodeDetector` + ZXing para Safari) **búsqueda de productos** por texto, código y balanza, con card expandible y stock por sucursal, **devoluciones** (carga, historial y separado) **venta con tarjeta** (registro del cupón por escaneo) **marcación** con validación de ubicación **notificaciones** con hilo de comentarios y preferencias, **caja chica** (consulta y retiro con QR) **transferencias** (lista y detalle con las cuatro etapas) e **inventario** (resumen del conteo y finalización), **recepción de mercadería** (abrir con las notas del proveedor, verificar producto por producto, deshacer, finalizar y reabrir), galería viva en `/design-system`.
+Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con «recordar usuario» y «mantenerme conectado», shell responsivo, **módulo de caja completo** (lista, detalle, apertura y cierre con arqueo), **«Mi trabajo»** (autoservicio de RRHH: marcación, vales, recibos, vacaciones y solicitudes), **«Mis finanzas»** (compras a crédito por convenio), **escáner de códigos** (`BarcodeDetector` + ZXing para Safari) **búsqueda de productos** por texto, código y balanza, con card expandible y stock por sucursal, **devoluciones** (carga, historial y separado) **venta con tarjeta** (registro del cupón por escaneo) **marcación** con validación de ubicación **notificaciones** con hilo de comentarios y preferencias, **caja chica** (consulta y retiro con QR) **transferencias** (lista y detalle con las cuatro etapas) e **inventario** (resumen del conteo y finalización), **recepción de mercadería** (abrir con las notas del proveedor, verificar producto por producto, deshacer, finalizar y reabrir), **solicitud de pago a proveedor** (lista, alta desde el menú o desde una recepción finalizada, detalle y constancia en PDF), galería viva en `/design-system`.
 
-Pendiente: el resto de la Ola A (`solicitud-pago`, `pago`), las olas B a D, el detalle y la edición de producto, el reconocimiento facial y el transporte WebSocket para suscripciones.
+Pendiente, por partes —las olas B a D están empezadas, no intactas—: de **inventario**, la carga del conteo y las zonas; de **caja chica**, el alta y la rendición; **producto**, su detalle, su edición y el modo kiosco; el módulo de **pedidos**; el **reconocimiento facial**; **Web Push** en lugar de FCM; el **transporte WebSocket** para suscripciones; y la Ola E entera (`personas`, `funcionario`, `codigo`, `configuracion`).
+
+La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
+
+**`pago` no se porta, y es una decisión.** En `frc-mobile` es código muerto —`PagoService` declarado y nunca inyectado— y el pago real es tesorería de escritorio: cuotas, cajas con clave compuesta y autorización por un segundo usuario. En la PWA solo se **lee** el pago asociado a una solicitud. Ver [`docs/modulos/operaciones-pagos-y-varios.md`](docs/modulos/operaciones-pagos-y-varios.md).
 
 **Falta el test manual de apertura y cierre de caja** — bloque 7 del plan. Es lo único implementado que no se ejecutó contra el central real, porque la apertura se proxea a la filial.
 
-Verificación: **429 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **452 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

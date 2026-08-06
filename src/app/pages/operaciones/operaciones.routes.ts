@@ -30,4 +30,9 @@ export const rutasOperaciones: Routes = [
     loadChildren: () =>
       import('./devolucion/devolucion.routes').then((m) => m.rutasDevolucion),
   },
+  {
+    path: 'solicitud-pago',
+    loadChildren: () =>
+      import('./solicitud-pago/solicitud-pago.routes').then((m) => m.rutasSolicitudPago),
+  },
 ];

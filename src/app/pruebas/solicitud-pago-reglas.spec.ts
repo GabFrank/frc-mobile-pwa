@@ -10,9 +10,11 @@ import {
 import { resolverEstado } from '../shared/estado/estado-registry';
 import {
   esEditable,
+  estaEnColaDePagos,
   faltaParaGuardar,
   fechaParaBackend,
   hayMonedasMezcladas,
+  puedeSolicitar,
   resumenDelPago,
   totalEstimado,
   yaEstaEnLaLista,
@@ -120,10 +122,51 @@ describe('Editable', () => {
   it('solo en PENDIENTE', () => {
     // El central tira IllegalStateException con cualquier otro estado.
     expect(esEditable(SolicitudPagoEstado.PENDIENTE)).toBe(true);
+    expect(esEditable(SolicitudPagoEstado.SOLICITADO)).toBe(false);
     expect(esEditable(SolicitudPagoEstado.PARCIAL)).toBe(false);
     expect(esEditable(SolicitudPagoEstado.CONCLUIDO)).toBe(false);
     expect(esEditable(SolicitudPagoEstado.CANCELADO)).toBe(false);
     expect(esEditable(null)).toBe(false);
+  });
+});
+
+describe('Borrador y cola de pagos', () => {
+  it('solo un borrador se puede solicitar', () => {
+    expect(puedeSolicitar(SolicitudPagoEstado.PENDIENTE)).toBe(true);
+    expect(puedeSolicitar(SolicitudPagoEstado.SOLICITADO)).toBe(false);
+    expect(puedeSolicitar(null)).toBe(false);
+  });
+
+  it('la cola de pagos son SOLICITADO y PARCIAL, no PENDIENTE', () => {
+    // Es exactamente lo que mira PagoProveedorService.listarPendientes en el
+    // central. Si PENDIENTE entrara acá, la pantalla diría que una solicitud
+    // está esperando cobro cuando en realidad nadie la ve.
+    expect(estaEnColaDePagos(SolicitudPagoEstado.SOLICITADO)).toBe(true);
+    expect(estaEnColaDePagos(SolicitudPagoEstado.PARCIAL)).toBe(true);
+    expect(estaEnColaDePagos(SolicitudPagoEstado.PENDIENTE)).toBe(false);
+    expect(estaEnColaDePagos(SolicitudPagoEstado.CONCLUIDO)).toBe(false);
+    expect(estaEnColaDePagos(SolicitudPagoEstado.CANCELADO)).toBe(false);
+  });
+
+  it('un borrador nunca está en la cola, y lo que está en la cola no es borrador', () => {
+    for (const estado of Object.values(SolicitudPagoEstado)) {
+      expect(puedeSolicitar(estado) && estaEnColaDePagos(estado)).toBe(false);
+    }
+  });
+});
+
+describe('El enum sigue al backend', () => {
+  it('tiene los cinco estados del central, incluido SOLICITADO', () => {
+    // El central sumó SOLICITADO en la migración V194.5. Sin este valor acá,
+    // el estado que importa —el único pagable— se dibujaba en gris como
+    // desconocido y no se podía filtrar.
+    expect(Object.values(SolicitudPagoEstado)).toEqual([
+      'PENDIENTE',
+      'SOLICITADO',
+      'PARCIAL',
+      'CONCLUIDO',
+      'CANCELADO',
+    ]);
   });
 });
 

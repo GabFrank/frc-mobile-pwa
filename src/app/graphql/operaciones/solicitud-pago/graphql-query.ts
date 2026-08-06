@@ -220,3 +220,24 @@ export const solicitudPagoPdfMutation = gql`
     data: imprimirSolicitudPagoPDF(solicitudPagoId: $solicitudPagoId)
   }
 `;
+
+/**
+ * Cambia el estado de la solicitud.
+ *
+ * Acá se usa **solo para `PENDIENTE → SOLICITADO`**: validar el borrador y
+ * ponerlo en la cola de pagos. El central valida la transición y rechaza
+ * cualquier salto que no corresponda, así que no hace falta replicar la
+ * máquina de estados en el cliente.
+ *
+ * ⚠️ Es la misma mutation que usa el desktop. No lleva sufijo `Mobile`
+ * porque no se modifica su comportamiento. Ver `docs/REGLAS_DESARROLLO.md`.
+ */
+export const actualizarEstadoSolicitudPagoMutation = gql`
+  mutation ($id: ID!, $estado: SolicitudPagoEstado!) {
+    data: actualizarEstadoSolicitudPago(id: $id, estado: $estado) {
+      id
+      numeroSolicitud
+      estado
+    }
+  }
+`;

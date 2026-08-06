@@ -535,15 +535,50 @@ export class SolicitudPagoNuevaPage {
     this.guardando.set(true);
     this.servicio.crear(input).subscribe({
       next: (solicitud) => {
-        this.guardando.set(false);
         if (solicitud?.id == null) {
+          this.guardando.set(false);
           this.notificacion.warn('El servidor no devolvió la solicitud creada.');
           return;
         }
-        this.notificacion.ok('Solicitud ' + (solicitud.numeroSolicitud ?? '') + ' creada.');
-        void this.router.navigate(['/operaciones/solicitud-pago', solicitud.id]);
+        this.validar(solicitud.id, solicitud.numeroSolicitud ?? '');
       },
       error: () => this.guardando.set(false),
+    });
+  }
+
+  /**
+   * Segundo paso del alta: dejar la solicitud lista para pagar.
+   *
+   * ⚠️ **El central crea siempre en `PENDIENTE`, que es un borrador**, y el
+   * diálogo con el que tesorería paga solo mira `SOLICITADO` y `PARCIAL`. Sin
+   * este paso, el operador toca «Solicitar pago», recibe su número, y del otro
+   * lado no aparece nadie a cobrar.
+   *
+   * Son dos mutations porque el esquema no tiene una sola que haga las dos
+   * cosas: `saveSolicitudPago` ignora el estado que se le mande.
+   *
+   * ⚠️ **Si la segunda falla, la solicitud existe igual, como borrador.** No
+   * se puede deshacer la primera —el central no expone un borrado desde acá—
+   * así que se dice exactamente qué pasó y se lleva al detalle, donde el botón
+   * «Solicitar» permite reintentar. Callarlo dejaría al operador creyendo que
+   * pidió un pago que nadie va a ver.
+   */
+  private validar(id: number, numero: string): void {
+    this.servicio.solicitar(id).subscribe({
+      next: () => {
+        this.guardando.set(false);
+        this.notificacion.ok('Solicitud ' + numero + ' creada y enviada a pagos.');
+        void this.router.navigate(['/operaciones/solicitud-pago', id]);
+      },
+      error: () => {
+        this.guardando.set(false);
+        this.notificacion.warn(
+          'La solicitud ' +
+            numero +
+            ' se creó, pero quedó como borrador y todavía no la ve quien paga. Abrila y tocá «Solicitar».',
+        );
+        void this.router.navigate(['/operaciones/solicitud-pago', id]);
+      },
     });
   }
 }

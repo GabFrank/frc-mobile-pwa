@@ -22,7 +22,10 @@ interface OpcionFiltro {
 
 const FILTROS: OpcionFiltro[] = [
   { etiqueta: 'Todas', valor: null },
-  { etiqueta: 'Pendientes', valor: SolicitudPagoEstado.PENDIENTE },
+  // «Borradores» y no «Pendientes»: PENDIENTE dejó de significar «esperando
+  // el pago» cuando el central sumó SOLICITADO. Ver solicitud-pago.model.ts.
+  { etiqueta: 'Borradores', valor: SolicitudPagoEstado.PENDIENTE },
+  { etiqueta: 'Solicitadas', valor: SolicitudPagoEstado.SOLICITADO },
   { etiqueta: 'Parciales', valor: SolicitudPagoEstado.PARCIAL },
   { etiqueta: 'Concluidas', valor: SolicitudPagoEstado.CONCLUIDO },
   { etiqueta: 'Canceladas', valor: SolicitudPagoEstado.CANCELADO },

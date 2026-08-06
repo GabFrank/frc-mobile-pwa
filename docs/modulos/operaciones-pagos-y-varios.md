@@ -59,7 +59,29 @@ Liga una solicitud con una nota **y guarda `montoIncluido`**.
 
 ### `SolicitudPagoEstado`
 
-`PENDIENTE` → `PARCIAL` → `CONCLUIDO`, o `CANCELADO`.
+> ⚠️ **Cambió en el central y cambia el significado de `PENDIENTE`.** La
+> migración `V194.5` sumó **`SOLICITADO`**:
+>
+> ```
+> PENDIENTE ──solicitar──> SOLICITADO ──pago parcial──> PARCIAL ──> CONCLUIDO
+>      ^                        │
+>      └───────reabrir──────────┘         (cualquiera puede ir a CANCELADO)
+> ```
+>
+> - **`PENDIENTE` es un borrador y NO es pagable.** Se puede editar.
+> - **`SOLICITADO` es lo que antes significaba `PENDIENTE`** para quien mira la
+>   lista: validada y esperando cobro.
+>
+> Lo decisivo está en `PagoProveedorService.listarPendientes`, que es lo que
+> alimenta el diálogo con el que tesorería paga:
+>
+> ```java
+> .findByEstadoIn(List.of(SolicitudPagoEstado.SOLICITADO, SolicitudPagoEstado.PARCIAL));
+> ```
+>
+> **Una solicitud que se queda en `PENDIENTE` no la ve nadie del otro lado.**
+> Y `crearSolicitudPago` crea siempre en `PENDIENTE`, así que el alta sin un
+> segundo paso deja un documento fantasma. Ver «Qué cambió en la PWA».
 
 > ⚠️ **Gotcha — `SolicitudPago.pago` está tipado `any`.** Se perdió el tipo en la relación con `Pago`. Si accedés a sus campos, no hay ayuda del compilador.
 
@@ -363,6 +385,26 @@ Las reglas puras viven en `solicitud-pago-reglas.ts`, con tests:
   más; si no, cualquiera dispararía el aviso de conversión.
 - **`esEditable`** — solo `PENDIENTE`, que es lo único que acepta el central.
 - **`fechaParaBackend`** — siempre en la forma de 16 caracteres.
+
+## Crear no alcanza: hay que solicitar
+
+El central crea siempre en `PENDIENTE`, que es un **borrador que tesorería no
+ve**. Si el alta terminara ahí, el operador tocaría «Solicitar pago», recibiría
+su número, y del otro lado no aparecería nadie a cobrar.
+
+Por eso el alta encadena dos mutations: `saveSolicitudPago` y después
+`actualizarEstadoSolicitudPago(id, SOLICITADO)` —la misma que usa el botón
+«Solicitar» del desktop—. No hay una sola operación que haga las dos cosas:
+`saveSolicitudPago` ignora el estado que se le mande.
+
+⚠️ **Si la segunda falla, la solicitud existe igual, como borrador.** No se
+puede deshacer la primera —el central no expone un borrado desde acá— así que
+la pantalla lo dice con todas las letras y lleva al detalle, donde el botón
+**Solicitar** permite reintentar. Ese botón además cubre los borradores que
+hayan quedado de antes o de otro camino.
+
+El detalle de un borrador lo avisa en un bloque propio y aclara que **no puede
+haber pago** mientras lo sea.
 
 ## Dos entradas, un solo formulario
 

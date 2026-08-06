@@ -21,8 +21,26 @@ import { Usuario } from 'src/app/domains/personas/usuario.model';
  * decir si la solicitud ya fue pagada. Ver `docs/modulos/operaciones-pagos-y-varios.md`.
  */
 
+/**
+ * ⚠️ **`PENDIENTE` no significa «esperando el pago».** Desde que el central
+ * sumó `SOLICITADO` (migración `V194.5`), el ciclo es:
+ *
+ * ```
+ * PENDIENTE ──solicitar──> SOLICITADO ──pago parcial──> PARCIAL ──> CONCLUIDO
+ *      ^                        │
+ *      └───────reabrir──────────┘
+ * ```
+ *
+ * `PENDIENTE` es un **borrador** y **no es pagable**: el diálogo con el que
+ * tesorería paga (`PagoProveedorService.listarPendientes`) solo mira
+ * `SOLICITADO` y `PARCIAL`. Una solicitud que se queda en `PENDIENTE` no la
+ * ve nadie del otro lado.
+ */
 export enum SolicitudPagoEstado {
+  /** Borrador. Se puede editar, y **no** entra en la cola de pagos. */
   PENDIENTE = 'PENDIENTE',
+  /** Validada y lista para pagar. Es la que ve tesorería. */
+  SOLICITADO = 'SOLICITADO',
   PARCIAL = 'PARCIAL',
   CONCLUIDO = 'CONCLUIDO',
   CANCELADO = 'CANCELADO',

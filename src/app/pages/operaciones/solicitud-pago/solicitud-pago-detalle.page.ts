@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { PdfService } from 'src/app/core/ui/pdf.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { NotaRecepcion } from 'src/app/domains/pedidos/recepcion.model';
@@ -25,7 +26,7 @@ import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { resumenDelPago } from './solicitud-pago-reglas';
+import { puedeSolicitar, resumenDelPago } from './solicitud-pago-reglas';
 import { SolicitudPagoService } from './solicitud-pago.service';
 
 /**
@@ -60,9 +61,18 @@ import { SolicitudPagoService } from './solicitud-pago.service';
     <frc-pagina titulo="Solicitud de pago" [conVolver]="true">
       <div acciones class="botonera">
         @if (solicitud()) {
-          <button matButton="filled" [disabled]="generando()" (click)="constancia()">
-            {{ generando() ? 'Generando…' : 'Constancia' }}
-          </button>
+          @if (esBorrador()) {
+            <button matButton="filled" [disabled]="solicitando()" (click)="solicitar()">
+              {{ solicitando() ? 'Enviando…' : 'Solicitar' }}
+            </button>
+            <button matButton [disabled]="generando()" (click)="constancia()">
+              {{ generando() ? 'Generando…' : 'Constancia' }}
+            </button>
+          } @else {
+            <button matButton="filled" [disabled]="generando()" (click)="constancia()">
+              {{ generando() ? 'Generando…' : 'Constancia' }}
+            </button>
+          }
         }
       </div>
 
@@ -103,9 +113,25 @@ import { SolicitudPagoService } from './solicitud-pago.service';
           }
         </frc-seccion>
 
+        @if (esBorrador()) {
+          <frc-seccion titulo="Todavía es un borrador" [panel]="true">
+            <p class="aviso">
+              Esta solicitud <strong>no la ve quien paga</strong> hasta que se
+              envíe. Tocá <strong>Solicitar</strong> para mandarla a la cola de
+              pagos; hasta entonces se puede corregir desde el sistema de
+              escritorio.
+            </p>
+          </frc-seccion>
+        }
+
         <frc-seccion titulo="Pago" [panel]="true">
-          @if (resumenPago(); as texto) {
-            <p class="pago">{{ texto }}</p>
+          <!-- El alias no se llama "texto" para no tapar al método texto(). -->
+          @if (resumenPago(); as resumen) {
+            <p class="pago">{{ resumen }}</p>
+          } @else if (esBorrador()) {
+            <p class="pago sin">
+              Sin pago asociado, y no puede haberlo mientras sea un borrador.
+            </p>
           } @else {
             <p class="pago sin">
               Todavía sin pago asociado. El pago se registra desde el sistema de
@@ -144,6 +170,7 @@ import { SolicitudPagoService } from './solicitud-pago.service';
     .botonera:empty { display: none; }
     .pago { margin: 0; font-size: var(--fs-label); }
     .pago.sin { color: var(--text-mute); }
+    .aviso { margin: 0; font-size: var(--fs-label); }
     .aclaracion {
       color: var(--text-mute);
       font-size: var(--fs-caption);
@@ -155,6 +182,7 @@ export class SolicitudPagoDetallePage {
   private readonly servicio = inject(SolicitudPagoService);
   private readonly notificacion = inject(NotificacionService);
   private readonly pdf = inject(PdfService);
+  private readonly dialogo = inject(DialogoService);
 
   /** Llega de la ruta `:id` por `withComponentInputBinding`. */
   readonly id = input<string>();
@@ -163,11 +191,13 @@ export class SolicitudPagoDetallePage {
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
   readonly generando = signal(false);
+  readonly solicitando = signal(false);
 
   readonly notas = computed<SolicitudPagoNotaRecepcion[]>(
     () => this.solicitud()?.notasRecepcion ?? [],
   );
   readonly resumenPago = computed(() => resumenDelPago(this.solicitud()));
+  readonly esBorrador = computed(() => puedeSolicitar(this.solicitud()?.estado));
 
   constructor() {
     // El valor del `input()` de ruta no está en el constructor: se enlaza
@@ -216,6 +246,42 @@ export class SolicitudPagoDetallePage {
   subtituloNota(nota: NotaRecepcion | undefined): string {
     const partes = [fechaLegible(nota?.fecha), nota?.estado];
     return partes.filter(Boolean).join(' · ');
+  }
+
+  /**
+   * Manda el borrador a la cola de pagos.
+   *
+   * Se pregunta antes porque es el gesto que hace visible la solicitud para
+   * quien paga: a partir de acá deja de ser corregible.
+   */
+  async solicitar(): Promise<void> {
+    const s = this.solicitud();
+    if (s?.id == null) {
+      return;
+    }
+
+    const ok = await this.dialogo.confirmar({
+      titulo: 'Solicitar el pago',
+      mensaje:
+        'La solicitud ' +
+        (s.numeroSolicitud ?? '') +
+        ' pasa a la cola de pagos y deja de ser un borrador. Corregirla después hay que hacerlo desde el sistema de escritorio.',
+      confirmar: 'Solicitar',
+    });
+    if (!ok) {
+      return;
+    }
+
+    this.solicitando.set(true);
+    this.servicio.solicitar(s.id).subscribe({
+      next: () => {
+        this.solicitando.set(false);
+        this.notificacion.ok('Enviada a pagos.');
+        // Se recarga entera: cambia el estado, el chip y la barra de acciones.
+        this.cargar();
+      },
+      error: () => this.solicitando.set(false),
+    });
   }
 
   /**

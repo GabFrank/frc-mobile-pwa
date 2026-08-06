@@ -13,6 +13,7 @@ import {
   SolicitudPagoInput,
 } from 'src/app/domains/pedidos/solicitud-pago.model';
 import { Proveedor } from 'src/app/domains/personas/proveedor.model';
+import { ActualizarEstadoSolicitudPagoGQL } from 'src/app/graphql/operaciones/solicitud-pago/actualizarEstadoSolicitudPago';
 import { DatosInicialesPorRecepcionGQL } from 'src/app/graphql/operaciones/solicitud-pago/datosInicialesPorRecepcion';
 import { FormasPagoGQL } from 'src/app/graphql/operaciones/solicitud-pago/formasPago';
 import { GuardarSolicitudPagoGQL } from 'src/app/graphql/operaciones/solicitud-pago/guardarSolicitudPago';
@@ -46,6 +47,7 @@ export class SolicitudPagoService {
   private readonly inicialesGQL = inject(DatosInicialesPorRecepcionGQL);
   private readonly formasPagoGQL = inject(FormasPagoGQL);
   private readonly guardarGQL = inject(GuardarSolicitudPagoGQL);
+  private readonly estadoGQL = inject(ActualizarEstadoSolicitudPagoGQL);
   private readonly pdfGQL = inject(SolicitudPagoPdfGQL);
   private readonly proveedoresGQL = inject(ProveedoresPorTextoGQL);
   private readonly proveedorGQL = inject(ProveedorPorIdGQL);
@@ -154,5 +156,23 @@ export class SolicitudPagoService {
    */
   crear(input: SolicitudPagoInput): Observable<SolicitudPago> {
     return this.datos.mutar<SolicitudPago>(this.guardarGQL, { entity: input });
+  }
+
+  /**
+   * Valida el borrador: `PENDIENTE → SOLICITADO`.
+   *
+   * ⚠️ **Sin este paso la solicitud no existe para quien paga.** El central
+   * crea siempre en `PENDIENTE`, que es un borrador, y el diálogo de pagos
+   * (`PagoProveedorService.listarPendientes`) solo mira `SOLICITADO` y
+   * `PARCIAL`. Una solicitud que se queda en borrador no la ve nadie.
+   *
+   * La transición la valida el backend; acá no se replica la máquina de
+   * estados.
+   */
+  solicitar(id: number): Observable<SolicitudPago> {
+    return this.datos.mutar<SolicitudPago>(this.estadoGQL, {
+      id,
+      estado: SolicitudPagoEstado.SOLICITADO,
+    });
   }
 }

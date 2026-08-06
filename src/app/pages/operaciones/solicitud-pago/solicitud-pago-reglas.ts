@@ -83,6 +83,28 @@ export function esEditable(estado: SolicitudPagoEstado | null | undefined): bool
 }
 
 /**
+ * Si todavía hay que validarla para que entre en la cola de pagos.
+ *
+ * ⚠️ **Es el mismo estado que `esEditable`, y no es casualidad**: un borrador
+ * se puede tocar justamente porque nadie lo va a pagar. Son dos preguntas
+ * distintas sobre el mismo hecho, y se escriben aparte porque si el central
+ * cambia una no tiene por qué cambiar la otra.
+ */
+export function puedeSolicitar(estado: SolicitudPagoEstado | null | undefined): boolean {
+  return estado === SolicitudPagoEstado.PENDIENTE;
+}
+
+/**
+ * Si la solicitud ya es visible para quien paga.
+ *
+ * `PagoProveedorService.listarPendientes` del central mira exactamente estos
+ * dos estados.
+ */
+export function estaEnColaDePagos(estado: SolicitudPagoEstado | null | undefined): boolean {
+  return estado === SolicitudPagoEstado.SOLICITADO || estado === SolicitudPagoEstado.PARCIAL;
+}
+
+/**
  * Qué decir del pago asociado.
  *
  * `null` cuando todavía no hay pago: la solicitud está esperando que

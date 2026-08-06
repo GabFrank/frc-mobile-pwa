@@ -102,7 +102,13 @@ const REGISTRO: Record<ClaveEstado, EstadoVisual> = {
   'InventarioProductoEstado.VENCIDO':  { etiqueta: 'Vencido',  tono: 'danger', icono: 'vencido' },
 
   // ─── Pagos ─────────────────────────────────────────────────────────────
-  'SolicitudPagoEstado.PENDIENTE': { etiqueta: 'Pendiente', tono: 'warn',   icono: 'reloj' },
+  // ⚠️ PENDIENTE es un **borrador** desde que el central sumó SOLICITADO: no
+  // está esperando que le paguen, está sin terminar, y tesorería no lo ve.
+  // Por eso va en gris de «sin terminar» y no en naranja de «esperando».
+  // El naranja de espera pasó a SOLICITADO, que es lo que antes significaba
+  // PENDIENTE para el que mira la lista.
+  'SolicitudPagoEstado.PENDIENTE': { etiqueta: 'Borrador',  tono: 'neutral', icono: 'editar' },
+  'SolicitudPagoEstado.SOLICITADO':{ etiqueta: 'Solicitado', tono: 'warn',   icono: 'reloj' },
   'SolicitudPagoEstado.PARCIAL':   { etiqueta: 'Parcial',   tono: 'info',   icono: 'reloj' },
   'SolicitudPagoEstado.CONCLUIDO': { etiqueta: 'Concluido', tono: 'ok',     icono: 'checkCirculo' },
   'SolicitudPagoEstado.CANCELADO': { etiqueta: 'Cancelado', tono: 'danger', icono: 'cancelar' },

@@ -1258,15 +1258,25 @@ mano) y la barra de arriba cambia a *Escanear* / *Finalizar*.
 
 ## Bloque 21 — Solicitud de pago a proveedor *(nuevo)*
 
-> **Estado de ejecución: 11 de 18 corridos** contra el central real —21.1, 21.2
-> parcial, 21.3, 21.4, 21.5, 21.7, 21.8, 21.13, 21.14, 21.15, 21.17 y 21.18—;
-> 21.17 en un Android real, con el toque de verdad. **Faltan** 21.6 (alta desde
-> cero), 21.9 con rechazos, 21.10 (monedas mezcladas), 21.11, 21.12 y 21.16.
+> **Estado de ejecución: 18 de 20 corridos** contra el central real. 21.17 se
+> corrió en un Android real, con el toque de verdad.
 >
-> Sobre **21.9**: el descuento por rechazos está verificado en la base —el
+> **Faltan dos, los dos por falta de datos, no por la app:**
+>
+> - **21.10, monedas mezcladas** — las 12 notas elegibles están todas en
+>   guaraníes.
+> - **21.16, con pago vigente** — el único pago que existe está cancelado, y
+>   uno nuevo se crea desde el escritorio.
+>
+> Sobre **21.9**: el descuento por rechazos está verificado contra la base —el
 > backend guardó 1.014.720 en una nota que vale 1.159.680 en bruto— pero no en
 > pantalla, porque la única nota con rechazos que queda libre está rechazada al
 > 100% y crear esa solicitud dejaría un documento en cero.
+>
+> ⚠️ **Ojo al verificar 21.9 contra solicitudes viejas:** las anteriores al
+> 25/02/2026 guardaron el bruto, porque la lógica de rechazos entró en el
+> central entre el 23 y el 25. Ahí estimado y definitivo dan iguales y no es
+> un fallo.
 
 > Necesita **una recepción finalizada** cuyas notas no estén ya en otra
 > solicitud. Lo más cómodo es encadenarlo con el bloque 20: finalizar una
@@ -1278,8 +1288,11 @@ mano) y la barra de arriba cambia a *Escanear* / *Finalizar*.
 ### 21.1 · Entrar desde el menú
 1. Operaciones → **Solicitudes de pago**
 
-**Esperado:** la lista abre con los filtros *Todas / Pendientes / Parciales /
-Concluidas / Canceladas* y el botón *Nueva solicitud* a lo ancho. Cada tarjeta
+**Esperado:** la lista abre con los filtros *Todas / Borradores / Solicitadas /
+Parciales / Concluidas / Canceladas* y el botón *Nueva solicitud* a lo ancho.
+
+> Dice **Borradores**, no «Pendientes». `PENDIENTE` dejó de significar
+> «esperando el pago» cuando el central sumó `SOLICITADO`. Cada tarjeta
 muestra proveedor, número `SP-…`, fecha, cantidad de notas, forma de pago, el
 chip de estado y el monto a la derecha.
 
@@ -1388,13 +1401,20 @@ el proveedor.
 1. Con todo cargado, *Crear solicitud* → confirmar
 
 **Esperado:** el diálogo dice cuántas notas y de qué proveedor, y aclara que el
-monto final lo calcula el servidor. Al aceptar, avisa con el **número
-`SP-…` que asignó el backend** y abre el detalle de esa solicitud.
+monto final lo calcula el servidor. Al aceptar, avisa **«creada y enviada a
+pagos»** con el número `SP-…` que asignó el backend, y abre el detalle.
+
+El detalle tiene que quedar en **Solicitado**, no en Borrador.
+
+> Son dos llamadas al servidor: crear y solicitar. Si la segunda falla, el
+> aviso lo dice —«se creó, pero quedó como borrador»— y hay que entrar y tocar
+> *Solicitar*. Lo que **no** puede pasar es que diga que se creó y quede en
+> borrador sin avisar: eso es un pago que nadie va a ver.
 
 ### 21.14 · Detalle
 1. Mirar el detalle recién creado
 
-**Esperado:** estado *Pendiente*, número, proveedor, fechas, forma de pago,
+**Esperado:** estado *Solicitado*, número, proveedor, fechas, forma de pago,
 monto —el del servidor—, quién la cargó, y la lista de notas incluidas **con
 el monto de cada una**. Al pie aclara que ese monto es el valor de la nota
 menos lo rechazado, convertido.
@@ -1425,6 +1445,31 @@ con la PWA instalada se abre **dentro** de la app y el gesto de volver regresa.
 
 **Esperado:** suma la página siguiente sin perder las anteriores, y el botón
 desaparece al llegar al final.
+
+### 21.19 · Un borrador se reconoce y se puede enviar *(el que importa)*
+1. Abrir una solicitud en estado **Borrador** —filtro *Borradores*—
+
+**Esperado:** el chip dice **Borrador** en gris, aparece un bloque **«Todavía es
+un borrador»** avisando que **no la ve quien paga**, el bloque de pago dice que
+no puede haber pago mientras lo sea, y la barra de abajo tiene **dos** botones:
+*Solicitar* y *Constancia*.
+
+2. Tocar *Solicitar* y leer la confirmación
+
+**Esperado:** avisa que pasa a la cola de pagos y que **deja de ser corregible
+desde el teléfono**. Al aceptar: «Enviada a pagos», el chip pasa a
+**Solicitado**, desaparece el bloque de borrador y la barra queda solo con
+*Constancia*.
+
+> Es la diferencia entre pedir un pago y no pedirlo. El diálogo con el que
+> tesorería paga solo mira `SOLICITADO` y `PARCIAL`.
+
+### 21.20 · Una solicitada no se puede volver a solicitar
+1. En una solicitud ya **Solicitada**, mirar la barra
+
+**Esperado:** *Solicitar* no está. Solo *Constancia*.
+
+> Reabrir —volver a borrador— es del sistema de escritorio, no de acá.
 
 ---
 
@@ -1471,8 +1516,8 @@ Para que no se reporte como falla:
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |
 | 20 · Recepción de mercadería | 21 | | | |
-| 21 · Solicitud de pago | 18 | 11 | | |
-| **Total** | **164** | | | |
+| 21 · Solicitud de pago | 20 | 18 | | |
+| **Total** | **166** | | | |
 
 ### Los cinco que más importan
 

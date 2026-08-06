@@ -70,7 +70,6 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
       La barra reparte el ancho entre sus hijos, pero el botón de Material
       trae ancho automático: sin esto queda chico dentro de su celda.
     */
-    .ancho { width: 100%; }
     .mas { align-self: center; margin-top: var(--sp-3); }
   `,
   template: `
@@ -201,7 +200,7 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
 
       @if (accion(); as a) {
         <div acciones>
-          <button matButton="filled" class="ancho" (click)="solicitar(a.tipo)">
+          <button matButton="filled" (click)="solicitar(a.tipo)">
             {{ a.etiqueta }}
           </button>
         </div>

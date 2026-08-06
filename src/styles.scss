@@ -224,3 +224,31 @@ input:-webkit-autofill:focus {
   background: #000;
   overflow: hidden;
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Los botones de la barra de acciones ocupan su columna entera
+//
+//  `.acciones` es un grid de columnas iguales, así que un hijo directo ya
+//  se estira solo. Pero casi todas las pantallas envuelven los botones en
+//  un `<div acciones>` —hace falta para que el atributo de proyección viva
+//  en un hijo directo, fuera de cualquier @if—, y adentro de ese envoltorio
+//  el botón vuelve a su ancho natural: chico y pegado a la izquierda.
+//
+//  Ocho pantallas lo resolvían con un `.ancho { width: 100% }` propio y
+//  once no, así que el mismo botón se veía de dos formas según la pantalla.
+//
+//  Esta regla NO puede vivir en `pagina.component.ts`: lo que se proyecta
+//  lleva el atributo de encapsulación de la PANTALLA, no el de `frc-pagina`,
+//  y ningún selector scopeado de aquel componente lo alcanza. Va acá, global,
+//  igual que la de `frc-shell .area`.
+// ═══════════════════════════════════════════════════════════════════════
+frc-pagina .acciones button {
+  width: 100%;
+}
+
+// Un envoltorio vacío —el @if no eligió ninguna acción para este estado—
+// dejaba la barra visible como una franja con borde y sin nada adentro.
+// `.acciones:empty` no alcanza: el envoltorio existe aunque esté vacío.
+frc-pagina .acciones:has(> div:empty) {
+  display: none;
+}

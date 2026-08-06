@@ -66,14 +66,13 @@ import { MaletinesGQL, MonedasConDenominacionesGQL } from './graphql/moneda-y-ma
       }
 
       <div acciones>
-        <button matButton="filled" class="ancho" [disabled]="guardando()" (click)="abrir()">
+        <button matButton="filled" [disabled]="guardando()" (click)="abrir()">
           {{ guardando() ? 'Abriendo…' : 'Abrir caja' }}
         </button>
       </div>
     </frc-pagina>
   `,
   styles: `
-    .ancho { width: 100%; }
     .aviso {
       margin: var(--sp-2) 0 0;
       color: var(--warn);

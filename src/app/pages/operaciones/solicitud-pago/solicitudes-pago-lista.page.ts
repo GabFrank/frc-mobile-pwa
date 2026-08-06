@@ -53,7 +53,7 @@ const FILTROS: OpcionFiltro[] = [
   template: `
     <frc-pagina titulo="Solicitudes de pago" [conVolver]="true">
       <div acciones>
-        <button matButton="filled" class="nueva" (click)="nueva()">Nueva solicitud</button>
+        <button matButton="filled" (click)="nueva()">Nueva solicitud</button>
       </div>
 
       <div class="filtros">
@@ -106,7 +106,6 @@ const FILTROS: OpcionFiltro[] = [
     </frc-pagina>
   `,
   styles: `
-    .nueva { width: 100%; }
     .filtros { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     .filtro {
       border: 1px solid var(--border);

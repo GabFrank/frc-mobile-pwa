@@ -63,7 +63,7 @@ const FILTROS: readonly { clave: Filtro; etiqueta: string; estado: EstadoVentaCr
     <frc-pagina titulo="Mis finanzas" [conVolver]="true">
       @if (!sinCliente()) {
         <div acciones>
-          <button matButton="filled" class="ancho" [disabled]="autorizando()" (click)="confirmarPorQr()">
+          <button matButton="filled" [disabled]="autorizando()" (click)="confirmarPorQr()">
             Confirmar compra por QR
           </button>
         </div>
@@ -144,7 +144,6 @@ const FILTROS: readonly { clave: Filtro; etiqueta: string; estado: EstadoVentaCr
     </frc-pagina>
   `,
   styles: `
-    .ancho { width: 100%; }
   `,
 })
 export class MisFinanzasPage {

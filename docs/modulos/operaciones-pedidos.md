@@ -215,3 +215,108 @@ Mutations relevantes: `iniciarRecepcion`, `verificarProductoMobile`, `deshacerVe
 3. No calcules distribución de cantidades entre notas: es responsabilidad del backend.
 4. Cualquier cambio en el backend que toque recepción debe respetar el desktop — sufijo `Mobile`.
 5. Manejá los errores: este módulo sí los propaga.
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** portado el **circuito completo de recepción** —abrir con las
+> notas del proveedor, verificar producto por producto, deshacer, finalizar y
+> reabrir, más la constancia en PDF—. `NotaRecepcionAgrupada` **no se porta**,
+> y la solicitud de pago queda para la fase de pagos.
+
+| Ruta | Componente |
+|---|---|
+| `/operaciones/recepcion` | `RecepcionesListaPage` |
+| `/operaciones/recepcion/nueva` | `RecepcionNuevaPage` |
+| `/operaciones/recepcion/:id` | `RecepcionDetallePage` |
+
+El submódulo `pedidos` se llama acá **`recepcion`**: es lo que el usuario ve
+en el menú y lo que realmente hace. El nombre viejo obligaba a saber que
+«Recepción de Mercaderías» vivía en una carpeta llamada de otra forma.
+
+## La aritmética vive en un solo archivo, con tests
+
+`recepcion-cantidades.ts` concentra lo que antes estaba repartido entre el
+diálogo de 441 líneas y la pantalla de 468:
+
+- **Dos escalas, y las funciones dicen cuál usan.** Todo lo que viene del
+  backend está en **unidad base**; la pantalla muestra en **presentación**.
+  `aUnidadBase()` y `aPresentacion()` son el único puente.
+- **Una presentación sin cantidad vale 1, no 0.** Con cero, la conversión
+  daría `Infinity` en pantalla o borraría lo cargado.
+- **`mostrarEnUnidadBase` gana sobre la presentación elegida.** Es el backend
+  diciendo que ese producto se cuenta suelto.
+
+## Recibir de menos sin rechazar está prohibido
+
+Es la regla que sostiene el reclamo al proveedor: la diferencia entre lo que
+dice la nota y lo que bajó del camión tiene que quedar **imputada a una nota y
+con un motivo**. Si se aceptara «recibí 8 de 10» sin más, la falta
+desaparecería del sistema.
+
+Es una regla **del cliente**: el backend valida que recibido + rechazado no
+supere lo pendiente, pero no exige el rechazo. Está en `validarCarga()`.
+
+## Un rechazo sin línea de nota se pierde en silencio
+
+Verificado en `RecepcionMercaderiaItemService.verificarProductoMobile`
+(central): si llega `cantidadRechazada > 0` con
+`notaRecepcionItemIdParaRechazo` en `null`, el bucle que asigna el rechazo no
+entra nunca, la mutation **devuelve `true`** y las cantidades rechazadas
+quedan en cero.
+
+Por eso la PWA **nunca manda un rechazo sin esa línea**: con una sola nota la
+resuelve sola, con varias abre `SeleccionarNotaRechazoDialogComponent`, y si
+no la consigue **corta la operación** en vez de mandar algo que se va a
+perder. El diálogo además muestra cuánto queda pendiente en cada nota, porque
+el backend rechaza la operación entera si la nota elegida no alcanza.
+
+## La cotización ya no cae en 1.0 en silencio
+
+`frc-mobile` iniciaba la recepción con la primera moneda de la lista y
+`cotizacion: 1.0` fijo. Una nota en dólares se cargaba como si fueran
+guaraníes.
+
+Acá la moneda **se toma de la nota** cuando la trae, se puede cambiar, y si no
+es la local **la cotización es obligatoria** —el botón de iniciar queda
+deshabilitado sin ella—. Contra guaraníes sigue siendo 1, pero porque esa es
+la cotización real, no porque falte el dato.
+
+## La sucursal se escanea, y además se puede elegir
+
+`frc-mobile` la resuelve **solo** escaneando el QR del cartel del depósito
+(con un atajo de desarrollo que cargaba la sucursal 13). Es el control de que
+quien recibe está parado donde entra la mercadería, y se mantiene como camino
+principal.
+
+Se agrega elegirla de la lista porque en iPhone y en un navegador de
+escritorio no siempre hay cámara disponible, y quedarse sin recibir por eso no
+es aceptable. **La lista solo trae sucursales con depósito** (`soloOperables`):
+una sucursal virtual no mueve stock, así que recibir contra ella no significa
+nada. Escanear el QR de una virtual también se rechaza, con el motivo.
+
+> ⚠️ Si preferís que la sucursal sea **solo** por escaneo, es un `@if` en
+> `recepcion-nueva.page.ts`. Está señalado en el comentario de la clase.
+
+## Otras diferencias
+
+| Tema | `frc-mobile` | PWA |
+|---|---|---|
+| Items de un producto en las notas | una query por nota **en serie** dentro de un `for` (16 requests con 15 notas) | un `forkJoin` en paralelo |
+| `metodoVerificacion` | siempre `MANUAL`, incluso llegando por escaneo | `ESCANER` cuando se llegó leyendo el código |
+| Usuario que verifica | el que inició la recepción | el que está operando ahora |
+| Validación de una línea | contra `aRecibir − recibido − yaCargado`, sin descontar rechazos previos | contra el pendiente real, el mismo número que valida al guardar |
+| Editar una línea cargada | modo edición con índices | quitar y volver a cargar |
+| Varias notas con el mismo número | diálogo de selección | se avisa y se pide resolver desde el desktop |
+| Constancia PDF | diálogo con visor propio | `PdfService`, con el camino de iOS resuelto |
+
+## Lo que falta
+
+| Qué | Nota |
+|---|---|
+| Solicitud de pago | queda para la fase de pagos; en `frc-mobile` todavía cuelga de `NotaRecepcionAgrupada` |
+| Compartir la recepción por QR | el QR se genera con `codificarQr`; falta la pantalla que lo muestre |
+| Varias notas con el mismo número | hoy se avisa en vez de dejar elegir |
+| Cancelar una recepción | el backend lo soporta, no hay pantalla |
+| `NotaRecepcionAgrupada` | **no se porta a propósito** |

@@ -131,6 +131,15 @@ const REGISTRO: Record<ClaveEstado, EstadoVisual> = {
   // ─── Marcación ─────────────────────────────────────────────────────────
   'TipoMarcacion.ENTRADA': { etiqueta: 'Entrada', tono: 'ok',      icono: 'entrada' },
   'TipoMarcacion.SALIDA':  { etiqueta: 'Salida',  tono: 'neutral', icono: 'salida' },
+
+  // ─── Recepción de mercadería ───────────────────────────────────────────
+  // Los estados de la recepción ya están arriba, con los de operaciones.
+  //
+  // RECIBIDO_PARCIALMENTE es naranja y no verde: falta mercadería que, si se
+  // finaliza así, se rechaza. Es trabajo pendiente, no un final.
+  'PedidoRecepcionProductoEstado.PENDIENTE':             { etiqueta: 'Pendiente', tono: 'neutral', icono: 'reloj' },
+  'PedidoRecepcionProductoEstado.RECIBIDO':              { etiqueta: 'Recibido',  tono: 'ok',      icono: 'checkCirculo' },
+  'PedidoRecepcionProductoEstado.RECIBIDO_PARCIALMENTE': { etiqueta: 'Parcial',   tono: 'warn',    icono: 'alerta' },
 };
 
 /** Cómo se muestra un estado desconocido: visible, pero sin inventar color. */

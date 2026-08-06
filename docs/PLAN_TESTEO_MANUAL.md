@@ -1078,13 +1078,153 @@ suma** antes de aplicar. Al confirmar, el inventario pasa a Concluido.
 
 ---
 
+## Bloque 20 — Recepción de mercadería *(nuevo)*
+
+> Necesita una **nota de recepción cargada desde el desktop** para un
+> proveedor, y una sucursal **con depósito**. Sin nota no hay nada que
+> recibir: la PWA no crea notas.
+
+### 20.1 · Sucursal por escaneo
+1. Operaciones → **Recepción de mercadería** → *Nueva recepción*
+2. *Escanear el cartel* y leer el QR de una sucursal
+
+**Esperado:** queda elegida esa sucursal. Con un QR que no sea del sistema
+avisa que no es de una sucursal.
+
+### 20.2 · Una sucursal sin depósito se rechaza
+1. Abrir el selector *O elegila de la lista*
+
+**Esperado:** **no aparecen** `SERVIDOR` ni `COMPRAS`. Si se escanea el QR de
+una virtual, avisa que no tiene depósito y no la toma.
+
+### 20.3 · Nota ya recibida *(el que importa)*
+1. Elegir sucursal y proveedor
+2. Cargar el número de una nota **ya recibida y finalizada** en esa sucursal
+
+**Esperado:** avisa que ya se recibió, **con el número de recepción**, y dice
+que hay que reabrir esa en vez de crear otra. La nota **no** se agrega.
+
+> Crear una segunda recepción de la misma nota duplica movimientos de stock y
+> costos. Es el chequeo más caro de este circuito.
+
+### 20.4 · La misma nota dos veces
+1. Agregar una nota válida y volver a cargar el mismo número
+
+**Esperado:** avisa que ya está en la lista y no la duplica.
+
+### 20.5 · Moneda y cotización
+1. Con las notas cargadas, mirar la sección **Moneda**
+
+**Esperado:** viene la moneda de la nota. Si es **guaraníes**, no pide
+cotización. Si se elige una moneda extranjera, **aparece el campo cotización y
+el botón de iniciar queda deshabilitado** hasta completarlo.
+
+> En la app Android esto era `1.0` fijo y sin preguntar: una nota en dólares
+> se cargaba como si fueran guaraníes.
+
+### 20.6 · Iniciar
+1. *Iniciar recepción* y confirmar
+
+**Esperado:** dice cuántas notas y en qué sucursal, y al confirmar abre el
+detalle con los productos a verificar.
+
+### 20.7 · Verificar un producto completo
+1. Tocar un producto → cargar la cantidad esperada → *Agregar* → *Guardar*
+
+**Esperado:** el resumen de arriba muestra **A recibir / Recibido / Rechazado
+/ Falta** en la presentación elegida. Al guardar, el producto queda
+**Recibido**.
+
+### 20.8 · Cambiar de presentación
+1. En el diálogo, cambiar la presentación
+
+**Esperado:** los cuatro números se recalculan. Con **caja x12**, 48 unidades
+se ven como **4**.
+
+### 20.9 · Recibir de menos sin rechazar *(el que importa)*
+1. Cargar **menos** de lo pendiente y *Guardar* sin agregar rechazo
+
+**Esperado:** **no deja guardar**. Avisa cuánto falta y que hay que agregar un
+rechazo por la diferencia.
+
+> Es lo que sostiene el reclamo al proveedor: sin rechazo, la falta desaparece
+> del sistema.
+
+### 20.10 · Rechazar con motivo
+1. Cargar lo recibido, activar *Esta cantidad se rechaza*, elegir motivo,
+   *Agregar* → *Guardar*
+
+**Esperado:** la línea rechazada se ve con borde rojo y su motivo. Al guardar,
+el producto queda **Parcial**.
+
+### 20.11 · Producto en varias notas *(el que importa)*
+1. Rechazar un producto que venga en **más de una nota** de la recepción
+
+**Esperado:** antes de guardar pregunta **a qué nota se imputa el rechazo**,
+mostrando cuánto queda pendiente en cada una. Las notas que no alcanzan
+aparecen **deshabilitadas**.
+
+> Sin esa línea el backend responde éxito y **no registra el rechazo**. Si
+> este diálogo no aparece, el rechazo se está perdiendo.
+
+### 20.12 · Pasarse de lo pendiente
+1. Cargar más de lo que falta
+
+**Esperado:** avisa que la suma de recibido y rechazado no puede superar lo
+pendiente, y no agrega la línea.
+
+### 20.13 · Verificar escaneando
+1. En el detalle, *Escanear* y leer el código de un producto de la recepción
+
+**Esperado:** abre el diálogo de ese producto directamente. Con un producto
+que **no** está en la recepción, avisa.
+
+### 20.14 · Deshacer
+1. En un producto ya verificado, *Deshacer*
+
+**Esperado:** confirma avisando que se borran las cantidades **en todas las
+notas**, y al aceptar el producto vuelve a Pendiente.
+
+### 20.15 · Filtros
+1. Alternar Todos / Pendientes / Recibidos / Parciales
+
+**Esperado:** la lista responde a cada filtro.
+
+### 20.16 · Finalizar con pendientes *(el que importa)*
+1. Con productos sin verificar, menú → *Finalizar recepción*
+
+**Esperado:** dice **cuántos productos se van a rechazar** y los nombra, y
+**exige un motivo** antes de dejar finalizar.
+
+> Finalizar no deja lo pendiente pendiente: lo rechaza.
+
+### 20.17 · Finalizar completo
+1. Con todo verificado, *Finalizar recepción*
+
+**Esperado:** confirma que las cantidades entran al stock. La recepción queda
+**Finalizada**.
+
+### 20.18 · Reabrir
+1. En una recepción finalizada, menú → *Reabrir recepción*
+
+**Esperado:** vuelve a **En proceso** y se pueden corregir cantidades. En una
+que ya está en proceso, la opción no aparece.
+
+### 20.19 · Constancia en PDF
+1. Menú → *Ver constancia (PDF)*
+
+**Esperado:** se abre el PDF. En iPhone con la PWA instalada se abre **dentro**
+de la app y el gesto de volver regresa.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
 
 | Área | Estado |
 |---|---|
-| Operaciones | Falta pedidos. De caja chica, el alta y la rendición |
+| Operaciones | De caja chica, el alta y la rendición. De recepción, la solicitud de pago |
 | Inventario: carga del conteo y zonas | No portado — la consulta sí |
 | Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
 | Recibir push (FCM) | No portado — la bandeja sí |
@@ -1118,7 +1258,8 @@ Para que no se reporte como falla:
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |
-| **Total** | **125** | | | |
+| 20 · Recepción de mercadería | 19 | | | |
+| **Total** | **144** | | | |
 
 ### Los cinco que más importan
 

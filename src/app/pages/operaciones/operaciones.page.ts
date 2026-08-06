@@ -37,6 +37,13 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
       />
 
       <frc-card
+        titulo="Recepción de mercadería"
+        subtitulo="Recibir las notas del proveedor"
+        icono="camion"
+        (abrir)="ir('/operaciones/recepcion')"
+      />
+
+      <frc-card
         titulo="Devoluciones"
         subtitulo="Productos averiados o vencidos"
         icono="tirar"

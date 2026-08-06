@@ -38,7 +38,7 @@ const TAMANO = 10;
   template: `
     <frc-pagina titulo="Recepción de mercadería" [conVolver]="true">
       <div acciones>
-        <button matButton="filled" (click)="nueva()">Nueva recepción</button>
+        <button matButton="filled" class="nueva" (click)="nueva()">Nueva recepción</button>
       </div>
 
       @if (cargando()) {
@@ -72,6 +72,7 @@ const TAMANO = 10;
     </frc-pagina>
   `,
   styles: `
+    .nueva { width: 100%; }
     .mas { align-self: center; margin-top: var(--sp-3); }
   `,
 })

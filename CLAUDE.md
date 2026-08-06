@@ -30,7 +30,11 @@ npm run build      # build de producción — el gate real
 npm test           # tests unitarios
 ```
 
+> ⚠️ **`npm run build` y `npm test` matan al `npm start` que esté corriendo** (SIGTERM, salida 143): comparten `.angular/cache` y la salida de compilación. El síntoma engaña —la pantalla del navegador deja de responder y parece un bug de la app—, así que si estás probando a mano, terminá la prueba antes de compilar, o contá con relevantar el serve. Si el navegador se cuelga de golpe, chequeá primero que el 4300 siga vivo.
+
 > **`localhost` es contexto seguro.** Cámara, geolocalización y service worker funcionan en desarrollo sin HTTPS. Para probar en un celular Android por USB: `adb reverse tcp:4300 tcp:4300`, y el teléfono lo ve como `localhost` — con las mismas APIs habilitadas.
+>
+> Si además la app tiene que hablar con un central local, hace falta el segundo túnel: `adb reverse tcp:8081 tcp:8081`. Sin eso el teléfono resuelve `localhost:8081` contra sí mismo y no hay backend.
 
 ## Documentación
 
@@ -142,7 +146,7 @@ src/
 
 **Fase 2 del plan de migración, con la Ola A cerrada.**
 
-Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con «recordar usuario» y «mantenerme conectado», shell responsivo, **módulo de caja completo** (lista, detalle, apertura y cierre con arqueo), **«Mi trabajo»** (autoservicio de RRHH: marcación, vales, recibos, vacaciones y solicitudes), **«Mis finanzas»** (compras a crédito por convenio), **escáner de códigos** (`BarcodeDetector` + ZXing para Safari) **búsqueda de productos** por texto, código y balanza, con card expandible y stock por sucursal, **devoluciones** (carga, historial y separado) **venta con tarjeta** (registro del cupón por escaneo) **marcación** con validación de ubicación **notificaciones** con hilo de comentarios y preferencias, **caja chica** (consulta y retiro con QR) **transferencias** (lista y detalle con las cuatro etapas) e **inventario** (resumen del conteo y finalización), **recepción de mercadería** (abrir con las notas del proveedor, verificar producto por producto, deshacer, finalizar y reabrir), **solicitud de pago a proveedor** (lista, alta desde el menú o desde una recepción finalizada, detalle y constancia en PDF), galería viva en `/design-system`.
+Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con «recordar usuario» y «mantenerme conectado», shell responsivo, **módulo de caja completo** (lista, detalle, apertura y cierre con arqueo), **«Mi trabajo»** (autoservicio de RRHH: marcación, vales, recibos, vacaciones y solicitudes), **«Mis finanzas»** (compras a crédito por convenio), **escáner de códigos** (`BarcodeDetector` + ZXing para Safari) **búsqueda de productos** por texto, código y balanza, con card expandible y stock por sucursal, **devoluciones** (carga, historial y separado) **venta con tarjeta** (registro del cupón por escaneo) **marcación** con validación de ubicación **notificaciones** con hilo de comentarios y preferencias, **caja chica** (consulta y retiro con QR) **transferencias** (lista y detalle con las cuatro etapas) e **inventario** (resumen del conteo y finalización), **recepción de mercadería** (abrir con las notas del proveedor, verificar producto por producto, deshacer, finalizar y reabrir), **solicitud de pago a proveedor** (lista, alta desde el menú o desde una recepción finalizada, envío a la cola de pagos, detalle y constancia en PDF), galería viva en `/design-system`.
 
 Pendiente, por partes —las olas B a D están empezadas, no intactas—: de **inventario**, la carga del conteo y las zonas; de **caja chica**, el alta y la rendición; **producto**, su detalle, su edición y el modo kiosco; el módulo de **pedidos**; el **reconocimiento facial**; **Web Push** en lugar de FCM; el **transporte WebSocket** para suscripciones; y la Ola E entera (`personas`, `funcionario`, `codigo`, `configuracion`).
 
@@ -152,7 +156,9 @@ La lista operativa de esto, escrita para que nadie lo reporte como falla durante
 
 **Falta el test manual de apertura y cierre de caja** — bloque 7 del plan. Es lo único implementado que no se ejecutó contra el central real, porque la apertura se proxea a la filial.
 
-Verificación: **452 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
+
+Verificación: **456 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

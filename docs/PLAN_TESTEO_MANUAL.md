@@ -1481,7 +1481,7 @@ Para que no se reporte como falla:
 |---|---|
 | Operaciones | De caja chica, el alta y la rendición |
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
-| Solicitud de pago: editar, cancelar y borrar | No portados — crear y consultar sí. Editar solo vale en estado Pendiente |
+| Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: carga del conteo y zonas | No portado — la consulta sí |
 | Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
 | Recibir push (FCM) | No portado — la bandeja sí |

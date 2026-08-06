@@ -386,6 +386,18 @@ Las reglas puras viven en `solicitud-pago-reglas.ts`, con tests:
 - **`esEditable`** — solo `PENDIENTE`, que es lo único que acepta el central.
 - **`fechaParaBackend`** — siempre en la forma de 16 caracteres.
 
+## ⚠️ Este módulo exige un central con la migración V194.5
+
+El alta manda `actualizarEstadoSolicitudPago(id, SOLICITADO)`. Contra un central
+**sin** `V194.5__solicitud_pago_estado_solicitado.sql`, ese valor no existe ni
+en el enum de Java ni en el tipo de Postgres, y la llamada falla: la solicitud
+queda creada como borrador y el operador recibe el aviso de que no se envió.
+
+No es hipotético mientras el cambio del central esté sin liberar. **Antes de
+publicar esta pantalla hay que confirmar que la instancia de destino tiene la
+migración aplicada** — y que el flujo `PENDIENTE → SOLICITADO` está commiteado
+allá, no solo en el árbol de trabajo de alguien.
+
 ## Crear no alcanza: hay que solicitar
 
 El central crea siempre en `PENDIENTE`, que es un **borrador que tesorería no

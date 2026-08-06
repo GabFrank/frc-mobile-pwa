@@ -1258,6 +1258,16 @@ mano) y la barra de arriba cambia a *Escanear* / *Finalizar*.
 
 ## Bloque 21 — Solicitud de pago a proveedor *(nuevo)*
 
+> **Estado de ejecución: 11 de 18 corridos** contra el central real —21.1, 21.2
+> parcial, 21.3, 21.4, 21.5, 21.7, 21.8, 21.13, 21.14, 21.15, 21.17 y 21.18—;
+> 21.17 en un Android real, con el toque de verdad. **Faltan** 21.6 (alta desde
+> cero), 21.9 con rechazos, 21.10 (monedas mezcladas), 21.11, 21.12 y 21.16.
+>
+> Sobre **21.9**: el descuento por rechazos está verificado en la base —el
+> backend guardó 1.014.720 en una nota que vale 1.159.680 en bruto— pero no en
+> pantalla, porque la única nota con rechazos que queda libre está rechazada al
+> 100% y crear esa solicitud dejaría un documento en cero.
+
 > Necesita **una recepción finalizada** cuyas notas no estén ya en otra
 > solicitud. Lo más cómodo es encadenarlo con el bloque 20: finalizar una
 > recepción y seguir de ahí.
@@ -1461,7 +1471,7 @@ Para que no se reporte como falla:
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |
 | 20 · Recepción de mercadería | 21 | | | |
-| 21 · Solicitud de pago | 18 | | | |
+| 21 · Solicitud de pago | 18 | 11 | | |
 | **Total** | **164** | | | |
 
 ### Los cinco que más importan

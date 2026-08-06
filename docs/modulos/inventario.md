@@ -161,3 +161,59 @@ Inventario (cabecera, por sucursal)
 3. Chequeá `onGetInventarioAbiertoPorSucursal` antes de abrir uno nuevo.
 4. `onFinalizar/onCancelar/onReabrir` devuelven `Observable`, no `Promise`.
 5. Filtrá los items con `copiedFromItemId` al medir cobertura del conteo.
+
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** portados la **lista, el detalle con el resumen del conteo y la
+> finalización**. La carga del conteo y la gestión de zonas no.
+
+| Ruta | Componente |
+|---|---|
+| `/inventario` | `InventarioListaPage` |
+| `/inventario/:id` | `InventarioDetallePage` |
+
+Las rutas de hasta **seis segmentos y cuatro parámetros** del repo anterior
+desaparecen: la geografía de zonas y sectores se gestiona desde configuración,
+no desde adentro del inventario.
+
+## La diferencia es el resultado, no un error
+
+`inventario-conteo.ts` concentra el cálculo, con tests:
+
+- **`cantidad` es lo que dice el sistema; `cantidadFisica`, lo contado.** La
+  resta **es** el resultado del inventario. Sobrescribir una con otra lo
+  borra.
+- **Sin contar no es cero.** `diferenciaDe()` devuelve `null` cuando no hay
+  `cantidadFisica`: cero significa «contado y coincide».
+- **Lo arrastrado se cuenta aparte.** Un ítem con `copiedFromItemId` viene de
+  una toma anterior y **nadie lo tocó ahora**: no suma a la cobertura ni a la
+  diferencia. Sumarlo haría creer que se recorrió mercadería que nadie contó.
+
+El detalle muestra la diferencia por producto y en total, **con signo**: `+`
+es sobrante y `−` faltante.
+
+## Finalizar aplica las diferencias
+
+No es un cambio de estado: lo que quedó sin contar entra como diferencia
+contra el stock. Por eso la confirmación **dice cuántos ítems tienen
+diferencia y cuánto suma**, en vez de preguntar «¿seguro?».
+
+## Dos gotchas heredados que se respetan
+
+- **Se usa `estado`, no `abierto`.** Son redundantes y nada garantiza que
+  estén sincronizados; `estado` es el que tiene los tres casos.
+- **Zona y sector se llaman `descripcion`, no `nombre`.** Costó un error de
+  compilación al portar.
+
+## Lo que falta
+
+| Qué | Nota |
+|---|---|
+| **Cargar el conteo** | es el modo D del buscador: cantidad, vencimiento y estado por presentación, **en su propia pantalla** y no dentro del buscador (ver el análisis del buscador) |
+| Revisión del supervisor | trabaja sobre los verificados no revisados |
+| Gestión de zonas y sectores | |
+| Reportes de control | positivos, negativos, faltantes y vencidos |
+| Cancelar y reabrir | ya están en el servicio |

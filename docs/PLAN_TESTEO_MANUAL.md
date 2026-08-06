@@ -1036,6 +1036,48 @@ sucursal.
 
 ---
 
+## Bloque 19 — Inventario *(nuevo)*
+
+> Necesita el rol **`VER INVENTARIO`** y una toma existente: la PWA todavía
+> no crea inventarios.
+
+### 19.1 · Lista
+1. Inicio → **Inventario**
+
+**Esperado:** tus inventarios, del más reciente al más viejo, con su estado.
+
+### 19.2 · Resumen del conteo
+1. Abrir uno con productos contados
+
+**Esperado:** productos, concluidos, ítems contados, revisados, con
+diferencia y **diferencia total con signo** — `+` sobrante, `−` faltante.
+
+### 19.3 · Lo arrastrado se muestra aparte *(el que importa)*
+1. Abrir un inventario donde se hayan copiado conteos de una toma anterior
+
+**Esperado:** aparece una línea **«Arrastrados»** separada de «Ítems
+contados», y esos ítems **no** suman a la diferencia.
+
+> Si los arrastrados aparecen como contados, la cobertura del conteo miente:
+> diría que se recorrió mercadería que nadie tocó.
+
+### 19.4 · Diferencia por producto
+1. Mirar la lista de productos
+
+**Esperado:** cada uno con su diferencia al costado, en rojo si es negativa,
+y abajo cuántos ítems se contaron.
+
+### 19.5 · Finalizar
+1. En un inventario **Abierto**, *Finalizar inventario*
+
+**Esperado:** la confirmación **dice cuántos ítems tienen diferencia y cuánto
+suma** antes de aplicar. Al confirmar, el inventario pasa a Concluido.
+
+> Finalizar **aplica las diferencias al stock**. Lo que quedó sin contar entra
+> como diferencia: no es solo cerrar la toma.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -1043,7 +1085,7 @@ Para que no se reporte como falla:
 | Área | Estado |
 |---|---|
 | Operaciones | Falta pedidos. De caja chica, el alta y la rendición |
-| Inventario | No portado |
+| Inventario: carga del conteo y zonas | No portado — la consulta sí |
 | Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
 | Recibir push (FCM) | No portado — la bandeja sí |
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
@@ -1075,7 +1117,8 @@ Para que no se reporte como falla:
 | 16 · Notificaciones | 7 | | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
-| **Total** | **120** | | | |
+| 19 · Inventario | 5 | | | |
+| **Total** | **125** | | | |
 
 ### Los cinco que más importan
 

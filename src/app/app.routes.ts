@@ -36,6 +36,11 @@ export const routes: Routes = [
           import('./pages/mi-trabajo/mi-trabajo.routes').then((m) => m.rutasMiTrabajo),
       },
       {
+        path: 'inventario',
+        loadChildren: () =>
+          import('./pages/inventario/inventario.routes').then((m) => m.rutasInventario),
+      },
+      {
         path: 'transferencias',
         loadChildren: () =>
           import('./pages/transferencias/transferencias.routes').then(

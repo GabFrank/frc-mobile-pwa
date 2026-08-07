@@ -42,3 +42,7 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Generado por scripts/sello-version.mjs antes de cada compilación
+/src/app/core/sello-version.ts
+/.sello-version.json

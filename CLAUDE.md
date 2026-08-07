@@ -30,6 +30,11 @@ npm run build      # build de producción — el gate real
 npm test           # tests unitarios
 ```
 
+> Los tres corren antes `scripts/sello-version.mjs`, que genera
+> `src/app/core/sello-version.ts` con la versión, la fecha y el commit. Es un
+> archivo **generado y en `.gitignore`**: si falta, es porque nunca se compiló
+> en esa copia del repo. Ver [`docs/arquitectura/actualizaciones-app.md`](docs/arquitectura/actualizaciones-app.md).
+
 > ⚠️ **`npm run build` y `npm test` matan al `npm start` que esté corriendo** (SIGTERM, salida 143): comparten `.angular/cache` y la salida de compilación. El síntoma engaña —la pantalla del navegador deja de responder y parece un bug de la app—, así que si estás probando a mano, terminá la prueba antes de compilar, o contá con relevantar el serve. Si el navegador se cuelga de golpe, chequeá primero que el 4300 siga vivo.
 
 > **`localhost` es contexto seguro.** Cámara, geolocalización y service worker funcionan en desarrollo sin HTTPS. Para probar en un celular Android por USB: `adb reverse tcp:4300 tcp:4300`, y el teléfono lo ve como `localhost` — con las mismas APIs habilitadas.
@@ -154,11 +159,13 @@ La lista operativa de esto, escrita para que nadie lo reporte como falla durante
 
 **`pago` no se porta, y es una decisión.** En `frc-mobile` es código muerto —`PagoService` declarado y nunca inyectado— y el pago real es tesorería de escritorio: cuotas, cajas con clave compuesta y autorización por un segundo usuario. En la PWA solo se **lee** el pago asociado a una solicitud. Ver [`docs/modulos/operaciones-pagos-y-varios.md`](docs/modulos/operaciones-pagos-y-varios.md).
 
+**La app instalada se actualiza sola, con permiso.** El service worker consulta al arrancar y cada 30 minutos; cuando hay versión nueva, un diálogo ofrece aplicarla o postergarla, y en «Mi cuenta → Aplicación» están la versión instalada y el botón para actualizar a mano. Esto **no venía gratis**: el testeo en un Android real encontró que con la estrategia de registro por defecto el service worker nunca adoptaba una versión y la app no se actualizaba jamás. Ver [`docs/arquitectura/actualizaciones-app.md`](docs/arquitectura/actualizaciones-app.md).
+
 **Falta el test manual de apertura y cierre de caja** — bloque 7 del plan. Es lo único implementado que no se ejecutó contra el central real, porque la apertura se proxea a la filial.
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **456 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **468 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

@@ -323,11 +323,19 @@ Todo este bloque en `http://localhost:4300/design-system` (solo en desarrollo).
 
 ---
 
-## Bloque 5 — PWA — ⚠️ **3 de 4** (Android real, 2026-08-07)
+## Bloque 5 — PWA — ⚠️ **6 de 7** (Android real, 2026-08-07)
 
 > Corrido en un Motorola edge 60 pro por adb, con el build de producción
-> servido estático. **5.1, 5.2 y 5.3 pasan. 5.4 no**, y el detalle está al pie
-> del bloque: no es un problema del entorno de prueba.
+> servido estático.
+>
+> **5.4 falló y se arregló el mismo día.** La causa era
+> `registrationStrategy: 'registerWhenStable:30000'`: en una app zoneless el
+> service worker quedaba registrado pero **sin adoptar nunca una versión**. Con
+> `registerImmediately` adopta versión al arrancar, y encima se sumó el aviso
+> con postergación y el control manual en Mi cuenta. Los casos 5.4 a 5.7
+> describen el comportamiento nuevo.
+>
+> Queda abierto **5.2**: el ícono sigue siendo el de Angular.
 
 ### 5.1 · Instalación
 1. Compilar y servir producción:
@@ -366,38 +374,70 @@ del teléfono.
 ✅ **Pasó.** Forzando la rotación del sistema a horizontal, la app siguió
 vertical (`mLastNonFullscreenOrientation=1`).
 
-### 5.4 · Actualización
-1. Con la PWA instalada, cambiar algo visible en el código y recompilar
-2. Cerrar y reabrir la app dos veces
+### 5.4 · Actualización *(el que importa)*
+1. Con la PWA instalada y abierta, compilar una versión nueva y servirla
+2. Esperar, o entrar a **Mi cuenta → Aplicación** y tocar *Buscar*
 
-**Esperado:** en algún momento aparece el cambio, **sin reinstalar y sin interrumpir lo que estabas haciendo**.
+**Esperado:** aparece un diálogo **«Hay una versión nueva»** que nombra la
+versión y avisa que actualizar recarga la app, con dos salidas: **Actualizar** y
+**Ahora no**.
 
-> Contraste con `frc-mobile`, donde el update era forzado y bloqueante cada 50 segundos.
+3. Tocar *Actualizar*
 
-❌ **No pasó, y no es del entorno de prueba.** Con un cambio visible compilado y
-servido, **dos ciclos completos de cerrar y reabrir la app dejaron la versión
-vieja**. Lo medido:
->
-> - Reabrir el WebAPK desde el launcher **no re-navega**: restaura la página tal
->   como estaba. La app llegó a mostrar un chunk que ya **no existe** en el
->   servidor, así que venía de caché, no de la red.
-> - El service worker está **registrado, activo y controlando** la página
->   —`navigator.serviceWorker.controller` no es nulo—, pero su propio
->   diagnóstico (`/ngsw/state`) reporta `Latest manifest hash: none` y
->   `Last update check: never`, incluso después de un `registration.update()`
->   explícito. Nunca adopta una versión.
-> - No es el montaje: `ngsw.json` se sirve como JSON, coincide con el build, e
->   `index.html` va con `no-cache`.
-> - **La app no tiene ningún manejo de `SwUpdate`**: nada consulta, aplica ni
->   anuncia una versión nueva.
->
-> Consecuencia operativa: un usuario puede quedarse en una versión vieja por
-> tiempo indefinido y nadie se entera. Hace falta trabajo de ingeniería, no
-> repetir la prueba.
->
-> Dos sospechosos para revisar: `registrationStrategy: 'registerWhenStable:30000'`
-> en una app **zoneless** —`isStable` no se comporta igual— y la ausencia de una
-> suscripción a `versionUpdates`.
+**Esperado:** la app se recarga sola y queda en la versión nueva. En
+*Mi cuenta → Aplicación*, **Versión** pasa a ser la que ofrecía el diálogo.
+
+> ⚠️ **Cerrar y reabrir la app no alcanza y no es un fallo**: el WebAPK
+> restaura la página en vez de re-navegar. Por eso existe el aviso.
+
+✅ **Pasó** (2026-08-07). El diálogo apareció solo, sin forzar nada.
+
+### 5.5 · Postergar, y que vuelva a preguntar
+1. Con una versión esperando, tocar **Ahora no**
+2. Seguir usando la app
+
+**Esperado:** el diálogo se cierra y **no vuelve a molestar**. La app sigue
+funcionando con la versión vieja, sin recargar nada.
+
+3. Ir a *Mi cuenta → Aplicación*
+
+**Esperado:** el botón dice **Actualizar a {{versión}}** — postergar no esconde
+la actualización, la corre de lugar.
+
+4. Dejar pasar **2 horas**, o compilar y servir **otra** versión
+
+**Esperado:** vuelve a ofrecerla. Con una versión distinta pregunta enseguida,
+sin esperar las 2 horas: postergar la de ayer no cubre la de hoy.
+
+> Es el caso que motiva todo el diseño: el operador está en medio de una
+> recepción y dice «ahora no». Si nadie le vuelve a preguntar, se queda en una
+> versión vieja para siempre y no se entera.
+
+✅ **Pasó** en su primera mitad (2026-08-07): postergó, guardó la decisión y el
+botón quedó en Mi cuenta. **Falta probar la reaparición a las 2 horas.**
+
+### 5.6 · Actualizar a mano desde Mi cuenta
+1. Sin ninguna versión esperando, ir a *Mi cuenta → Aplicación*
+
+**Esperado:** el botón dice **Buscar**. Al tocarlo, si no hay nada, avisa
+«Ya estás en la última versión».
+
+2. Con una versión esperando, tocar **Actualizar a {{versión}}**
+
+**Esperado:** aplica y recarga, igual que desde el diálogo.
+
+✅ **Pasó** (2026-08-07).
+
+### 5.7 · Qué versión estoy usando
+1. *Mi cuenta → Aplicación*
+
+**Esperado:** **Versión** y **Compilación**. Mientras el repo no tenga
+versionado, la versión es la fecha de compilación **con la aclaración
+«(sin versionar)»**, para que nadie lea una fecha creyendo que es una versión
+publicada. Cuando `semantic-release` empiece a numerar, ahí va a decir
+`v1.10.0-alpha.11` y la fecha se corre a *Compilación*.
+
+⚠️ **Sin verificar en pantalla**: el cambio se hizo después de la última pasada.
 
 ---
 
@@ -1534,8 +1574,8 @@ Para que no se reporte como falla:
 | Escáner de códigos | Implementado — falta probarlo en dispositivos de sucursal |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
 | Reconocimiento facial | No portado |
-| Actualización de la app instalada | **No funciona todavía** — el service worker no adopta una versión y no hay manejo de `SwUpdate`. Ver bloque 5.4 |
 | Ícono de la PWA | Es el de Angular, no la marca |
+| Versionado | `package.json` está en `0.0.0` y no hay tags. La app muestra la fecha de compilación **con la aclaración «(sin versionar)»** hasta que `semantic-release` empiece a numerar |
 
 ---
 
@@ -1547,7 +1587,7 @@ Para que no se reporte como falla:
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
-| 5 · PWA | 4 | 3 | 1 | |
+| 5 · PWA | 7 | 6 | 1 | |
 | 6 · Accesibilidad | 5 | | | |
 | 7 · Abrir y cerrar caja | 9 | | | |
 | 8 · Mi trabajo | 5 | | | |
@@ -1564,7 +1604,7 @@ Para que no se reporte como falla:
 | 19 · Inventario | 5 | | | |
 | 20 · Recepción de mercadería | 21 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
-| **Total** | **166** | | | |
+| **Total** | **169** | | | |
 
 ### Los cinco que más importan
 

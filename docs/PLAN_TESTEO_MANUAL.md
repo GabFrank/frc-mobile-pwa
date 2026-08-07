@@ -323,7 +323,11 @@ Todo este bloque en `http://localhost:4300/design-system` (solo en desarrollo).
 
 ---
 
-## Bloque 5 — PWA
+## Bloque 5 — PWA — ⚠️ **3 de 4** (Android real, 2026-08-07)
+
+> Corrido en un Motorola edge 60 pro por adb, con el build de producción
+> servido estático. **5.1, 5.2 y 5.3 pasan. 5.4 no**, y el detalle está al pie
+> del bloque: no es un problema del entorno de prueba.
 
 ### 5.1 · Instalación
 1. Compilar y servir producción:
@@ -338,13 +342,29 @@ npx http-server dist/mobile-pwa/browser -p 4300
 
 > El service worker solo se activa en producción, no con `npm start`.
 
+✅ **Pasó.** Chrome ofrece *Instalar* —no solo «crear acceso directo»—, o sea
+que cumple los criterios de instalabilidad. Queda como WebAPK
+(`org.chromium.webapk.…`) y abre en modo standalone, sin barra de direcciones.
+La sesión se comparte con Chrome: entró ya logueada.
+
 ### 5.2 · Marca
-**Esperado:** el nombre es **"Bodega Franco"**. En Android, la barra de estado toma el rojo de marca.
+**Esperado:** el nombre es **"Bodega Franco"**. La barra de estado toma el color
+del tema: **el rojo de marca en tema claro** y `#2a2523` en oscuro — son dos
+`<meta name="theme-color">` con `prefers-color-scheme`, así que en oscuro **no**
+tiene que verse roja.
+
+⚠️ **Pasó a medias.** El nombre es correcto. **El ícono es el logo de Angular**:
+`public/icons/` tiene los que vienen con el andamiaje del framework, no la
+marca. Se ve en el diálogo de instalación y queda así en la pantalla de inicio
+del teléfono.
 
 ### 5.3 · Orientación
 1. Rotar el teléfono con la PWA instalada
 
 **Esperado:** se mantiene en vertical (`orientation: portrait`).
+
+✅ **Pasó.** Forzando la rotación del sistema a horizontal, la app siguió
+vertical (`mLastNonFullscreenOrientation=1`).
 
 ### 5.4 · Actualización
 1. Con la PWA instalada, cambiar algo visible en el código y recompilar
@@ -353,6 +373,31 @@ npx http-server dist/mobile-pwa/browser -p 4300
 **Esperado:** en algún momento aparece el cambio, **sin reinstalar y sin interrumpir lo que estabas haciendo**.
 
 > Contraste con `frc-mobile`, donde el update era forzado y bloqueante cada 50 segundos.
+
+❌ **No pasó, y no es del entorno de prueba.** Con un cambio visible compilado y
+servido, **dos ciclos completos de cerrar y reabrir la app dejaron la versión
+vieja**. Lo medido:
+>
+> - Reabrir el WebAPK desde el launcher **no re-navega**: restaura la página tal
+>   como estaba. La app llegó a mostrar un chunk que ya **no existe** en el
+>   servidor, así que venía de caché, no de la red.
+> - El service worker está **registrado, activo y controlando** la página
+>   —`navigator.serviceWorker.controller` no es nulo—, pero su propio
+>   diagnóstico (`/ngsw/state`) reporta `Latest manifest hash: none` y
+>   `Last update check: never`, incluso después de un `registration.update()`
+>   explícito. Nunca adopta una versión.
+> - No es el montaje: `ngsw.json` se sirve como JSON, coincide con el build, e
+>   `index.html` va con `no-cache`.
+> - **La app no tiene ningún manejo de `SwUpdate`**: nada consulta, aplica ni
+>   anuncia una versión nueva.
+>
+> Consecuencia operativa: un usuario puede quedarse en una versión vieja por
+> tiempo indefinido y nadie se entera. Hace falta trabajo de ingeniería, no
+> repetir la prueba.
+>
+> Dos sospechosos para revisar: `registrationStrategy: 'registerWhenStable:30000'`
+> en una app **zoneless** —`isStable` no se comporta igual— y la ausencia de una
+> suscripción a `versionUpdates`.
 
 ---
 
@@ -1489,6 +1534,8 @@ Para que no se reporte como falla:
 | Escáner de códigos | Implementado — falta probarlo en dispositivos de sucursal |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
 | Reconocimiento facial | No portado |
+| Actualización de la app instalada | **No funciona todavía** — el service worker no adopta una versión y no hay manejo de `SwUpdate`. Ver bloque 5.4 |
+| Ícono de la PWA | Es el de Angular, no la marca |
 
 ---
 
@@ -1500,7 +1547,7 @@ Para que no se reporte como falla:
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
-| 5 · PWA | 4 | | | |
+| 5 · PWA | 4 | 3 | 1 | |
 | 6 · Accesibilidad | 5 | | | |
 | 7 · Abrir y cerrar caja | 9 | | | |
 | 8 · Mi trabajo | 5 | | | |

@@ -325,6 +325,10 @@ Todo este bloque en `http://localhost:4300/design-system` (solo en desarrollo).
 
 ## Bloque 5 — PWA — ⚠️ **6 de 7** (Android real, 2026-08-07)
 
+> **Cerrado salvo dos verificaciones visuales.** 5.1, 5.2, 5.3, 5.4 y 5.6
+> pasaron. De **5.5** falta ver la reaparición a las 2 horas, y **5.7** —los
+> textos de versión— cambió después de la última pasada con sesión abierta.
+
 > Corrido en un Motorola edge 60 pro por adb, con el build de producción
 > servido estático.
 >
@@ -361,10 +365,21 @@ del tema: **el rojo de marca en tema claro** y `#2a2523` en oscuro — son dos
 `<meta name="theme-color">` con `prefers-color-scheme`, así que en oscuro **no**
 tiene que verse roja.
 
-⚠️ **Pasó a medias.** El nombre es correcto. **El ícono es el logo de Angular**:
-`public/icons/` tiene los que vienen con el andamiaje del framework, no la
-marca. Se ve en el diálogo de instalación y queda así en la pantalla de inicio
-del teléfono.
+✅ **Pasó** (2026-08-07), después de reemplazar los íconos: eran los del
+andamiaje de Angular. Ahora salen de `resources/icon.png` de `frc-mobile` —el
+mismo que usa la app Android en producción— redimensionados con `sips`.
+
+> ⚠️ **Son dos familias, no una.** El logo llena el cuadro hasta los bordes, así
+> que declararlo `maskable` haría que Android le corte las letras al aplicar la
+> máscara circular. Por eso hay dos juegos:
+> `icon-{n}.png` con `purpose: any` —el logo completo— e
+> `icon-maskable-{n}.png` con el logo al **66 %** centrado sobre su propio rojo
+> (`#b40000`), que es el margen que pide el recorte. Antes los ocho íconos
+> estaban declarados `"maskable any"`, que es pedirle a la misma imagen dos
+> cosas incompatibles.
+>
+> Verificado en el diálogo de instalación del teléfono: se lee **BODEGA
+> FRANCO** entero, sin recorte.
 
 ### 5.3 · Orientación
 1. Rotar el teléfono con la PWA instalada

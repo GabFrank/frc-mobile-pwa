@@ -325,9 +325,8 @@ Todo este bloque en `http://localhost:4300/design-system` (solo en desarrollo).
 
 ## Bloque 5 — PWA — ⚠️ **6 de 7** (Android real, 2026-08-07)
 
-> **Cerrado salvo dos verificaciones visuales.** 5.1, 5.2, 5.3, 5.4 y 5.6
-> pasaron. De **5.5** falta ver la reaparición a las 2 horas, y **5.7** —los
-> textos de versión— cambió después de la última pasada con sesión abierta.
+> **Falta un solo caso: la segunda mitad de 5.5.** 5.1, 5.2, 5.3, 5.4, 5.6 y
+> 5.7 pasaron contra el teléfono.
 
 > Corrido en un Motorola edge 60 pro por adb, con el build de producción
 > servido estático.
@@ -428,8 +427,30 @@ sin esperar las 2 horas: postergar la de ayer no cubre la de hoy.
 > recepción y dice «ahora no». Si nadie le vuelve a preguntar, se queda en una
 > versión vieja para siempre y no se entera.
 
-✅ **Pasó** en su primera mitad (2026-08-07): postergó, guardó la decisión y el
-botón quedó en Mi cuenta. **Falta probar la reaparición a las 2 horas.**
+✅ **Pasó lo verificable sin esperar:** el aviso aparece, *Ahora no* guarda la
+postergación con su hash y su momento, una segunda consulta **dentro** de la
+ventana no vuelve a molestar, y el botón queda en Mi cuenta.
+
+❌ **Falta la reaparición pasada la espera**, y probarla necesita instrumentar,
+porque nadie va a esperar dos horas mirando el teléfono. El procedimiento, que
+ya se usó una vez y funciona:
+
+```bash
+# 1. Acortar los dos tiempos, que están en dos archivos distintos
+#    ESPERA_MS  → src/app/core/actualizacion/actualizacion-reglas.ts
+#    setInterval → src/app/core/actualizacion/actualizacion.service.ts
+#    10 * 1000 y 15 * 1000 alcanzan.
+npm run build
+# 2. Aplicar esa build en el teléfono (el aviso la va a ofrecer sola).
+# 3. Compilar otra versión cualquiera para tener algo pendiente.
+# 4. Cuando aparezca el aviso: "Ahora no", y esperar ~30 segundos sin tocar nada.
+```
+
+**Esperado:** el aviso **reaparece solo**, sin que nadie toque nada.
+
+⚠️ **Revertir los dos tiempos antes de commitear.** Y ojo con el atajo fácil:
+recargar la página **aplica** la versión pendiente, así que un `location.reload()`
+destruye el escenario en vez de probarlo.
 
 ### 5.6 · Actualizar a mano desde Mi cuenta
 1. Sin ninguna versión esperando, ir a *Mi cuenta → Aplicación*

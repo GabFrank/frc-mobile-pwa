@@ -80,17 +80,38 @@ export class ActualizacionService {
     setInterval(() => void this.consultar(), 30 * 60 * 1000);
   }
 
+  /**
+   * Vuelve a evaluar si toca ofrecer lo que ya se sabe que hay.
+   *
+   * ⚠️ **Sin esto, postergar equivalía a rechazar para siempre.** El evento
+   * `VERSION_READY` llega **una sola vez** por versión, así que si la oferta se
+   * postergaba, nada volvía a mirar el reloj: la regla de las 2 horas existía y
+   * estaba probada, pero nadie la consultaba de nuevo. Encontrado probando en
+   * el teléfono, no en los tests — los tests cubrían la regla, no quién la
+   * llama.
+   */
+  private reevaluar(): void {
+    if (this.hashDisponible != null) {
+      void this.ofrecerSiCorresponde();
+    }
+  }
+
   /** Le pregunta al servidor si hay algo nuevo. */
   async consultar(): Promise<boolean> {
     if (!this.sw?.isEnabled) {
       return false;
     }
+    let hay = false;
     try {
-      return await this.sw.checkForUpdate();
+      hay = await this.sw.checkForUpdate();
     } catch {
       // Sin red no hay actualización que buscar. No es un error que mostrar.
-      return false;
+      hay = false;
     }
+    // Se reevalúa siempre, no solo cuando el servidor trae algo nuevo: lo que
+    // puede haber cambiado es el reloj, no el servidor.
+    this.reevaluar();
+    return hay;
   }
 
   /**

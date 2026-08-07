@@ -54,6 +54,7 @@ npm test           # tests unitarios
 | `docs/design-system/` | **Galería y pantallas aprobadas (Gate 1)** |
 | `docs/analisis/` | Plan de migración y runbook de Cloudflare |
 | `docs/TODO_TECNICO.md` | 59 hallazgos del repo anterior — **qué NO repetir** |
+| `docs/PROXIMA_SESION.md` | **Dónde retomar**: qué quedó a medias y qué muerde. Se borra cuando deje de ser cierto |
 
 ## Reglas del proyecto
 

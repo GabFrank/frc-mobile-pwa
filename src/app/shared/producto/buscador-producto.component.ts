@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -30,7 +31,7 @@ import { SkeletonComponent } from '../estados-ui/skeleton.component';
 import { IconoComponent } from '../icono/icono.component';
 import { ImporteComponent } from '../importe/importe.component';
 import { SeccionComponent } from '../layout/seccion.component';
-import { ACCION_STOCK, OpcionesBuscador, SeleccionProducto } from './buscador.types';
+import { ACCION_FICHA, ACCION_STOCK, OpcionesBuscador, SeleccionProducto } from './buscador.types';
 import { precioDe } from './presentacion.util';
 import { AccionProducto, ProductoCardComponent } from './producto-card.component';
 import {
@@ -212,6 +213,7 @@ export class BuscadorProductoComponent {
   private readonly escaner = inject(EscanerService);
   private readonly notificacion = inject(NotificacionService);
   private readonly dialogo = inject(DialogoService);
+  private readonly router = inject(Router);
 
   readonly opciones = input<OpcionesBuscador>({});
   /**
@@ -279,6 +281,7 @@ export class BuscadorProductoComponent {
   }
 
   readonly accionesDe = computed<AccionProducto[]>(() => [
+    { id: ACCION_FICHA, etiqueta: 'Ver ficha del producto', icono: 'documento' },
     { id: ACCION_STOCK, etiqueta: 'Ver stock por sucursal', icono: 'inventario' },
     ...(this.opciones().acciones ?? []),
   ]);
@@ -429,6 +432,10 @@ export class BuscadorProductoComponent {
   }
 
   async ejecutarAccion(accionId: string, producto: Producto): Promise<void> {
+    if (accionId === ACCION_FICHA) {
+      await this.router.navigate(['/producto', producto.id]);
+      return;
+    }
     if (accionId === ACCION_STOCK) {
       await this.dialogo.abrir<StockSucursalesDialogComponent, StockSucursalesData>(
         StockSucursalesDialogComponent,

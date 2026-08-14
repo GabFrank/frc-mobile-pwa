@@ -8,10 +8,20 @@ import { Routes } from '@angular/router';
  * otra cosa. Este módulo agrupa lo que sí es de producto y se abre a
  * propósito.
  */
+/**
+ * ⚠️ `vencidos` va **antes** que `:id`: con el orden invertido, el router
+ * resolvería «vencidos» como identificador y el detalle intentaría cargar el
+ * producto NaN. Mismo orden que en recepción y solicitud de pago.
+ */
 export const rutasProducto: Routes = [
   {
     path: 'vencidos',
     loadComponent: () =>
       import('./productos-vencidos.page').then((m) => m.ProductosVencidosPage),
+  },
+  {
+    path: ':id',
+    loadComponent: () =>
+      import('./producto-detalle.page').then((m) => m.ProductoDetallePage),
   },
 ];

@@ -8,6 +8,7 @@ import { ActualizacionService } from '../core/actualizacion/actualizacion.servic
 import { AuthService } from '../core/auth/auth.service';
 import { CargandoService } from '../core/ui/cargando.service';
 import { TemaService } from '../core/tema/tema.service';
+import { NotificacionesService } from '../pages/notificaciones/notificacion.service';
 import { IconoComponent } from '../shared/icono/icono.component';
 import { DESTINOS } from './nav';
 
@@ -154,12 +155,19 @@ export class ShellComponent {
   readonly cargando = inject(CargandoService);
   readonly tema = inject(TemaService);
   private readonly actualizacion = inject(ActualizacionService);
+  private readonly notificaciones = inject(NotificacionesService);
 
   constructor() {
     // Se arranca acá y no en el arranque de la app porque el shell es la
     // pantalla con sesión: no tiene sentido ofrecer una recarga a alguien que
     // todavía está escribiendo su contraseña.
     this.actualizacion.iniciar();
+
+    // El conteo de no leídas solo se pedía desde la propia pantalla de
+    // notificaciones, así que el badge de Inicio siempre habría mostrado
+    // cero hasta que alguien entrara a mirarlas — justo lo contrario de para
+    // qué existe un badge. Se pide una vez al entrar al área con sesión.
+    this.notificaciones.refrescarConteo().subscribe({ error: () => undefined });
   }
 
   readonly esTablet = toSignal(

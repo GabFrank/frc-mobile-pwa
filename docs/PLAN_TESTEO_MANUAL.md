@@ -2564,9 +2564,13 @@ Servidor*.
 > escrito **en esa misma fila**, dejando intacta la sesión `IOS` del mismo
 > usuario.
 >
-> Quedan sin ejecutar **38.4** (recibir el aviso de verdad) y **38.6/38.7**
-> (iPhone): hace falta disparar una notificación desde el central y un
-> dispositivo iOS.
+> **38.4 también se ejecutó**: se disparó
+> `enviarNotificacionPersonalizada` desde el central local y el aviso apareció
+> con su título y su cuerpo. El central lo registró como «enviada
+> exitosamente, Destinatarios: 1» y ningún token se tocó.
+>
+> Quedan sin ejecutar **38.6/38.7** (iPhone) y el caso nuevo **38.8**, que
+> falla hoy.
 >
 > ⚠️ **`ng serve` no sirve para este bloque.** El service worker está en
 > `enabled: !isDevMode()`, y sin service worker no hay dónde recibir el aviso.
@@ -2607,6 +2611,24 @@ Servidor*.
 1. Cerrar la app por completo y disparar una notificación desde el central.
 
 **Esperado:** aparece en la bandeja del sistema. Tocarla abre la app.
+
+### 38.8 · Tocar la notificación abre la app *(falla hoy)*
+1. Con la app cerrada, tocar el aviso que llegó.
+
+**Esperado:** abre la app en la pantalla que corresponde.
+
+**Hoy:** no hace nada. Verificado leyendo la notificación mostrada:
+
+```json
+{"title":"Prueba de push","body":"...","data":null}
+```
+
+> El service worker de Angular abre lo que venga en
+> `notification.data.onActionClick`, y arma la notificación copiando campos de
+> **`payload.notification`**. El central manda el destino en `data.path`, que
+> es **hermano** de `notification`, no hijo — así que nunca llega. Se arregla
+> del lado del central, anidando `onActionClick` dentro del
+> `WebpushNotification`; el cliente no puede inventar un dato que no recibió.
 
 ### 38.5 · Permiso denegado
 1. Denegar el permiso y volver a Mi cuenta.
@@ -2671,8 +2693,8 @@ no va a preguntar.
 | 35 · Revisión de inventario | 6 | 3 | | |
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
-| 38 · Notificaciones push | 7 | 4 | | |
-| **Total** | **282** | | | |
+| 38 · Notificaciones push | 8 | 6 | | |
+| **Total** | **283** | | | |
 
 ### Los cinco que más importan
 

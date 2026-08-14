@@ -85,6 +85,38 @@ segundo service worker sobre `ngsw-worker.js` es pelearse por el control de la
 página: gana uno y el push queda en el que perdió. Se le pasa la registración
 que ya está activa.
 
+### Tocar la notificación no navega, y el arreglo es del central
+
+Verificado el 2026-08-14: el aviso **llega y se muestra** —título, cuerpo y
+`requireInteraction`— pero la notificación mostrada tiene `data: null`, así
+que tocarla no hace nada. Con la app cerrada, ni siquiera la abre.
+
+`ngsw` arma la notificación copiando campos de **`payload.notification`**, y
+abre lo que encuentre en `notification.data.onActionClick`:
+
+```js
+const onActionClick = notification?.data?.onActionClick?.[notificationAction];
+switch (onActionClick?.operation) { /* openWindow, navigate… */ }
+```
+
+El central manda el destino en el `data` **del mensaje**, que es hermano de
+`notification`, no hijo. Nunca llega al service worker como
+`notification.data`.
+
+El arreglo va en `FCMService.getWebpushConfig`, anidando el destino dentro del
+`WebpushNotification`:
+
+```java
+.putCustomData("data", Collections.singletonMap("onActionClick",
+    Collections.singletonMap("default", Map.of(
+        "operation", "navigateLastFocusedOrOpen",
+        "url", path))))
+```
+
+**No hay forma de resolverlo solo del lado del cliente.** La PWA no puede
+inventar un dato que nunca recibió, y agregar un segundo manejador de `push`
+al service worker mostraría el aviso dos veces.
+
 ### El SDK entra por `import()` dinámico
 
 No tiene por qué pesar en el arranque de quien nunca activa las
@@ -126,7 +158,7 @@ recarga una ruta profunda sin el service worker activo, da 404. Entrar por
 5. En iPhone, repetir con la PWA **instalada**: sin instalar no va a aparecer
    ni el botón.
 
-Los pasos 1 a 3 se ejecutaron el 2026-08-14 contra el central local. Los pasos
-4 y 5 no: mandar una notificación de verdad y probar en un iPhone quedan para
-una pasada manual. Ver el bloque 38 de
+Los pasos 1 a 4 se ejecutaron el 2026-08-14 contra el central local: el aviso
+llegó y se mostró. El paso 5 —iPhone— no. Tocar la notificación **no
+funciona todavía**; ver arriba. El bloque 38 de
 [`PLAN_TESTEO_MANUAL.md`](../PLAN_TESTEO_MANUAL.md).

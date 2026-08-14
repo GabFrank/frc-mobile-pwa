@@ -202,3 +202,82 @@ function fusionarEmbeddingsMaestro(
 
   return promedio;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Verificación 1:1 contra la galería propia
+//
+//  Portado del `ReconocimientoFacialHelperService` de `frc-mobile`. Vive acá
+//  y no en un servicio porque no depende de nada: se prueba sin montar
+//  Angular, que es lo que corresponde a una regla que decide si alguien
+//  marca o no marca su entrada.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Mejor parecido del embedding contra cualquier pose de la galería. */
+export function mejorSimilitudConGaleria(
+  embedding: number[],
+  galeria: EmbeddingGaleria,
+): number {
+  if (!embedding?.length || !galeria) {
+    return 0;
+  }
+  return calcularMaximaSimilitudCoseno(embedding, extraerVectoresGaleria(galeria));
+}
+
+/** `true` si un frame suelto ya se parece lo suficiente. */
+export function cumpleUmbralVerificacion(
+  embedding: number[],
+  galeria: EmbeddingGaleria,
+  umbral = UMBRAL_SIMILITUD_VERIFICACION,
+): boolean {
+  return mejorSimilitudConGaleria(embedding, galeria) >= umbral;
+}
+
+/**
+ * Decide si la tanda de frames alcanza para dar por verificada a la persona.
+ *
+ * ⚠️ **Son tres controles independientes, y los tres tienen que pasar.** No
+ * es redundancia: cada uno tapa una forma distinta de colarse.
+ *
+ * 1. Al menos `FRAMES_MINIMOS_VERIFICACION` frames **nítidos y parecidos**.
+ *    Un solo acierto puede ser casualidad o un reflejo.
+ * 2. El embedding **promedio** —ponderado por calidad— también tiene que
+ *    superar el umbral. Promediar frames buenos y malos puede dar un vector
+ *    que no se parece a nadie.
+ * 3. El **promedio de las similitudes** tiene que superarlo igual. Sin esto,
+ *    dos frames excelentes compensarían varios apenas por encima del corte.
+ *
+ * Devuelve el embedding consolidado —el que se manda al central— o `null`.
+ */
+export function confirmarVerificacionFinal(
+  frames: FrameCalidadFacial[],
+  galeria: EmbeddingGaleria,
+  umbral = UMBRAL_SIMILITUD_VERIFICACION,
+): { embedding: number[]; score: number; similitud: number } | null {
+  const validos = frames.filter(
+    (f) =>
+      f.embedding?.length > 0 &&
+      f.score >= SCORE_MINIMO_FRAME_VERIFICACION &&
+      (f.similitud == null || f.similitud >= umbral),
+  );
+  if (validos.length < FRAMES_MINIMOS_VERIFICACION) {
+    return null;
+  }
+
+  const embedding = promediarEmbeddingsConScore(validos);
+  if (!embedding) {
+    return null;
+  }
+
+  const similitudFinal = mejorSimilitudConGaleria(embedding, galeria);
+  if (similitudFinal < umbral) {
+    return null;
+  }
+
+  const similitudPromedio =
+    validos.reduce((suma, f) => suma + (f.similitud ?? 0), 0) / validos.length;
+  if (similitudPromedio < umbral) {
+    return null;
+  }
+
+  return { embedding, score: scorePromedioFrames(validos), similitud: similitudFinal };
+}

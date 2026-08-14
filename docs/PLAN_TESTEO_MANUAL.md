@@ -2141,6 +2141,57 @@ usuario queda con su `embedding` y su `embeddingGaleriaJson`.
 > enrolado desde el Android.** El formato de galería se portó verbatim
 > justamente para eso; es lo que hay que probar de punta a punta.
 
+### 31.7 · Marcar con verificación facial
+1. Marcación → *Marcar entrada* (o salida).
+
+**Esperado:** antes de pedir la ubicación abre *Verificá tu rostro*, con la
+cámara y tres indicadores de acierto. Al reconocerte, cierra solo y sigue con
+el GPS.
+
+> El orden es a propósito: **quién sos antes de dónde estás**. La cara puede
+> fallar por decisión del usuario —cancelar, no tener rostro cargado— y no
+> tiene sentido esperar el GPS para descubrirlo.
+
+### 31.8 · No reconoce a cualquiera
+1. Abrir la verificación y **no** ponerse frente a la cámara. Esperar.
+
+**Esperado:** los tres indicadores quedan apagados y dice «Acercate y buscá
+mejor luz». **Nunca** verifica solo. Verificado el 2026-08-14: cero aciertos
+sin rostro.
+
+2. Probar con la foto de la persona en otra pantalla.
+
+**Esperado:** avisa que tiene que ser el rostro real. Es el anti-spoofing.
+
+### 31.9 · Los aciertos tienen que ser consecutivos
+1. Ponerse frente a la cámara, salir del cuadro a mitad de camino, volver.
+
+**Esperado:** al salir, los indicadores vuelven a cero. No se acumulan
+aciertos sueltos: si se pudiera, alcanzaría con insistir un rato con la foto
+de otro.
+
+### 31.10 · Sin rostro registrado se puede marcar igual
+1. Con un usuario sin enrolar, marcar.
+
+**Esperado:** dice que no hay rostro registrado y ofrece *Marcar igual*. Al
+aceptar, la marcación se registra.
+
+> No se bloquea a quien no enroló: hacerlo obligatorio de golpe dejaría sin
+> marcar a casi todos. Cuando el enrolamiento esté repartido, esto pasa a
+> exigirse.
+
+### 31.11 · La galería mejora con el uso
+1. Marcar con verificación facial varias veces.
+
+**Esperado:** cada marcación verificada manda su embedding al central
+(`incorporarEmbeddingMarcacion`), que decide si lo suma. **No** avisa nada al
+usuario: la marcación ya quedó registrada y esto es una mejora, no un paso.
+
+> Es lo que evita que el reconocimiento se quede con las cinco fotos del día
+> del enrolamiento mientras la persona cambia de peinado, anteojos o luz.
+
+---
+
 ### 31.6 · Funciona sin internet
 1. Registrar una vez con internet. Después cortar la salida a internet
    —dejando el central accesible— y volver a entrar a la pantalla.
@@ -2208,8 +2259,8 @@ Para que no se reporte como falla:
 | 28 · Rendición de caja chica | 9 | | | |
 | 29 · Carga del conteo | 7 | | | |
 | 30 · Permisos por rol | 6 | | | |
-| 31 · Registro del rostro | 6 | | | |
-| **Total** | **236** | | | |
+| 31 · Rostro: registro y marcación | 11 | | | |
+| **Total** | **241** | | | |
 
 ### Los cinco que más importan
 

@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { isDevMode } from '@angular/core';
 import { authGuard } from './core/auth/auth.guard';
+import { rolGuard } from './core/auth/rol.guard';
 
 /**
  * Rutas.
@@ -48,11 +49,13 @@ export const routes: Routes = [
       },
       {
         path: 'inventario',
+        canActivate: [rolGuard('inventario')],
         loadChildren: () =>
           import('./pages/inventario/inventario.routes').then((m) => m.rutasInventario),
       },
       {
         path: 'transferencias',
+        canActivate: [rolGuard('transferencias')],
         loadChildren: () =>
           import('./pages/transferencias/transferencias.routes').then(
             (m) => m.rutasTransferencias,

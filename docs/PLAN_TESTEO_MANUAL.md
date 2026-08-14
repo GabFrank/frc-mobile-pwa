@@ -1995,6 +1995,69 @@ alguna falla, lo dice y recarga igual para que se vea lo que sí entró.
 
 ---
 
+---
+
+## Bloque 30 — Permisos por rol *(nuevo)*
+
+> **Necesita dos usuarios**: uno con `ADMIN` y otro **sin** `VER INVENTARIO`,
+> `VER TRANSFERENCIA` ni `VENTA TOUCH`. Con un solo usuario ADMIN este bloque
+> no prueba nada: ADMIN entra a todo, que es lo correcto.
+>
+> El camino negativo está cubierto por 9 tests automáticos; lo que falta
+> verificar a mano es que la experiencia sea entendible.
+
+### 30.1 · El menú esconde lo que no corresponde
+1. Entrar con el usuario restringido.
+
+**Esperado:** en Inicio **no** aparecen Caja, Inventario ni Transferencias.
+Sí aparecen Buscar, Productos vencidos, Consultar precio, Notificaciones,
+Marcación, Mi trabajo, Mis finanzas y Mi cuenta.
+
+### 30.2 · La URL escrita a mano tampoco entra
+1. Con ese mismo usuario, escribir `/inventario` en la barra de direcciones.
+
+**Esperado:** vuelve a Inicio y avisa *«No tenés permiso para entrar a esa
+sección»*. **Es el caso que más importa del bloque**: si entra, esconder el
+ítem del menú era decorativo.
+
+2. Repetir con `/transferencias`, `/operaciones/caja` y
+   `/operaciones/recepcion`.
+
+### 30.3 · ADMIN entra a todo
+1. Entrar con el usuario ADMIN.
+
+**Esperado:** ve las 12 opciones y entra a todas. No es un permiso más: es con
+el que soporte revisa cuando alguien reporta algo.
+
+### 30.4 · Operaciones esconde sus cards
+1. Con el usuario restringido, abrir **Operaciones**.
+
+**Esperado:** no se ven Caja, Venta con tarjeta ni Recepción de mercadería. Sí
+se ven Caja chica, Solicitudes de pago y Devoluciones — que quedan abiertas a
+propósito, ver `permisos.ts`.
+
+### 30.5 · Recepción de mercadería, el caso a mirar de cerca
+1. Con un usuario de depósito que **no** sea ADMIN, abrir Operaciones.
+
+**Esperado:** ve *Recepción de mercadería* **solo si tiene `RECIBIR PEDIDOS`**.
+
+> ⚠️ **Al 2026-08-14 solo 2 usuarios de 404 tienen ese rol.** Es el rol
+> correcto, pero está muy poco repartido. Si el personal de depósito reporta
+> que la opción desapareció, el arreglo es **asignarles el rol**, no sacar el
+> guard.
+
+### 30.6 · Aprobaciones de RRHH
+1. Entrar con un usuario con `RRHH APROBAR` y sin `ADMIN`, a Mi trabajo.
+
+**Esperado:** ve el acceso a la bandeja de aprobaciones.
+
+> Antes se pedía `DIRECTIVO`, **que no existe en la base**: el chequeo daba
+> siempre falso y solo entraba ADMIN. Hoy `RRHH APROBAR` tampoco lo tiene
+> nadie asignado, así que hasta que se reparta el comportamiento visible es el
+> mismo — la diferencia es que ahora **se puede delegar**.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -2049,7 +2112,8 @@ Para que no se reporte como falla:
 | 27 · Ficha de producto | 5 | 2 | | |
 | 28 · Rendición de caja chica | 9 | | | |
 | 29 · Carga del conteo | 7 | | | |
-| **Total** | **224** | | | |
+| 30 · Permisos por rol | 6 | | | |
+| **Total** | **230** | | | |
 
 ### Los cinco que más importan
 

@@ -6,7 +6,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { PdfService } from 'src/app/core/ui/pdf.service';
-import { ROLES } from 'src/app/domains/personas/roles/roles.enum';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
 import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { Jornada, Recibo, ResumenRrhh, Vacacion, Vale } from 'src/app/domains/rrhh/rrhh.model';
 import { convertMsToTime, fechaLegible } from 'src/app/generic/utils/dateUtils';
@@ -477,9 +477,15 @@ export class MiTrabajoPage {
     }
   }
 
-  /** `true` si el usuario puede entrar a la bandeja de aprobaciones. */
+  /**
+   * `true` si el usuario puede entrar a la bandeja de aprobaciones.
+   *
+   * ⚠️ Antes pedía `DIRECTIVO`, que **no existe en `personas.role`**: el
+   * chequeo daba siempre falso y la bandeja quedaba solo para ADMIN, sin
+   * forma de delegarla. Ver `permisos.ts`.
+   */
   readonly puedeAprobar = computed(() =>
-    this.roleService.tieneAlgunRol(this.auth.roles(), [ROLES.ADMIN, ROLES.DIRECTIVO]),
+    this.roleService.tieneAlgunRol(this.auth.roles(), PERMISOS.aprobacionesRrhh),
   );
 
   irAAprobaciones(): void {

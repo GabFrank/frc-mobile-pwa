@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { RoleService } from 'src/app/domains/personas/roles/role.service';
-import { ROLES } from 'src/app/domains/personas/roles/roles.enum';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
 import { NotificacionesService } from 'src/app/pages/notificaciones/notificacion.service';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
@@ -108,19 +108,24 @@ export class InicioPage {
   private readonly notificaciones = inject(NotificacionesService);
 
   /**
-   * Los accesos usan el enum `ROLES`, no strings inline.
+   * Los roles salen de `PERMISOS`, la misma tabla que usan los guards de
+   * ruta. Declararlos acá a mano es lo que hace que el menú y la ruta
+   * terminen diciendo cosas distintas.
    *
-   * En `frc-mobile` convivían ambos estilos, con nombres inconsistentes
-   * entre sí (`'NUEVO-PRODUCTO'` con guion, `'VER INVENTARIO'` con espacio).
+   * En `frc-mobile` convivían strings inline con nombres inconsistentes entre
+   * sí (`'NUEVO-PRODUCTO'` con guion, `'VER INVENTARIO'` con espacio).
+   *
+   * Los accesos sin `roles` son deliberados: autoservicio y consulta. El
+   * porqué de cada uno está en `permisos.ts`.
    */
   private readonly TODOS: readonly AccesoRapido[] = [
-    { etiqueta: 'Caja', ruta: '/operaciones/caja', icono: 'dinero', roles: [ROLES.ADMIN, ROLES.VENTA_TOUCH] },
+    { etiqueta: 'Caja', ruta: '/operaciones/caja', icono: 'dinero', roles: PERMISOS.caja },
     { etiqueta: 'Operaciones', ruta: '/operaciones', icono: 'caja' },
     { etiqueta: 'Buscar producto', ruta: '/buscar', icono: 'buscar' },
     { etiqueta: 'Productos vencidos', ruta: '/producto/vencidos', icono: 'vencido' },
     { etiqueta: 'Consultar precio', ruta: '/kiosco', icono: 'etiqueta' },
-    { etiqueta: 'Inventario', ruta: '/inventario', icono: 'inventario', roles: [ROLES.ADMIN, ROLES.VER_INVENTARIO] },
-    { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: [ROLES.ADMIN, ROLES.VER_TRANSFERENCIA] },
+    { etiqueta: 'Inventario', ruta: '/inventario', icono: 'inventario', roles: PERMISOS.inventario },
+    { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: PERMISOS.transferencias },
     {
       etiqueta: 'Notificaciones',
       ruta: '/notificaciones',

@@ -17,6 +17,7 @@ Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 | [`infraestructura/`](infraestructura/) | Código transversal que usan todos los módulos: servicios, utilidades, modelos de dominio, componentes reutilizables |
 | [`modulos/`](modulos/) | Un documento por módulo funcional: reglas de negocio, rutas, páginas, servicios y operaciones GraphQL |
 | [`manuales-refactor/`](manuales-refactor/) | Histórico de refactors puntuales. No es documentación viva |
+| **[`PATRONES.md`](PATRONES.md)** | **Cómo se escribe el código de este repo**: forma de una pantalla, estado con señales, servicios, errores, pruebas. El compañero del sistema de diseño |
 | [`REGLAS_DESARROLLO.md`](REGLAS_DESARROLLO.md) | Regla crítica para modificar el backend `central` sin romper el desktop |
 | [`TODO_TECNICO.md`](TODO_TECNICO.md) | Los 59 defectos de `frc-mobile`, con cuáles ya están resueltos acá |
 | [`PLAN_TESTEO_MANUAL.md`](PLAN_TESTEO_MANUAL.md) | **169 casos de prueba manual** para validar lo implementado, con el estado de ejecución de cada bloque |
@@ -27,10 +28,11 @@ Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 
 ## Por dónde empezar
 
-1. [`arquitectura/vision-general.md`](arquitectura/vision-general.md) — qué es la app, stack real, estructura de carpetas
-2. [`arquitectura/apollo-graphql.md`](arquitectura/apollo-graphql.md) — **la convención más importante del repo**: el alias `data:` y `GenericCrudService`
-3. [`arquitectura/configuracion-servidor.md`](arquitectura/configuracion-servidor.md) — cómo la app decide contra qué servidor hablar, y por qué cambiarlo exige recargar
-4. [`REGLAS_DESARROLLO.md`](REGLAS_DESARROLLO.md) — antes de tocar el backend
+1. [`PATRONES.md`](PATRONES.md) — **la forma que ya tiene el código.** Antes de escribir una pantalla nueva
+2. [`arquitectura/vision-general.md`](arquitectura/vision-general.md) — qué es la app, stack real, estructura de carpetas
+3. [`arquitectura/capa-de-datos.md`](arquitectura/capa-de-datos.md) — **la convención más importante del repo**: el alias `data:`
+4. [`arquitectura/configuracion-servidor.md`](arquitectura/configuracion-servidor.md) — cómo la app decide contra qué servidor hablar
+5. [`REGLAS_DESARROLLO.md`](REGLAS_DESARROLLO.md) — antes de tocar el backend
 
 ## Índice de arquitectura
 

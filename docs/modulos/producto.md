@@ -105,8 +105,10 @@ Permite apuntar el kiosco a un servidor concreto. Escribe `serverIp`, `serverPor
 
 # Qué cambió en la PWA
 
-> **Estado:** la **búsqueda** está implementada. La edición, el modo kiosco y
-> el reporte de vencidos no.
+> **Estado:** implementados la **búsqueda**, la **ficha** (`/producto/:id`),
+> el **modo kiosco** (`/kiosco`) y el **reporte de vencidos**
+> (`/producto/vencidos`). Falta la **edición y el alta**, que exigen rol
+> `NUEVO-PRODUCTO`.
 
 ## Pantallas
 
@@ -190,6 +192,78 @@ El inventario completo, función por función, está en
 | **FAB «subir»** | Si las listas se vuelven largas. Con 10 por tanda no hace falta |
 | **Stock de origen y destino** en la card | Con **transferencias** |
 | **Modo inventario** — cantidad, vencimiento, estado | Con **inventario**, en su propia pantalla: es un formulario, no un selector |
-| **Detalle de producto** | Con la ola de producto |
-| **Modo kiosco** (`mostrar-precio`) | Con la ola de producto. Con un lector HID es el caso más rentable |
-| **Edición y alta**, rol `NUEVO-PRODUCTO` | Con la ola de producto |
+| ~~**Detalle de producto**~~ | ✅ `/producto/:id`. Todos los códigos y todos los tipos de precio |
+| ~~**Modo kiosco**~~ | ✅ `/kiosco`, fuera del shell |
+| **Edición y alta**, rol `NUEVO-PRODUCTO` | Sigue pendiente. Es del escritorio: cambiar un precio desde el salón, sin costos ni márgenes a la vista, es de donde salen los precios mal cargados |
+
+
+---
+
+# La ficha, el kiosco y los vencidos
+
+## Ficha — `/producto/:id`
+
+Lo que la card del buscador no puede mostrar: **todos** los códigos de cada
+presentación —los inactivos tachados, porque siguen pegados a cajas viejas— y
+**todos** los tipos de precio, no solo el principal. Es la pantalla a la que
+se va a resolver una discusión sobre cuál precio corresponde.
+
+Se llega desde el menú `⋮` del buscador. Es una acción **propia del
+buscador**, como «ver stock», y no una que declare el llamador.
+
+> ⚠️ **Una acción declarada por el llamador no se puede distinguir de otra.**
+> Todas emiten `seleccion` con el producto y nada más. Con una sola alcanzaba;
+> con dos, ya no. Por eso las genéricas viven adentro del buscador.
+
+> ⚠️ **La existencia por sucursal necesita `stockPorSucursales`**, que es una
+> consulta nueva del central. Contra una instancia vieja la sección dice «No
+> se pudo consultar». Lo que **no** puede hacer es listar las sucursales en
+> cero: eso afirmaría que no hay mercadería.
+
+## Kiosco — `/kiosco`
+
+Tablet o teléfono fijo en la góndola con un lector HID conectado. El cliente
+pasa el producto y ve el precio; nadie toca la pantalla.
+
+**Vive fuera del shell**, así que no tiene barra inferior ni botón flotante.
+`frc-mobile` lograba lo mismo listando la ruta en una condición que escondía
+el footer, que había que acordarse de actualizar cada vez que se agregaba una
+pantalla de kiosco.
+
+Tres cosas definen el modo, y las tres se prueban en el bloque 26:
+
+1. **El foco vuelve al campo pase lo que pase** — un lector HID escribe donde
+   esté el foco, así que un toque perdido lo deja mudo hasta que alguien se dé
+   cuenta. Excepción: los clicks dentro de un overlay de Material, o el
+   diálogo del escáner se quedaría sin su propio campo.
+2. **La presentación del código escaneado se resalta** — un producto con
+   unidad y caja tiene dos precios y los dos son correctos.
+3. **El precio se borra solo a los 20 segundos** — si no, el próximo cliente
+   lee un precio que no es el suyo.
+
+> **El selector de moneda no se porta, y es una decisión.** `frc-mobile`
+> multiplicaba el precio por un tipo de cambio en el cliente. Acá el dinero lo
+> calcula el backend (regla 6): cuando las sucursales de frontera lo
+> necesiten, el precio convertido tiene que venir del central.
+
+## Productos vencidos — `/producto/vencidos`
+
+Qué hay que sacar de la góndola. Cada fila dice de dónde salió la fecha —nota
+de compra, transferencia o inventario— y, cuando el conteo contradice a esa
+fuente, lo muestra: es la razón por la que alguien discute una fila.
+
+Del reporte de escritorio quedaron fuera los filtros por sector, zona y
+usuario. Son de la pantalla grande, donde se audita; acá el caso es caminar el
+pasillo con el teléfono.
+
+> ⚠️ **Abre en «Ya vencidos» porque el central ordena al revés para este
+> caso.** `ProductosVencidosService.java:62` pagina con `ORDER BY vencimiento
+> DESC` y el schema **no acepta parámetro de orden**, así que sin acotar la
+> ventana encabezan lotes que vencen en 2030. Acotarla es una mitigación del
+> cliente; el arreglo va en el central y, como lo usa el desktop, con sufijo
+> `Mobile` (regla 5).
+
+> El tono de cada fila sale de la **clasificación** que ya calcula el central
+> (`vencido` / `por-vencer` / `vigente`), no de su `vencimientoColor`, que es
+> un hex crudo. Así el umbral de «por vencer» —hoy siete días— queda del lado
+> del backend.

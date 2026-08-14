@@ -118,6 +118,7 @@ export class InicioPage {
     { etiqueta: 'Operaciones', ruta: '/operaciones', icono: 'caja' },
     { etiqueta: 'Buscar producto', ruta: '/buscar', icono: 'buscar' },
     { etiqueta: 'Productos vencidos', ruta: '/producto/vencidos', icono: 'vencido' },
+    { etiqueta: 'Consultar precio', ruta: '/kiosco', icono: 'etiqueta' },
     { etiqueta: 'Inventario', ruta: '/inventario', icono: 'inventario', roles: [ROLES.ADMIN, ROLES.VER_INVENTARIO] },
     { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: [ROLES.ADMIN, ROLES.VER_TRANSFERENCIA] },
     {

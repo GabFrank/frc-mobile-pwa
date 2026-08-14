@@ -15,6 +15,17 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/login/login.page').then((m) => m.LoginPage),
   },
 
+  /**
+   * Kiosco: **fuera del shell a propósito**. Sin barra inferior ni FAB —es
+   * una pantalla que mira un cliente, no un empleado navegando—, pero con
+   * guard: los precios no son públicos.
+   */
+  {
+    path: 'kiosco',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/producto/kiosco.page').then((m) => m.KioscoPage),
+  },
+
   {
     path: '',
     loadComponent: () => import('./shell/shell.component').then((m) => m.ShellComponent),

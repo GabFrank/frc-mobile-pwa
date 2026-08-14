@@ -11,7 +11,10 @@ export interface Persona  {
     email: string;
     sexo: string;
     direccion: string;
-    ciudad: Ciudad;
+    // Opcional porque casi ninguna query la pide: declararla obligatoria hace
+    // que el compilador de plantillas marque como innecesario el `?.` que sí
+    // hace falta en tiempo de ejecución.
+    ciudad?: Ciudad;
     telefono: string;
     socialMedia: string;
     imagenes: string;

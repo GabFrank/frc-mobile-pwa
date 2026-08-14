@@ -46,7 +46,8 @@ import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/sele
           <frc-dato etiqueta="Teléfono" [valor]="p.telefono || '—'" />
           <frc-dato etiqueta="Email" [valor]="p.email || auth.usuario()?.email || '—'" />
           <frc-dato etiqueta="Nacimiento" [valor]="nacimiento()" />
-          <frc-dato etiqueta="Ciudad" [valor]="p.ciudad?.nombre || '—'" />
+          <!-- Ciudad lleva descripcion, no nombre, a diferencia de Sucursal. -->
+          <frc-dato etiqueta="Ciudad" [valor]="p.ciudad?.descripcion || '—'" />
         </frc-seccion>
       }
 

@@ -2556,6 +2556,70 @@ Servidor*.
 
 ---
 
+## Bloque 38 — Notificaciones push *(nuevo — NO EJECUTADO)*
+
+> ⚠️ **Ninguno de estos casos se puede correr todavía.** Faltan tres valores
+> que salen de la consola de Firebase: la `apiKey` y el `appId` de una app Web
+> —el proyecto `bodega-franco-frc` tiene registradas las dos Android y ninguna
+> web— y la clave pública VAPID del certificado Web Push. El detalle está en
+> [`docs/arquitectura/web-push.md`](arquitectura/web-push.md).
+>
+> **El central no necesita cambios**: `FCMService` ya arma el mensaje con
+> `WebpushConfig`, `actualizarTokenFcm` existe y `TipoDispositivo` ya tiene
+> `WEB` y `WEB_MOBILE`.
+
+### 38.1 · Sin configurar, no se ofrece
+1. Mi cuenta → *Avisos con la app cerrada*, con el entorno sin completar.
+
+**Esperado:** dice «todavía no configurados en el servidor» y **no** hay botón.
+
+> Es el estado de hoy, y es el único caso del bloque que sí se puede verificar.
+> Importa que no haya botón: pedir el permiso del navegador para después no
+> poder registrar nada lo quema para siempre en ese dispositivo.
+
+### 38.2 · Activar
+1. Con las claves cargadas, tocar *Activar*.
+
+**Esperado:** el navegador pide permiso; al conceder, la fila pasa a
+«Activados en este dispositivo».
+
+### 38.3 · El token llega al central
+1. Después de activar, mirar `inicio_sesion` para el `id_dispositivo` que está
+   en `localStorage` bajo `frc.idDispositivo`.
+
+**Esperado:** la fila tiene el token FCM.
+
+> ⚠️ Verificar **esto**, no solo que la mutación devuelva `true`. Si alguna vez
+> se guardara ahí el JSON de un `PushSubscription` en vez de un token de FCM,
+> todo se vería en verde y no llegaría ni una notificación.
+
+### 38.4 · Llega con la app cerrada
+1. Cerrar la app por completo y disparar una notificación desde el central.
+
+**Esperado:** aparece en la bandeja del sistema. Tocarla abre la app.
+
+### 38.5 · Permiso denegado
+1. Denegar el permiso y volver a Mi cuenta.
+
+**Esperado:** dice que están bloqueados por el navegador y que se habilitan
+desde sus ajustes de sitio. **No** vuelve a mostrar el botón: el navegador ya
+no va a preguntar.
+
+### 38.6 · iPhone sin instalar
+1. Abrir la app en Safari de iPhone, sin instalarla.
+
+**Esperado:** dice que hace falta instalar la app primero. No hay botón.
+
+> No es una limitación de la app: Safari expone `PushManager` recién cuando la
+> PWA corre desde la pantalla de inicio (iOS 16.4+).
+
+### 38.7 · iPhone instalado
+1. Instalar la PWA desde Compartir → Añadir a inicio y repetir 38.2 a 38.4.
+
+**Esperado:** funciona igual que en Android.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -2597,7 +2661,8 @@ Servidor*.
 | 35 · Revisión de inventario | 6 | 3 | | |
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
-| **Total** | **275** | | | |
+| 38 · Notificaciones push *(bloqueado)* | 7 | 1 | | |
+| **Total** | **282** | | | |
 
 ### Los cinco que más importan
 

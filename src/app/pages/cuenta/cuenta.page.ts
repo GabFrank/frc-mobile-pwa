@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 
 import { ActualizacionService } from 'src/app/core/actualizacion/actualizacion.service';
 import { InstalacionService } from 'src/app/core/actualizacion/instalacion.service';
+import { PushService } from 'src/app/core/notificaciones/push.service';
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { ServerConfigService } from 'src/app/core/config/server-config.service';
 import { Tema, TemaService } from 'src/app/core/tema/tema.service';
@@ -63,6 +64,36 @@ import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/sele
         </frc-dato>
         <frc-dato etiqueta="Notificaciones">
           <button matButton (click)="irAPreferencias()">Configurar</button>
+        </frc-dato>
+        <!--
+          Push es distinto de las preferencias de arriba: aquellas eligen QUÉ
+          se notifica, esto habilita que llegue con la app cerrada. Se piden
+          por separado porque el permiso del navegador se quema si se pide sin
+          que la persona lo haya buscado.
+        -->
+        <frc-dato etiqueta="Avisos con la app cerrada">
+          @switch (push.estado()) {
+            @case ('activo') {
+              <span class="estado-ok">Activados en este dispositivo</span>
+            }
+            @case ('desactivado') {
+              <button matButton [disabled]="push.trabajando()" (click)="activarPush()">
+                {{ push.trabajando() ? 'Activando…' : 'Activar' }}
+              </button>
+            }
+            @case ('bloqueado') {
+              <span class="estado-nota">Bloqueados por el navegador. Se habilitan desde sus ajustes de sitio.</span>
+            }
+            @case ('requiereInstalar') {
+              <span class="estado-nota">En iPhone hace falta instalar la app primero.</span>
+            }
+            @case ('sinConfigurar') {
+              <span class="estado-nota">Todavía no configurados en el servidor.</span>
+            }
+            @default {
+              <span class="estado-nota">Este navegador no los soporta.</span>
+            }
+          }
         </frc-dato>
         <!--
           El rostro se registra una vez y sirve para marcar entrada. Vive en
@@ -127,6 +158,8 @@ import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/sele
   `,
   styles: `
     .salir { align-self: stretch; margin-top: var(--sp-4); }
+    .estado-ok { font-size: var(--fs-label); color: var(--ok); }
+    .estado-nota { font-size: var(--fs-caption); color: var(--text-mute); text-align: right; }
   `,
 })
 export class CuentaPage {
@@ -135,6 +168,7 @@ export class CuentaPage {
   readonly tema = inject(TemaService);
   readonly actualizacion = inject(ActualizacionService);
   readonly instalacion = inject(InstalacionService);
+  readonly push = inject(PushService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
   private readonly router = inject(Router);
@@ -172,6 +206,21 @@ export class CuentaPage {
 
   irARostro(): void {
     void this.router.navigate(['/cuenta/rostro']);
+  }
+
+  /**
+   * El permiso del navegador se pide **acá**, con un toque de por medio.
+   *
+   * Pedirlo al arrancar lo bloquea de una en Chrome y en Safari, y no vuelve a
+   * preguntar nunca en ese dispositivo: el permiso queda quemado.
+   */
+  async activarPush(): Promise<void> {
+    const ok = await this.push.activar();
+    if (ok) {
+      this.notificacion.ok('Vas a recibir avisos aunque la app esté cerrada.');
+    } else if (this.push.error()) {
+      this.notificacion.warn(this.push.error()!);
+    }
   }
 
   /**

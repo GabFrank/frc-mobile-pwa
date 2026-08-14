@@ -30,6 +30,7 @@
     "@zxing/browser": "^0.2.1",
     "@zxing/library": "^0.23.0",
     "apollo-angular": "^14.1.0",
+    "firebase": "^12.17.1",
     "graphql": "^16",
     "qrcode": "^1.5.4",
     "rxjs": "~7.8.0",

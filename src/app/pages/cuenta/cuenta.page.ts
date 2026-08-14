@@ -1,20 +1,29 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { Router } from '@angular/router';
 
 import { ActualizacionService } from 'src/app/core/actualizacion/actualizacion.service';
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { ServerConfigService } from 'src/app/core/config/server-config.service';
-import { TemaService } from 'src/app/core/tema/tema.service';
+import { Tema, TemaService } from 'src/app/core/tema/tema.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
+import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
+import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
 
 @Component({
   selector: 'frc-cuenta',
   standalone: true,
-  imports: [PaginaComponent, SeccionComponent, DatoComponent, MatButtonModule],
+  imports: [
+    PaginaComponent,
+    SeccionComponent,
+    DatoComponent,
+    SelectorComponent,
+    MatButtonModule,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Mi cuenta">
@@ -24,12 +33,46 @@ import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
         <frc-dato etiqueta="Sucursal" [valor]="auth.sucursal()?.nombre ?? '—'" />
       </frc-seccion>
 
-      <frc-seccion titulo="Aplicación" [panel]="true">
-        <frc-dato etiqueta="Servidor" [valor]="servidor.baseUrl()" />
+      <!--
+        Los datos de la persona son de solo lectura, y es una decisión: en
+        frc-mobile esta pantalla mostraba campos editables cuyo botón
+        «Actualizar» solo cambiaba la foto de perfil. Editarlos de verdad es
+        del legajo de RRHH, no del autoservicio.
+      -->
+      @if (persona(); as p) {
+        <frc-seccion titulo="Mis datos" [panel]="true">
+          <frc-dato etiqueta="Documento" [valor]="p.documento || '—'" />
+          <frc-dato etiqueta="Apodo" [valor]="p.apodo || '—'" />
+          <frc-dato etiqueta="Teléfono" [valor]="p.telefono || '—'" />
+          <frc-dato etiqueta="Email" [valor]="p.email || auth.usuario()?.email || '—'" />
+          <frc-dato etiqueta="Nacimiento" [valor]="nacimiento()" />
+          <frc-dato etiqueta="Ciudad" [valor]="p.ciudad?.nombre || '—'" />
+        </frc-seccion>
+      }
+
+      <frc-seccion titulo="Preferencias" [panel]="true">
         <frc-dato etiqueta="Tema">
-          <button matButton (click)="tema.alternar()">
-            {{ tema.esOscuroEfectivo() ? 'Oscuro' : 'Claro' }}
-          </button>
+          <frc-selector
+            etiqueta="Tema"
+            [opciones]="temas"
+            [valor]="tema.tema()"
+            (valorChange)="cambiarTema($event)"
+          />
+        </frc-dato>
+        <frc-dato etiqueta="Notificaciones">
+          <button matButton (click)="irAPreferencias()">Configurar</button>
+        </frc-dato>
+      </frc-seccion>
+
+      <frc-seccion titulo="Aplicación" [panel]="true">
+        <!--
+          El cambio de servidor vivía solo en el login. Con la sesión abierta
+          no había forma de llegar: para apuntar el teléfono a otra instancia
+          había que cerrar sesión primero, y quien no lo sabía creía que la
+          app estaba clavada en un servidor.
+        -->
+        <frc-dato etiqueta="Servidor">
+          <button matButton (click)="cambiarServidor()">{{ servidor.baseUrl() }}</button>
         </frc-dato>
         <!--
           La versión es el número de package.json, que va a manejar
@@ -69,9 +112,67 @@ export class CuentaPage {
   readonly actualizacion = inject(ActualizacionService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
+  private readonly router = inject(Router);
 
   readonly buscando = signal(false);
   readonly aplicando = signal(false);
+
+  /** Los tres estados reales de `TemaService`. La UI solo ofrecía dos. */
+  readonly temas: OpcionSeleccion[] = [
+    { valor: 'sistema', texto: 'Del sistema' },
+    { valor: 'claro', texto: 'Claro' },
+    { valor: 'oscuro', texto: 'Oscuro' },
+  ];
+
+  readonly persona = computed(() => this.auth.usuario()?.persona ?? null);
+
+  readonly nacimiento = computed(() => fechaLegible(this.persona()?.nacimiento) ?? '—');
+
+  cambiarTema(valor: unknown): void {
+    this.tema.establecer(valor as Tema);
+  }
+
+  irAPreferencias(): void {
+    void this.router.navigate(['/notificaciones/preferencias']);
+  }
+
+  /**
+   * Apunta la app a otra instancia del central.
+   *
+   * ⚠️ **Cierra la sesión, y hay que decirlo antes.** El token de la
+   * instancia vieja no vale en la nueva, y `ServerConfigService` lo borra
+   * junto con el usuario. Sin el aviso, quien cambia de servidor ve la
+   * pantalla de login y cree que la app lo expulsó.
+   */
+  async cambiarServidor(): Promise<void> {
+    const actual = this.servidor.baseUrl();
+    const nuevo = await this.dialogo.pedirTexto({
+      titulo: 'Servidor',
+      etiqueta: 'URL del servidor',
+      valor: actual,
+      ayuda: 'Ejemplo: http://172.25.1.200:8081',
+      tipo: 'url',
+    });
+    if (!nuevo || nuevo === actual) {
+      return;
+    }
+
+    const ok = await this.dialogo.confirmar({
+      titulo: 'Cambiar de servidor',
+      mensaje:
+        'Vas a salir de la sesión: la credencial de este servidor no sirve en el otro. ' +
+        'Después vas a tener que volver a entrar.',
+      confirmar: 'Cambiar y salir',
+    });
+    if (!ok) {
+      return;
+    }
+
+    this.servidor.cambiarServidor(nuevo);
+    // El servicio ya borró las claves de sesión; queda vaciar el estado en
+    // memoria y sacar al usuario de las pantallas protegidas.
+    await this.auth.logout();
+  }
 
   /** `v1.2.3-alpha.4`, o la fecha con aclaración mientras no haya versionado. */
   version(): string {

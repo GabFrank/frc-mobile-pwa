@@ -6,6 +6,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ShellComponent } from '../shell/shell.component';
+import { APOLLO_DE_PRUEBA } from './apollo-de-prueba';
 
 @Component({ standalone: true, template: '<p>contenido ruteado</p>' })
 class PaginaFalsa {}
@@ -26,6 +27,7 @@ class PaginaFalsa {}
 describe('Layout del shell', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
+      imports: APOLLO_DE_PRUEBA,
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),

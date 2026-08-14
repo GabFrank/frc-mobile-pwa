@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, inject, input, Output } from '@angular/core';
 import { Location } from '@angular/common';
+import { FabEscaneoComponent } from '../escaneo/fab-escaneo.component';
 import { IconoComponent } from '../icono/icono.component';
 
 /**
@@ -17,7 +18,7 @@ import { IconoComponent } from '../icono/icono.component';
 @Component({
   selector: 'frc-pagina',
   standalone: true,
-  imports: [IconoComponent],
+  imports: [IconoComponent, FabEscaneoComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="barra">
@@ -30,9 +31,21 @@ import { IconoComponent } from '../icono/icono.component';
       <ng-content select="[accionBarra]" />
     </header>
 
-    <main class="contenido">
-      <ng-content />
-    </main>
+    <!--
+      El envoltorio existe para el FAB. Es el que delimita "de la barra
+      superior hasta arriba de las acciones": puesto directamente sobre el
+      host, el FAB quedaría anclado al borde inferior de la pantalla y taparía
+      el botón de guardar de las pantallas que tienen barra de acciones.
+    -->
+    <div class="cuerpo">
+      <main class="contenido" [class.con-fab]="conEscaner()">
+        <ng-content />
+      </main>
+
+      @if (conEscaner()) {
+        <frc-fab-escaneo />
+      }
+    </div>
 
     <footer class="acciones">
       <ng-content select="[acciones]" />
@@ -73,6 +86,14 @@ import { IconoComponent } from '../icono/icono.component';
       line-height: 0;
     }
     .icono-btn:hover { background: rgb(255 255 255 / 0.16); }
+    .cuerpo {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
     .contenido {
       flex: 1;
       min-height: 0;
@@ -82,6 +103,12 @@ import { IconoComponent } from '../icono/icono.component';
       flex-direction: column;
       gap: var(--sp-3);
     }
+    /*
+      Que el contenido no termine debajo del FAB. Sin esto, la última card de
+      una lista larga queda con la esquina tapada justo donde suele estar su
+      botón.
+    */
+    .contenido.con-fab { padding-bottom: calc(var(--sp-12) + var(--sp-8)); }
     .acciones:empty { display: none; }
     /*
       Grid y no flex: el contenido de esta barra lo proyecta la PANTALLA, no
@@ -120,6 +147,15 @@ export class PaginaComponent {
 
   readonly titulo = input.required<string>();
   readonly conVolver = input(false);
+  /**
+   * Botón flotante de escaneo.
+   *
+   * Encendido por defecto: escanear se hace desde cualquier pantalla y
+   * pedirlo pantalla por pantalla garantiza que falte justo donde hacía
+   * falta. Se apaga donde estorbaría —una pantalla que ya vive dentro de la
+   * cámara, o el modo kiosco, que no tiene navegación—.
+   */
+  readonly conEscaner = input(true);
 
   /**
    * Si alguien lo escucha, **reemplaza** al comportamiento por defecto.

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
@@ -106,11 +106,23 @@ export class VentaTarjetaListaPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
+  /**
+   * QR leído por el escáner universal del FAB, si se llegó por ahí.
+   *
+   * Viaja por la URL y no por estado de navegación porque tiene que
+   * sobrevivir a una recarga: el operador escanea, la app se actualiza sola
+   * y el cupón no se puede perder en el camino.
+   */
+  readonly qr = input<string>();
+
   readonly caja = signal<PdvCaja | null>(null);
   readonly cupones = signal<VentaTarjeta[]>([]);
   readonly pendientes = signal(0);
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
+
+  /** Un QR entrante se procesa una sola vez, no en cada recarga de la lista. */
+  private qrConsumido = false;
 
   readonly sinRegistrar = computed(
     () => this.cupones().filter((v) => v.estado === VentaTarjetaEstado.PENDIENTE).length,
@@ -134,6 +146,11 @@ export class VentaTarjetaListaPage {
       next: (cajas) => {
         const abierta = (cajas ?? [])[0] ?? null;
         this.caja.set(abierta);
+        // Recién acá se puede resolver un QR entrante: sin saber qué caja
+        // está abierta, `interpretarQrVenta` no puede decidir nada. Va antes
+        // del corte por «sin caja» a propósito — es justamente el caso en que
+        // hay que explicarle al operador por qué su cupón no entra.
+        this.consumirQrEntrante();
         if (!abierta?.id) {
           this.cargando.set(false);
           return;
@@ -195,7 +212,29 @@ export class VentaTarjetaListaPage {
     if (!texto) {
       return;
     }
+    this.procesarQr(texto);
+  }
 
+  /** Procesa el QR que trajo la URL, una sola vez. */
+  private consumirQrEntrante(): void {
+    const texto = this.qr();
+    if (!texto || this.qrConsumido) {
+      return;
+    }
+    this.qrConsumido = true;
+    this.procesarQr(texto);
+  }
+
+  /**
+   * Valida un QR ya leído y navega al registro.
+   *
+   * Está separado de `escanear()` porque el escáner universal del FAB lee el
+   * cupón desde cualquier pantalla y llega acá con el texto en la URL: la
+   * validación contra la caja abierta tiene que ser la misma por los dos
+   * caminos. Si se duplicara, el camino del FAB podría saltearse el control
+   * de caja, que es la protección central del módulo.
+   */
+  private procesarQr(texto: string): void {
     const resultado = interpretarQrVenta(texto, this.caja()?.id);
     if (!resultado.ok || !resultado.datos) {
       this.notificacion.warn(resultado.mensaje ?? 'QR no válido.');

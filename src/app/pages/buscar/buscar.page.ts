@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { esSucursalOperable } from 'src/app/domains/empresarial/sucursal/sucursal.util';
@@ -26,12 +26,25 @@ import { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/bus
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Buscar">
-      <frc-buscador-producto [opciones]="opciones()" (seleccion)="alElegir($event)" />
+      <frc-buscador-producto
+        [opciones]="opciones()"
+        [codigoInicial]="codigo()"
+        (seleccion)="alElegir($event)"
+      />
     </frc-pagina>
   `,
 })
 export class BuscarPage {
   private readonly auth = inject(AuthService);
+
+  /**
+   * Código que ya leyó el escáner universal del FAB.
+   *
+   * Llega por la URL, así que la pantalla se puede compartir o recargar y el
+   * producto se vuelve a resolver solo. Sin esto, el escaneo desde el FAB
+   * tendría que abrir la cámara una segunda vez acá adentro.
+   */
+  readonly codigo = input<string>();
 
   /**
    * El stock que se muestra es el de **la sucursal de la sesión**.

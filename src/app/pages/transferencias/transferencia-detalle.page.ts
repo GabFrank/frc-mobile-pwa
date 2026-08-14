@@ -19,6 +19,11 @@ import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.com
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
+import { codificarQr } from 'src/app/generic/utils/qrUtils';
+import { DatosQr, QrDialogComponent } from 'src/app/shared/qr/qr-dialog.component';
+import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { TransferenciaService } from './transferencia.service';
@@ -48,6 +53,7 @@ interface Paso {
   selector: 'frc-transferencia-detalle',
   standalone: true,
   imports: [
+    IconoComponent,
     PaginaComponent,
     SeccionComponent,
     DatoComponent,
@@ -59,6 +65,9 @@ interface Paso {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Transferencia" [conVolver]="true">
+      <button accionBarra type="button" class="icono-compartir" aria-label="Compartir por QR" (click)="compartir()">
+        <frc-icono nombre="codigo" [tamano]="22" />
+      </button>
       @if (cargando()) {
         <frc-skeleton [cantidad]="4" />
       } @else if (error()) {
@@ -163,6 +172,7 @@ interface Paso {
   `,
 })
 export class TransferenciaDetallePage {
+  private readonly dialogo = inject(DialogoService);
   private readonly servicio = inject(TransferenciaService);
 
   /** Input opcional: el router lo asigna después de construir (NG0950). */
@@ -276,5 +286,26 @@ export class TransferenciaDetallePage {
   legible(valor: string): string {
     const limpio = String(valor ?? '').replace(/_/g, ' ').toLowerCase();
     return limpio ? limpio.charAt(0).toUpperCase() + limpio.slice(1) : '—';
+  }
+
+  /**
+   * Muestra un QR para que otro lo abra escaneándolo.
+   *
+   * ⚠️ **El id no va en el mismo campo para todos los tipos.** Acá se
+   * escriben los que `rutearEscaneo` lee para `TRANSFERENCIA`; la tabla
+   * completa está en `docs/arquitectura/qr-del-sistema.md`. Poner el id en
+   * el campo equivocado da un QR que se escanea sin error y abre otra cosa.
+   */
+  async compartir(): Promise<void> {
+    const id = this.transferencia()?.id;
+    if (id == null) {
+      return;
+    }
+    const sucursalId = (this.transferencia() as { sucursal?: { id?: number } })?.sucursal?.id;
+    await this.dialogo.abrir<QrDialogComponent, DatosQr>(QrDialogComponent, {
+      titulo: 'Compartir transferencia',
+      subtitulo: 'Transferencia #' + id,
+      codigo: codificarQr({ tipoEntidad: TipoEntidad.TRANSFERENCIA, idOrigen: String(id), idCentral: String(id) }),
+    });
   }
 }

@@ -2204,6 +2204,46 @@ worker.
 
 ---
 
+---
+
+## Bloque 32 — Compartir por QR *(nuevo)*
+
+> **Verificado el 2026-08-14** en recepción: el QR se dibuja y el escáner de
+> la app lo lee y abre el registro correcto. Falta probarlo **entre dos
+> teléfonos**, que es el caso real.
+
+### 32.1 · Compartir una recepción
+1. Abrir una recepción → botón de código en la barra superior.
+
+**Esperado:** un QR sobre **fondo claro**, con «Recepción #N» debajo.
+
+> El fondo es claro en los dos temas y tiene token propio: un QR sobre fondo
+> oscuro no lo lee ningún lector.
+
+### 32.2 · El otro lo escanea y llega al mismo lugar
+1. Con **otro teléfono**, tocar el botón flotante y escanear ese QR.
+
+**Esperado:** abre la misma recepción. **Es el caso que importa**: la
+generación y la lectura tienen que coincidir campo por campo.
+
+### 32.3 · Lo mismo con inventario y transferencia
+1. Repetir desde el detalle de un inventario y de una transferencia.
+
+**Esperado:** cada uno abre el suyo.
+
+> ⚠️ **El id no va en el mismo campo para los tres.** Inventario lo pone en
+> `idCentral` y no escribe `idOrigen`; transferencia usa los dos. Si un QR
+> abre el registro equivocado —o el número 0— es esto. Ver
+> `docs/arquitectura/qr-del-sistema.md`.
+
+### 32.4 · Copiar el código
+1. Tocar *Copiar código* y pegarlo en la carga manual del escáner del otro.
+
+**Esperado:** llega al mismo lugar que escaneando. Sirve cuando no se puede
+apuntar la cámara — dos personas por teléfono, o una pantalla rota.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -2214,6 +2254,7 @@ Para que no se reporte como falla:
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: zonas y sectores | No portado. La carga del conteo ya está (bloque 29); agregar un producto que la toma no incluye necesita `saveInventarioProducto`, que tampoco |
+| Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
 | Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
 | Recibir push (FCM) | No portado — la bandeja sí |
@@ -2260,7 +2301,8 @@ Para que no se reporte como falla:
 | 29 · Carga del conteo | 7 | | | |
 | 30 · Permisos por rol | 6 | | | |
 | 31 · Rostro: registro y marcación | 11 | | | |
-| **Total** | **241** | | | |
+| 32 · Compartir por QR | 4 | 2 | | |
+| **Total** | **245** | | | |
 
 ### Los cinco que más importan
 

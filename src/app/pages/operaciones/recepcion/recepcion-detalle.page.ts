@@ -34,6 +34,10 @@ import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.com
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
+import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
+import { codificarQr } from 'src/app/generic/utils/qrUtils';
+import { DatosQr, QrDialogComponent } from 'src/app/shared/qr/qr-dialog.component';
+import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import {
@@ -76,6 +80,7 @@ const FILTROS: OpcionFiltro[] = [
   selector: 'frc-recepcion-detalle',
   standalone: true,
   imports: [
+    IconoComponent,
     PaginaComponent,
     SeccionComponent,
     DatoComponent,
@@ -89,6 +94,9 @@ const FILTROS: OpcionFiltro[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Recepción" [conVolver]="true">
+      <button accionBarra type="button" class="icono-compartir" aria-label="Compartir por QR" (click)="compartir()">
+        <frc-icono nombre="codigo" [tamano]="22" />
+      </button>
       <!--
         ⚠️ El atributo de proyección va en un elemento **hijo directo**, fuera
         de todo bloque de control: lo que está adentro de un @if no se proyecta
@@ -604,5 +612,26 @@ export class RecepcionDetallePage {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Muestra un QR para que otro lo abra escaneándolo.
+   *
+   * ⚠️ **El id no va en el mismo campo para todos los tipos.** Acá se
+   * escriben los que `rutearEscaneo` lee para `RECEPCION_MERCADERIA`; la tabla
+   * completa está en `docs/arquitectura/qr-del-sistema.md`. Poner el id en
+   * el campo equivocado da un QR que se escanea sin error y abre otra cosa.
+   */
+  async compartir(): Promise<void> {
+    const id = this.recepcion()?.id;
+    if (id == null) {
+      return;
+    }
+    const sucursalId = (this.recepcion() as { sucursal?: { id?: number } })?.sucursal?.id;
+    await this.dialogo.abrir<QrDialogComponent, DatosQr>(QrDialogComponent, {
+      titulo: 'Compartir recepción',
+      subtitulo: 'Recepción #' + id,
+      codigo: codificarQr({ tipoEntidad: TipoEntidad.RECEPCION_MERCADERIA, idCentral: String(id), idOrigen: String(id), sucursalId: String(sucursalId ?? '') }),
+    });
   }
 }

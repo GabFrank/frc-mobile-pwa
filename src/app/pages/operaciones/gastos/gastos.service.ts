@@ -7,6 +7,10 @@ import type { PageInfo } from 'src/app/domains/page-info.model';
 import { ConfirmarRetiroGQL } from 'src/app/graphql/operaciones/gastos/confirmarRetiro';
 import { FilterPreGastosGQL } from 'src/app/graphql/operaciones/gastos/filterPreGastos';
 import { PreGastoPorIdGQL } from 'src/app/graphql/operaciones/gastos/preGastoPorId';
+import {
+  GastoRendicion,
+  SaveGastoRendicionGQL,
+} from 'src/app/graphql/operaciones/gastos/saveGastoRendicion';
 
 export interface FiltrosPreGasto {
   cajaId?: number;
@@ -32,6 +36,7 @@ export class GastosService {
   private readonly porIdGQL = inject(PreGastoPorIdGQL);
   private readonly filtrarGQL = inject(FilterPreGastosGQL);
   private readonly retiroGQL = inject(ConfirmarRetiroGQL);
+  private readonly rendicionGQL = inject(SaveGastoRendicionGQL);
 
   /**
    * ⚠️ **Se resuelve por id y sucursal.** Un `PreGasto` sin `sucId` no se
@@ -63,5 +68,22 @@ export class GastosService {
    */
   confirmarRetiro(input: ConfirmarRetiroInput): Observable<PreGasto> {
     return this.datos.mutar<PreGasto>(this.retiroGQL, { input });
+  }
+
+  /**
+   * Registra la rendición del gasto.
+   *
+   * ⚠️ **Las fotos viajan como data URI dentro de la mutation.** No hay
+   * endpoint de subida: `frc-mobile` mandaba `image.dataUrl` en el campo
+   * llamado `...Urls` y el central lo guarda tal cual. Por eso la pantalla
+   * reduce la imagen antes de codificarla — una foto de teléfono sin tocar
+   * son varios megabytes de base64 en un solo request.
+   */
+  rendir(input: Record<string, unknown>): Observable<GastoRendicion> {
+    return this.datos.mutar<GastoRendicion>(
+      this.rendicionGQL,
+      { input },
+      { mensajeExito: 'Rendición registrada' },
+    );
   }
 }

@@ -96,3 +96,22 @@ export const confirmarRetiroMutation = gql`
     }
   }
 `;
+
+/**
+ * Rendición del gasto.
+ *
+ * ⚠️ **`montoTotal` es un solo `Float` y no lleva moneda.** Es la razón por
+ * la que la pantalla pide un importe y no una lista: `frc-mobile` ofrecía
+ * varias filas con su moneda cada una, pero al guardar mandaba **solo la de
+ * guaraníes** —y si no había ninguna, la suma cruda de monedas distintas—.
+ * Lo que el operador cargaba en dólares se perdía sin aviso.
+ */
+export const saveGastoRendicionMutation = gql`
+  mutation saveGastoRendicion($input: GastoRendicionInput!) {
+    data: saveGastoRendicion(input: $input) {
+      id
+      montoTotal
+      creadoEn
+    }
+  }
+`;

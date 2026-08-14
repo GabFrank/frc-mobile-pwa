@@ -7,6 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
@@ -59,6 +60,10 @@ import { GastosService } from './gastos.service';
           <button matButton="filled" [disabled]="operando()" (click)="confirmarRetiro()">
             {{ operando() ? 'Confirmando…' : 'Confirmar retiro' }}
           </button>
+        </div>
+      } @else if (puedeRendir()) {
+        <div acciones>
+          <button matButton="filled" (click)="rendir()">Rendir gasto</button>
         </div>
       }
 
@@ -131,6 +136,7 @@ export class GastosDetallePage {
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
+  private readonly router = inject(Router);
 
   // Inputs opcionales: el router los asigna después de construir (NG0950).
   readonly id = input<string>();
@@ -158,6 +164,22 @@ export class GastosDetallePage {
   readonly puedeRetirar = computed(() => {
     const g = this.gasto();
     return g != null && !g.retiroConfirmadoEn && !!(this.token() || g.qrToken);
+  });
+
+  /**
+   * Retirado y todavía sin rendir.
+   *
+   * ⚠️ Se mira `estadoRendicion`, **no** `estado`: son dos máquinas
+   * separadas y una solicitud puede estar retirada con la rendición
+   * pendiente. Chequear solo `estado` daba una lectura incompleta.
+   */
+  readonly puedeRendir = computed(() => {
+    const g = this.gasto();
+    if (g == null || !g.retiroConfirmadoEn) {
+      return false;
+    }
+    const rendicion = String(g.estadoRendicion ?? '').toUpperCase();
+    return rendicion !== 'RENDIDO' && rendicion !== 'APROBADO';
   });
 
   readonly tono = computed<'ok' | 'warn' | 'danger' | 'info' | 'neutral'>(() => {
@@ -212,6 +234,19 @@ export class GastosDetallePage {
 
   fecha(valor: string | undefined): string {
     return fechaLegible(valor) ?? '—';
+  }
+
+  rendir(): void {
+    const g = this.gasto();
+    if (g?.id == null) {
+      return;
+    }
+    void this.router.navigate([
+      '/operaciones/gastos',
+      g.id,
+      g.sucursalId ?? this.sucursalId(),
+      'rendir',
+    ]);
   }
 
   async confirmarRetiro(): Promise<void> {

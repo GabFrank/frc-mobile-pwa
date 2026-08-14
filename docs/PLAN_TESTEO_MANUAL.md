@@ -1999,10 +1999,9 @@ alguna falla, lo dice y recarga igual para que se vea lo que sí entró.
 
 ## Bloque 30 — Permisos por rol *(nuevo)*
 
-> **Ejecutado el 2026-08-14 contra el central local**, con un usuario
-> `test.roles` creado para esto y cinco pasadas sumando roles de a uno.
-> **30.1, 30.2, 30.4 y 30.5: ✅.** Queda 30.3 (ADMIN) y 30.6 (aprobaciones
-> RRHH), que necesitan asignar `RRHH APROBAR`.
+> **Ejecutado completo el 2026-08-14 contra el central local**, con un
+> usuario `test.roles` creado para esto y siete pasadas sumando y sacando
+> roles. **Los 6 casos: ✅.**
 >
 > | Pasada | Roles | Resultado |
 > |---|---|---|
@@ -2011,6 +2010,8 @@ alguna falla, lo dice y recarga igual para que se vea lo que sí entró.
 > | 3 | `+ VER INVENTARIO` | Aparece Inventario; su ruta entra |
 > | 4 | `+ VER TRANSFERENCIA` | Aparece Transferencias; su ruta entra |
 > | 5 | `+ RECIBIR PEDIDOS` | Aparece Recepción; su ruta entra |
+> | 6 | `+ RRHH APROBAR`, sin ADMIN | Aparece Aprobaciones en Mi trabajo — **con el código viejo, que pedía `DIRECTIVO`, no habría aparecido nunca** |
+> | 7 | **solo** `ADMIN` | 12 accesos, 6 cards y las 5 rutas entran |
 >
 > En cada pasada, lo que **no** correspondía siguió rebotando a Inicio. Los
 > accesos de autoservicio y consulta —Buscar, Vencidos, Consultar precio,
@@ -2068,6 +2069,13 @@ propósito, ver `permisos.ts`.
 > correcto, pero está muy poco repartido. Si el personal de depósito reporta
 > que la opción desapareció, el arreglo es **asignarles el rol**, no sacar el
 > guard.
+
+> 🐛 **La pasada 6 encontró un hueco y se arregló acá mismo.** Al sacar
+> `RRHH APROBAR`, el botón de Aprobaciones desaparecía pero
+> `/mi-trabajo/aprobaciones` **seguía entrando**: el área estaba declarada en
+> `PERMISOS` y la ruta no tenía su `rolGuard`. Es exactamente el defecto que
+> este bloque busca. Hoy las 6 áreas de `PERMISOS` tienen guard; **si se
+> agrega una séptima, hay que poner las dos mitades**.
 
 ### 30.6 · Aprobaciones de RRHH
 1. Entrar con un usuario con `RRHH APROBAR` y sin `ADMIN`, a Mi trabajo.

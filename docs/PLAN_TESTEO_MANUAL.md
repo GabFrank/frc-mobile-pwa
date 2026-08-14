@@ -2089,6 +2089,70 @@ propósito, ver `permisos.ts`.
 
 ---
 
+---
+
+## Bloque 31 — Registro del rostro *(nuevo)*
+
+> **Parcialmente ejecutado el 2026-08-14** contra el central local: la cámara
+> abre, los modelos cargan y **una captura real pasó** los umbrales de calidad
+> y de anti-spoofing. Falta completar las tres y guardar contra el central.
+
+### 31.1 · Abre y prepara
+1. Mi cuenta → **Mi rostro** → *Registrar*.
+
+**Esperado:** pide permiso de cámara, se ve el video **espejado**, y mientras
+carga dice que la primera vez descarga los modelos. Son ~10 MB: en una
+conexión lenta tarda, y por eso lo avisa.
+
+### 31.2 · Las cinco capturas
+1. Tocar *Capturar* cinco veces, variando el ángulo según la sugerencia.
+
+**Esperado:** cada captura enciende un punto y el contador avanza («3 de 5»).
+El ángulo lo elige el usuario: la sugerencia orienta, no obliga.
+
+> `frc-mobile` fuerza tres pasos en orden fijo; `frc-gourmet` deja capturar
+> libremente hasta cinco. Se tomó el enfoque de gourmet con cinco
+> obligatorias: más muestras hacen una galería mejor y es más rápido de
+> completar que obedecer pasos.
+
+### 31.3 · Rechaza una captura pobre
+1. Taparse parte de la cara, alejarse mucho o buscar contraluz.
+
+**Esperado:** avisa —«No se detectó un rostro» o «no quedó lo bastante
+nítida»— y **no** avanza de paso.
+
+> El umbral es `SCORE_MINIMO_GALERIA` (0,7) del sistema, no uno inventado
+> acá: una captura pobre envenena la galería y hace fallar la marcación
+> después, que es un problema mucho más difícil de diagnosticar.
+
+### 31.4 · Rechaza una foto de una pantalla
+1. Apuntar la cámara a una foto del rostro en otro teléfono.
+
+**Esperado:** avisa que parece una foto de una pantalla. Es el anti-spoofing
+de Human, activo igual que en `frc-mobile`.
+
+### 31.5 · Guarda contra el central
+1. Completar las tres capturas.
+
+**Esperado:** avisa «Rostro registrado» y vuelve a Mi cuenta. En la base, el
+usuario queda con su `embedding` y su `embeddingGaleriaJson`.
+
+> ⚠️ **Verificar que la marcación por rostro siga reconociendo a alguien
+> enrolado desde el Android.** El formato de galería se portó verbatim
+> justamente para eso; es lo que hay que probar de punta a punta.
+
+### 31.6 · Funciona sin internet
+1. Registrar una vez con internet. Después cortar la salida a internet
+   —dejando el central accesible— y volver a entrar a la pantalla.
+
+**Esperado:** funciona igual. Los modelos quedaron cacheados por el service
+worker.
+
+> Es la diferencia con `frc-mobile`, que los baja de `cdn.jsdelivr.net`: allá,
+> una sucursal sin salida a internet **no puede usar reconocimiento facial**.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -2144,7 +2208,8 @@ Para que no se reporte como falla:
 | 28 · Rendición de caja chica | 9 | | | |
 | 29 · Carga del conteo | 7 | | | |
 | 30 · Permisos por rol | 6 | | | |
-| **Total** | **230** | | | |
+| 31 · Registro del rostro | 6 | | | |
+| **Total** | **236** | | | |
 
 ### Los cinco que más importan
 

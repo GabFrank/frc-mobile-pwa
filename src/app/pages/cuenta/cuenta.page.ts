@@ -63,6 +63,14 @@ import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/sele
         <frc-dato etiqueta="Notificaciones">
           <button matButton (click)="irAPreferencias()">Configurar</button>
         </frc-dato>
+        <!--
+          El rostro se registra una vez y sirve para marcar entrada. Vive en
+          Preferencias y no en Sesión porque es del dispositivo y de la
+          persona, no de la sesión abierta.
+        -->
+        <frc-dato etiqueta="Mi rostro">
+          <button matButton (click)="irARostro()">Registrar</button>
+        </frc-dato>
       </frc-seccion>
 
       <frc-seccion titulo="Aplicación" [panel]="true">
@@ -138,6 +146,10 @@ export class CuentaPage {
 
   irAPreferencias(): void {
     void this.router.navigate(['/notificaciones/preferencias']);
+  }
+
+  irARostro(): void {
+    void this.router.navigate(['/cuenta/rostro']);
   }
 
   /**

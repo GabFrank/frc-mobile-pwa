@@ -91,6 +91,11 @@ export const routes: Routes = [
         path: 'cuenta',
         loadComponent: () => import('./pages/cuenta/cuenta.page').then((m) => m.CuentaPage),
       },
+      {
+        path: 'cuenta/rostro',
+        loadComponent: () =>
+          import('./pages/cuenta/enroll-facial.page').then((m) => m.EnrollFacialPage),
+      },
     ],
   },
 

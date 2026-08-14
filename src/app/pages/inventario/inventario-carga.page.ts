@@ -137,6 +137,14 @@ const ESTADOS: OpcionSeleccion[] = [
           </frc-seccion>
         }
 
+      }
+
+      <!--
+        ⚠️ Fuera del @else y con su propio @if: un bloque de control de flujo
+        con más de un nodo raíz no proyecta al slot (NG8011), y el botón de
+        guardar caía en el cuerpo en vez de la barra fija.
+      -->
+      @if (items().length > 0 && !cargando() && !error()) {
         <div acciones>
           <button matButton="filled" [disabled]="!hayCambios() || guardando()" (click)="guardar()">
             {{ guardando() ? 'Guardando…' : 'Guardar conteo (' + cambiados().length + ')' }}

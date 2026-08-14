@@ -25,7 +25,6 @@ import {
 } from 'src/app/domains/marcacion/embedding-galeria.util';
 import { SaveUsuarioImageGQL } from 'src/app/graphql/personas/usuario/graphql/saveUsuarioImage';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
-import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 
 /**
@@ -80,7 +79,7 @@ const SUGERENCIAS = [
 @Component({
   selector: 'frc-enroll-facial',
   standalone: true,
-  imports: [PaginaComponent, IconoComponent, EstadoErrorComponent, MatButtonModule],
+  imports: [PaginaComponent, EstadoErrorComponent, MatButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Registrar mi rostro" [conVolver]="true" [conEscaner]="false">
@@ -118,6 +117,15 @@ const SUGERENCIAS = [
           <p class="aviso">{{ a }}</p>
         }
 
+      }
+
+      <!--
+        ⚠️ La barra de acciones va **fuera** del @else y con su propio @if.
+        Un bloque de control de flujo con más de un nodo raíz no proyecta a un
+        slot: Angular avisa con NG8011 y el botón cae en el cuerpo de la
+        página en vez de la barra fija. Un @if con un solo nodo sí proyecta.
+      -->
+      @if (!error()) {
         <div acciones>
           <button matButton="filled" [disabled]="!listo() || ocupado()" (click)="capturar()">
             {{ etiquetaBoton() }}

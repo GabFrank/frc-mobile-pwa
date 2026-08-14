@@ -120,6 +120,13 @@ interface Marca {
         <frc-seccion titulo="Existencia por sucursal" [panel]="true">
           @if (cargandoStock()) {
             <frc-dato etiqueta="Cargando…" valor="" />
+          } @else if (stockFallo()) {
+            <!--
+              «No se pudo consultar» y no una lista de ceros. Un cero afirma
+              que no hay mercadería; no haber podido preguntar no afirma
+              nada, y quien busca stock necesita saber cuál de las dos es.
+            -->
+            <frc-dato etiqueta="Existencia" valor="No se pudo consultar" />
           } @else if (stockVisible().length === 0) {
             <frc-dato etiqueta="Sin movimientos" valor="—" />
           } @else {
@@ -175,6 +182,8 @@ export class ProductoDetallePage {
   readonly error = signal<string | null>(null);
 
   readonly cargandoStock = signal(true);
+  /** Distingue «no hay stock» de «no se pudo preguntar». */
+  readonly stockFallo = signal(false);
   private readonly stock = signal<Map<string, number>>(new Map());
   private readonly listaSucursales = signal<Sucursal[]>([]);
 
@@ -271,19 +280,25 @@ export class ProductoDetallePage {
    */
   private cargarStock(productoId: number): void {
     this.cargandoStock.set(true);
+    this.stockFallo.set(false);
 
     this.sucursales.todas().subscribe({
       next: (lista) => this.listaSucursales.set(lista ?? []),
       error: () => this.listaSucursales.set([]),
     });
 
-    this.busqueda.stockPorSucursales(productoId).subscribe({
+    // Sin toast: la existencia es secundaria en esta pantalla y un aviso
+    // rojo tapando la ficha por algo que ya se explica en su propia sección
+    // es ruido. Lo mismo vale contra una instancia que todavía no tenga
+    // `stockPorSucursales`, que es nueva en el central.
+    this.busqueda.stockPorSucursales(productoId, { notificarError: false }).subscribe({
       next: (mapa) => {
         this.stock.set(mapa);
         this.cargandoStock.set(false);
       },
       error: () => {
         this.stock.set(new Map());
+        this.stockFallo.set(true);
         this.cargandoStock.set(false);
       },
     });

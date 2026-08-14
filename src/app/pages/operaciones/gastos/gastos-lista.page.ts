@@ -7,7 +7,6 @@ import { FORMATOS_QR } from 'src/app/core/dispositivo/escaner.types';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { PreGasto } from 'src/app/domains/gastos/pre-gasto.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
-import { descodificarQr } from 'src/app/generic/utils/qrUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
@@ -15,6 +14,7 @@ import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.com
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
+import { interpretarQrRetiro } from './gasto-retiro-qr';
 import { GastosService } from './gastos.service';
 
 const TAMANO = 10;
@@ -191,7 +191,8 @@ export class GastosListaPage {
    * Escanea el QR de una solicitud y abre su detalle.
    *
    * El QR lleva el `qrToken`, que es lo que ata el retiro a esa solicitud
-   * puntual. Se valida que sea un QR de la app antes de navegar.
+   * puntual. Interpretarlo es delicado —sus campos no caen donde el nombre
+   * sugiere— y por eso vive en `interpretarQrRetiro`, con sus tests.
    */
   async escanear(): Promise<void> {
     const texto = await this.escaner.escanear({
@@ -204,21 +205,15 @@ export class GastosListaPage {
       return;
     }
 
-    const qr = descodificarQr(texto);
-    if (!qr) {
-      this.notificacion.warn('Ese código no es de esta aplicación.');
+    const resultado = interpretarQrRetiro(texto);
+    if (!resultado.ok || !resultado.datos) {
+      this.notificacion.warn(resultado.mensaje ?? 'QR no reconocido.');
       return;
     }
 
-    const id = Number(qr.idOrigen);
-    const sucursalId = Number(qr.sucursalId);
-    if (!Number.isFinite(id) || !Number.isFinite(sucursalId)) {
-      this.notificacion.warn('El QR no trae la solicitud o la sucursal.');
-      return;
-    }
-
-    void this.router.navigate(['/operaciones/gastos', id, sucursalId], {
-      queryParams: { token: qr.data ?? '' },
+    const { preGastoId, sucursalId, qrToken } = resultado.datos;
+    void this.router.navigate(['/operaciones/gastos', preGastoId, sucursalId], {
+      queryParams: { token: qrToken },
     });
   }
 }

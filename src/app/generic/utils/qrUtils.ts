@@ -12,7 +12,30 @@
  */
 
 export const QR_PREFIJO = 'frc';
-const PARTES_ESPERADAS = 8;
+
+/**
+ * Mínimo de campos para tomar la cadena por un QR del sistema.
+ *
+ * Son **siete y no ocho**, aunque `codificarQr` siempre emita ocho, porque el
+ * central emite una variante corta que no pasa por este archivo:
+ *
+ * ```java
+ * // PreGastoService.java — construirQrRetiro()
+ * "frc-" + sucursalCajaId + "-PRE_GASTO_RETIRO-" + preGastoId + "-"
+ *        + sucursalId + "-" + qrToken + "-" + timestamp
+ * ```
+ *
+ * Son siete campos: el timestamp cae en la posición de `data` y `timestamp`
+ * queda vacío. `frc-mobile` no validaba nada y lo aceptaba de casualidad;
+ * cuando este decodificador empezó a exigir ocho, **el escaneo de retiro de
+ * caja chica dejó de funcionar del todo** — el QR que imprime el cajero se
+ * rechazaba con «Ese código no es de esta aplicación».
+ *
+ * Exigir siete sigue descartando basura: hace falta el prefijo `frc-` y seis
+ * separadores. Lo que no se puede es exigir la longitud de una sola de las
+ * variantes que el sistema realmente emite.
+ */
+const PARTES_MINIMAS = 7;
 
 export interface QrData {
   sucursalId?: string;
@@ -43,7 +66,7 @@ export function descodificarQr(codigo: string | null | undefined): QrData | null
     return null;
   }
   const partes = codigo.split('-');
-  if (partes.length < PARTES_ESPERADAS) {
+  if (partes.length < PARTES_MINIMAS) {
     return null;
   }
   return {

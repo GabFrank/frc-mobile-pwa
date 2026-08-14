@@ -7,6 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
@@ -122,6 +123,9 @@ import { InventarioService } from './inventario.service';
                 @if (p.concluido) {
                   <span pie class="concluido">Concluido</span>
                 }
+                @if (abierto()) {
+                  <button pie matButton (click)="contar(p)">Contar</button>
+                }
               </frc-card>
             }
           </frc-seccion>
@@ -144,6 +148,7 @@ import { InventarioService } from './inventario.service';
   `,
 })
 export class InventarioDetallePage {
+  private readonly router = inject(Router);
   private readonly servicio = inject(InventarioService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
@@ -261,5 +266,23 @@ export class InventarioDetallePage {
         this.notificacion.danger(err.message);
       },
     });
+  }
+
+  /**
+   * Solo un inventario abierto se puede contar.
+   *
+   * Concluido o cancelado, el conteo ya es un hecho histórico: escribir
+   * encima cambiaría el resultado de una toma cerrada.
+   */
+  readonly abierto = computed(
+    () => String(this.inventario()?.estado ?? '').toUpperCase() === 'ABIERTO',
+  );
+
+  contar(p: { id?: number }): void {
+    const invId = this.inventario()?.id;
+    if (invId == null || p.id == null) {
+      return;
+    }
+    void this.router.navigate(['/inventario', invId, 'producto', p.id]);
   }
 }

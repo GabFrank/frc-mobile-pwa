@@ -131,6 +131,12 @@ export class InicioPage {
       icono: 'verificado',
       roles: PERMISOS.inventario,
     },
+    {
+      etiqueta: 'Lugares del depósito',
+      ruta: '/inventario/lugares',
+      icono: 'inventario',
+      roles: PERMISOS.lugares,
+    },
     { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: PERMISOS.transferencias },
     {
       etiqueta: 'Notificaciones',

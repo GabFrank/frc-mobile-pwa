@@ -2428,6 +2428,73 @@ lista**. El total no cambia.
 
 ---
 
+## Bloque 36 — Lugares del depósito: sectores y zonas *(nuevo)*
+
+> **Verificado el 2026-08-14** contra el central local: se creó la zona
+> «ZONA DE PRUEBA PWA» en el sector 41 (quedó en la base con id 234,
+> `activo = true`, `usuario_id` del que la creó) y se la eliminó desde la
+> misma pantalla; la base volvió a cero filas.
+
+### 36.1 · Se llega desde Inicio, con su propio rol
+1. Entrar con un usuario que tenga `VER INVENTARIO` pero **no** `CREAR
+   INVENTARIO`.
+
+**Esperado:** *Lugares del depósito* **no** aparece en Inicio, y escribir
+`/inventario/lugares` a mano tampoco entra.
+
+> Es más restrictivo que el resto de inventario a propósito: acá se borra la
+> geografía sobre la que se cuenta. `frc-mobile` no pide ningún rol —la
+> pantalla cuelga de la toma, y cualquiera que llegue al inventario puede
+> borrar zonas—.
+
+### 36.2 · Solo sucursales operables
+1. Abrir el selector de sucursal.
+
+**Esperado:** no están SERVIDOR ni COMPRAS. Arranca en la sucursal propia.
+
+### 36.3 · Alta de una zona
+1. Abrir un sector → *Nueva zona* → escribir un nombre en minúsculas →
+   *Guardar*.
+
+**Esperado:** la lista suma una zona y el contador del encabezado sube. En la
+base el nombre quedó **en mayúsculas**.
+
+> Mayúsculas al guardar, titlecase al mostrar: es el par que usa
+> `frc-mobile`, y hay que tomarlo entero. En la base conviven 35 sectores en
+> minúscula con 6 en mayúscula; mostrar el texto crudo dejaría la lista
+> pareciendo dos cargas distintas.
+
+### 36.4 · Baja de una zona
+1. Tocar una zona recién creada → *Eliminar* → confirmar.
+
+**Esperado:** desaparece de la lista **y de la base**.
+
+> ⚠️ Mirar las dos cosas. Antes de este bloque, `deleteZona` no aliaseaba su
+> campo raíz a `data`, así que la baja se ejecutaba en el central y la app la
+> reportaba como fallida. Si el cartel dice «el central no eliminó la zona»
+> pero la fila ya no está, es exactamente ese bug de vuelta.
+
+### 36.5 · Una zona con conteo encima no se borra
+1. Intentar eliminar una zona que ya participó de un inventario.
+
+**Esperado:** el central rechaza la baja y la app muestra el error. La salida
+es **desactivarla**, no borrarla.
+
+### 36.6 · Desactivar en vez de borrar
+1. Editar una zona y apagar *Activo* → *Guardar*.
+
+**Esperado:** queda en la lista con el chip *Inactiva*, y el diálogo avisa que
+no se va a poder asignar en un conteo nuevo.
+
+### 36.7 · Un sector con zonas no se borra
+1. Abrir un sector con zonas → *Editar sector* → *Eliminar*.
+
+**Esperado:** la confirmación **dice cuántas zonas tiene** y sugiere
+desactivarlo. Si se confirma igual, el central rechaza la baja por integridad
+referencial.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -2467,7 +2534,8 @@ lista**. El total no cambia.
 | 33 · Instalar y filtros por URL | 5 | 2 | | |
 | 34 · Control de inventario | 5 | 1 | | |
 | 35 · Revisión de inventario | 6 | 3 | | |
-| **Total** | **261** | | | |
+| 36 · Lugares del depósito | 7 | 4 | | |
+| **Total** | **268** | | | |
 
 ### Los cinco que más importan
 

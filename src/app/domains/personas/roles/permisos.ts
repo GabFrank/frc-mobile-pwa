@@ -34,6 +34,21 @@ export const PERMISOS = {
   /** 36 usuarios tienen VER INVENTARIO. */
   inventario: [ROLES.ADMIN, ROLES.VER_INVENTARIO],
 
+  /**
+   * Sectores y zonas del depósito.
+   *
+   * ⚠️ **Más restrictivo que `inventario`, a propósito.** `VER INVENTARIO`
+   * (36 usuarios) es para mirar un conteo; acá se crea y se borra la
+   * geografía sobre la que se cuenta, y borrar un sector con conteos
+   * encima es una operación que no se deshace desde la app. `CREAR
+   * INVENTARIO` (29 usuarios) es quien arma la toma, que es exactamente
+   * quien necesita definir dónde se cuenta.
+   *
+   * `frc-mobile` no pide nada: la pantalla cuelga de la toma y cualquiera
+   * que llegue al inventario puede borrar zonas.
+   */
+  lugares: [ROLES.ADMIN, ROLES.CREAR_INVENTARIO],
+
   /** 257 usuarios tienen VER TRANSFERENCIA. */
   transferencias: [ROLES.ADMIN, ROLES.VER_TRANSFERENCIA],
 

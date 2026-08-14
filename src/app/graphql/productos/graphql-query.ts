@@ -186,3 +186,70 @@ export const stockPorSucursalesQuery = gql`
     }
   }
 `;
+
+/**
+ * Reporte de productos vencidos y por vencer.
+ *
+ * ⚠️ **`fuenteVerdadList` es un enum del schema, no strings libres.** Mandar
+ * una cadena que no esté en `FuenteVerdadVencimiento` hace que el central
+ * rechace la operación entera, no ese filtro.
+ *
+ * Los campos de presentación —`diasVencimientoTexto`, `diasVencimientoClase`—
+ * los calcula el central. Ver `producto-vencido.model.ts`.
+ */
+export const productosVencidosQuery = gql`
+  query (
+    $startDate: String
+    $endDate: String
+    $sucursalIdList: [Int]
+    $productoIdList: [ID]
+    $fuenteVerdadList: [FuenteVerdadVencimiento]
+    $soloRealmenteVencidos: Boolean
+    $page: Int
+    $size: Int
+  ) {
+    data: productosVencidos(
+      startDate: $startDate
+      endDate: $endDate
+      sucursalIdList: $sucursalIdList
+      productoIdList: $productoIdList
+      fuenteVerdadList: $fuenteVerdadList
+      soloRealmenteVencidos: $soloRealmenteVencidos
+      page: $page
+      size: $size
+    ) {
+      getTotalPages
+      getTotalElements
+      getNumberOfElements
+      isFirst
+      isLast
+      hasNext
+      hasPrevious
+      getPageable {
+        getPageNumber
+        getPageSize
+      }
+      getContent {
+        id
+        presentacionId
+        presentacionCantidad
+        productoId
+        productoDescripcion
+        codigoBarras
+        cantidad
+        vencimiento
+        sucursalId
+        sucursalNombre
+        sectorDescripcion
+        zonaDescripcion
+        usuarioNickname
+        fuenteVerdad
+        detalleFuente
+        referenciaInventario
+        diasVencimiento
+        diasVencimientoTexto
+        diasVencimientoClase
+      }
+    }
+  }
+`;

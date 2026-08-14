@@ -69,6 +69,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/buscar/buscar.page').then((m) => m.BuscarPage),
       },
       {
+        path: 'producto',
+        loadChildren: () =>
+          import('./pages/producto/producto.routes').then((m) => m.rutasProducto),
+      },
+      {
         path: 'cuenta',
         loadComponent: () => import('./pages/cuenta/cuenta.page').then((m) => m.CuentaPage),
       },

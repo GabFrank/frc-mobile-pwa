@@ -117,6 +117,7 @@ export class InicioPage {
     { etiqueta: 'Caja', ruta: '/operaciones/caja', icono: 'dinero', roles: [ROLES.ADMIN, ROLES.VENTA_TOUCH] },
     { etiqueta: 'Operaciones', ruta: '/operaciones', icono: 'caja' },
     { etiqueta: 'Buscar producto', ruta: '/buscar', icono: 'buscar' },
+    { etiqueta: 'Productos vencidos', ruta: '/producto/vencidos', icono: 'vencido' },
     { etiqueta: 'Inventario', ruta: '/inventario', icono: 'inventario', roles: [ROLES.ADMIN, ROLES.VER_INVENTARIO] },
     { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: [ROLES.ADMIN, ROLES.VER_TRANSFERENCIA] },
     {

@@ -1,91 +1,96 @@
 # Dónde retomar
 
-> **Al 2026-08-07.** Rama `feature/solicitud-pago`, PR #1 abierta contra
-> `develop`. Todo lo hecho está commiteado y pusheado.
+> **Al 2026-08-14.** Rama `feat/paridad-mobile-android`, PR **#2** abierta
+> contra `feature/solicitud-pago`. Todo commiteado y pusheado.
 >
 > Este archivo es un **traspaso, no una hoja de ruta**: dice qué quedó a medio
-> camino y con qué hay que tener cuidado al retomarlo. Cuando la PR se cierre y
-> el bloque 5 termine, borrarlo — un traspaso viejo miente más que un archivo
-> que no existe.
+> camino y con qué hay que tener cuidado. Cuando las PR se cierren y los
+> bloques nuevos se corran, borralo — un traspaso viejo miente más que un
+> archivo que no existe.
 
 ## Lo que se hizo
 
-**`solicitud-pago`** — lista, alta desde el menú o desde una recepción
-finalizada, envío a la cola de pagos, detalle y constancia en PDF. Cierra la
-Ola A. `pago` **no se porta**, y es una decisión: ver
-[`modulos/operaciones-pagos-y-varios.md`](modulos/operaciones-pagos-y-varios.md).
+Una tanda de **paridad con `frc-mobile`**: crédito por convenio en Inicio,
+escáner universal en un botón flotante, configuración dentro de la app, badge
+de no leídas, productos vencidos, modo kiosco, ficha de producto, rendición de
+caja chica e ingreso del conteo de inventario. Detalle en la PR #2.
 
-**Actualización de la app instalada** — el service worker no adoptaba nunca una
-versión y la app no se actualizaba jamás. Arreglado y con aviso que se puede
-postergar. Ver [`arquitectura/actualizaciones-app.md`](arquitectura/actualizaciones-app.md).
+Cuatro defectos que aparecieron portando, con su arreglo: el QR de retiro de
+caja chica que **no se podía escanear nunca**, el nacimiento en 1970, el
+`Number('')` que navegaba a `/inventario/0` y el kiosco robándole el foco al
+diálogo del escáner.
 
-**Íconos de la PWA, barra de acciones y varios arreglos** salidos de probar en
-un teléfono real.
+## Las dos PR están encadenadas
+
+**La #1 (`feature/solicitud-pago` → `develop`) sigue abierta y sin revisar.**
+La #2 sale de esa rama a propósito, para que su diff muestre solo la tanda
+nueva. Al mergear la #1, GitHub reapunta la #2 a `develop` sola.
+
+**Mergear en orden: primero la #1.** Al revés no se puede.
 
 ## Lo que falta, en orden
 
-### 1 · Terminar el bloque 5 — un solo caso
+### 1 · Correr los bloques 22 a 29 del plan de testeo
 
-La segunda mitad de **5.5**: que el aviso de actualización **reaparezca solo**
-después de postergarlo. El procedimiento completo está en el bloque 5 del
-[plan de testeo](PLAN_TESTEO_MANUAL.md). Necesita:
+55 casos nuevos. Contra alpha ya corrieron el ruteo del escáner, el kiosco con
+un código real, vencidos y la ficha. **Sin correr, y son los que más importan:**
 
-- El teléfono conectado por USB con los túneles armados.
-- El central arriba **y sesión iniciada** en la app: sin backend, cualquier
-  recarga termina en el login y no hay forma de ver el diálogo.
-
-### 2 · Los dos casos de `solicitud-pago` que quedaron sin datos
-
-- **21.10, monedas mezcladas** — hoy las 12 notas elegibles están todas en
-  guaraníes. Hace falta una nota en otra moneda.
-- **21.16, con pago vigente** — el único pago que existe está cancelado. Uno
-  nuevo se crea desde el escritorio.
-
-### 3 · El grueso del plan de testeo
-
-Bloques **12, 13, 16, 17, 18 y 19** —buscar producto, devoluciones,
-notificaciones, caja chica, transferencias e inventario—: implementados y sin
-ejecutar. El **12** está marcado ⚠️ REPASAR, así que conviene empezar por ahí.
-
-**Bloqueados, y no por la app:**
-
-| Bloque | Qué falta |
+| Bloque | Qué necesita |
 |---|---|
-| 7 · Abrir y cerrar caja | Una filial de desarrollo. La apertura se proxea a la filial |
-| 11 · iOS real | Un iPhone o iPad |
-| Escáner contra códigos reales | Manos: se puede abrir la cámara por adb, no apuntarla a un producto |
+| 28 · Rendición de caja chica | Una solicitud **autorizada y ya retirada**, con la rendición pendiente |
+| 29 · Carga del conteo | Un inventario **abierto** con productos cargados |
+| 26.3 y 26.7 · Kiosco | Un lector HID físico. Es donde el modo se rompe sin que nadie lo note |
+| 23.9 · Escáner en iPhone | Un iPhone |
+
+### 2 · Lo que no se portó
+
+| Qué | Tamaño |
+|---|---|
+| **Alta de solicitud de caja chica** | El formulario más grande que queda: tipo de gasto, activo imputado con su buscador paginado por tipo, beneficiario persona o proveedor, y detalle financiero con una moneda por fila sin repetir |
+| **Inventario: zonas y sectores** | Y agregar a la toma un producto que no estaba: necesita `saveInventarioProducto`, que no está portado |
+| **Producto: edición y alta** | Rol `NUEVO-PRODUCTO` |
+| **Web Push** en lugar de FCM | Necesita backend. En iOS solo con la PWA instalada (16.4+) |
+| **Transporte WebSocket** | Para suscripciones GraphQL |
+| **Reconocimiento facial** | Los modelos hoy salen de un CDN — ver TODO_TECNICO #52 |
+
+### 3 · Los dos cambios que necesita el central
+
+Ninguno se puede hacer desde este repo, y los dos tocan al desktop, así que
+van con sufijo `Mobile` (regla 5).
+
+- **`productosVencidos` no acepta orden** y pagina con `ORDER BY vencimiento
+  DESC`: para el teléfono, lo menos urgente queda arriba. Mitigado acotando la
+  ventana desde el cliente, pero es una mitigación.
+- **El precio convertido para el kiosco.** Sin eso, el selector de moneda no
+  se puede portar sin calcular dinero en el cliente.
 
 ## Cosas que van a morder si no se saben
 
-**El backend del central se cae con SIGTERM.** Pasó varias veces, con la misma
-firma que se lleva puesto al dev server. El síntoma en el teléfono es un mensaje
-de que el servidor rechazó el login, que hace pensar en un problema de
-credenciales cuando en realidad no hay backend. **Antes de debuggear un login,
-chequear que el 8081 responda.**
+**Alpha está más viejo que esta rama.** No tiene `stockPorSucursales`, así que
+la ficha de producto dice «No se pudo consultar» en la existencia — es lo
+esperado, no un fallo. Para probar eso hace falta un central local o esperar a
+que alpha reciba el cambio.
 
-**Los túneles de adb no sobreviven a que se desconecte el cable**, y no se
-rearman solos. Sin `adb reverse tcp:8081` la app no llega al central y el
-síntoma es idéntico al anterior. Si el cable se desconecta seguido, conviene
-`adb tcpip 5555` y trabajar por wifi.
+**El central espera `Authorization: Token <t>`, no `Bearer`.** Cuesta media
+hora si se prueba una query a mano contra el backend y devuelve 401.
 
-**La sesión de la app expira seguido durante una sesión larga de pruebas.**
-`SesionService.restaurar()` cierra sesión cuando el central rechaza la
-credencial, así que aparece el login sin que nadie lo haya pedido.
+**Las fotos de la rendición viajan como data URI dentro de la mutation.** No
+hay endpoint de subida: el central guarda la cadena tal cual. Por eso la
+pantalla reduce la imagen antes de codificarla; si alguien saca esa reducción,
+un request se vuelve de varios megabytes.
 
 **`npm run build` y `npm test` matan al `npm start`.** Ya está en el
-[CLAUDE.md](../CLAUDE.md); se repite acá porque cuesta media hora la primera vez
-que pasa.
+[CLAUDE.md](../CLAUDE.md); se repite porque cuesta media hora la primera vez.
+
+**El build es el gate real, no `tsc --noEmit`.** `tsc` no typechequea las
+plantillas: un `p.ciudad.nombre` inexistente pasa limpio y lo caza el AOT.
 
 ## Deudas que dejó esta tanda
 
-- **La PR #1 sigue abierta.** 10 commits. Nadie la revisó.
-- **`solicitud-pago` exige un central con la migración `V194.5`.** El cambio del
-  backend que agrega `SOLICITADO` **estaba sin commitear** en el árbol de
-  trabajo del central. Antes de publicar, confirmar que está liberado.
-- **`gestion-pago-dialog` del desktop quedó desactualizado**: ofrece los cuatro
-  estados viejos, sin `SOLICITADO`. No es este repo, pero es el mismo cambio.
-- **Las secuencias de `id` de Postgres se desfasan** y rompen los `insert`. Se
-  arreglaron siete en la base de prueba; **producción no se miró**.
-- **No hay versionado.** `package.json` está en `0.0.0`, así que la app muestra
-  la fecha de compilación rotulada «(sin versionar)». En cuanto
-  `semantic-release` numere, la pantalla lo toma sola.
+- **Los bloques 22 a 29 están escritos y sin correr.** 55 casos.
+- **`frc-buscador-producto` no distingue las acciones que declara el
+  llamador**: todas emiten `seleccion` con el producto y nada más. Hoy no lo
+  usa nadie, pero el primero que pase dos acciones se va a encontrar con esto.
+  Por eso «Ver ficha» se agregó como acción propia del buscador.
+- **Sigue sin versionado.** `package.json` en `0.0.0` y la app muestra la fecha
+  de compilación con la aclaración «(sin versionar)».

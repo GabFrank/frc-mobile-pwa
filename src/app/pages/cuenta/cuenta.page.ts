@@ -127,7 +127,10 @@ export class CuentaPage {
 
   readonly persona = computed(() => this.auth.usuario()?.persona ?? null);
 
-  readonly nacimiento = computed(() => fechaLegible(this.persona()?.nacimiento) ?? '—');
+  /** Sin hora: una fecha de nacimiento es un día, no un instante. */
+  readonly nacimiento = computed(
+    () => fechaLegible(this.persona()?.nacimiento, { conHora: false }) ?? '—',
+  );
 
   cambiarTema(valor: unknown): void {
     this.tema.establecer(valor as Tema);

@@ -41,3 +41,22 @@ describe('fechaLegible', () => {
     expect(fechaLegible(new Date('nada'))).toBeNull();
   });
 });
+
+describe('fechaLegible — la época y la hora opcional', () => {
+  it('la época Unix no es una fecha, es una fecha ausente', () => {
+    // Así serializa el central un Date nulo. Sin esto, cualquier persona sin
+    // nacimiento cargado aparecía nacida el 1/1/1970 a las cero horas.
+    expect(fechaLegible('1970-01-01 00:00')).toBeNull();
+    expect(fechaLegible('1970-01-01')).toBeNull();
+    expect(fechaLegible(new Date(0))).toBeNull();
+  });
+
+  it('el 1/1/1970 a una hora real sí es una fecha', () => {
+    expect(fechaLegible('1970-01-01 08:30')).toBe('01/01/1970 08:30');
+  });
+
+  it('puede pedirse sin hora, para lo que ocurre en un día', () => {
+    expect(fechaLegible('2026-03-15 14:20', { conHora: false })).toBe('15/03/2026');
+    expect(fechaLegible('2026-03-15 14:20')).toBe('15/03/2026 14:20');
+  });
+});

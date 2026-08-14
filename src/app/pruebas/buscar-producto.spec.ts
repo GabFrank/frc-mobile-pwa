@@ -269,9 +269,16 @@ describe('Buscador de producto', () => {
       expect(f.componentInstance.accionesDe().map((a) => a.id)).toContain('stock');
     });
 
-    it('suma las acciones que declaró el llamador', () => {
+    it('suma las acciones que declaró el llamador, después de las propias', () => {
       const f = montar({ acciones: [{ id: 'ajustar', etiqueta: 'Ajustar stock' }] });
-      expect(f.componentInstance.accionesDe().map((a) => a.id)).toEqual(['stock', 'ajustar']);
+      // Las propias del buscador van primero y las del llamador después:
+      // «ver ficha» y «ver stock» están en todas las pantallas que lo montan,
+      // así que quedan siempre en el mismo lugar del menú.
+      expect(f.componentInstance.accionesDe().map((a) => a.id)).toEqual([
+        'ficha',
+        'stock',
+        'ajustar',
+      ]);
     });
 
     it('«ver stock» lo resuelve el buscador, no el llamador', async () => {

@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 
 import { ActualizacionService } from 'src/app/core/actualizacion/actualizacion.service';
+import { InstalacionService } from 'src/app/core/actualizacion/instalacion.service';
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { ServerConfigService } from 'src/app/core/config/server-config.service';
 import { Tema, TemaService } from 'src/app/core/tema/tema.service';
@@ -89,6 +90,20 @@ import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/sele
           sustituto y se aclara, para que nadie lea una fecha creyendo que es
           una versión publicada.
         -->
+        <!--
+          Instalar: solo se ofrece si el navegador dijo que se puede. En iOS
+          no hay prompt y se explica el camino, porque un botón que no hace
+          nada es peor que no tener botón.
+        -->
+        @if (!instalacion.instalada()) {
+          @if (instalacion.sePuedeInstalar()) {
+            <frc-dato etiqueta="Instalar">
+              <button matButton="filled" (click)="instalar()">Instalar la app</button>
+            </frc-dato>
+          } @else if (instalacion.esIOS()) {
+            <frc-dato etiqueta="Instalar" valor="Compartir → Añadir a inicio" />
+          }
+        }
         <frc-dato etiqueta="Versión" [valor]="version()" />
         <frc-dato etiqueta="Compilación" [valor]="compilacion()" />
 
@@ -119,6 +134,7 @@ export class CuentaPage {
   readonly servidor = inject(ServerConfigService);
   readonly tema = inject(TemaService);
   readonly actualizacion = inject(ActualizacionService);
+  readonly instalacion = inject(InstalacionService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
   private readonly router = inject(Router);
@@ -146,6 +162,12 @@ export class CuentaPage {
 
   irAPreferencias(): void {
     void this.router.navigate(['/notificaciones/preferencias']);
+  }
+
+  async instalar(): Promise<void> {
+    if (await this.instalacion.instalar()) {
+      this.notificacion.ok('App instalada.');
+    }
   }
 
   irARostro(): void {

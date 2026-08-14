@@ -2244,6 +2244,55 @@ apuntar la cámara — dos personas por teléfono, o una pantalla rota.
 
 ---
 
+---
+
+## Bloque 33 — Instalar la app y filtros por URL *(nuevo)*
+
+### 33.1 · Ofrece instalar en Android
+1. Abrir la app en Chrome de Android, sin tenerla instalada.
+2. Mi cuenta → *Aplicación*.
+
+**Esperado:** aparece *Instalar la app*. Al tocarlo sale el diálogo del
+navegador; si se acepta, la opción desaparece.
+
+> El botón solo aparece si el navegador avisó que se puede instalar. No se
+> muestra uno «por las dudas»: un botón que no hace nada es peor que ninguno.
+
+### 33.2 · En iPhone explica, no ofrece
+1. Abrir en Safari de iOS y mirar la misma sección.
+
+**Esperado:** dice *Compartir → Añadir a inicio*. **No** hay botón: iOS no
+tiene prompt de instalación y no hay forma de dispararlo.
+
+> ⚠️ Si esa instrucción aparece en **Chrome de escritorio**, es la detección
+> de iPadOS dando falso positivo — pasa con la emulación de dispositivo
+> activada, que también reporta pantalla táctil.
+
+### 33.3 · Instalada, no ofrece nada
+1. Abrir la app ya instalada.
+
+**Esperado:** la fila de instalar no está.
+
+### 33.4 · Transferencias acotadas por URL
+1. Abrir `/transferencias?etapa=TRANSPORTE_EN_CAMINO`.
+
+**Esperado:** solo transferencias en esa etapa, con el aviso «Lista acotada
+por el filtro con el que llegaste».
+
+2. Probar `/transferencias?sucursal=3` y las dos juntas.
+
+**Esperado:** acota por sucursal de **destino** — el caso es «qué viene en
+camino para acá».
+
+### 33.5 · Una etapa inventada no rompe
+1. Abrir `/transferencias?etapa=CUALQUIERA`.
+
+**Esperado:** trae la lista completa, sin error. La etapa se valida contra el
+enum antes de mandarla; una cadena libre haría que el central rechace la
+consulta entera.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -2302,7 +2351,8 @@ Para que no se reporte como falla:
 | 30 · Permisos por rol | 6 | | | |
 | 31 · Rostro: registro y marcación | 11 | | | |
 | 32 · Compartir por QR | 4 | 2 | | |
-| **Total** | **245** | | | |
+| 33 · Instalar y filtros por URL | 5 | 2 | | |
+| **Total** | **250** | | | |
 
 ### Los cinco que más importan
 

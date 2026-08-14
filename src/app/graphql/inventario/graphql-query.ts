@@ -181,3 +181,42 @@ export const productosFaltantesQuery = gql`
     }
   }
 `;
+
+/**
+ * Los ítems de un inventario, para que un supervisor los revise.
+ *
+ * ⚠️ **`filtro` ordena, no filtra.** El central lo usa en un `ORDER BY CASE`
+ * que pone primero a los que coinciden; los demás siguen viniendo detrás. Un
+ * nombre como «solo modificados» sería mentira: la lista trae todos los ítems
+ * del inventario en cualquier caso.
+ *
+ * Valores que el central reconoce: `cantidadExacta` y `modificado`. Cualquier
+ * otra cosa (o `null`) deja el orden natural, por id descendente.
+ */
+export const itemsParaRevisarQuery = gql`
+  query ($inventarioId: ID!, $filtro: String, $page: Int!, $size: Int!) {
+    data: getInventarioItemsParaRevisar(
+      inventarioId: $inventarioId
+      filtro: $filtro
+      page: $page
+      size: $size
+    ) {
+      getTotalPages
+      getTotalElements
+      hasNext
+      getContent {
+        id
+        cantidad
+        cantidadFisica
+        cantidadAnterior
+        verificado
+        revisado
+        presentacion {
+          id
+          cantidad
+          producto { id descripcion }
+        }
+      }
+    }
+  }
+`;

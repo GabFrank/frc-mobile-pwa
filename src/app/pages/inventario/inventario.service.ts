@@ -14,8 +14,10 @@ import { FinalizarInventarioGQL } from 'src/app/graphql/inventario/finalizarInve
 import { InventarioAbiertoPorSucursalGQL } from 'src/app/graphql/inventario/inventarioAbiertoPorSucursal';
 import { InventarioPorIdGQL } from 'src/app/graphql/inventario/inventarioPorId';
 import { InventariosPorUsuarioGQL } from 'src/app/graphql/inventario/inventariosPorUsuario';
+import { ItemsParaRevisarGQL } from 'src/app/graphql/inventario/itemsParaRevisar';
 import { ReabrirInventarioGQL } from 'src/app/graphql/inventario/reabrirInventario';
 import { SaveInventarioProductoItemGQL } from 'src/app/graphql/inventario/saveInventarioProductoItem';
+import type { OrdenRevision } from './revision-item';
 
 /**
  * Toma de inventario físico.
@@ -33,6 +35,7 @@ export class InventarioService {
   private readonly cancelarGQL = inject(CancelarInventarioGQL);
   private readonly reabrirGQL = inject(ReabrirInventarioGQL);
   private readonly guardarItemGQL = inject(SaveInventarioProductoItemGQL);
+  private readonly paraRevisarGQL = inject(ItemsParaRevisarGQL);
 
   porId(id: number): Observable<Inventario> {
     return this.datos.porId<Inventario>(this.porIdGQL, id);
@@ -56,6 +59,28 @@ export class InventarioService {
       page,
       size,
       sortOrder: 'DESC',
+    });
+  }
+
+  /**
+   * Los ítems de un inventario, paginados, para revisarlos.
+   *
+   * ⚠️ **`orden` no recorta la lista.** El central lo aplica en un `ORDER BY`
+   * que sube a los que coinciden; los demás siguen viniendo. Se llama `orden`
+   * y no `filtro` —como en el central— porque un nombre que prometa filtrar
+   * hace leer «no hay ninguno» donde en realidad dice «ninguno primero».
+   */
+  itemsParaRevisar(
+    inventarioId: number,
+    orden: OrdenRevision,
+    page = 0,
+    size = 10,
+  ): Observable<PageInfo<InventarioProductoItem>> {
+    return this.datos.consultar<PageInfo<InventarioProductoItem>>(this.paraRevisarGQL, {
+      inventarioId,
+      filtro: orden,
+      page,
+      size,
     });
   }
 

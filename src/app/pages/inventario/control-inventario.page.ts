@@ -32,6 +32,15 @@ const REPORTES: readonly { clave: Reporte; texto: string; vacio: string }[] = [
 
 const TAMANO = 15;
 
+/**
+ * ⚠️ **«Todas» no puede valer `null` en el selector.** `mat-select` trata
+ * `null` como «sin elegir» y deja el campo en blanco aunque exista una
+ * opción con ese valor: se veía un selector vacío donde la consulta ya
+ * estaba trayendo todas las sucursales. Viaja como texto y se traduce
+ * recién al armar las variables.
+ */
+const TODAS = 'todas';
+
 /** Días hacia atrás que cubre «sin movimiento». Un mes es el ciclo de reposición. */
 const DIAS_PERIODO = 30;
 
@@ -89,7 +98,7 @@ const DIAS_PERIODO = 30;
         />
       </div>
 
-      @if (exigeSucursal() && !sucursalId()) {
+      @if (exigeSucursal() && sucursalElegida() === null) {
         <frc-estado-vacio
           titulo="Elegí una sucursal"
           [detalle]="'«Sin movimiento» se calcula sobre los últimos ' + dias + ' días de una sucursal.'"
@@ -154,7 +163,7 @@ export class ControlInventarioPage {
   }));
 
   readonly reporte = signal<Reporte>('negativa');
-  readonly sucursalId = signal<unknown>(null);
+  readonly sucursalId = signal<unknown>(TODAS);
   readonly filas = signal<ProductoSaldo[]>([]);
   readonly total = signal(0);
   readonly cargando = signal(true);
@@ -168,8 +177,18 @@ export class ControlInventarioPage {
   /** Solo «sin movimiento» necesita sucursal sí o sí. */
   readonly exigeSucursal = computed(() => this.reporte() === 'faltantes');
 
+  /** La sucursal como la espera el central: un id, o `null` por todas. */
+  readonly sucursalElegida = computed<number | null>(() => {
+    const valor = this.sucursalId();
+    if (valor == null || valor === TODAS) {
+      return null;
+    }
+    const id = Number(valor);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  });
+
   readonly opcionesSucursal = computed<OpcionSeleccion[]>(() => [
-    ...(this.exigeSucursal() ? [] : [{ valor: null, texto: 'Todas las sucursales' }]),
+    ...(this.exigeSucursal() ? [] : [{ valor: TODAS, texto: 'Todas las sucursales' }]),
     ...this.listaSucursales().map((s) => ({ valor: s.id, texto: s.nombre ?? `Sucursal ${s.id}` })),
   ]);
 
@@ -198,7 +217,7 @@ export class ControlInventarioPage {
   }
 
   cargar(agregando = false): void {
-    if (this.exigeSucursal() && !this.sucursalId()) {
+    if (this.exigeSucursal() && this.sucursalElegida() === null) {
       this.cargando.set(false);
       return;
     }
@@ -210,8 +229,12 @@ export class ControlInventarioPage {
     }
     this.error.set(null);
 
-    const sucursalId = this.sucursalId() != null ? Number(this.sucursalId()) : null;
-    const comun = { sucursalId, productoId: null, page: this.pagina, size: TAMANO };
+    const comun = {
+      sucursalId: this.sucursalElegida(),
+      productoId: null,
+      page: this.pagina,
+      size: TAMANO,
+    };
 
     const consulta =
       this.reporte() === 'faltantes'
@@ -252,7 +275,7 @@ export class ControlInventarioPage {
     this.reporte.set(valor as Reporte);
     // Al pasar a «sin movimiento», «Todas» deja de ser una opción válida: se
     // limpia para que el selector no quede mostrando algo que no se puede usar.
-    if (this.exigeSucursal() && this.sucursalId() == null) {
+    if (this.exigeSucursal() && this.sucursalElegida() === null) {
       const propia = this.auth.sucursal()?.id;
       this.sucursalId.set(propia ?? this.listaSucursales()[0]?.id ?? null);
     }

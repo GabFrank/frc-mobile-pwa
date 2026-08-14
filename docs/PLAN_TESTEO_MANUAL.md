@@ -2365,6 +2365,69 @@ Para que no se reporte como falla:
 
 ---
 
+## Bloque 35 — Revisión de inventario *(nuevo)*
+
+> **Verificado el 2026-08-14** contra el central local: el inventario 6579
+> mostró su único ítem con estado `Modificado`, sistema 80 · contado 82,
+> anterior 82 y diferencia `+2` — que es exactamente lo que tiene la base.
+
+### 35.1 · Se llega desde el inventario
+1. Operaciones → *Inventario* → abrir uno → botón **Revisar**.
+
+**Esperado:** abre «Revisión de inventario» con los ítems de esa toma.
+
+> El botón está también con el inventario **cerrado**: revisar es leer lo que
+> quedó, y esa pregunta no caduca al finalizarlo.
+
+### 35.2 · El selector ordena, no filtra
+1. Cambiar *Orden* a «Modificados primero».
+
+**Esperado:** los modificados suben al principio, y **el resto sigue en la
+lista**. El total no cambia.
+
+> ⚠️ Acá `frc-mobile` confunde: al cambiar el criterio avisa «no se
+> encontraron productos con el criterio seleccionado», que hace leer como
+> filtro algo que el central resuelve con un `ORDER BY CASE`. Si en esta
+> pantalla la lista se recorta al cambiar el orden, **eso es el bug**.
+
+### 35.3 · Los tres estados dicen cosas distintas
+1. Mirar el chip de cada ítem.
+
+**Esperado:**
+
+| Chip | Qué pasó |
+|---|---|
+| Cantidad exacta | se contó y coincidió con el sistema |
+| Modificado | se contó y hubo que corregirlo |
+| Sin revisar | nadie lo tocó todavía |
+
+> No son una escalera de tres pasos: `verificado` y `revisado` son dos
+> resultados del **mismo** paso, y nunca vienen los dos juntos.
+
+### 35.4 · La diferencia solo aparece si se contó
+1. Buscar un ítem sin contar.
+
+**Esperado:** dice «sin contar» y **no** muestra diferencia. Un cero real y un
+«nadie lo miró» no son lo mismo.
+
+### 35.5 · Paginado
+1. Abrir un inventario con más de 15 ítems y tocar *Cargar más*.
+
+**Esperado:** agrega la página siguiente sin perder lo ya cargado ni repetir.
+
+### 35.6 · El selector no queda en blanco
+1. Entrar a la pantalla sin tocar nada.
+
+**Esperado:** *Orden* muestra «Los últimos primero», no un campo vacío.
+
+> ⚠️ Esto se rompió una vez y vale para **toda** la app: `mat-select` trata un
+> valor `null` como «sin selección» y deja el campo en blanco aunque la opción
+> exista y esté elegida. Lo mismo pasaba en *Control de inventario* con «Todas
+> las sucursales». Si aparece un selector vacío que igual está consultando,
+> el sospechoso es una opción cuyo valor es `null`.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -2403,7 +2466,8 @@ Para que no se reporte como falla:
 | 32 · Compartir por QR | 4 | 2 | | |
 | 33 · Instalar y filtros por URL | 5 | 2 | | |
 | 34 · Control de inventario | 5 | 1 | | |
-| **Total** | **255** | | | |
+| 35 · Revisión de inventario | 6 | 3 | | |
+| **Total** | **261** | | | |
 
 ### Los cinco que más importan
 

@@ -66,11 +66,18 @@ import { InventarioService } from './inventario.service';
       <button accionBarra type="button" class="icono-compartir" aria-label="Compartir por QR" (click)="compartir()">
         <frc-icono nombre="codigo" [tamano]="22" />
       </button>
-      @if (puedeFinalizar()) {
+      @if (inventario()) {
         <div acciones>
-          <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
-            {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
-          </button>
+          <!--
+            Revisar sigue disponible con el inventario cerrado: es la lectura
+            de lo que quedó, y esa pregunta no caduca al finalizarlo.
+          -->
+          <button matButton (click)="revisar()">Revisar</button>
+          @if (puedeFinalizar()) {
+            <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
+              {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
+            </button>
+          }
         </div>
       }
 
@@ -285,6 +292,13 @@ export class InventarioDetallePage {
   readonly abierto = computed(
     () => String(this.inventario()?.estado ?? '').toUpperCase() === 'ABIERTO',
   );
+
+  revisar(): void {
+    const id = this.inventario()?.id;
+    if (id != null) {
+      void this.router.navigate(['/inventario', id, 'revisar']);
+    }
+  }
 
   contar(p: { id?: number }): void {
     const invId = this.inventario()?.id;

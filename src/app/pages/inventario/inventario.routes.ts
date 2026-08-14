@@ -12,6 +12,11 @@ export const rutasInventario: Routes = [
   },
   /** ⚠️ La carga va antes que el detalle: si no, `:id` se come la ruta. */
   {
+    path: ':id/revisar',
+    loadComponent: () =>
+      import('./revisar-inventario.page').then((m) => m.RevisarInventarioPage),
+  },
+  {
     path: ':id/producto/:productoId',
     loadComponent: () => import('./inventario-carga.page').then((m) => m.InventarioCargaPage),
   },

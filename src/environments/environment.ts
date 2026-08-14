@@ -15,25 +15,28 @@ export const environment = {
   /**
    * Firebase Web, para las notificaciones push.
    *
-   * ⚠️ **Está sin completar a propósito, y la app lo sabe.** El proyecto
-   * `bodega-franco-frc` tiene registradas las dos apps Android pero **ninguna
-   * app Web**, así que no existen todavía ni la `apiKey` ni el `appId` web, ni
-   * el certificado Web Push del que sale la `vapidKey`. Las tres salen de la
-   * consola de Firebase y no se pueden inventar.
+   * ⚠️ **Nada de esto es secreto, y por eso está en el repo.** La `apiKey` web
+   * y la clave VAPID **pública** viajan dentro del bundle de cualquier PWA:
+   * quien abra el DevTools de la app las ve. Son configuración, no
+   * credenciales. Lo que sí es secreto es el service account que usa el
+   * central para *mandar* (`FCMInitializer`), y ese no vive acá.
    *
-   * Con esto vacío, la app **no ofrece** activar notificaciones y dice por qué;
-   * lo que no hace es pedir permiso de notificaciones para después no poder
-   * registrar nada.
+   * A la `apiKey` lo que la protege es la **restricción por sitio** en Google
+   * Cloud Console (Credenciales → `Browser key` → Sitios web), no el
+   * esconderla.
    *
-   * `projectId` y `messagingSenderId` sí son los reales: salen de
-   * `android/app/google-services.json` del repo `frc-mobile` y son los mismos
-   * para todas las plataformas del proyecto.
+   * Si alguno de los tres valores se vacía, la app **no ofrece** activar
+   * notificaciones y dice por qué; lo que no hace es pedir el permiso del
+   * navegador para después no poder registrar nada — ese permiso, una vez
+   * denegado, no se vuelve a pedir en ese dispositivo.
+   *
+   * Ver `docs/arquitectura/web-push.md`.
    */
   firebaseWeb: {
     projectId: 'bodega-franco-frc',
     messagingSenderId: '170136643206',
-    apiKey: '',
-    appId: '',
-    vapidKey: '',
+    apiKey: 'AIzaSyB7GvFybGqFw66lqRBgarhh_fdyGuSrVEA',
+    appId: '1:170136643206:web:6c0951d5ffaff0e1a5d307',
+    vapidKey: 'BD2NBAWDMVmY7hiM9HJB-F9E1oMCBcBS9-JeJ1CxNDkDdrlp8jWzHngYHPnNqqmkFJPNU-5xPMpCpt3hGMPrSLM',
   },
 };

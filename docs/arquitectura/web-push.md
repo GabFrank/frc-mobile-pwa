@@ -16,29 +16,51 @@ no asumiendo:
 | Limpieza de tokens muertos | `FCMService.clasificarError` trata `THIRD_PARTY_AUTH_ERROR` —el rechazo típico de una suscripción webpush— como token inválido | listo |
 | Cliente | `core/notificaciones/push.service.ts` + la fila «Avisos con la app cerrada» en Mi cuenta | listo |
 
-## Lo que falta, y por qué no lo puede hacer el código
+## Las claves, y por qué están en el repo
 
-Dos acciones en la **consola de Firebase**, sobre el proyecto
-`bodega-franco-frc` (número `170136643206`):
+Los cuatro valores del bloque `firebaseWeb` de `environment.ts` salen de la
+consola de Firebase, proyecto `bodega-franco-frc` (número `170136643206`):
+`apiKey` y `appId` de la app Web, y la clave pública VAPID del certificado Web
+Push (Configuración → Cloud Messaging → *Certificados push web*).
 
-1. **Registrar una app Web.** Hoy el proyecto tiene registradas las dos apps
-   Android (`com.sistemasinformaticos.frc` y `com.system.frc`) y **ninguna
-   web**. De ahí salen `apiKey` y `appId`.
-2. **Generar el certificado Web Push** (Configuración → Cloud Messaging → Web
-   Push certificates). De ahí sale la **clave pública VAPID**.
+**Ninguno es secreto.** La `apiKey` web y la VAPID **pública** viajan dentro
+del bundle de cualquier PWA: quien abra el DevTools de la app las ve. Son
+configuración, no credenciales. Lo que sí es secreto es el service account que
+usa el central para *mandar* (`FCMInitializer`), y ese no vive en este repo.
 
-Los tres valores van a `src/environments/environment.ts` y
-`environment.prod.ts`, en el bloque `firebaseWeb`. `projectId` y
-`messagingSenderId` ya están puestos: salen de
-`android/app/google-services.json` del repo `frc-mobile` y son los mismos para
-todas las plataformas del proyecto.
+A la `apiKey` la protege la **restricción por sitio** en Google Cloud Console
+(Credenciales → `Browser key` → Sitios web), no el esconderla. Pendiente
+cargar ahí los dominios de la PWA cuando existan.
 
-Mientras estén vacíos, la app **no ofrece** activar las notificaciones y dice
-que todavía no están configuradas. Lo que no hace es pedir el permiso del
-navegador para después no poder registrar nada — ese permiso, una vez
-denegado, no se vuelve a pedir en ese dispositivo.
+Si alguno de los valores se vacía, la app **no ofrece** activar las
+notificaciones y dice que no están configuradas. Lo que no hace es pedir el
+permiso del navegador para después no poder registrar nada — ese permiso, una
+vez denegado, no se vuelve a pedir en ese dispositivo.
+
+> ⚠️ **`google-services.json` no sirve para saber si hay una app Web.** Ese
+> archivo solo lista clientes Android; una app web registrada no aparece ahí.
+> Leerlo al revés fue lo que hizo creer que faltaba registrarla.
 
 ## Decisiones que no se ven en el código
+
+### El token va atado al `idDispositivo` de la sesión
+
+Y esta es la parte que se rompe silenciosamente si se hace a medias.
+
+El central resuelve `actualizarTokenFcm` buscando la sesión activa por
+`(usuario, idDispositivo)`. **Si no la encuentra, no falla**: escribe el token
+en *la primera sesión abierta del usuario, sea del dispositivo que sea*.
+
+La PWA no registraba sesión, así que ese id nunca coincidía. Verificado contra
+la base local: el token de un Chrome de escritorio terminó escrito sobre una
+fila `WEB` de otro navegador, y con otro orden de filas habría caído sobre la
+sesión **IOS** del mismo usuario — el iPhone dejando de recibir avisos y este
+equipo recibiéndolos dos veces, sin que nadie toque nada.
+
+`SesionDispositivoService` registra la sesión al cargar el usuario, y
+`idDeDispositivo()` es compartido por las dos mitades. `frc-mobile` lo tiene
+así desde siempre (`login.service.ts` → `registrarSesionActiva`); la PWA se
+había quedado solo con la segunda mitad.
 
 ### Es un token de FCM, no una suscripción cruda
 
@@ -77,19 +99,34 @@ botón que falla: en Safari sin instalar, `Notification` ni siquiera existe.
 Es la misma dependencia que tiene el bloque de instalación en Mi cuenta, y la
 razón de que las dos cosas vivan juntas.
 
-## Cómo probarlo cuando estén las claves
+## Cómo probarlo
 
-1. Completar los tres valores en `environment.ts`.
-2. `npm run build` y servir sobre **HTTPS** o `localhost` — sin contexto
-   seguro no hay service worker ni push.
-3. Mi cuenta → *Avisos con la app cerrada* → **Activar**. El navegador pide
+⚠️ **`ng serve` no sirve**: el service worker está en `enabled: !isDevMode()`,
+y sin service worker no hay dónde recibir el aviso. Hay que servir un build.
+
+```bash
+npm run build
+cd dist/mobile-pwa/browser && python3 -m http.server 4400 --bind 127.0.0.1
+```
+
+`localhost` es contexto seguro, así que el service worker y el push funcionan
+sin HTTPS. Ojo que ese servidor estático **no hace fallback de SPA**: si se
+recarga una ruta profunda sin el service worker activo, da 404. Entrar por
+`/`.
+
+1. Entrar y mirar que `inicio_sesion` tenga una fila para el
+   `frc.idDispositivo` de `localStorage`, con `tipo_dispositivo` `WEB` o
+   `WEB_MOBILE`. **Esto va primero**: sin la fila, el token del paso 3 se
+   escribe en la sesión de otro aparato.
+2. Mi cuenta → *Avisos con la app cerrada* → **Activar**. El navegador pide
    permiso; al conceder, la fila pasa a «Activados en este dispositivo».
-4. Verificar en la base que `inicio_sesion` tiene el token para ese
-   `id_dispositivo` (`frc.idDispositivo` en `localStorage`).
-5. Cerrar la app **por completo** y disparar una notificación desde el central.
-6. En iPhone, repetir con la PWA **instalada**: sin instalar no va a aparecer
+3. Verificar que el token quedó **en esa misma fila**, no en otra del mismo
+   usuario.
+4. Cerrar la app **por completo** y disparar una notificación desde el central.
+5. En iPhone, repetir con la PWA **instalada**: sin instalar no va a aparecer
    ni el botón.
 
-Los casos están escritos en el bloque 38 de
-[`PLAN_TESTEO_MANUAL.md`](../PLAN_TESTEO_MANUAL.md), marcados como **no
-ejecutados**: sin las claves no hay forma de correrlos.
+Los pasos 1 a 3 se ejecutaron el 2026-08-14 contra el central local. Los pasos
+4 y 5 no: mandar una notificación de verdad y probar en un iPhone quedan para
+una pasada manual. Ver el bloque 38 de
+[`PLAN_TESTEO_MANUAL.md`](../PLAN_TESTEO_MANUAL.md).

@@ -1,10 +1,9 @@
 import { inject, Injectable, signal } from '@angular/core';
 
 import { environment } from 'src/environments/environment';
+import { idDeDispositivo } from '../auth/dispositivo';
 import { DatosService } from '../graphql/datos.service';
 import { ActualizarTokenFcmGQL } from 'src/app/graphql/personas/usuario/graphql/actualizarTokenFcm';
-
-const CLAVE_DISPOSITIVO = 'frc.idDispositivo';
 
 /**
  * En qué punto está el push en este dispositivo.
@@ -25,9 +24,17 @@ export type EstadoPush =
  *
  * El central ya sabe mandarlas: `FCMService.sendToToken` arma el mensaje con
  * `WebpushConfig`, la mutación `actualizarTokenFcm` existe, y `TipoDispositivo`
- * tiene `WEB` y `WEB_MOBILE`. **No hace falta tocar el central.** Lo que falta
- * es del lado de la consola de Firebase, y está detallado en
- * `docs/arquitectura/web-push.md`.
+ * tiene `WEB` y `WEB_MOBILE`. **No hace falta tocar el central.**
+ *
+ * ⚠️ **El token va atado al `idDispositivo` de esta sesión.** El central busca
+ * la sesión activa por `(usuario, idDispositivo)` y, si no la encuentra,
+ * escribe el token en *la primera sesión abierta del usuario*. Ese fallback
+ * llegó a escribir el token de un Chrome de escritorio sobre una sesión de
+ * otro navegador; con otro orden de filas habría caído sobre la sesión de un
+ * iPhone. Por eso `SesionDispositivoService` registra la sesión al entrar y
+ * las dos mitades comparten `idDeDispositivo()`.
+ *
+ * Ver `docs/arquitectura/web-push.md`.
  *
  * ⚠️ **Es un token de FCM, no una suscripción cruda.** `SwPush.requestSubscription`
  * devuelve un `PushSubscription` del estándar Web Push, y el central no sabe
@@ -129,7 +136,19 @@ export class PushService {
 
     // La registración de Angular, no una nueva: dos service workers sobre la
     // misma página se disputan el control y el push queda en el que perdió.
-    const registration = await navigator.serviceWorker.ready;
+    //
+    // ⚠️ **`getRegistration()` y no `ready`.** `ready` es una promesa que
+    // **nunca se rechaza**: si no hay ningún service worker registrado se
+    // queda esperando para siempre, y el botón se congela en «Activando…» sin
+    // error ni log. Pasa en `ng serve`, donde `provideServiceWorker` está en
+    // `enabled: !isDevMode()`.
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      throw new Error(
+        'No hay service worker activo, así que no hay dónde recibir el aviso. ' +
+          'En desarrollo está deshabilitado: probalo sobre un build.',
+      );
+    }
 
     return await getToken(getMessaging(app), {
       vapidKey: f.vapidKey,
@@ -185,21 +204,4 @@ function esIOSSinInstalar(): boolean {
     window.matchMedia?.('(display-mode: standalone)').matches ||
     (navigator as { standalone?: boolean }).standalone === true;
   return esIOS && !instalada;
-}
-
-/**
- * Un id estable por dispositivo.
- *
- * El central lo usa para no dejar dos filas de `inicio_sesion` vivas para el
- * mismo aparato. `frc-mobile` usa el id del dispositivo que da Capacitor; en
- * la web no hay tal cosa, así que se genera uno y se guarda.
- */
-function idDeDispositivo(): string {
-  const guardado = localStorage.getItem(CLAVE_DISPOSITIVO);
-  if (guardado) {
-    return guardado;
-  }
-  const nuevo = `web-${crypto.randomUUID()}`;
-  localStorage.setItem(CLAVE_DISPOSITIVO, nuevo);
-  return nuevo;
 }

@@ -2556,26 +2556,36 @@ Servidor*.
 
 ---
 
-## Bloque 38 — Notificaciones push *(nuevo — NO EJECUTADO)*
+## Bloque 38 — Notificaciones push *(nuevo)*
 
-> ⚠️ **Ninguno de estos casos se puede correr todavía.** Faltan tres valores
-> que salen de la consola de Firebase: la `apiKey` y el `appId` de una app Web
-> —el proyecto `bodega-franco-frc` tiene registradas las dos Android y ninguna
-> web— y la clave pública VAPID del certificado Web Push. El detalle está en
-> [`docs/arquitectura/web-push.md`](arquitectura/web-push.md).
+> **Verificado el 2026-08-14** contra el central local, sobre un build servido
+> en `localhost:4400`: la sesión del dispositivo quedó registrada (fila 15981,
+> `WEB_MOBILE`), el token de FCM se acuñó con la VAPID del proyecto y quedó
+> escrito **en esa misma fila**, dejando intacta la sesión `IOS` del mismo
+> usuario.
 >
-> **El central no necesita cambios**: `FCMService` ya arma el mensaje con
-> `WebpushConfig`, `actualizarTokenFcm` existe y `TipoDispositivo` ya tiene
-> `WEB` y `WEB_MOBILE`.
+> Quedan sin ejecutar **38.4** (recibir el aviso de verdad) y **38.6/38.7**
+> (iPhone): hace falta disparar una notificación desde el central y un
+> dispositivo iOS.
+>
+> ⚠️ **`ng serve` no sirve para este bloque.** El service worker está en
+> `enabled: !isDevMode()`, y sin service worker no hay dónde recibir el aviso.
+> Hay que servir un build; el detalle está en
+> [`docs/arquitectura/web-push.md`](arquitectura/web-push.md).
 
-### 38.1 · Sin configurar, no se ofrece
-1. Mi cuenta → *Avisos con la app cerrada*, con el entorno sin completar.
+### 38.1 · La sesión del dispositivo se registra al entrar
+1. Entrar y mirar `configuraciones.inicio_sesion` para el `frc.idDispositivo`
+   que está en `localStorage`.
 
-**Esperado:** dice «todavía no configurados en el servidor» y **no** hay botón.
+**Esperado:** hay una fila con ese id y `tipo_dispositivo` `WEB` o
+`WEB_MOBILE`.
 
-> Es el estado de hoy, y es el único caso del bloque que sí se puede verificar.
-> Importa que no haya botón: pedir el permiso del navegador para después no
-> poder registrar nada lo quema para siempre en ese dispositivo.
+> ⚠️ **Este caso va primero y no es opcional.** El central escribe el token
+> buscando la sesión activa por `(usuario, idDispositivo)`; si no la
+> encuentra **no falla**, escribe el token en *la primera sesión abierta del
+> usuario, sea del dispositivo que sea*. Sin esta fila, el token de esta
+> computadora se escribe sobre la sesión de otro aparato — y si esa sesión es
+> la del iPhone de la persona, el iPhone deja de recibir avisos.
 
 ### 38.2 · Activar
 1. Con las claves cargadas, tocar *Activar*.
@@ -2583,15 +2593,15 @@ Servidor*.
 **Esperado:** el navegador pide permiso; al conceder, la fila pasa a
 «Activados en este dispositivo».
 
-### 38.3 · El token llega al central
-1. Después de activar, mirar `inicio_sesion` para el `id_dispositivo` que está
-   en `localStorage` bajo `frc.idDispositivo`.
+### 38.3 · El token llega, y a la fila correcta
+1. Después de activar, mirar todas las sesiones abiertas del usuario.
 
-**Esperado:** la fila tiene el token FCM.
+**Esperado:** el token quedó en la fila **de este dispositivo**, y las demás
+—en particular una `IOS`— conservan el suyo.
 
-> ⚠️ Verificar **esto**, no solo que la mutación devuelva `true`. Si alguna vez
-> se guardara ahí el JSON de un `PushSubscription` en vez de un token de FCM,
-> todo se vería en verde y no llegaría ni una notificación.
+> ⚠️ Verificar **esto**, no solo que la mutación devuelva `true`. Dos cosas
+> se ven en verde y no entregan nada: un `PushSubscription` guardado donde va
+> un token de FCM, y un token correcto escrito en la sesión de otro aparato.
 
 ### 38.4 · Llega con la app cerrada
 1. Cerrar la app por completo y disparar una notificación desde el central.
@@ -2661,7 +2671,7 @@ no va a preguntar.
 | 35 · Revisión de inventario | 6 | 3 | | |
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
-| 38 · Notificaciones push *(bloqueado)* | 7 | 1 | | |
+| 38 · Notificaciones push | 7 | 4 | | |
 | **Total** | **282** | | | |
 
 ### Los cinco que más importan

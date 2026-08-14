@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { UsuarioLoginGQL } from 'src/app/graphql/personas/usuario/graphql/usuarioLogin';
+import { SesionDispositivoService } from './sesion-dispositivo.service';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { DatosService, esFalloDeTransporte } from '../graphql/datos.service';
 import { AuthService } from './auth.service';
@@ -46,6 +47,7 @@ export class SesionService {
   private readonly datos = inject(DatosService);
   private readonly auth = inject(AuthService);
   private readonly usuarioLoginGQL = inject(UsuarioLoginGQL);
+  private readonly sesionDispositivo = inject(SesionDispositivoService);
 
   /**
    * Trae el usuario y lo publica. Devuelve `true` si lo logró.
@@ -68,6 +70,9 @@ export class SesionService {
         return false;
       }
       this.auth.establecerUsuario(usuario);
+      // Sin await: el registro del dispositivo no puede demorar la entrada, y
+      // si falla no cambia nada de lo que la persona puede hacer.
+      void this.sesionDispositivo.registrar(usuario);
       return true;
     } catch (error) {
       this.ultimoFalloFueDeRed.set(esFalloDeTransporte(error));

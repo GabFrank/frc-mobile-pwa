@@ -2495,6 +2495,67 @@ referencial.
 
 ---
 
+## Bloque 37 — Configuración del kiosco *(nuevo)*
+
+> **Verificado el 2026-08-14** en Chrome: se cambió a *Cámara*, la preferencia
+> quedó en `localStorage` (`frc.kioscoModo`), el escáner abrió solo al cerrar
+> la configuración, y al cancelarlo volvió a abrirse a los 2,5 s. Salir del
+> kiosco cortó el rearme: tres segundos y medio después, en Inicio, no había
+> ningún diálogo abierto.
+
+### 37.1 · Modo lector (el de las góndolas)
+1. Kiosco → ícono de engranaje → *Lector*.
+
+**Esperado:** el campo queda enfocado, **no** sale el teclado en pantalla y el
+texto de espera dice «pasá el producto por el lector». Pasar un código con el
+lector muestra el precio sin tocar nada.
+
+### 37.2 · Modo cámara
+1. Elegir *Cámara* y cerrar la configuración.
+
+**Esperado:** el escáner se abre **solo**. El texto de espera y el placeholder
+cambian a la versión de cámara.
+
+> `frc-mobile` abre el escáner una única vez, al entrar en modo `cam`, y
+> después queda mudo hasta que alguien toque. En un kiosco eso no alcanza: la
+> pantalla la mira un cliente.
+
+### 37.3 · La cámara se vuelve a armar sola
+1. En modo cámara, cerrar el escáner sin leer nada. Esperar.
+
+**Esperado:** vuelve a abrirse a los pocos segundos. **No** se abren dos
+escáneres encima: el rearme se encadena al cierre del anterior.
+
+### 37.4 · Salir corta el rearme
+1. En modo cámara, cerrar el escáner y tocar la X del kiosco.
+
+**Esperado:** vuelve a Inicio y la cámara **no** se reabre encima.
+
+### 37.5 · La preferencia es del dispositivo
+1. Configurar *Cámara*, cerrar la app y volver a entrar. Después entrar con el
+   mismo usuario desde otro dispositivo.
+
+**Esperado:** la tablet sigue en cámara; el otro dispositivo arranca en
+*Lector*. Es configuración de la tablet de la góndola, no del usuario.
+
+### 37.6 · Sin cámara, no se puede elegir cámara
+1. Abrir la configuración en un equipo sin cámara.
+
+**Esperado:** la opción está deshabilitada y explica por qué. Elegirla dejaría
+el kiosco mudo: sin lector no entra nada por el campo.
+
+### 37.7 · El servidor se muestra, no se edita
+1. Mirar la sección *Servidor*.
+
+**Esperado:** dice contra qué instancia está hablando y remite a *Mi cuenta →
+Servidor*.
+
+> `frc-mobile` repite acá el formulario de IP y puerto, con la IP de
+> producción escrita a mano en el componente. Cambiar de servidor cierra la
+> sesión, así que no es algo que se haga con un kiosco abierto.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -2535,7 +2596,8 @@ referencial.
 | 34 · Control de inventario | 5 | 1 | | |
 | 35 · Revisión de inventario | 6 | 3 | | |
 | 36 · Lugares del depósito | 7 | 4 | | |
-| **Total** | **268** | | | |
+| 37 · Configuración del kiosco | 7 | 4 | | |
+| **Total** | **275** | | | |
 
 ### Los cinco que más importan
 

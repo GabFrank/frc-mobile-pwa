@@ -7,6 +7,7 @@ import { ROLES } from 'src/app/domains/personas/roles/roles.enum';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
+import { CreditoResumenComponent } from './credito-resumen.component';
 
 interface AccesoRapido {
   etiqueta: string;
@@ -19,10 +20,12 @@ interface AccesoRapido {
 @Component({
   selector: 'frc-inicio',
   standalone: true,
-  imports: [PaginaComponent, SeccionComponent, IconoComponent],
+  imports: [PaginaComponent, SeccionComponent, IconoComponent, CreditoResumenComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina [titulo]="saludo()">
+      <frc-credito-resumen />
+
       <frc-seccion titulo="Accesos rápidos">
         <div class="grilla">
           @for (a of accesos(); track a.ruta) {

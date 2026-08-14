@@ -1594,23 +1594,424 @@ desde el teléfono**. Al aceptar: «Enviada a pagos», el chip pasa a
 
 ---
 
+---
+
+## Bloque 22 — Crédito en Inicio *(nuevo)*
+
+> **Sin ejecutar.** Necesita un usuario cuya persona esté registrada como
+> cliente con convenio. Un usuario sin convenio prueba 22.4, que también hay
+> que correr.
+
+### 22.1 · Los valores arrancan tapados
+1. Entrar a la app.
+
+**Esperado:** arriba de los accesos rápidos hay una tarjeta *Crédito
+disponible* que muestra `₲ ••••••` en los tres importes. **No** el saldo.
+
+> Es a propósito: la pantalla se abre en el salón y el saldo de una persona no
+> es para leerse por encima del hombro.
+
+### 22.2 · Destapar y que quede destapado
+1. Tocar el ojo de la tarjeta.
+2. Cerrar la app por completo y volver a abrirla.
+
+**Esperado:** al tocar aparecen disponible, gastado y límite. Al volver a
+entrar siguen visibles: la preferencia se guarda.
+
+### 22.3 · La barra sigue al gasto
+1. Con los valores visibles, mirar la barra.
+
+**Esperado:** verde mientras sobra crédito, ámbar a partir del 75 % gastado,
+roja si el disponible quedó negativo. Con los valores tapados la barra queda
+**vacía** — si no, filtraría de un vistazo lo que el ojo acaba de tapar.
+
+### 22.4 · Sin convenio no hay tarjeta
+1. Entrar con un usuario cuya persona no sea cliente.
+
+**Esperado:** no aparece ninguna tarjeta de crédito. **No** una tarjeta en
+cero: eso diría que agotó su crédito.
+
+### 22.5 · Lleva al detalle
+1. Tocar la tarjeta (no el ojo).
+
+**Esperado:** abre *Mis finanzas*. Tocar el ojo **no** navega.
+
+### 22.6 · Con el central caído
+1. Apagar el central y entrar a la app.
+
+**Esperado:** la tarjeta dice que no se pudo cargar y ofrece *Reintentar*. El
+resto de Inicio se ve normal y **no** aparece un toast rojo tapando la
+bienvenida.
+
+---
+
+## Bloque 23 — Escáner universal *(nuevo)*
+
+> **Ruteo verificado** por carga manual contra alpha: transferencia, código de
+> barras y QR de sucursal. **Falta con la cámara real** y falta el resto de
+> los tipos, que necesitan un QR de cada uno.
+
+### 23.1 · El botón está en todas partes
+1. Recorrer Inicio, Operaciones, Buscar, Cuenta, una lista y un detalle.
+
+**Esperado:** el botón redondo de escaneo está abajo a la derecha en todas.
+En las pantallas con barra de acciones fija —guardar, finalizar— queda
+**encima** de la barra, sin taparla.
+
+### 23.2 · Lee un producto y lo abre
+1. Tocar el botón y escanear el código de barras de un producto.
+
+**Esperado:** cae en *Buscar* con el producto ya resuelto, sin pedir la cámara
+de nuevo. La URL lleva `?codigo=…`, así que recargar lo vuelve a resolver.
+
+### 23.3 · Lee un QR de transferencia
+1. Escanear el QR que comparte una transferencia.
+
+**Esperado:** abre esa transferencia.
+
+### 23.4 · Lee un QR de inventario
+1. Escanear el QR que comparte un inventario.
+
+**Esperado:** abre ese inventario. ⚠️ El generador **no escribe `idOrigen`**
+en este tipo: si abre el inventario equivocado o el número 0, es este caso.
+
+### 23.5 · Lee un QR de recepción
+1. Escanear el QR de una recepción de mercadería.
+
+**Esperado:** abre esa recepción.
+
+### 23.6 · El cupón de tarjeta sigue exigiendo la caja
+1. Sin caja abierta, escanear un QR de venta con tarjeta desde **cualquier**
+   pantalla.
+
+**Esperado:** avisa que no hay caja abierta. **No** llega al formulario de
+registro. El control tiene que ser el mismo que tocando *Escanear cupón*
+dentro del módulo.
+
+### 23.7 · El QR de sucursal explica en vez de fallar
+1. Escanear el QR del cartel de un depósito.
+
+**Esperado:** avisa que ese QR identifica una sucursal y hay que escanearlo
+desde la pantalla donde se la necesita. No navega.
+
+### 23.8 · Un QR ajeno
+1. Escanear cualquier QR que no sea del sistema (una URL, un wifi).
+
+**Esperado:** lo trata como código de producto y termina en *Buscar* sin
+resultados. No rompe.
+
+### 23.9 · En iPhone
+1. Repetir 23.2 en Safari de iOS.
+
+**Esperado:** la cámara abre igual (por ZXing) y el ruteo es el mismo.
+
+---
+
+## Bloque 24 — Configuración en Mi cuenta *(nuevo)*
+
+### 24.1 · Los datos de la persona
+1. Cuenta → *Mis datos*.
+
+**Esperado:** documento, apodo, teléfono, email, nacimiento y ciudad, de solo
+lectura. Los que no estén cargados dicen `—`.
+
+> ⚠️ **Si el nacimiento dice `01/01/1970`, es un fallo.** El central manda la
+> época cuando la fecha no está cargada y la app tiene que leerla como
+> ausente.
+
+### 24.2 · Tema con tres estados
+1. Cuenta → *Preferencias* → Tema.
+
+**Esperado:** ofrece *Del sistema*, *Claro* y *Oscuro*. Elegir *Del sistema* y
+cambiar el tema del teléfono cambia la app sola.
+
+### 24.3 · Cambiar de servidor avisa antes
+1. Cuenta → *Aplicación* → tocar la URL del servidor.
+2. Escribir otra y confirmar.
+
+**Esperado:** primero pide la URL; después avisa que **va a cerrar la sesión**
+y pide confirmar. Al aceptar, termina en el login.
+
+### 24.4 · Cancelar no cambia nada
+1. Repetir 24.3 y cancelar en el segundo diálogo.
+
+**Esperado:** sigue con la sesión abierta y contra el servidor viejo.
+
+### 24.5 · Preferencias de notificación
+1. Cuenta → *Preferencias* → Notificaciones → *Configurar*.
+
+**Esperado:** abre la pantalla de preferencias de notificaciones.
+
+### 24.6 · El badge de no leídas
+1. Con notificaciones sin leer, entrar a la app y mirar Inicio.
+
+**Esperado:** el acceso *Notificaciones* muestra el número. Con más de 99 dice
+`99+`. Al marcar todas como leídas, desaparece.
+
+> El conteo se pide **al entrar**, no al abrir la bandeja: si solo aparece
+> después de visitar Notificaciones, es un fallo.
+
+---
+
+## Bloque 25 — Productos vencidos *(nuevo)*
+
+### 25.1 · Abre en lo ya vencido
+1. Inicio → *Productos vencidos*.
+
+**Esperado:** el filtro *Qué mostrar* está en **Ya vencidos** y las primeras
+filas dicen *Vencido hace N días* en rojo.
+
+> ⚠️ Si encabeza con *«1500 días restantes»*, el filtro no se aplicó. El
+> central pagina con `ORDER BY vencimiento DESC` y sin acotar la ventana lo
+> menos urgente queda arriba.
+
+### 25.2 · Los próximos 30 días
+1. Cambiar *Qué mostrar* a *Vencen en 30 días*.
+
+**Esperado:** trae lo que vence dentro del mes. Vuelve a la primera página.
+
+### 25.3 · Filtrar por sucursal
+1. Elegir una sucursal.
+
+**Esperado:** solo filas de esa sucursal, desde la página 1. En la lista
+**no** aparecen SERVIDOR ni COMPRAS: no tienen depósito.
+
+### 25.4 · De dónde salió la fecha
+1. Mirar el pie de una fila.
+
+**Esperado:** dice el origen — *Nota de compra #…*, *Transferencia #…* o
+*Inventario #…* — con su fecha.
+
+### 25.5 · Cuando el conteo contradice
+1. Buscar una fila con la línea ámbar *Según inventario: …*
+
+**Esperado:** aparece **solo** donde el inventario dice otra cosa que la
+fuente elegida. Es la razón por la que alguien discute una fila.
+
+---
+
+## Bloque 26 — Modo kiosco *(nuevo)*
+
+> **Corrido contra alpha** con un código real: autofoco, no encontrado y
+> producto con precio. **Falta con un lector HID físico** y en una tablet.
+
+### 26.1 · Abre listo para leer
+1. Inicio → *Consultar precio*.
+
+**Esperado:** pantalla completa, **sin** barra inferior y **sin** botón de
+escaneo flotante. El campo ya tiene el foco sin tocar nada.
+
+### 26.2 · El lector escribe y enter resuelve
+1. Con un lector HID conectado, pasar un producto.
+
+**Esperado:** aparece la descripción grande y el precio por presentación. El
+campo queda vacío y enfocado para el siguiente.
+
+### 26.3 · El foco vuelve solo
+1. Tocar en cualquier parte de la pantalla.
+2. Pasar otro producto por el lector.
+
+**Esperado:** lo lee igual. **Es el caso más importante del bloque**: si el
+foco se pierde, el kiosco queda mudo sin que nadie se dé cuenta.
+
+### 26.4 · Marca la presentación del código
+1. Pasar el código de la **caja** de un producto que también se vende por
+   unidad.
+
+**Esperado:** se muestran las dos presentaciones con su precio, y la de la
+caja queda resaltada con borde rojo.
+
+### 26.5 · Producto inexistente
+1. Escribir un código cualquiera y enter.
+
+**Esperado:** *Producto no encontrado*, campo vacío, foco conservado.
+
+### 26.6 · El precio no se queda para siempre
+1. Consultar un producto y esperar sin tocar nada.
+
+**Esperado:** a los ~20 segundos vuelve a *Pasá el producto por el lector*.
+Sin esto, el próximo cliente lee un precio que no es el suyo.
+
+### 26.7 · El escáner de la cámara no pierde el foco
+1. En el kiosco, tocar el ícono de cámara.
+2. En el diálogo, tocar *Ingresar a mano* y escribir un código.
+
+**Esperado:** el texto entra en el campo del diálogo. Si las teclas no
+aparecen en ningún lado, el foco se lo llevó el campo del kiosco que quedó
+detrás del overlay.
+
+### 26.8 · Salir
+1. Tocar la X.
+
+**Esperado:** vuelve a Inicio con la sesión intacta.
+
+---
+
+## Bloque 27 — Ficha de producto *(nuevo)*
+
+### 27.1 · Llegar a la ficha
+1. Buscar un producto → menú `⋮` → *Ver ficha del producto*.
+
+**Esperado:** abre la ficha con la descripción como título.
+
+### 27.2 · Todos los precios, no solo el principal
+1. Mirar una presentación con más de un tipo de precio.
+
+**Esperado:** los lista todos, con el principal marcado y primero.
+
+### 27.3 · Los códigos, incluidos los de baja
+1. Mirar los códigos de una presentación.
+
+**Esperado:** se ven todos. Los inactivos aparecen **tachados**, no ocultos:
+siguen pegados a cajas viejas.
+
+### 27.4 · Características
+1. Abrir un producto de balanza y uno que controle vencimiento.
+
+**Esperado:** chips *De balanza*, *Controla vencimiento (N días)*,
+*Cambiable* o *Envase* según corresponda.
+
+### 27.5 · Existencia por sucursal
+1. Mirar la última sección.
+
+**Esperado:** una línea por sucursal operable, con `0,00` donde no hay
+movimientos.
+
+> ⚠️ **Si dice *No se pudo consultar*, el central no tiene
+> `stockPorSucursales`.** Es una consulta nueva; contra una instancia vieja
+> —alpha, hoy— es lo esperado. Lo que **no** puede pasar es que muestre todas
+> las sucursales en cero: eso afirmaría que no hay mercadería.
+
+---
+
+## Bloque 28 — Rendición de caja chica *(nuevo)*
+
+> **Sin ejecutar.** Necesita una solicitud **autorizada y con el retiro ya
+> confirmado**, cuya rendición esté pendiente.
+
+### 28.1 · El botón aparece cuando corresponde
+1. Abrir una solicitud con el retiro confirmado y sin rendir.
+
+**Esperado:** al pie dice *Rendir gasto*. En una sin retirar aparece
+*Confirmar retiro*; en una ya rendida, ninguno de los dos.
+
+> Se mira `estadoRendicion`, que es una máquina **separada** de `estado`: una
+> solicitud puede estar retirada con la rendición pendiente.
+
+### 28.2 · Sin comprobante no se rinde
+1. Escribir el monto y no adjuntar nada.
+
+**Esperado:** *Registrar rendición* queda deshabilitado. Es regla del
+negocio, no del formulario: sin comprobante no hay rendición.
+
+### 28.3 · Sacar la foto con la cámara
+1. Tocar *Agregar* en *Factura o comprobante*.
+
+**Esperado:** el teléfono abre la cámara directamente. La foto queda como
+miniatura con una X para quitarla.
+
+### 28.4 · Elegir una foto de la galería
+1. En el mismo selector, elegir una foto ya sacada.
+
+**Esperado:** entra igual. Es el caso de quien rinde al día siguiente.
+
+### 28.5 · La foto llega derecha
+1. Sacar una foto **vertical** con un Android.
+
+**Esperado:** la miniatura se ve vertical, no acostada. Si sale rotada, es la
+orientación EXIF.
+
+### 28.6 · Campos de combustible
+1. Rendir un gasto cuyo tipo sea combustible o de vehículo.
+
+**Esperado:** además del monto pide kilómetros, litros y precio por litro.
+
+### 28.7 · Campos de alimentación
+1. Rendir un gasto de alimentación.
+
+**Esperado:** pide el establecimiento.
+
+### 28.8 · Guardar
+1. Con monto y al menos una factura, tocar *Registrar rendición*.
+
+**Esperado:** avisa que se registró y vuelve al detalle, donde la rendición
+aparece en la lista con su monto.
+
+### 28.9 · Una sola moneda
+1. Mirar el formulario.
+
+**Esperado:** pide **un** importe, no una lista con monedas.
+
+> Es a propósito. `GastoRendicionInput.montoTotal` es un solo `Float` sin
+> moneda: `frc-mobile` ofrecía varias filas y al guardar mandaba solo la de
+> guaraníes, descartando el resto sin avisar.
+
+---
+
+## Bloque 29 — Carga del conteo de inventario *(nuevo)*
+
+> **Sin ejecutar.** Necesita un inventario **abierto** con productos cargados.
+
+### 29.1 · El botón solo en inventarios abiertos
+1. Abrir un inventario abierto y uno concluido.
+
+**Esperado:** en el abierto cada producto tiene *Contar*. En el concluido, no:
+escribir encima cambiaría el resultado de una toma cerrada.
+
+### 29.2 · Un renglón por presentación
+1. Entrar a contar un producto con unidad y caja.
+
+**Esperado:** un bloque por presentación, cada uno con lo que dice el sistema,
+el campo *Contado*, vencimiento y estado.
+
+### 29.3 · La diferencia se calcula mientras escribís
+1. Escribir una cantidad distinta a la del sistema.
+
+**Esperado:** al lado aparece la diferencia con signo — roja si falta, ámbar
+si sobra— y cambia con cada tecla.
+
+### 29.4 · Lo del sistema no se pisa
+1. Guardar y volver a entrar.
+
+**Esperado:** *Sistema* sigue mostrando el número original y *Contado* el que
+se cargó. **La diferencia entre los dos es el resultado del inventario**: si
+al volver son iguales, se perdió.
+
+### 29.5 · Lo arrastrado se avisa
+1. Buscar un ítem copiado de una toma anterior.
+
+**Esperado:** dice *Arrastrado de una toma anterior. Todavía no se contó.*
+
+### 29.6 · Guarda solo lo tocado
+1. Editar dos presentaciones de cinco y guardar.
+
+**Esperado:** el botón dice *Guardar conteo (2)* y al terminar avisa. Si
+alguna falla, lo dice y recarga igual para que se vea lo que sí entró.
+
+### 29.7 · Estado de la mercadería
+1. Marcar una presentación como *Averiado* y guardar.
+
+**Esperado:** queda guardado. Averiados y vencidos alimentan devoluciones.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
 
 | Área | Estado |
 |---|---|
-| Operaciones | De caja chica, el alta y la rendición |
+| Operaciones | De caja chica, **el alta** de la solicitud. La rendición ya está (bloque 28) |
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
-| Inventario: carga del conteo y zonas | No portado — la consulta sí |
-| Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
+| Inventario: zonas y sectores | No portado. La carga del conteo ya está (bloque 29); agregar un producto que la toma no incluye necesita `saveInventarioProducto`, que tampoco |
+| Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
+| Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
 | Recibir push (FCM) | No portado — la bandeja sí |
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
 | Escáner de códigos | Implementado — falta probarlo en dispositivos de sucursal |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
 | Reconocimiento facial | No portado |
-| Ícono de la PWA | Es el de Angular, no la marca |
 | Versionado | `package.json` está en `0.0.0` y no hay tags. La app muestra la fecha de compilación **con la aclaración «(sin versionar)»** hasta que `semantic-release` empiece a numerar |
 
 ---
@@ -1640,7 +2041,15 @@ Para que no se reporte como falla:
 | 19 · Inventario | 5 | | | |
 | 20 · Recepción de mercadería | 21 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
-| **Total** | **169** | | | |
+| 22 · Crédito en Inicio | 6 | | | |
+| 23 · Escáner universal | 9 | 3 | | |
+| 24 · Configuración en Mi cuenta | 6 | | | |
+| 25 · Productos vencidos | 5 | 2 | | |
+| 26 · Modo kiosco | 8 | 3 | | |
+| 27 · Ficha de producto | 5 | 2 | | |
+| 28 · Rendición de caja chica | 9 | | | |
+| 29 · Carga del conteo | 7 | | | |
+| **Total** | **224** | | | |
 
 ### Los cinco que más importan
 

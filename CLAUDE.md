@@ -154,7 +154,9 @@ src/
 
 Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con «recordar usuario» y «mantenerme conectado», shell responsivo, **módulo de caja completo** (lista, detalle, apertura y cierre con arqueo), **«Mi trabajo»** (autoservicio de RRHH: marcación, vales, recibos, vacaciones y solicitudes), **«Mis finanzas»** (compras a crédito por convenio), **escáner de códigos** (`BarcodeDetector` + ZXing para Safari) **búsqueda de productos** por texto, código y balanza, con card expandible y stock por sucursal, **devoluciones** (carga, historial y separado) **venta con tarjeta** (registro del cupón por escaneo) **marcación** con validación de ubicación **notificaciones** con hilo de comentarios y preferencias, **caja chica** (consulta y retiro con QR) **transferencias** (lista y detalle con las cuatro etapas) e **inventario** (resumen del conteo y finalización), **recepción de mercadería** (abrir con las notas del proveedor, verificar producto por producto, deshacer, finalizar y reabrir), **solicitud de pago a proveedor** (lista, alta desde el menú o desde una recepción finalizada, envío a la cola de pagos, detalle y constancia en PDF), galería viva en `/design-system`.
 
-Pendiente, por partes —las olas B a D están empezadas, no intactas—: de **inventario**, la carga del conteo y las zonas; de **caja chica**, el alta y la rendición; **producto**, su detalle, su edición y el modo kiosco; el módulo de **pedidos**; el **reconocimiento facial**; **Web Push** en lugar de FCM; el **transporte WebSocket** para suscripciones; y la Ola E entera (`personas`, `funcionario`, `codigo`, `configuracion`).
+Sumado en la tanda de paridad con `frc-mobile`: **crédito por convenio en Inicio**, **escáner universal** en un botón flotante que lee cualquier código y decide el destino, **configuración dentro de la app** (servidor, tema con sus tres estados, datos de la persona), **badge de no leídas**, **productos vencidos**, **modo kiosco** de consulta de precios, **ficha de producto**, **rendición de caja chica** con fotos, y **carga del conteo** de inventario.
+
+Pendiente: de **caja chica**, el **alta** de la solicitud —es el formulario más grande que queda: tipo de gasto, activo imputado con su buscador paginado, beneficiario y detalle financiero—; de **inventario**, zonas y sectores, y agregar a la toma un producto que no estaba (necesita `saveInventarioProducto`, que no está portado); de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; el **reconocimiento facial**; **Web Push** en lugar de FCM; y el **transporte WebSocket** para suscripciones.
 
 La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
@@ -162,11 +164,13 @@ La lista operativa de esto, escrita para que nadie lo reporte como falla durante
 
 **La app instalada se actualiza sola, con permiso.** El service worker consulta al arrancar y cada 30 minutos; cuando hay versión nueva, un diálogo ofrece aplicarla o postergarla, y en «Mi cuenta → Aplicación» están la versión instalada y el botón para actualizar a mano. Esto **no venía gratis**: el testeo en un Android real encontró que con la estrategia de registro por defecto el service worker nunca adoptaba una versión y la app no se actualizaba jamás. Ver [`docs/arquitectura/actualizaciones-app.md`](docs/arquitectura/actualizaciones-app.md).
 
-**Falta el test manual de apertura y cierre de caja** — bloque 7 del plan. Es lo único implementado que no se ejecutó contra el central real, porque la apertura se proxea a la filial.
+**Falta el test manual de apertura y cierre de caja** — bloque 7 del plan. Es lo único implementado de la primera tanda que no se ejecutó contra el central real, porque la apertura se proxea a la filial.
+
+⚠️ **La ficha de producto necesita un central con `stockPorSucursales`.** Es una consulta nueva y la instancia **alpha todavía no la tiene**: ahí la sección de existencia dice «No se pudo consultar», que es lo esperado. Lo que no puede pasar es que muestre las sucursales en cero.
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **468 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **493 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

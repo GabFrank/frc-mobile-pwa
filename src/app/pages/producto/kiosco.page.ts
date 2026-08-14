@@ -225,7 +225,19 @@ export class KioscoPage implements AfterViewInit {
   constructor() {
     // Cualquier toque en la pantalla devuelve el foco al campo. Sin esto, un
     // cliente que apoya el dedo deja el lector escribiendo en la nada.
-    const alTocar = () => this.enfocar();
+    //
+    // ⚠️ **Salvo dentro de un overlay.** Los diálogos de Material —el del
+    // escáner, sin ir más lejos— se montan en `.cdk-overlay-container`, que
+    // está fuera de este componente pero recibe los mismos clicks. Sin esta
+    // excepción, tocar «Ingresar a mano» devolvía el foco al campo del
+    // kiosco que quedó detrás y el código se escribía ahí, invisible.
+    const alTocar = (evento: MouseEvent) => {
+      const destino = evento.target as Element | null;
+      if (destino?.closest?.('.cdk-overlay-container')) {
+        return;
+      }
+      this.enfocar();
+    };
     document.addEventListener('click', alTocar);
     this.destroyRef.onDestroy(() => {
       document.removeEventListener('click', alTocar);

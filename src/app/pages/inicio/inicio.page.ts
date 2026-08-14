@@ -125,6 +125,12 @@ export class InicioPage {
     { etiqueta: 'Productos vencidos', ruta: '/producto/vencidos', icono: 'vencido' },
     { etiqueta: 'Consultar precio', ruta: '/kiosco', icono: 'etiqueta' },
     { etiqueta: 'Inventario', ruta: '/inventario', icono: 'inventario', roles: PERMISOS.inventario },
+    {
+      etiqueta: 'Control inventario',
+      ruta: '/inventario/control',
+      icono: 'verificado',
+      roles: PERMISOS.inventario,
+    },
     { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: PERMISOS.transferencias },
     {
       etiqueta: 'Notificaciones',

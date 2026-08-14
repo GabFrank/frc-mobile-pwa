@@ -2293,6 +2293,56 @@ consulta entera.
 
 ---
 
+---
+
+## Bloque 34 — Control de inventario *(nuevo)*
+
+> **Verificado el 2026-08-14** contra el central local: «Saldo negativo» sin
+> filtrar devolvió 16.263 productos y la lista paginó.
+
+### 34.1 · Los tres reportes
+1. Inicio → *Control inventario*. Cambiar *Qué mirar* entre las tres opciones.
+
+**Esperado:**
+
+| Reporte | Qué trae |
+|---|---|
+| Saldo negativo | se sacó más de lo que había — casi siempre falta cargar una entrada |
+| Saldo positivo | sobra contra el sistema |
+| Sin movimiento | no se movió en los últimos 30 días |
+
+> `frc-mobile` los esconde detrás de un menú de acciones. Acá son un selector,
+> porque cuál está activo **es** la pregunta de la pantalla.
+
+### 34.2 · «Sin movimiento» exige sucursal
+1. Elegir *Sin movimiento* sin sucursal.
+
+**Esperado:** pide elegir una y explica que se calcula sobre los últimos 30
+días de una sucursal. Los otros dos reportes sí aceptan «Todas».
+
+> No es un capricho: un faltante solo significa algo dentro de un período,
+> mientras que un saldo es un estado actual. El schema del central lo refleja
+> — `productosFaltantes` declara sucursal y fechas obligatorias.
+
+### 34.3 · El saldo se lee de un vistazo
+1. Mirar la columna derecha.
+
+**Esperado:** los negativos en rojo con signo, los positivos en ámbar con `+`.
+
+### 34.4 · Lleva a la ficha
+1. Tocar un producto.
+
+**Esperado:** abre su ficha, que es la pregunta que sigue: qué códigos y qué
+precios tiene el producto cuyo saldo no cierra.
+
+### 34.5 · Solo sucursales operables
+1. Abrir el selector de sucursal.
+
+**Esperado:** no aparecen SERVIDOR ni COMPRAS: sin depósito no hay saldo que
+controlar.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -2352,7 +2402,8 @@ Para que no se reporte como falla:
 | 31 · Rostro: registro y marcación | 11 | | | |
 | 32 · Compartir por QR | 4 | 2 | | |
 | 33 · Instalar y filtros por URL | 5 | 2 | | |
-| **Total** | **250** | | | |
+| 34 · Control de inventario | 5 | 1 | | |
+| **Total** | **255** | | | |
 
 ### Los cinco que más importan
 

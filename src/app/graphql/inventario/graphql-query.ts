@@ -108,3 +108,76 @@ export const saveInventarioProductoItemMutation = gql`
     }
   }
 `;
+
+/**
+ * Control de inventario: los tres reportes de saldo.
+ *
+ * ⚠️ **`productosFaltantes` exige sucursal y rango de fechas**; los otros dos
+ * no. No es un descuido del schema: un faltante solo tiene sentido dentro de
+ * un período —«no se movió entre estas fechas»—, mientras que un saldo
+ * positivo o negativo es un estado actual.
+ */
+export const productosConCantidadPositivaQuery = gql`
+  query ($sucursalId: ID, $productoId: ID, $page: Int, $size: Int) {
+    data: productosConCantidadPositiva(
+      sucursalId: $sucursalId
+      productoId: $productoId
+      page: $page
+      size: $size
+    ) {
+      getTotalPages
+      getTotalElements
+      hasNext
+      getContent {
+        productoId
+        productoDescripcion
+        sucursalId
+        saldoTotal
+      }
+    }
+  }
+`;
+
+export const productosConCantidadNegativaQuery = gql`
+  query ($sucursalId: ID, $productoId: ID, $page: Int, $size: Int) {
+    data: productosConCantidadNegativa(
+      sucursalId: $sucursalId
+      productoId: $productoId
+      page: $page
+      size: $size
+    ) {
+      getTotalPages
+      getTotalElements
+      hasNext
+      getContent {
+        productoId
+        productoDescripcion
+        sucursalId
+        saldoTotal
+      }
+    }
+  }
+`;
+
+export const productosFaltantesQuery = gql`
+  query ($sucursalId: ID!, $productoId: ID, $fechaInicio: String!, $fechaFin: String!, $page: Int, $size: Int) {
+    data: productosFaltantes(
+      sucursalId: $sucursalId
+      productoId: $productoId
+      fechaInicio: $fechaInicio
+      fechaFin: $fechaFin
+      page: $page
+      size: $size
+    ) {
+      getTotalPages
+      getTotalElements
+      hasNext
+      getContent {
+        productoId
+        productoDescripcion
+        sucursalId
+        saldoTotal
+      }
+    }
+  }
+`;

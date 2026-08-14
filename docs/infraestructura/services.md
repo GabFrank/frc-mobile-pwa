@@ -1,6 +1,6 @@
 # Servicios transversales
 
-> ⚠️ **Documento histórico.** Describe `frc-mobile` (Ionic + Capacitor), no este repo. Se conserva porque explica reglas de negocio y decisiones que se heredaron. Para la implementación actual, ver [`../design-system.md`](../design-system.md) y [`capa-de-datos.md`](capa-de-datos.md).
+> ⚠️ **Documento histórico.** Describe `frc-mobile` (Ionic + Capacitor), no este repo. Se conserva porque explica reglas de negocio y decisiones que se heredaron. Para la implementación actual, ver [`../design-system.md`](../design-system.md) y [`../arquitectura/capa-de-datos.md`](../arquitectura/capa-de-datos.md).
 
 Catálogo de `src/app/services/`. Son los servicios que cualquier módulo puede usar. Todos son `providedIn: 'root'` salvo aviso.
 

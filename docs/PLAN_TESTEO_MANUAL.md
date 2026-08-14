@@ -1999,12 +1999,35 @@ alguna falla, lo dice y recarga igual para que se vea lo que sí entró.
 
 ## Bloque 30 — Permisos por rol *(nuevo)*
 
-> **Necesita dos usuarios**: uno con `ADMIN` y otro **sin** `VER INVENTARIO`,
-> `VER TRANSFERENCIA` ni `VENTA TOUCH`. Con un solo usuario ADMIN este bloque
-> no prueba nada: ADMIN entra a todo, que es lo correcto.
+> **Ejecutado el 2026-08-14 contra el central local**, con un usuario
+> `test.roles` creado para esto y cinco pasadas sumando roles de a uno.
+> **30.1, 30.2, 30.4 y 30.5: ✅.** Queda 30.3 (ADMIN) y 30.6 (aprobaciones
+> RRHH), que necesitan asignar `RRHH APROBAR`.
 >
-> El camino negativo está cubierto por 9 tests automáticos; lo que falta
-> verificar a mano es que la experiencia sea entendible.
+> | Pasada | Roles | Resultado |
+> |---|---|---|
+> | 1 | *(ninguno)* | Inicio sin Caja/Inventario/Transferencias; Operaciones con las 3 abiertas; **las 4 rutas rebotan** |
+> | 2 | `VENTA TOUCH` | Aparecen Caja y Venta con tarjeta; `/operaciones/caja` entra |
+> | 3 | `+ VER INVENTARIO` | Aparece Inventario; su ruta entra |
+> | 4 | `+ VER TRANSFERENCIA` | Aparece Transferencias; su ruta entra |
+> | 5 | `+ RECIBIR PEDIDOS` | Aparece Recepción; su ruta entra |
+>
+> En cada pasada, lo que **no** correspondía siguió rebotando a Inicio. Los
+> accesos de autoservicio y consulta —Buscar, Vencidos, Consultar precio,
+> Notificaciones, Marcación, Mi trabajo, Mis finanzas, Mi cuenta— estuvieron
+> visibles en las cinco, que es lo esperado.
+
+> ⚠️ **Los roles se toman al iniciar sesión.** Cambiarlos en la base no se
+> refleja hasta recargar la app. Si al probar «no cambió nada», es esto.
+
+> ⚠️ **Para asignar un rol por SQL: `usuario_role.user_id`, no
+> `usuario_id`.** La tabla tiene **dos** FK a `usuario`: `user_id` es quien
+> **tiene** el rol y `usuario_id` es la auditoría de quién lo asignó. Escribir
+> en la segunda no da error y el rol simplemente no aplica.
+
+> Para repetirlo hace falta un usuario **sin** `VER INVENTARIO`,
+> `VER TRANSFERENCIA` ni `VENTA TOUCH`. Con un ADMIN este bloque no prueba
+> nada: ADMIN entra a todo, que es lo correcto.
 
 ### 30.1 · El menú esconde lo que no corresponde
 1. Entrar con el usuario restringido.

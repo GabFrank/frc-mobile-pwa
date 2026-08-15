@@ -83,7 +83,13 @@ Dos pasadas. La **primera automatizada**, sin navegador. La **segunda con la ext
 - [ ] `npm install` corrido
 - [ ] Un usuario válido del central con roles conocidos (idealmente uno con `ADMIN` o `VENTA_TOUCH`, y otro sin ellos)
 - [ ] Un celular Android con cable USB, para las pruebas en dispositivo
-- [ ] La instancia **alpha** del central accesible (`159.203.86.103:8083`)
+- [ ] La instancia **alpha** del central accesible en **`https://alpha-api.frcsuite.com`**
+
+> ⚠️ **La dirección cambió el 2026-08-14.** El alpha del central **no está** en
+> `159.203.86.103:8083`: ahí había una instancia vieja que se apagó. El alpha
+> real corre en `mauro` y se alcanza por `https://alpha-api.frcsuite.com`, que
+> es un túnel de Cloudflare. Si alguna guía todavía dice la IP con puerto, está
+> vieja.
 
 ### Qué NO hace falta
 

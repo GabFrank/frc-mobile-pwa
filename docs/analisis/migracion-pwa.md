@@ -411,6 +411,12 @@ Actualiza el análisis con lo definido por el usuario: dominio en Cloudflare, es
 
 ### A.1 Modo de SSL: Full (strict), no Flexible
 
+> ⚠️ **No aplica a como quedó.** El TLS del central se resolvió con **Let's
+> Encrypt en el origen y la nube gris**, así que Cloudflare no termina TLS y el
+> modo SSL de la zona no interviene. El motivo fue el corte de WebSocket ocioso
+> a ~100 s del proxy. Ver el encabezado de
+> [`runbook-cloudflare.md`](runbook-cloudflare.md).
+
 | Modo | Navegador → Cloudflare | Cloudflare → origen | Veredicto |
 |---|---|---|---|
 | Flexible | HTTPS ✅ | **HTTP plano** ❌ | La PWA funciona, pero **las credenciales siguen viajando en texto plano** por internet entre Cloudflare y el servidor. No arregla la vulnerabilidad |

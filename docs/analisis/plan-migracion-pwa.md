@@ -26,7 +26,19 @@
 
 ## 0.2 Configuración
 
-> **Runbook paso a paso: [`runbook-cloudflare.md`](runbook-cloudflare.md).**
+> ## ✅ Fase 0 completa el 2026-08-14 — con otra solución
+>
+> Se resolvió con **nginx + Let's Encrypt y la nube gris**, no con Origin CA y
+> la naranja; y **alpha salió por un túnel a `mauro`**, porque ahí es donde vive
+> —no en la VM de producción—. La lista de abajo se conserva como registro de lo
+> que se planeó.
+>
+> **Estado real:** `farmacia-api.frcsuite.com`, `bodega-api.frcsuite.com` y
+> `alpha-api.frcsuite.com`, las tres con HTTPS y WebSocket verificados.
+>
+> **Runbook con el detalle de lo ejecutado: `frc-cicd/plan-cicd-mobile-pwa.md`.**
+> El [`runbook-cloudflare.md`](runbook-cloudflare.md) de al lado explica en su
+> encabezado en qué difiere.
 
 - [ ] Reverse proxy delante del central (Caddy o nginx). **No tocar Spring Boot.**
 - [ ] Instalar certificado **Cloudflare Origin CA** en el proxy (gratis, 15 años, sin renovación)

@@ -18,6 +18,14 @@
     -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#db392e" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#2a2523" />
+    <!--
+      Los dos hacen falta: `mobile-web-app-capable` es el estándar actual y el
+      que Chrome pide desde la 132 —sin él avisa por consola en cada carga—, y
+      `apple-mobile-web-app-capable` es el que iOS sigue leyendo. Sacar el de
+      Apple rompería la instalación en iPhone, que es uno de los motivos por
+      los que este repo existe.
+    -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Bodega Franco" />
 

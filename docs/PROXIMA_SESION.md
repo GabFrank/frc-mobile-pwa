@@ -61,11 +61,9 @@ borrarlos y reescribirlos sin pelearse con nada.
 totales** y el orden de los bloques; el contenido no se pisa. Al resolver, sumar
 y seguir.
 
-`docs/PATRONES.md` **no existe en esta rama**: lo crea la #3. Las trampas de
-esta tanda están en
-[`arquitectura/trampas-de-angular.md`](arquitectura/trampas-de-angular.md),
-escrito aparte por eso mismo. **Al mergear la #3, fusionarlo ahí y borrar el
-archivo suelto.**
+Las trampas de esta tanda se escribieron aparte para no chocar con la #3, y al
+mergearla se fusionaron en [`PATRONES.md`](PATRONES.md) §16 como estaba
+previsto. El archivo suelto ya no existe.
 
 ## Lo que falta, en orden
 

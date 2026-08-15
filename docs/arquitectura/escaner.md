@@ -6,6 +6,10 @@
 **Ubicación:** `src/app/core/dispositivo/`
 **Punto de entrada:** `EscanerService.escanear()`
 
+> Esto cubre **cómo se lee** un código. Qué dice adentro un QR del sistema, en
+> qué campo cae el id de cada tipo y adónde lleva cada uno está en
+> [`qr-del-sistema.md`](qr-del-sistema.md).
+
 ## Qué resuelve
 
 Leer códigos de barra y QR con la cámara del teléfono, sin Capacitor y sin

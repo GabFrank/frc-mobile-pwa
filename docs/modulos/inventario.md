@@ -212,9 +212,48 @@ diferencia y cuánto suma**, en vez de preguntar «¿seguro?».
 
 | Qué | Nota |
 |---|---|
-| **Cargar el conteo** | es el modo D del buscador: cantidad, vencimiento y estado por presentación, **en su propia pantalla** y no dentro del buscador (ver el análisis del buscador) |
+| ~~**Cargar el conteo**~~ | ✅ `/inventario/:id/producto/:productoId`. Cantidad, vencimiento y estado por presentación, en su propia pantalla. Ver abajo |
+| ~~Revisión del supervisor~~ | ✅ `/inventario/:id/revisar`. Ver abajo |
+| ~~Gestión de zonas y sectores~~ | ✅ `/inventario/lugares`. Ver abajo |
+| ~~Reportes de control~~ | ✅ `/inventario/control`. Ver abajo |
 | Agregar a la toma un producto que no estaba | necesita `saveInventarioProducto`, que no está portado |
 | Cancelar y reabrir | ya están en el servicio |
+
+---
+
+# La carga del conteo — `/inventario/:id/producto/:productoId`
+
+Se llega desde el botón *Contar* de cada producto del detalle, que **solo
+aparece si el inventario está abierto**: concluido o cancelado, el conteo ya
+es un hecho histórico y escribir encima cambiaría el resultado de una toma
+cerrada.
+
+Un bloque por presentación, con lo que dice el sistema, el campo *Contado*, el
+vencimiento y el estado.
+
+> ⚠️ **`cantidad` no se toca nunca.** Es lo que dice el sistema, y la
+> diferencia contra `cantidadFisica` **es** el resultado del inventario. La
+> pantalla solo escribe `cantidadFisica`, y manda `cantidad` de vuelta tal
+> como vino.
+
+> La diferencia se recalcula **mientras se escribe**, no al guardar: es lo que
+> le dice al operador si tiene que volver a contar antes de irse del pasillo.
+
+> ⚠️ **Un ítem arrastrado de una toma anterior lo dice.** `copiedFromItemId`
+> lo marca y la pantalla lo avisa: sin eso, alguien lo lee como mercadería ya
+> recorrida.
+
+## Lo que no se puede hacer desde acá
+
+**Agregar a la toma un producto que no estaba.**
+`saveInventarioProductoItem` resuelve `inventarioProductoId` pero **no lo
+crea**, y `saveInventarioProducto` no está portado. Abrir el inventario —donde
+se define el alcance— sigue siendo del escritorio.
+
+Guardar va **de a un ítem**, porque no hay mutation de lote, y espera a que
+terminen todas antes de recargar: recargar en el medio mostraría la lista a
+mitad de camino. Si alguna falla, lo dice y recarga igual, para que se vea lo
+que sí entró.
 
 ---
 

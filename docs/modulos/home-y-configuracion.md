@@ -108,6 +108,45 @@ Las operaciones de venta viven en `src/app/graphql/operaciones/venta/`, no acá.
 
 > **Fix:** borrar la carpeta. Anotado en el TODO.
 
+
+---
+
+# Qué cambió en la PWA
+
+## Inicio
+
+Los accesos rápidos se filtran por rol igual que antes, con el enum `ROLES`.
+Se sumaron **Productos vencidos** y **Consultar precio** (el kiosco), y el
+acceso a Notificaciones lleva **badge de no leídas**.
+
+> ⚠️ **El conteo se pide al entrar al área con sesión**, desde el shell, no
+> desde la bandeja. Pedirlo solo en la pantalla de notificaciones —como
+> estaba— significa que el badge marca cero hasta que alguien va a mirar, que
+> es justo lo contrario de para qué existe un badge.
+
+El **crédito por convenio** volvió, con el mismo comportamiento que en
+`frc-mobile`: arranca tapado y la preferencia persiste, porque la pantalla se
+abre en el salón. Lo que cambió es que **el `setInterval` que esperaba al
+usuario no se portó**: era un poll cada segundo, redundante con la señal de
+sesión a la que el componente ya reacciona.
+
+## Configuración
+
+El módulo `configuracion` de `frc-mobile` engañaba: la configuración que veía
+el usuario no estaba ahí, sino repartida en acciones del menú lateral. Acá
+está toda en **Mi cuenta**:
+
+| Qué | Nota |
+|---|---|
+| Cambiar de servidor | **Antes solo se alcanzaba desde el login.** Con la sesión abierta no había forma de llegar, y quien no lo sabía creía que la app estaba clavada en un servidor. Avisa que va a cerrar la sesión, porque la cierra |
+| Tema | Los **tres** estados de `TemaService`: sistema, claro y oscuro. La UI ofrecía dos, y «del sistema» solo se alcanzaba no habiendo tocado nunca el toggle |
+| Preferencias de notificación | Acceso a la pantalla que ya existía |
+| Datos de la persona | **De solo lectura.** `frc-mobile` mostraba campos editables cuyo botón «Actualizar» solo cambiaba la foto de perfil |
+| Versión y actualización | Ver [`../arquitectura/actualizaciones-app.md`](../arquitectura/actualizaciones-app.md) |
+
+> ⚠️ **El canal de actualizaciones no aplica.** Era una elección entre canales
+> de Play Store; una PWA se actualiza por su service worker.
+
 ---
 
 # Instalar la app

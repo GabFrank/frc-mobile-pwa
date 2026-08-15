@@ -62,6 +62,10 @@
   /** Texto sobre cualquiera de los rellenos de arriba. */
   --on-tono: #ffffff;
 
+  // Fondo de un código QR. Blanco en los dos temas —por eso no se redefine
+  // en el bloque oscuro—: un QR sobre fondo oscuro no lo lee ningún lector.
+  --qr-fondo: #ffffff;
+
   // ─── Superficies y texto ─────────────────────────────────────
   // Neutros con sesgo cálido hacia el rojo de marca: un gris puro
   // lee como valor por defecto, no como decisión.

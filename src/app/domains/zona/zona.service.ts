@@ -33,9 +33,9 @@ export class ZonaService {
     });
   }
 
-  /** El backend devuelve solo un booleano de éxito, no la entidad guardada. */
-  guardar(input: Record<string, unknown>): Observable<boolean> {
-    return this.datos.guardar<boolean>(this.guardarGQL, input);
+  /** Devuelve la zona guardada, con su id ya asignado si era nueva. */
+  guardar(input: Record<string, unknown>): Observable<Zona> {
+    return this.datos.guardar<Zona>(this.guardarGQL, input);
   }
 
   eliminar(id: number): Observable<boolean> {

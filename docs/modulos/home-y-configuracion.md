@@ -146,3 +146,40 @@ está toda en **Mi cuenta**:
 
 > ⚠️ **El canal de actualizaciones no aplica.** Era una elección entre canales
 > de Play Store; una PWA se actualiza por su service worker.
+
+---
+
+# Instalar la app
+
+En **Mi cuenta → Aplicación** aparece *Instalar la app* cuando el navegador
+avisa que se puede, y en iOS unas instrucciones en su lugar. Si ya está
+instalada no aparece nada.
+
+⚠️ **Los dos navegadores lo hacen distinto y no hay forma de unificarlo.**
+
+- **Chromium** dispara `beforeinstallprompt`. Hay que **guardar el evento** y
+  llamar a `prompt()` después, desde un gesto del usuario: el navegador lo
+  dispara cuando quiere, y si no se lo captura no vuelve. Se usa **una sola
+  vez**: si la persona lo descarta, el botón se esconde, porque dejarlo visible
+  daría un botón que no hace nada.
+- **Safari de iOS** no dispara nada y no tiene prompt. La única vía es
+  «Compartir → Añadir a inicio», así que ahí lo que corresponde es
+  **explicarlo**, no ofrecer un botón que no funciona.
+
+## Detectar iOS por el táctil da un falso positivo
+
+El iPad moderno se declara `Macintosh` y solo se lo distingue por
+`maxTouchPoints`. Pero esa heurística sola **también da positivo en Chrome de
+escritorio con la emulación de dispositivo activada**, y ahí terminaba
+mostrándole «Compartir → Añadir a inicio» a alguien que tenía un botón de
+instalar de verdad.
+
+Se exige además que sea **WebKit puro**: en un iPad no hay otra cosa, y un
+Chrome emulando iPad sigue diciendo Chrome en el UA.
+
+## Por qué importa más de lo que parece
+
+En iOS las **notificaciones push solo funcionan con la PWA instalada**
+(16.4+). Instalar no es una comodidad: es el requisito de otra función. Por eso
+las dos cosas viven juntas en la misma sección. Ver
+[`../arquitectura/web-push.md`](../arquitectura/web-push.md).

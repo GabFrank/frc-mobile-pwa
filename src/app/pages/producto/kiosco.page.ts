@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
 import { FORMATOS_PRODUCTO } from 'src/app/core/dispositivo/escaner.types';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
@@ -20,9 +21,20 @@ import { codigosParaBuscar, normalizarCodigo } from 'src/app/generic/utils/barco
 import { formatearImporte } from 'src/app/generic/utils/moneda.util';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { etiquetaPresentacion, precioDe, resolverPresentacionPorCodigo } from 'src/app/shared/producto/presentacion.util';
+import { KioscoConfigDialogComponent } from './kiosco-config-dialog.component';
+import { KioscoConfigService } from './kiosco-config.service';
 
 /** Cuánto queda el precio en pantalla antes de volver a esperar. Ver abajo. */
 const MS_ANTES_DE_LIMPIAR = 20_000;
+
+/**
+ * Cuánto espera el modo cámara antes de volver a abrir el escáner.
+ *
+ * Suficiente para leer el precio que quedó en pantalla, y para que quien
+ * quiera tocar la configuración alcance a hacerlo antes de que la cámara
+ * vuelva a taparla.
+ */
+const MS_ANTES_DE_REARMAR = 2_500;
 
 /**
  * Consulta de precios para el salón.
@@ -62,7 +74,7 @@ const MS_ANTES_DE_LIMPIAR = 20_000;
           type="text"
           inputmode="none"
           autocomplete="off"
-          placeholder="Pasá el producto por el lector"
+          [placeholder]="modoCamara() ? 'Consulta por cámara' : 'Pasá el producto por el lector'"
           aria-label="Código del producto"
           [value]="texto()"
           (input)="texto.set($any($event.target).value)"
@@ -70,6 +82,9 @@ const MS_ANTES_DE_LIMPIAR = 20_000;
         />
         <button type="button" class="icono-btn" aria-label="Escanear con la cámara" (click)="escanear()">
           <frc-icono nombre="escanear" [tamano]="26" />
+        </button>
+        <button type="button" class="icono-btn" aria-label="Configurar el kiosco" (click)="configurar()">
+          <frc-icono nombre="ajustes" [tamano]="26" />
         </button>
         <button type="button" class="icono-btn" aria-label="Salir del modo kiosco" (click)="salir()">
           <frc-icono nombre="cerrar" [tamano]="26" />
@@ -95,7 +110,13 @@ const MS_ANTES_DE_LIMPIAR = 20_000;
         } @else {
           <div class="espera">
             <frc-icono nombre="escanear" [tamano]="64" />
-            <p class="mensaje">Pasá el producto por el lector para ver su precio</p>
+            <p class="mensaje">
+              {{
+                modoCamara()
+                  ? 'Apuntá el código con la cámara para ver el precio'
+                  : 'Pasá el producto por el lector para ver su precio'
+              }}
+            </p>
           </div>
         }
       </main>
@@ -221,6 +242,14 @@ export class KioscoPage implements AfterViewInit {
   );
 
   private limpiezaId: ReturnType<typeof setTimeout> | null = null;
+  private rearmeId: ReturnType<typeof setTimeout> | null = null;
+  /** Corta el rearme al salir: sin esto, la cámara se reabre sobre Inicio. */
+  private saliendo = false;
+
+  readonly config = inject(KioscoConfigService);
+  private readonly dialogo = inject(DialogoService);
+
+  readonly modoCamara = computed(() => this.config.modo() === 'camara');
 
   constructor() {
     // Cualquier toque en la pantalla devuelve el foco al campo. Sin esto, un
@@ -241,6 +270,8 @@ export class KioscoPage implements AfterViewInit {
     document.addEventListener('click', alTocar);
     this.destroyRef.onDestroy(() => {
       document.removeEventListener('click', alTocar);
+      this.saliendo = true;
+      this.cancelarRearme();
       if (this.limpiezaId) {
         clearTimeout(this.limpiezaId);
       }
@@ -249,14 +280,35 @@ export class KioscoPage implements AfterViewInit {
 
   ngAfterViewInit(): void {
     this.enfocar();
+    if (this.modoCamara()) {
+      void this.escanear();
+    }
   }
 
   private enfocar(): void {
+    // En modo cámara no hay nada que enfocar: el campo no recibe nada y el
+    // foco solo sirve para que el panel salte al tocarlo.
+    if (this.modoCamara()) {
+      return;
+    }
     // Sin `preventScroll` el foco arrastra el panel hacia arriba en cada
     // toque, y el precio se va de la vista.
     this.campo()?.nativeElement.focus({ preventScroll: true });
   }
 
+  /**
+   * Abre el escáner y busca lo que se haya leído.
+   *
+   * ⚠️ **En modo cámara se vuelve a abrir solo.** Un kiosco sin lector es
+   * una pantalla que mira un cliente: si hubiera que tocar el ícono de la
+   * cámara antes de cada consulta, no es un kiosco, es un teléfono
+   * prestado. `frc-mobile` abre el escáner **una sola vez**, al entrar en
+   * modo `cam`, y después queda mudo hasta que alguien vuelva a tocar.
+   *
+   * ⚠️ **El rearme es en cadena, no en bucle.** Se encadena al cierre del
+   * diálogo anterior; un `setInterval` abriría escáneres encima del que ya
+   * está abierto.
+   */
   async escanear(): Promise<void> {
     const codigo = await this.escaner.escanear({
       titulo: 'Consultar precio',
@@ -268,6 +320,30 @@ export class KioscoPage implements AfterViewInit {
     if (codigo) {
       this.texto.set(codigo);
       this.buscar();
+    }
+
+    // Si la persona canceló, tampoco se insiste al instante: se le da tiempo
+    // de leer el precio que quedó en pantalla o de tocar la configuración.
+    if (this.modoCamara() && !this.saliendo) {
+      this.rearmeId = setTimeout(() => void this.escanear(), MS_ANTES_DE_REARMAR);
+    }
+  }
+
+  async configurar(): Promise<void> {
+    // El rearme se corta mientras la configuración está abierta: si no, la
+    // cámara vuelve a taparla a los pocos segundos.
+    this.cancelarRearme();
+    await this.dialogo.abrir(KioscoConfigDialogComponent);
+    this.enfocar();
+    if (this.modoCamara()) {
+      void this.escanear();
+    }
+  }
+
+  private cancelarRearme(): void {
+    if (this.rearmeId) {
+      clearTimeout(this.rearmeId);
+      this.rearmeId = null;
     }
   }
 
@@ -345,6 +421,8 @@ export class KioscoPage implements AfterViewInit {
   }
 
   salir(): void {
+    this.saliendo = true;
+    this.cancelarRearme();
     void this.router.navigate(['/inicio']);
   }
 }

@@ -25,6 +25,10 @@ import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.com
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
+import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
+import { codificarQr } from 'src/app/generic/utils/qrUtils';
+import { DatosQr, QrDialogComponent } from 'src/app/shared/qr/qr-dialog.component';
+import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { productosConcluidos, resumirInventario, resumirItems } from './inventario-conteo';
@@ -45,6 +49,7 @@ import { InventarioService } from './inventario.service';
   selector: 'frc-inventario-detalle',
   standalone: true,
   imports: [
+    IconoComponent,
     PaginaComponent,
     SeccionComponent,
     DatoComponent,
@@ -58,11 +63,21 @@ import { InventarioService } from './inventario.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Inventario" [conVolver]="true">
-      @if (puedeFinalizar()) {
+      <button accionBarra type="button" class="icono-compartir" aria-label="Compartir por QR" (click)="compartir()">
+        <frc-icono nombre="codigo" [tamano]="22" />
+      </button>
+      @if (inventario()) {
         <div acciones>
-          <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
-            {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
-          </button>
+          <!--
+            Revisar sigue disponible con el inventario cerrado: es la lectura
+            de lo que quedó, y esa pregunta no caduca al finalizarlo.
+          -->
+          <button matButton (click)="revisar()">Revisar</button>
+          @if (puedeFinalizar()) {
+            <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
+              {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
+            </button>
+          }
         </div>
       }
 
@@ -278,11 +293,39 @@ export class InventarioDetallePage {
     () => String(this.inventario()?.estado ?? '').toUpperCase() === 'ABIERTO',
   );
 
+  revisar(): void {
+    const id = this.inventario()?.id;
+    if (id != null) {
+      void this.router.navigate(['/inventario', id, 'revisar']);
+    }
+  }
+
   contar(p: { id?: number }): void {
     const invId = this.inventario()?.id;
     if (invId == null || p.id == null) {
       return;
     }
     void this.router.navigate(['/inventario', invId, 'producto', p.id]);
+  }
+
+  /**
+   * Muestra un QR para que otro lo abra escaneándolo.
+   *
+   * ⚠️ **El id no va en el mismo campo para todos los tipos.** Acá se
+   * escriben los que `rutearEscaneo` lee para `INVENTARIO`; la tabla
+   * completa está en `docs/arquitectura/qr-del-sistema.md`. Poner el id en
+   * el campo equivocado da un QR que se escanea sin error y abre otra cosa.
+   */
+  async compartir(): Promise<void> {
+    const id = this.inventario()?.id;
+    if (id == null) {
+      return;
+    }
+    const sucursalId = (this.inventario() as { sucursal?: { id?: number } })?.sucursal?.id;
+    await this.dialogo.abrir<QrDialogComponent, DatosQr>(QrDialogComponent, {
+      titulo: 'Compartir inventario',
+      subtitulo: 'Inventario #' + id,
+      codigo: codificarQr({ tipoEntidad: TipoEntidad.INVENTARIO, idCentral: String(id), sucursalId: String(sucursalId ?? '') }),
+    });
   }
 }

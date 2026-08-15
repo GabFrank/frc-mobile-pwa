@@ -7,6 +7,7 @@ import { UsuarioLoginGQL } from 'src/app/graphql/personas/usuario/graphql/usuari
 import { DatosService } from '../graphql/datos.service';
 import { AuthService } from './auth.service';
 import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from './auth.tokens';
+import { SesionDispositivoService } from './sesion-dispositivo.service';
 import { SesionService } from './sesion.service';
 
 describe('SesionService', () => {
@@ -34,6 +35,10 @@ describe('SesionService', () => {
           },
         },
         { provide: UsuarioLoginGQL, useValue: { document: {} } },
+        // Registrar el dispositivo es un efecto lateral del login, no parte de
+        // lo que se prueba acá. Se sustituye para que el spec no necesite
+        // Apollo por la mutación de `saveInicioSesion`.
+        { provide: SesionDispositivoService, useValue: { registrar: vi.fn(() => Promise.resolve()) } },
       ],
     });
 

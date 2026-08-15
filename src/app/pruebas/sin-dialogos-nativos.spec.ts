@@ -39,12 +39,24 @@ describe('Sin diálogos nativos', () => {
     // que diga "Confirmar" son legítimas.
     const llamadaNativa = /(?:^|[^.\w])(?:window\.|globalThis\.)?(?:alert|confirm|prompt)\s*\(/;
 
+    // Una **firma de método** en una interfaz no es una llamada. Aparece de
+    // verdad: el evento `beforeinstallprompt` declara `prompt(): Promise<void>`,
+    // y ese `prompt` es la API de instalación de la PWA, no la del navegador.
+    // Sin esta excepción, el test prohíbe declarar el tipo de algo que sí se
+    // puede usar.
+    const firmaDeTipo = /^\s*(?:readonly\s+)?(?:alert|confirm|prompt)\s*\([^)]*\)\s*:/;
+
     const culpables = Object.entries(fuentes)
       .filter(([ruta]) => !ruta.endsWith('.spec.ts'))
       .filter(([, contenido]) =>
         contenido
           .split('\n')
-          .some((linea: string) => !linea.trimStart().startsWith('*') && llamadaNativa.test(linea)),
+          .some(
+            (linea: string) =>
+              !linea.trimStart().startsWith('*') &&
+              !firmaDeTipo.test(linea) &&
+              llamadaNativa.test(linea),
+          ),
       )
       .map(([ruta]) => ruta);
 

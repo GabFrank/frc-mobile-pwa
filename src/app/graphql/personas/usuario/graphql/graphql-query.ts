@@ -344,3 +344,22 @@ export const isUserFaceAuthQuery = gql`
     data: isUserFaceAuth(id: $id)
   }
 `;
+
+/**
+ * Galería facial del usuario, para verificar 1:1 antes de marcar.
+ *
+ * ⚠️ **Query aparte y a demanda.** `embeddingFacial` es un JSON de ~96 KB:
+ * pedirlo junto con la sesión lo haría viajar en cada login, y solo hace
+ * falta cuando alguien va a marcar con el rostro.
+ */
+export const galeriaFacialQuery = gql`
+  query ($id: ID!) {
+    data: usuario(id: $id) {
+      id
+      persona {
+        id
+        embeddingFacial
+      }
+    }
+  }
+`;

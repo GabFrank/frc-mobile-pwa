@@ -72,8 +72,9 @@ export const saveZona = gql`
   }
 `;
 
+/** ⚠️ Con alias `data:`, como toda operación. Ver `deleteSectorQuery`. */
 export const deleteZonaQuery = gql`
   mutation deleteZona($id: ID!) {
-    deleteZona(id: $id)
+    data: deleteZona(id: $id)
   }
 `;

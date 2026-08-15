@@ -49,6 +49,7 @@ Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 | [capacitor-nativo.md](arquitectura/capacitor-nativo.md) | Histórico: Capacitor 7, plugins, permisos, `cap sync` |
 | [actualizaciones-app.md](arquitectura/actualizaciones-app.md) | Cómo se actualiza la app realmente (Play Store in-app update) y canales |
 | [ui-ionic.md](arquitectura/ui-ionic.md) | Convenciones de UI: servicios wrapper, colores, ciclo de vida Ionic, formularios |
+| **[web-push.md](arquitectura/web-push.md)** | **Vigente.** Avisos con la app cerrada: token de FCM, la sesión del dispositivo, y a qué pantalla lleva cada notificación |
 
 ## Índice de infraestructura
 

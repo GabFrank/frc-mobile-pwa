@@ -1,5 +1,27 @@
 # Runbook — HTTPS con Cloudflare para el central
 
+> ## ✅ Ejecutado el 2026-08-14, **pero no como dice este documento**
+>
+> Lo que efectivamente se hizo, y por qué difiere:
+>
+> | Este runbook proponía | Lo que se hizo | Por qué |
+> |---|---|---|
+> | Certificado **Origin CA** de Cloudflare | **Let's Encrypt** con `certbot --nginx` | nginx y certbot **ya estaban instalados** en la VM sirviendo `frc-ecommerce.com`. Era agregar dos `server` blocks, no montar infraestructura |
+> | Nube **naranja** (proxied) + Full (strict) | Nube **gris** (DNS only) | El proxy de Cloudflare corta los WebSocket ociosos a ~100 s. Con la nube gris ese problema no existe |
+> | `alpha.<dominio>` → `159.203.86.103:8083` | `alpha-api.frcsuite.com` → **mauro** por **Cloudflare Tunnel** | **El alpha del central no vive en esa VM**: vive en `mauro`, que no tiene IP pública. Lo que había en el 8083 de la VM era una instancia zombi, apagada el 2026-08-14 |
+> | Dominio a definir | **`frcsuite.com`** | Zona nueva, registrada para esto |
+>
+> Resultado, verificado desde fuera de la red: `farmacia-api`, `bodega-api` y
+> `alpha-api` responden por HTTPS, redirigen de 80 a 443 y **el upgrade a
+> WebSocket devuelve 101**.
+>
+> **El plan vigente es `frc-cicd/plan-cicd-mobile-pwa.md`.** Este documento se
+> conserva por el **Paso 8**, que sigue pendiente: cerrar los puertos 8081/8082
+> en texto plano. Ojo que ese paso es más caro de lo que dice acá — no solo la
+> app Android apunta por IP y puerto, **el desktop también**.
+
+---
+
 Pasos para exponer las instancias del central por HTTPS y WSS. **Es la Fase 0 del [plan de migración](plan-migracion-pwa.md), pero se justifica sola:** cierra el hallazgo de credenciales en texto plano de `REPORTE_VULNERABILIDADES.md`.
 
 ## Arquitectura objetivo

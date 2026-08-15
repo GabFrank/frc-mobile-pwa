@@ -17,6 +17,7 @@ export const sectoresQuery = gql`
       zonaList {
         id
         descripcion
+        activo
       }
     }
   }
@@ -39,6 +40,7 @@ export const sectoresSearch = gql`
       zonaList {
         id
         descripcion
+        activo
       }
     }
   }
@@ -61,6 +63,7 @@ export const sectorQuery = gql`
       zonaList {
         id
         descripcion
+        activo
       }
     }
   }
@@ -83,13 +86,20 @@ export const saveSector = gql`
       zonaList {
         id
         descripcion
+        activo
       }
     }
   }
 `;
 
+/**
+ * ⚠️ **El alias `data:` también va en las mutaciones que devuelven un
+ * booleano.** `DatosService.eliminar` lee `data`, así que sin el alias la
+ * baja se ejecutaba en el central y la app la reportaba como fallida —
+ * el peor de los dos mundos.
+ */
 export const deleteSectorQuery = gql`
   mutation deleteSector($id: ID!) {
-    deleteSector(id: $id)
+    data: deleteSector(id: $id)
   }
 `;

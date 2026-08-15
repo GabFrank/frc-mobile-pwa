@@ -25,6 +25,12 @@ export interface OpcionSeleccion {
  * ids llegan a veces como número y a veces como string desde GraphQL. Como
  * consecuencia **no se pueden usar objetos como valor**: todos colapsarían a
  * `[object Object]`. Usá ids primitivos.
+ *
+ * ⚠️ **Una opción no puede valer `null`.** `mat-select` interpreta `null`
+ * como «sin selección» y deja el campo en blanco aunque la opción exista y
+ * esté elegida — se lee como que no se eligió nada cuando en realidad se
+ * eligió «todas». Para el caso «sin filtro», usá un texto centinela
+ * (`'todas'`, `'natural'`) y traducilo a `null` recién al consultar.
  */
 @Component({
   selector: 'frc-selector',

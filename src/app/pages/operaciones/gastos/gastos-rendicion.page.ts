@@ -160,6 +160,14 @@ interface Foto {
           </div>
         </frc-seccion>
 
+      }
+
+      <!--
+        ⚠️ Fuera del @else if y con su propio @if: un bloque de control de
+        flujo con más de un nodo raíz no proyecta al slot (NG8011), y el botón
+        de registrar caía en el cuerpo en vez de la barra fija.
+      -->
+      @if (gasto() && !cargando() && !error()) {
         <div acciones>
           <button matButton="filled" [disabled]="!puedeGuardar()" (click)="guardar()">
             {{ guardando() ? 'Guardando…' : 'Registrar rendición' }}

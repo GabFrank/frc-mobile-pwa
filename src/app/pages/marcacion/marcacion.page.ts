@@ -3,6 +3,13 @@ import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { GeoService, PRECISION_MAXIMA_M, Posicion, ProgresoGeo } from 'src/app/core/dispositivo/geo.service';
+import { DatosService } from 'src/app/core/graphql/datos.service';
+import { IncorporarEmbeddingMarcacionGQL } from 'src/app/graphql/personas/usuario/graphql/incorporarEmbeddingMarcacion';
+import {
+  DatosVerificacion,
+  ResultadoVerificacion,
+  VerificacionFacialDialogComponent,
+} from './verificacion-facial-dialog.component';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
@@ -117,6 +124,12 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
 export class MarcacionPage {
   private readonly servicio = inject(MarcacionService);
   private readonly geo = inject(GeoService);
+
+  private readonly datos = inject(DatosService);
+  private readonly incorporarGQL = inject(IncorporarEmbeddingMarcacionGQL);
+
+  /** Lo que devolvió la verificación facial de esta marcación, si hubo. */
+  private readonly verificacion = signal<ResultadoVerificacion | null>(null);
   private readonly sucursalesService = inject(SucursalService);
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);
@@ -220,12 +233,52 @@ export class MarcacionPage {
    * las tiene, se marca igual y la distancia queda sin dato — que es
    * información honesta, no un cero engañoso.
    */
+  /**
+   * Verifica el rostro contra la galería propia, si la persona tiene una.
+   *
+   * ⚠️ **No bloquea a quien todavía no enroló.** Hacerlo obligatorio de golpe
+   * dejaría sin marcar a toda la gente que hoy marca sin rostro, que es
+   * casi toda. Cuando el enrolamiento esté repartido, esto pasa a exigirse.
+   */
+  private async verificarRostro(usuarioId: number): Promise<boolean> {
+    const resultado = await this.dialogo.abrir<
+      VerificacionFacialDialogComponent,
+      DatosVerificacion,
+      ResultadoVerificacion | null
+    >(VerificacionFacialDialogComponent, { usuarioId });
+
+    if (resultado) {
+      // Se guarda para mandarlo con la marcación: el central incorpora los
+      // embeddings buenos a la galería y así el reconocimiento mejora con el
+      // uso, en vez de quedarse con las cinco fotos del primer día.
+      this.verificacion.set(resultado);
+      return true;
+    }
+
+    // Cancelar o no tener rostro cargado no es un error: se ofrece marcar
+    // igual, y queda registrado que fue sin verificación facial.
+    this.verificacion.set(null);
+    return this.dialogo.confirmar({
+      titulo: 'Sin verificación facial',
+      mensaje: 'No se verificó tu rostro. ¿Querés marcar igual?',
+      confirmar: 'Marcar igual',
+    });
+  }
+
   async marcar(): Promise<void> {
     const usuarioId = this.auth.usuario()?.id;
     const accion = this.accion();
     const sucursal = this.sucursales().find((s) => String(s.id) === String(this.sucursalId()));
     if (usuarioId == null || !accion || !sucursal?.id) {
       this.notificacion.warn('Elegí la sucursal donde estás marcando.');
+      return;
+    }
+
+    // Quién sos, antes de dónde estás. Son dos preguntas independientes y se
+    // hacen en ese orden porque la cara es la que puede fallar por gusto del
+    // usuario —cancelar, no tener rostro cargado— y no tiene sentido esperar
+    // el GPS para descubrirlo.
+    if (!(await this.verificarRostro(usuarioId))) {
       return;
     }
 
@@ -276,6 +329,34 @@ export class MarcacionPage {
     return this.geo.distanciaMetros(lat, lng, posicion.latitud, posicion.longitud);
   }
 
+  /**
+   * Suma el rostro de esta marcación a la galería del usuario.
+   *
+   * Es lo que hace que el reconocimiento **mejore con el uso** en vez de
+   * quedarse con las cinco fotos del día del enrolamiento: la persona cambia
+   * de peinado, de anteojos, de luz. El central decide si lo incorpora — por
+   * eso se le manda el `score` y no se insiste si dice que no.
+   *
+   * ⚠️ **No bloquea ni avisa.** La marcación ya quedó registrada; que la
+   * galería no se enriquezca es una mejora perdida, no un fallo que le
+   * importe a quien está fichando.
+   */
+  private incorporarRostro(usuarioId: number): void {
+    const verificacion = this.verificacion();
+    if (!verificacion) {
+      return;
+    }
+    this.verificacion.set(null);
+
+    this.datos
+      .mutar<unknown>(
+        this.incorporarGQL,
+        { usuarioId, embedding: verificacion.embedding, score: verificacion.score },
+        { mostrarCarga: false, notificarError: false },
+      )
+      .subscribe({ error: () => undefined });
+  }
+
   private enviar(
     usuarioId: number,
     accion: AccionMarcacionPendiente,
@@ -306,6 +387,7 @@ export class MarcacionPage {
       next: () => {
         this.marcando.set(false);
         this.notificacion.ok('Marcación registrada.');
+        this.incorporarRostro(usuarioId);
         this.cargar();
       },
       error: (err: Error) => {

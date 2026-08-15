@@ -83,7 +83,13 @@ Dos pasadas. La **primera automatizada**, sin navegador. La **segunda con la ext
 - [ ] `npm install` corrido
 - [ ] Un usuario válido del central con roles conocidos (idealmente uno con `ADMIN` o `VENTA_TOUCH`, y otro sin ellos)
 - [ ] Un celular Android con cable USB, para las pruebas en dispositivo
-- [ ] La instancia **alpha** del central accesible (`159.203.86.103:8083`)
+- [ ] La instancia **alpha** del central accesible en **`https://alpha-api.frcsuite.com`**
+
+> ⚠️ **La dirección cambió el 2026-08-14.** El alpha del central **no está** en
+> `159.203.86.103:8083`: ahí había una instancia vieja que se apagó. El alpha
+> real corre en `mauro` y se alcanza por `https://alpha-api.frcsuite.com`, que
+> es un túnel de Cloudflare. Si alguna guía todavía dice la IP con puerto, está
+> vieja.
 
 ### Qué NO hace falta
 
@@ -1995,6 +2001,354 @@ alguna falla, lo dice y recarga igual para que se vea lo que sí entró.
 
 ---
 
+---
+
+## Bloque 30 — Permisos por rol *(nuevo)*
+
+> **Ejecutado completo el 2026-08-14 contra el central local**, con un
+> usuario `test.roles` creado para esto y siete pasadas sumando y sacando
+> roles. **Los 6 casos: ✅.**
+>
+> | Pasada | Roles | Resultado |
+> |---|---|---|
+> | 1 | *(ninguno)* | Inicio sin Caja/Inventario/Transferencias; Operaciones con las 3 abiertas; **las 4 rutas rebotan** |
+> | 2 | `VENTA TOUCH` | Aparecen Caja y Venta con tarjeta; `/operaciones/caja` entra |
+> | 3 | `+ VER INVENTARIO` | Aparece Inventario; su ruta entra |
+> | 4 | `+ VER TRANSFERENCIA` | Aparece Transferencias; su ruta entra |
+> | 5 | `+ RECIBIR PEDIDOS` | Aparece Recepción; su ruta entra |
+> | 6 | `+ RRHH APROBAR`, sin ADMIN | Aparece Aprobaciones en Mi trabajo — **con el código viejo, que pedía `DIRECTIVO`, no habría aparecido nunca** |
+> | 7 | **solo** `ADMIN` | 12 accesos, 6 cards y las 5 rutas entran |
+>
+> En cada pasada, lo que **no** correspondía siguió rebotando a Inicio. Los
+> accesos de autoservicio y consulta —Buscar, Vencidos, Consultar precio,
+> Notificaciones, Marcación, Mi trabajo, Mis finanzas, Mi cuenta— estuvieron
+> visibles en las cinco, que es lo esperado.
+
+> ⚠️ **Los roles se toman al iniciar sesión.** Cambiarlos en la base no se
+> refleja hasta recargar la app. Si al probar «no cambió nada», es esto.
+
+> ⚠️ **Para asignar un rol por SQL: `usuario_role.user_id`, no
+> `usuario_id`.** La tabla tiene **dos** FK a `usuario`: `user_id` es quien
+> **tiene** el rol y `usuario_id` es la auditoría de quién lo asignó. Escribir
+> en la segunda no da error y el rol simplemente no aplica.
+
+> Para repetirlo hace falta un usuario **sin** `VER INVENTARIO`,
+> `VER TRANSFERENCIA` ni `VENTA TOUCH`. Con un ADMIN este bloque no prueba
+> nada: ADMIN entra a todo, que es lo correcto.
+
+### 30.1 · El menú esconde lo que no corresponde
+1. Entrar con el usuario restringido.
+
+**Esperado:** en Inicio **no** aparecen Caja, Inventario ni Transferencias.
+Sí aparecen Buscar, Productos vencidos, Consultar precio, Notificaciones,
+Marcación, Mi trabajo, Mis finanzas y Mi cuenta.
+
+### 30.2 · La URL escrita a mano tampoco entra
+1. Con ese mismo usuario, escribir `/inventario` en la barra de direcciones.
+
+**Esperado:** vuelve a Inicio y avisa *«No tenés permiso para entrar a esa
+sección»*. **Es el caso que más importa del bloque**: si entra, esconder el
+ítem del menú era decorativo.
+
+2. Repetir con `/transferencias`, `/operaciones/caja` y
+   `/operaciones/recepcion`.
+
+### 30.3 · ADMIN entra a todo
+1. Entrar con el usuario ADMIN.
+
+**Esperado:** ve las 12 opciones y entra a todas. No es un permiso más: es con
+el que soporte revisa cuando alguien reporta algo.
+
+### 30.4 · Operaciones esconde sus cards
+1. Con el usuario restringido, abrir **Operaciones**.
+
+**Esperado:** no se ven Caja, Venta con tarjeta ni Recepción de mercadería. Sí
+se ven Caja chica, Solicitudes de pago y Devoluciones — que quedan abiertas a
+propósito, ver `permisos.ts`.
+
+### 30.5 · Recepción de mercadería, el caso a mirar de cerca
+1. Con un usuario de depósito que **no** sea ADMIN, abrir Operaciones.
+
+**Esperado:** ve *Recepción de mercadería* **solo si tiene `RECIBIR PEDIDOS`**.
+
+> ⚠️ **Al 2026-08-14 solo 2 usuarios de 404 tienen ese rol.** Es el rol
+> correcto, pero está muy poco repartido. Si el personal de depósito reporta
+> que la opción desapareció, el arreglo es **asignarles el rol**, no sacar el
+> guard.
+
+> 🐛 **La pasada 6 encontró un hueco y se arregló acá mismo.** Al sacar
+> `RRHH APROBAR`, el botón de Aprobaciones desaparecía pero
+> `/mi-trabajo/aprobaciones` **seguía entrando**: el área estaba declarada en
+> `PERMISOS` y la ruta no tenía su `rolGuard`. Es exactamente el defecto que
+> este bloque busca. Hoy las 6 áreas de `PERMISOS` tienen guard; **si se
+> agrega una séptima, hay que poner las dos mitades**.
+
+### 30.6 · Aprobaciones de RRHH
+1. Entrar con un usuario con `RRHH APROBAR` y sin `ADMIN`, a Mi trabajo.
+
+**Esperado:** ve el acceso a la bandeja de aprobaciones.
+
+> Antes se pedía `DIRECTIVO`, **que no existe en la base**: el chequeo daba
+> siempre falso y solo entraba ADMIN. Hoy `RRHH APROBAR` tampoco lo tiene
+> nadie asignado, así que hasta que se reparta el comportamiento visible es el
+> mismo — la diferencia es que ahora **se puede delegar**.
+
+---
+
+---
+
+## Bloque 31 — Registro del rostro *(nuevo)*
+
+> **Parcialmente ejecutado el 2026-08-14** contra el central local: la cámara
+> abre, los modelos cargan y **una captura real pasó** los umbrales de calidad
+> y de anti-spoofing. Falta completar las tres y guardar contra el central.
+
+### 31.1 · Abre y prepara
+1. Mi cuenta → **Mi rostro** → *Registrar*.
+
+**Esperado:** pide permiso de cámara, se ve el video **espejado**, y mientras
+carga dice que la primera vez descarga los modelos. Son ~10 MB: en una
+conexión lenta tarda, y por eso lo avisa.
+
+### 31.2 · Las cinco capturas
+1. Tocar *Capturar* cinco veces, variando el ángulo según la sugerencia.
+
+**Esperado:** cada captura enciende un punto y el contador avanza («3 de 5»).
+El ángulo lo elige el usuario: la sugerencia orienta, no obliga.
+
+> `frc-mobile` fuerza tres pasos en orden fijo; `frc-gourmet` deja capturar
+> libremente hasta cinco. Se tomó el enfoque de gourmet con cinco
+> obligatorias: más muestras hacen una galería mejor y es más rápido de
+> completar que obedecer pasos.
+
+### 31.3 · Rechaza una captura pobre
+1. Taparse parte de la cara, alejarse mucho o buscar contraluz.
+
+**Esperado:** avisa —«No se detectó un rostro» o «no quedó lo bastante
+nítida»— y **no** avanza de paso.
+
+> El umbral es `SCORE_MINIMO_GALERIA` (0,7) del sistema, no uno inventado
+> acá: una captura pobre envenena la galería y hace fallar la marcación
+> después, que es un problema mucho más difícil de diagnosticar.
+
+### 31.4 · Rechaza una foto de una pantalla
+1. Apuntar la cámara a una foto del rostro en otro teléfono.
+
+**Esperado:** avisa que parece una foto de una pantalla. Es el anti-spoofing
+de Human, activo igual que en `frc-mobile`.
+
+### 31.5 · Guarda contra el central
+1. Completar las tres capturas.
+
+**Esperado:** avisa «Rostro registrado» y vuelve a Mi cuenta. En la base, el
+usuario queda con su `embedding` y su `embeddingGaleriaJson`.
+
+> ⚠️ **Verificar que la marcación por rostro siga reconociendo a alguien
+> enrolado desde el Android.** El formato de galería se portó verbatim
+> justamente para eso; es lo que hay que probar de punta a punta.
+
+### 31.7 · Marcar con verificación facial
+1. Marcación → *Marcar entrada* (o salida).
+
+**Esperado:** antes de pedir la ubicación abre *Verificá tu rostro*, con la
+cámara y tres indicadores de acierto. Al reconocerte, cierra solo y sigue con
+el GPS.
+
+> El orden es a propósito: **quién sos antes de dónde estás**. La cara puede
+> fallar por decisión del usuario —cancelar, no tener rostro cargado— y no
+> tiene sentido esperar el GPS para descubrirlo.
+
+### 31.8 · No reconoce a cualquiera
+1. Abrir la verificación y **no** ponerse frente a la cámara. Esperar.
+
+**Esperado:** los tres indicadores quedan apagados y dice «Acercate y buscá
+mejor luz». **Nunca** verifica solo. Verificado el 2026-08-14: cero aciertos
+sin rostro.
+
+2. Probar con la foto de la persona en otra pantalla.
+
+**Esperado:** avisa que tiene que ser el rostro real. Es el anti-spoofing.
+
+### 31.9 · Los aciertos tienen que ser consecutivos
+1. Ponerse frente a la cámara, salir del cuadro a mitad de camino, volver.
+
+**Esperado:** al salir, los indicadores vuelven a cero. No se acumulan
+aciertos sueltos: si se pudiera, alcanzaría con insistir un rato con la foto
+de otro.
+
+### 31.10 · Sin rostro registrado se puede marcar igual
+1. Con un usuario sin enrolar, marcar.
+
+**Esperado:** dice que no hay rostro registrado y ofrece *Marcar igual*. Al
+aceptar, la marcación se registra.
+
+> No se bloquea a quien no enroló: hacerlo obligatorio de golpe dejaría sin
+> marcar a casi todos. Cuando el enrolamiento esté repartido, esto pasa a
+> exigirse.
+
+### 31.11 · La galería mejora con el uso
+1. Marcar con verificación facial varias veces.
+
+**Esperado:** cada marcación verificada manda su embedding al central
+(`incorporarEmbeddingMarcacion`), que decide si lo suma. **No** avisa nada al
+usuario: la marcación ya quedó registrada y esto es una mejora, no un paso.
+
+> Es lo que evita que el reconocimiento se quede con las cinco fotos del día
+> del enrolamiento mientras la persona cambia de peinado, anteojos o luz.
+
+---
+
+### 31.6 · Funciona sin internet
+1. Registrar una vez con internet. Después cortar la salida a internet
+   —dejando el central accesible— y volver a entrar a la pantalla.
+
+**Esperado:** funciona igual. Los modelos quedaron cacheados por el service
+worker.
+
+> Es la diferencia con `frc-mobile`, que los baja de `cdn.jsdelivr.net`: allá,
+> una sucursal sin salida a internet **no puede usar reconocimiento facial**.
+
+---
+
+---
+
+## Bloque 32 — Compartir por QR *(nuevo)*
+
+> **Verificado el 2026-08-14** en recepción: el QR se dibuja y el escáner de
+> la app lo lee y abre el registro correcto. Falta probarlo **entre dos
+> teléfonos**, que es el caso real.
+
+### 32.1 · Compartir una recepción
+1. Abrir una recepción → botón de código en la barra superior.
+
+**Esperado:** un QR sobre **fondo claro**, con «Recepción #N» debajo.
+
+> El fondo es claro en los dos temas y tiene token propio: un QR sobre fondo
+> oscuro no lo lee ningún lector.
+
+### 32.2 · El otro lo escanea y llega al mismo lugar
+1. Con **otro teléfono**, tocar el botón flotante y escanear ese QR.
+
+**Esperado:** abre la misma recepción. **Es el caso que importa**: la
+generación y la lectura tienen que coincidir campo por campo.
+
+### 32.3 · Lo mismo con inventario y transferencia
+1. Repetir desde el detalle de un inventario y de una transferencia.
+
+**Esperado:** cada uno abre el suyo.
+
+> ⚠️ **El id no va en el mismo campo para los tres.** Inventario lo pone en
+> `idCentral` y no escribe `idOrigen`; transferencia usa los dos. Si un QR
+> abre el registro equivocado —o el número 0— es esto. Ver
+> `docs/arquitectura/qr-del-sistema.md`.
+
+### 32.4 · Copiar el código
+1. Tocar *Copiar código* y pegarlo en la carga manual del escáner del otro.
+
+**Esperado:** llega al mismo lugar que escaneando. Sirve cuando no se puede
+apuntar la cámara — dos personas por teléfono, o una pantalla rota.
+
+---
+
+---
+
+## Bloque 33 — Instalar la app y filtros por URL *(nuevo)*
+
+### 33.1 · Ofrece instalar en Android
+1. Abrir la app en Chrome de Android, sin tenerla instalada.
+2. Mi cuenta → *Aplicación*.
+
+**Esperado:** aparece *Instalar la app*. Al tocarlo sale el diálogo del
+navegador; si se acepta, la opción desaparece.
+
+> El botón solo aparece si el navegador avisó que se puede instalar. No se
+> muestra uno «por las dudas»: un botón que no hace nada es peor que ninguno.
+
+### 33.2 · En iPhone explica, no ofrece
+1. Abrir en Safari de iOS y mirar la misma sección.
+
+**Esperado:** dice *Compartir → Añadir a inicio*. **No** hay botón: iOS no
+tiene prompt de instalación y no hay forma de dispararlo.
+
+> ⚠️ Si esa instrucción aparece en **Chrome de escritorio**, es la detección
+> de iPadOS dando falso positivo — pasa con la emulación de dispositivo
+> activada, que también reporta pantalla táctil.
+
+### 33.3 · Instalada, no ofrece nada
+1. Abrir la app ya instalada.
+
+**Esperado:** la fila de instalar no está.
+
+### 33.4 · Transferencias acotadas por URL
+1. Abrir `/transferencias?etapa=TRANSPORTE_EN_CAMINO`.
+
+**Esperado:** solo transferencias en esa etapa, con el aviso «Lista acotada
+por el filtro con el que llegaste».
+
+2. Probar `/transferencias?sucursal=3` y las dos juntas.
+
+**Esperado:** acota por sucursal de **destino** — el caso es «qué viene en
+camino para acá».
+
+### 33.5 · Una etapa inventada no rompe
+1. Abrir `/transferencias?etapa=CUALQUIERA`.
+
+**Esperado:** trae la lista completa, sin error. La etapa se valida contra el
+enum antes de mandarla; una cadena libre haría que el central rechace la
+consulta entera.
+
+---
+
+---
+
+## Bloque 34 — Control de inventario *(nuevo)*
+
+> **Verificado el 2026-08-14** contra el central local: «Saldo negativo» sin
+> filtrar devolvió 16.263 productos y la lista paginó.
+
+### 34.1 · Los tres reportes
+1. Inicio → *Control inventario*. Cambiar *Qué mirar* entre las tres opciones.
+
+**Esperado:**
+
+| Reporte | Qué trae |
+|---|---|
+| Saldo negativo | se sacó más de lo que había — casi siempre falta cargar una entrada |
+| Saldo positivo | sobra contra el sistema |
+| Sin movimiento | no se movió en los últimos 30 días |
+
+> `frc-mobile` los esconde detrás de un menú de acciones. Acá son un selector,
+> porque cuál está activo **es** la pregunta de la pantalla.
+
+### 34.2 · «Sin movimiento» exige sucursal
+1. Elegir *Sin movimiento* sin sucursal.
+
+**Esperado:** pide elegir una y explica que se calcula sobre los últimos 30
+días de una sucursal. Los otros dos reportes sí aceptan «Todas».
+
+> No es un capricho: un faltante solo significa algo dentro de un período,
+> mientras que un saldo es un estado actual. El schema del central lo refleja
+> — `productosFaltantes` declara sucursal y fechas obligatorias.
+
+### 34.3 · El saldo se lee de un vistazo
+1. Mirar la columna derecha.
+
+**Esperado:** los negativos en rojo con signo, los positivos en ámbar con `+`.
+
+### 34.4 · Lleva a la ficha
+1. Tocar un producto.
+
+**Esperado:** abre su ficha, que es la pregunta que sigue: qué códigos y qué
+precios tiene el producto cuyo saldo no cierra.
+
+### 34.5 · Solo sucursales operables
+1. Abrir el selector de sucursal.
+
+**Esperado:** no aparecen SERVIDOR ni COMPRAS: sin depósito no hay saldo que
+controlar.
+
+---
+
 ## Qué no está implementado todavía
 
 Para que no se reporte como falla:
@@ -2005,6 +2359,7 @@ Para que no se reporte como falla:
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: zonas y sectores | No portado. La carga del conteo ya está (bloque 29); agregar un producto que la toma no incluye necesita `saveInventarioProducto`, que tampoco |
+| Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
 | Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
 | Recibir push (FCM) | No portado — la bandeja sí |
@@ -2013,6 +2368,317 @@ Para que no se reporte como falla:
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
 | Reconocimiento facial | No portado |
 | Versionado | `package.json` está en `0.0.0` y no hay tags. La app muestra la fecha de compilación **con la aclaración «(sin versionar)»** hasta que `semantic-release` empiece a numerar |
+
+---
+
+## Bloque 35 — Revisión de inventario *(nuevo)*
+
+> **Verificado el 2026-08-14** contra el central local: el inventario 6579
+> mostró su único ítem con estado `Modificado`, sistema 80 · contado 82,
+> anterior 82 y diferencia `+2` — que es exactamente lo que tiene la base.
+
+### 35.1 · Se llega desde el inventario
+1. Operaciones → *Inventario* → abrir uno → botón **Revisar**.
+
+**Esperado:** abre «Revisión de inventario» con los ítems de esa toma.
+
+> El botón está también con el inventario **cerrado**: revisar es leer lo que
+> quedó, y esa pregunta no caduca al finalizarlo.
+
+### 35.2 · El selector ordena, no filtra
+1. Cambiar *Orden* a «Modificados primero».
+
+**Esperado:** los modificados suben al principio, y **el resto sigue en la
+lista**. El total no cambia.
+
+> ⚠️ Acá `frc-mobile` confunde: al cambiar el criterio avisa «no se
+> encontraron productos con el criterio seleccionado», que hace leer como
+> filtro algo que el central resuelve con un `ORDER BY CASE`. Si en esta
+> pantalla la lista se recorta al cambiar el orden, **eso es el bug**.
+
+### 35.3 · Los tres estados dicen cosas distintas
+1. Mirar el chip de cada ítem.
+
+**Esperado:**
+
+| Chip | Qué pasó |
+|---|---|
+| Cantidad exacta | se contó y coincidió con el sistema |
+| Modificado | se contó y hubo que corregirlo |
+| Sin revisar | nadie lo tocó todavía |
+
+> No son una escalera de tres pasos: `verificado` y `revisado` son dos
+> resultados del **mismo** paso, y nunca vienen los dos juntos.
+
+### 35.4 · La diferencia solo aparece si se contó
+1. Buscar un ítem sin contar.
+
+**Esperado:** dice «sin contar» y **no** muestra diferencia. Un cero real y un
+«nadie lo miró» no son lo mismo.
+
+### 35.5 · Paginado
+1. Abrir un inventario con más de 15 ítems y tocar *Cargar más*.
+
+**Esperado:** agrega la página siguiente sin perder lo ya cargado ni repetir.
+
+### 35.6 · El selector no queda en blanco
+1. Entrar a la pantalla sin tocar nada.
+
+**Esperado:** *Orden* muestra «Los últimos primero», no un campo vacío.
+
+> ⚠️ Esto se rompió una vez y vale para **toda** la app: `mat-select` trata un
+> valor `null` como «sin selección» y deja el campo en blanco aunque la opción
+> exista y esté elegida. Lo mismo pasaba en *Control de inventario* con «Todas
+> las sucursales». Si aparece un selector vacío que igual está consultando,
+> el sospechoso es una opción cuyo valor es `null`.
+
+---
+
+## Bloque 36 — Lugares del depósito: sectores y zonas *(nuevo)*
+
+> **Verificado el 2026-08-14** contra el central local: se creó la zona
+> «ZONA DE PRUEBA PWA» en el sector 41 (quedó en la base con id 234,
+> `activo = true`, `usuario_id` del que la creó) y se la eliminó desde la
+> misma pantalla; la base volvió a cero filas.
+
+### 36.1 · Se llega desde Inicio, con su propio rol
+1. Entrar con un usuario que tenga `VER INVENTARIO` pero **no** `CREAR
+   INVENTARIO`.
+
+**Esperado:** *Lugares del depósito* **no** aparece en Inicio, y escribir
+`/inventario/lugares` a mano tampoco entra.
+
+> Es más restrictivo que el resto de inventario a propósito: acá se borra la
+> geografía sobre la que se cuenta. `frc-mobile` no pide ningún rol —la
+> pantalla cuelga de la toma, y cualquiera que llegue al inventario puede
+> borrar zonas—.
+
+### 36.2 · Solo sucursales operables
+1. Abrir el selector de sucursal.
+
+**Esperado:** no están SERVIDOR ni COMPRAS. Arranca en la sucursal propia.
+
+### 36.3 · Alta de una zona
+1. Abrir un sector → *Nueva zona* → escribir un nombre en minúsculas →
+   *Guardar*.
+
+**Esperado:** la lista suma una zona y el contador del encabezado sube. En la
+base el nombre quedó **en mayúsculas**.
+
+> Mayúsculas al guardar, titlecase al mostrar: es el par que usa
+> `frc-mobile`, y hay que tomarlo entero. En la base conviven 35 sectores en
+> minúscula con 6 en mayúscula; mostrar el texto crudo dejaría la lista
+> pareciendo dos cargas distintas.
+
+### 36.4 · Baja de una zona
+1. Tocar una zona recién creada → *Eliminar* → confirmar.
+
+**Esperado:** desaparece de la lista **y de la base**.
+
+> ⚠️ Mirar las dos cosas. Antes de este bloque, `deleteZona` no aliaseaba su
+> campo raíz a `data`, así que la baja se ejecutaba en el central y la app la
+> reportaba como fallida. Si el cartel dice «el central no eliminó la zona»
+> pero la fila ya no está, es exactamente ese bug de vuelta.
+
+### 36.5 · Una zona con conteo encima no se borra
+1. Intentar eliminar una zona que ya participó de un inventario.
+
+**Esperado:** el central rechaza la baja y la app muestra el error. La salida
+es **desactivarla**, no borrarla.
+
+### 36.6 · Desactivar en vez de borrar
+1. Editar una zona y apagar *Activo* → *Guardar*.
+
+**Esperado:** queda en la lista con el chip *Inactiva*, y el diálogo avisa que
+no se va a poder asignar en un conteo nuevo.
+
+### 36.7 · Un sector con zonas no se borra
+1. Abrir un sector con zonas → *Editar sector* → *Eliminar*.
+
+**Esperado:** la confirmación **dice cuántas zonas tiene** y sugiere
+desactivarlo. Si se confirma igual, el central rechaza la baja por integridad
+referencial.
+
+---
+
+## Bloque 37 — Configuración del kiosco *(nuevo)*
+
+> **Verificado el 2026-08-14** en Chrome: se cambió a *Cámara*, la preferencia
+> quedó en `localStorage` (`frc.kioscoModo`), el escáner abrió solo al cerrar
+> la configuración, y al cancelarlo volvió a abrirse a los 2,5 s. Salir del
+> kiosco cortó el rearme: tres segundos y medio después, en Inicio, no había
+> ningún diálogo abierto.
+
+### 37.1 · Modo lector (el de las góndolas)
+1. Kiosco → ícono de engranaje → *Lector*.
+
+**Esperado:** el campo queda enfocado, **no** sale el teclado en pantalla y el
+texto de espera dice «pasá el producto por el lector». Pasar un código con el
+lector muestra el precio sin tocar nada.
+
+### 37.2 · Modo cámara
+1. Elegir *Cámara* y cerrar la configuración.
+
+**Esperado:** el escáner se abre **solo**. El texto de espera y el placeholder
+cambian a la versión de cámara.
+
+> `frc-mobile` abre el escáner una única vez, al entrar en modo `cam`, y
+> después queda mudo hasta que alguien toque. En un kiosco eso no alcanza: la
+> pantalla la mira un cliente.
+
+### 37.3 · La cámara se vuelve a armar sola
+1. En modo cámara, cerrar el escáner sin leer nada. Esperar.
+
+**Esperado:** vuelve a abrirse a los pocos segundos. **No** se abren dos
+escáneres encima: el rearme se encadena al cierre del anterior.
+
+### 37.4 · Salir corta el rearme
+1. En modo cámara, cerrar el escáner y tocar la X del kiosco.
+
+**Esperado:** vuelve a Inicio y la cámara **no** se reabre encima.
+
+### 37.5 · La preferencia es del dispositivo
+1. Configurar *Cámara*, cerrar la app y volver a entrar. Después entrar con el
+   mismo usuario desde otro dispositivo.
+
+**Esperado:** la tablet sigue en cámara; el otro dispositivo arranca en
+*Lector*. Es configuración de la tablet de la góndola, no del usuario.
+
+### 37.6 · Sin cámara, no se puede elegir cámara
+1. Abrir la configuración en un equipo sin cámara.
+
+**Esperado:** la opción está deshabilitada y explica por qué. Elegirla dejaría
+el kiosco mudo: sin lector no entra nada por el campo.
+
+### 37.7 · El servidor se muestra, no se edita
+1. Mirar la sección *Servidor*.
+
+**Esperado:** dice contra qué instancia está hablando y remite a *Mi cuenta →
+Servidor*.
+
+> `frc-mobile` repite acá el formulario de IP y puerto, con la IP de
+> producción escrita a mano en el componente. Cambiar de servidor cierra la
+> sesión, así que no es algo que se haga con un kiosco abierto.
+
+---
+
+## Bloque 38 — Notificaciones push *(nuevo)*
+
+> **Verificado el 2026-08-14** contra el central local, sobre un build servido
+> en `localhost:4400`: la sesión del dispositivo quedó registrada (fila 15981,
+> `WEB_MOBILE`), el token de FCM se acuñó con la VAPID del proyecto y quedó
+> escrito **en esa misma fila**, dejando intacta la sesión `IOS` del mismo
+> usuario.
+>
+> **38.4 también se ejecutó**: se disparó
+> `enviarNotificacionPersonalizada` desde el central local y el aviso apareció
+> con su título y su cuerpo. El central lo registró como «enviada
+> exitosamente, Destinatarios: 1» y ningún token se tocó.
+>
+> Quedan sin ejecutar **38.6/38.7** (iPhone) y el caso nuevo **38.8**, que
+> falla hoy.
+>
+> ⚠️ **`ng serve` no sirve para este bloque.** El service worker está en
+> `enabled: !isDevMode()`, y sin service worker no hay dónde recibir el aviso.
+> Hay que servir un build; el detalle está en
+> [`docs/arquitectura/web-push.md`](arquitectura/web-push.md).
+
+### 38.1 · La sesión del dispositivo se registra al entrar
+1. Entrar y mirar `configuraciones.inicio_sesion` para el `frc.idDispositivo`
+   que está en `localStorage`.
+
+**Esperado:** hay una fila con ese id y `tipo_dispositivo` `WEB` o
+`WEB_MOBILE`.
+
+> ⚠️ **Este caso va primero y no es opcional.** El central escribe el token
+> buscando la sesión activa por `(usuario, idDispositivo)`; si no la
+> encuentra **no falla**, escribe el token en *la primera sesión abierta del
+> usuario, sea del dispositivo que sea*. Sin esta fila, el token de esta
+> computadora se escribe sobre la sesión de otro aparato — y si esa sesión es
+> la del iPhone de la persona, el iPhone deja de recibir avisos.
+
+### 38.2 · Activar
+1. Con las claves cargadas, tocar *Activar*.
+
+**Esperado:** el navegador pide permiso; al conceder, la fila pasa a
+«Activados en este dispositivo».
+
+### 38.3 · El token llega, y a la fila correcta
+1. Después de activar, mirar todas las sesiones abiertas del usuario.
+
+**Esperado:** el token quedó en la fila **de este dispositivo**, y las demás
+—en particular una `IOS`— conservan el suyo.
+
+> ⚠️ Verificar **esto**, no solo que la mutación devuelva `true`. Dos cosas
+> se ven en verde y no entregan nada: un `PushSubscription` guardado donde va
+> un token de FCM, y un token correcto escrito en la sesión de otro aparato.
+
+### 38.4 · Llega con la app cerrada
+1. Cerrar la app por completo y disparar una notificación desde el central.
+
+**Esperado:** aparece en la bandeja del sistema. Tocarla abre la app.
+
+### 38.8 · Tocar la notificación abre la pantalla del aviso
+1. Con la app **cerrada**, tocar un aviso de inventario.
+2. Repetir con la app abierta en otra pantalla.
+
+**Esperado:** abre —o lleva— a la pantalla de ese inventario. Con la app ya
+abierta **reusa la pestaña**, no abre otra.
+
+> Necesitó las dos mitades. El central ahora manda el destino **dentro** del
+> `notification` como `onActionClick`, además del `data` del mensaje: el
+> service worker arma la notificación copiando campos de
+> `payload.notification`, y el `data` del mensaje es **hermano** de
+> `notification`, no hijo. Sin eso la notificación aparecía y tocarla no hacía
+> nada — con la app cerrada, ni la abría.
+
+### 38.9 · El destino se traduce a rutas de esta app
+1. Provocar avisos de distinto tipo y tocarlos.
+
+**Esperado:**
+
+| El central manda | Abre |
+|---|---|
+| `/inventario/6579` | el inventario 6579 |
+| `/operaciones/transferencias/431` | `/transferencias/431` |
+| `/productos/1234` | la ficha `/producto/1234` |
+| `/financiero/gastos/9` | caja chica |
+| `/mis-compras/credito/…` | Mis finanzas |
+| `/configuracion/seguridad` | Mi cuenta |
+| `/operaciones/ventas/…`, `list-cotizacion` | la lista de notificaciones |
+
+> ⚠️ **Los destinos del central son rutas del escritorio**, no de la PWA, y
+> viajan sin cambios a los tres clientes. Traducirlos acá y no allá es
+> deliberado: hacer que el central conozca las rutas de cada cliente lo obliga
+> a cambiar cada vez que uno mueve una pantalla.
+>
+> Lo que no tiene equivalente cae en **la lista de notificaciones**, no en
+> Inicio: el toque vino de un aviso, y su lista es lo único que dice algo
+> sobre él.
+>
+> ⚠️ Si aparece un **bucle de redirección**, el sospechoso es la lista de
+> rutas propias de `destino-notificacion.ts`: si acepta por prefijo en vez de
+> exacto, devuelve una ruta que no existe y el comodín la vuelve a atrapar.
+
+### 38.5 · Permiso denegado
+1. Denegar el permiso y volver a Mi cuenta.
+
+**Esperado:** dice que están bloqueados por el navegador y que se habilitan
+desde sus ajustes de sitio. **No** vuelve a mostrar el botón: el navegador ya
+no va a preguntar.
+
+### 38.6 · iPhone sin instalar
+1. Abrir la app en Safari de iPhone, sin instalarla.
+
+**Esperado:** dice que hace falta instalar la app primero. No hay botón.
+
+> No es una limitación de la app: Safari expone `PushManager` recién cuando la
+> PWA corre desde la pantalla de inicio (iOS 16.4+).
+
+### 38.7 · iPhone instalado
+1. Instalar la PWA desde Compartir → Añadir a inicio y repetir 38.2 a 38.4.
+
+**Esperado:** funciona igual que en Android.
 
 ---
 
@@ -2049,7 +2715,16 @@ Para que no se reporte como falla:
 | 27 · Ficha de producto | 5 | 2 | | |
 | 28 · Rendición de caja chica | 9 | | | |
 | 29 · Carga del conteo | 7 | | | |
-| **Total** | **224** | | | |
+| 30 · Permisos por rol | 6 | | | |
+| 31 · Rostro: registro y marcación | 11 | | | |
+| 32 · Compartir por QR | 4 | 2 | | |
+| 33 · Instalar y filtros por URL | 5 | 2 | | |
+| 34 · Control de inventario | 5 | 1 | | |
+| 35 · Revisión de inventario | 6 | 3 | | |
+| 36 · Lugares del depósito | 7 | 4 | | |
+| 37 · Configuración del kiosco | 7 | 4 | | |
+| 38 · Notificaciones push | 9 | 6 | | |
+| **Total** | **284** | | | |
 
 ### Los cinco que más importan
 

@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 
-import { environment } from 'src/environments/environment';
 import { idDeDispositivo } from '../auth/dispositivo';
+import { firebaseWeb } from './firebase.config';
 import { DatosService } from '../graphql/datos.service';
 import { ActualizarTokenFcmGQL } from 'src/app/graphql/personas/usuario/graphql/actualizarTokenFcm';
 
@@ -64,10 +64,9 @@ export class PushService {
   readonly error = signal<string | null>(null);
   readonly trabajando = signal(false);
 
-  /** Las tres que faltan en el entorno. Sin ellas no se puede acuñar token. */
+  /** Sin `apiKey`, `appId` y `vapidKey` no se puede acuñar un token. */
   get configurado(): boolean {
-    const f = environment.firebaseWeb;
-    return Boolean(f.apiKey && f.appId && f.vapidKey);
+    return Boolean(firebaseWeb.apiKey && firebaseWeb.appId && firebaseWeb.vapidKey);
   }
 
   /**
@@ -126,12 +125,11 @@ export class PushService {
       return null;
     }
 
-    const f = environment.firebaseWeb;
     const app = getApps()[0] ?? initializeApp({
-      apiKey: f.apiKey,
-      appId: f.appId,
-      projectId: f.projectId,
-      messagingSenderId: f.messagingSenderId,
+      apiKey: firebaseWeb.apiKey,
+      appId: firebaseWeb.appId,
+      projectId: firebaseWeb.projectId,
+      messagingSenderId: firebaseWeb.messagingSenderId,
     });
 
     // La registración de Angular, no una nueva: dos service workers sobre la
@@ -151,7 +149,7 @@ export class PushService {
     }
 
     return await getToken(getMessaging(app), {
-      vapidKey: f.vapidKey,
+      vapidKey: firebaseWeb.vapidKey,
       serviceWorkerRegistration: registration,
     });
   }

@@ -18,10 +18,16 @@ no asumiendo:
 
 ## Las claves, y por qué están en el repo
 
-Los cuatro valores del bloque `firebaseWeb` de `environment.ts` salen de la
-consola de Firebase, proyecto `bodega-franco-frc` (número `170136643206`):
-`apiKey` y `appId` de la app Web, y la clave pública VAPID del certificado Web
-Push (Configuración → Cloud Messaging → *Certificados push web*).
+Los valores viven en **`core/notificaciones/firebase.config.ts`**, no en
+`environment.ts`: el proyecto de Firebase es **uno solo** para alpha, beta y
+producción, así que no cambia con el canal y no es configuración de entorno.
+Repetirlo en cada archivo de entorno solo agrega copias que hay que mantener
+sincronizadas a mano.
+
+Salen de la consola de Firebase, proyecto `bodega-franco-frc` (número
+`170136643206`): `apiKey` y `appId` de la app Web, y la clave pública VAPID del
+certificado Web Push (Configuración → Cloud Messaging → *Certificados push
+web*).
 
 **Ninguno es secreto.** La `apiKey` web y la VAPID **pública** viajan dentro
 del bundle de cualquier PWA: quien abra el DevTools de la app las ve. Son

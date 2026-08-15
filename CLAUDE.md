@@ -156,7 +156,9 @@ Implementado: capa de datos completa (~450 archivos portados), sistema de diseñ
 
 Sumado en la tanda de paridad con `frc-mobile`: **crédito por convenio en Inicio**, **escáner universal** en un botón flotante que lee cualquier código y decide el destino, **configuración dentro de la app** (servidor, tema con sus tres estados, datos de la persona), **badge de no leídas**, **productos vencidos**, **modo kiosco** de consulta de precios, **ficha de producto**, **rendición de caja chica** con fotos, y **carga del conteo** de inventario.
 
-Pendiente: de **caja chica**, el **alta** de la solicitud —es el formulario más grande que queda: tipo de gasto, activo imputado con su buscador paginado, beneficiario y detalle financiero—; de **inventario**, zonas y sectores, y agregar a la toma un producto que no estaba (necesita `saveInventarioProducto`, que no está portado); de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; el **reconocimiento facial**; **Web Push** en lugar de FCM; y el **transporte WebSocket** para suscripciones.
+Sumado en la segunda tanda de paridad: **revisión del supervisor** y **control de inventario**, **lugares del depósito** (sectores y zonas), **configuración del kiosco** (lector o cámara), **registro del rostro y marcación facial**, **compartir por QR**, **instalar la PWA** y **notificaciones push** con su destino por pantalla.
+
+Pendiente: de **caja chica**, el **alta** de la solicitud —es el formulario más grande que queda: tipo de gasto, activo imputado con su buscador paginado, beneficiario y detalle financiero—; de **inventario**, agregar a la toma un producto que no estaba (necesita `saveInventarioProducto`, que no está portado); de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; y el **transporte WebSocket** para suscripciones.
 
 La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
@@ -170,7 +172,9 @@ La lista operativa de esto, escrita para que nadie lo reporte como falla durante
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **493 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **536 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+
+⚠️ **Las notificaciones push necesitan las dos mitades.** El cliente acuña un token de FCM —no una suscripción cruda— y lo ata al `idDispositivo` de **su** sesión; sin esa fila, el central escribe el token en la primera sesión abierta del usuario, que puede ser la de otro aparato. Y el destino del aviso viaja **dentro** del `notification`, no en el `data` del mensaje, o tocarlo no abre nada. Ver [`docs/arquitectura/web-push.md`](docs/arquitectura/web-push.md).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

@@ -21,7 +21,6 @@ Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 | [`REGLAS_DESARROLLO.md`](REGLAS_DESARROLLO.md) | Regla crítica para modificar el backend `central` sin romper el desktop |
 | [`TODO_TECNICO.md`](TODO_TECNICO.md) | Los 59 defectos de `frc-mobile`, con cuáles ya están resueltos acá |
 | [`PLAN_TESTEO_MANUAL.md`](PLAN_TESTEO_MANUAL.md) | **169 casos de prueba manual** para validar lo implementado, con el estado de ejecución de cada bloque |
-| [`PROXIMA_SESION.md`](PROXIMA_SESION.md) | **Dónde retomar**: lo que quedó a medias y las trampas del entorno. Se borra cuando deje de ser cierto |
 | [`analisis/`](analisis/) | Investigación y plan de la migración a PWA |
 | [`design-system.md`](design-system.md) | **Sistema de diseño de este repo** |
 | [`design-system/`](design-system/) | Galería y pantallas aprobadas en el Gate 1 |

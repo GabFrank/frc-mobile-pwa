@@ -1,0 +1,186 @@
+name: Release
+
+on:
+  push:
+    branches: [develop, 'release/*', master]
+
+concurrency:
+  group: release-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────
+  # 1 · semantic-release crea el tag y el GitHub Release. Sin artefactos.
+  # ───────────────────────────────────────────────────────────────────
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      skip_build: ${{ steps.redundant.outputs.skip_build }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install semantic-release
+        run: npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
+
+      - name: Fetch semantic-release git notes
+        run: git fetch origin 'refs/notes/*:refs/notes/*' || true
+
+      - name: Run semantic-release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect released version
+        id: version
+        run: |
+          VERSION=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
+          if [[ "$VERSION" == v* ]]; then
+            echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+            echo "Released version: ${VERSION#v}"
+          else
+            echo "No new release created"
+          fi
+
+      # Si el árbol del tag nuevo es idéntico al del último tag del mismo canal
+      # —lo que pasa cuando un "Update branch" de la PR de promoción agrega solo
+      # nodos de merge— no se publica. En una PWA eso importa más que en los
+      # otros repos: publicar código idéntico le dispara un diálogo
+      # "Actualizar" a cada usuario del canal por nada.
+      - name: Detect redundant release
+        id: redundant
+        if: steps.version.outputs.version != ''
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          case "$VERSION" in
+            *-alpha*) PREV=$(git tag --sort=-creatordate | grep -- '-alpha\.' | grep -vx "v${VERSION}" | head -1) ;;
+            *-beta*)  PREV=$(git tag --sort=-creatordate | grep -- '-beta\.'  | grep -vx "v${VERSION}" | head -1) ;;
+            *)        PREV=$(git tag --sort=-creatordate | grep -vE 'alpha|beta' | grep -vx "v${VERSION}" | head -1) ;;
+          esac
+          if [ -z "$PREV" ]; then
+            echo "No previous release on this channel — building."
+            echo "skip_build=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          CUR_TREE=$(git rev-parse "v${VERSION}^{tree}")
+          PREV_TREE=$(git rev-parse "${PREV}^{tree}")
+          if [ "$CUR_TREE" = "$PREV_TREE" ]; then
+            echo "::warning::v${VERSION} es idéntico a ${PREV} — no se publica."
+            echo "skip_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip_build=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ───────────────────────────────────────────────────────────────────
+  # 2 · alpha y beta se publican solos.
+  # ───────────────────────────────────────────────────────────────────
+  deploy-preprod:
+    needs: release
+    if: |
+      needs.release.outputs.version != '' &&
+      needs.release.outputs.skip_build != 'true' &&
+      (contains(needs.release.outputs.version, '-alpha') || contains(needs.release.outputs.version, '-beta'))
+    runs-on: ubuntu-latest
+    # Los pasos se repiten en `deploy-prod` a propósito: GitHub no permite
+    # compartir steps entre jobs sin una composite action, y separar los dos
+    # jobs es lo que permite exigir aprobación solo en producción.
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # semantic-release NO commitea el package.json, así que sin este paso el
+      # sello de versión seguiría diciendo 0.0.0 y la app mostraría la fecha de
+      # compilación para siempre. Ver scripts/sello-version.mjs.
+      - name: Escribir la versión en package.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${{ needs.release.outputs.version }}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Publicar en Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          case "$VERSION" in
+            *-alpha*) CANAL=alpha ;;
+            *-beta*)  CANAL=beta ;;
+          esac
+          echo "Publicando v${VERSION} en el canal ${CANAL}"
+          npx wrangler@4 pages deploy dist/mobile-pwa/browser \
+            --project-name="frc-pwa-${CANAL}" \
+            --branch=main \
+            --commit-dirty=true
+
+  # ───────────────────────────────────────────────────────────────────
+  # 3 · producción requiere aprobación. El environment `production` de
+  #     GitHub la exige antes de que el job arranque.
+  # ───────────────────────────────────────────────────────────────────
+  deploy-prod:
+    needs: release
+    if: |
+      needs.release.outputs.version != '' &&
+      needs.release.outputs.skip_build != 'true' &&
+      !contains(needs.release.outputs.version, '-alpha') &&
+      !contains(needs.release.outputs.version, '-beta')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Escribir la versión en package.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${{ needs.release.outputs.version }}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Publicar en Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler@4 pages deploy dist/mobile-pwa/browser \
+            --project-name=frc-pwa-prod \
+            --branch=main \
+            --commit-dirty=true

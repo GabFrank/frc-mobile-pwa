@@ -28,7 +28,6 @@ y qué cuesta caro no saber**.
 | Cómo se lee un código | `docs/arquitectura/escaner.md` |
 | Capa de datos, alias `data:` | `docs/arquitectura/capa-de-datos.md` |
 | Qué probar a mano | `docs/PLAN_TESTEO_MANUAL.md` |
-| **Dónde retomar** | `docs/PROXIMA_SESION.md` |
 | Qué NO repetir del repo viejo | `docs/TODO_TECNICO.md` |
 
 **Antes de portar una pantalla, leé cómo la hace `frc-mobile`** (regla 5.1).
@@ -135,16 +134,19 @@ HTTPS. Servir por IP de red **no** funciona.
 
 ## Estado y deudas
 
-Consultar siempre `docs/PROXIMA_SESION.md`, que es el traspaso vivo. Al
-2026-08-14: dos PR encadenadas (#1 y #2 — **mergear la #1 primero**), 55 casos
-de prueba escritos y sin correr, y sin portar el alta de solicitud de caja
-chica, zonas de inventario, edición de producto, Web Push, WebSocket y
-reconocimiento facial.
+**Los pendientes viven en las issues del repo**, no en un archivo. Hubo un
+`docs/PROXIMA_SESION.md` que hacía de traspaso y se borró: un traspaso deja de
+ser cierto sin que nadie lo note, y entonces miente con toda la autoridad de
+estar versionado.
+
+Lo que queda anotado ahí: correr el plan de testeo manual, endurecer el
+pipeline antes de la primera promoción a beta, lo que falta de paridad con
+`frc-mobile`, y el presupuesto del bundle.
 
 ## Cómo actualizar esta skill
 
 **Solo procedimiento durable.** Versiones, PRs abiertas y pendientes van en
-`docs/PROXIMA_SESION.md` o en la memoria del proyecto, no acá.
+las issues del repo, no acá.
 
 Cuando aprendas algo a golpes —una API que miente, un campo que no está donde
 su nombre sugiere, una validación que rompe un caso real— el lugar natural es

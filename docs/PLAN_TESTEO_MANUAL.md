@@ -2612,23 +2612,47 @@ Servidor*.
 
 **Esperado:** aparece en la bandeja del sistema. Tocarla abre la app.
 
-### 38.8 · Tocar la notificación abre la app *(falla hoy)*
-1. Con la app cerrada, tocar el aviso que llegó.
+### 38.8 · Tocar la notificación abre la pantalla del aviso
+1. Con la app **cerrada**, tocar un aviso de inventario.
+2. Repetir con la app abierta en otra pantalla.
 
-**Esperado:** abre la app en la pantalla que corresponde.
+**Esperado:** abre —o lleva— a la pantalla de ese inventario. Con la app ya
+abierta **reusa la pestaña**, no abre otra.
 
-**Hoy:** no hace nada. Verificado leyendo la notificación mostrada:
+> Necesitó las dos mitades. El central ahora manda el destino **dentro** del
+> `notification` como `onActionClick`, además del `data` del mensaje: el
+> service worker arma la notificación copiando campos de
+> `payload.notification`, y el `data` del mensaje es **hermano** de
+> `notification`, no hijo. Sin eso la notificación aparecía y tocarla no hacía
+> nada — con la app cerrada, ni la abría.
 
-```json
-{"title":"Prueba de push","body":"...","data":null}
-```
+### 38.9 · El destino se traduce a rutas de esta app
+1. Provocar avisos de distinto tipo y tocarlos.
 
-> El service worker de Angular abre lo que venga en
-> `notification.data.onActionClick`, y arma la notificación copiando campos de
-> **`payload.notification`**. El central manda el destino en `data.path`, que
-> es **hermano** de `notification`, no hijo — así que nunca llega. Se arregla
-> del lado del central, anidando `onActionClick` dentro del
-> `WebpushNotification`; el cliente no puede inventar un dato que no recibió.
+**Esperado:**
+
+| El central manda | Abre |
+|---|---|
+| `/inventario/6579` | el inventario 6579 |
+| `/operaciones/transferencias/431` | `/transferencias/431` |
+| `/productos/1234` | la ficha `/producto/1234` |
+| `/financiero/gastos/9` | caja chica |
+| `/mis-compras/credito/…` | Mis finanzas |
+| `/configuracion/seguridad` | Mi cuenta |
+| `/operaciones/ventas/…`, `list-cotizacion` | la lista de notificaciones |
+
+> ⚠️ **Los destinos del central son rutas del escritorio**, no de la PWA, y
+> viajan sin cambios a los tres clientes. Traducirlos acá y no allá es
+> deliberado: hacer que el central conozca las rutas de cada cliente lo obliga
+> a cambiar cada vez que uno mueve una pantalla.
+>
+> Lo que no tiene equivalente cae en **la lista de notificaciones**, no en
+> Inicio: el toque vino de un aviso, y su lista es lo único que dice algo
+> sobre él.
+>
+> ⚠️ Si aparece un **bucle de redirección**, el sospechoso es la lista de
+> rutas propias de `destino-notificacion.ts`: si acepta por prefijo en vez de
+> exacto, devuelve una ruta que no existe y el comodín la vuelve a atrapar.
 
 ### 38.5 · Permiso denegado
 1. Denegar el permiso y volver a Mi cuenta.
@@ -2693,8 +2717,8 @@ no va a preguntar.
 | 35 · Revisión de inventario | 6 | 3 | | |
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
-| 38 · Notificaciones push | 8 | 6 | | |
-| **Total** | **283** | | | |
+| 38 · Notificaciones push | 9 | 6 | | |
+| **Total** | **284** | | | |
 
 ### Los cinco que más importan
 

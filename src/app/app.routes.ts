@@ -1,7 +1,13 @@
-import { Routes } from '@angular/router';
-import { isDevMode } from '@angular/core';
+import {
+  ActivatedRouteSnapshot,
+  Router,
+  RouterStateSnapshot,
+  Routes,
+} from '@angular/router';
+import { inject, isDevMode } from '@angular/core';
 import { authGuard } from './core/auth/auth.guard';
 import { rolGuard } from './core/auth/rol.guard';
+import { destinoDeNotificacion } from './core/notificaciones/destino-notificacion';
 
 /**
  * Rutas.
@@ -110,5 +116,25 @@ export const routes: Routes = [
       ]
     : []),
 
-  { path: '**', redirectTo: '' },
+  /**
+   * Cualquier ruta desconocida pasa por el traductor de destinos.
+   *
+   * ⚠️ **Acá aterriza el toque sobre una notificación.** El central manda
+   * rutas del escritorio —`/productos/123`, `/financiero/gastos/9`— y el
+   * service worker navega a lo que reciba. Antes esto redirigía a Inicio sin
+   * mirar nada, así que tocar un aviso no llevaba a la pantalla del aviso.
+   *
+   * `destinoDeNotificacion` traduce lo que tiene equivalente y manda el resto
+   * a la lista de notificaciones, que siempre dice algo sobre lo que se tocó.
+   */
+  {
+    path: '**',
+    canActivate: [
+      (_ruta: ActivatedRouteSnapshot, estado: RouterStateSnapshot) => {
+        const router = inject(Router);
+        return router.parseUrl(destinoDeNotificacion(estado.url));
+      },
+    ],
+    children: [],
+  },
 ];

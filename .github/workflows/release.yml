@@ -123,6 +123,16 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # El gate de PR ya corrió build y tests, pero acá se compila **el tag**,
+      # que es el resultado del merge y no el árbol que aprobó el CI. Un
+      # conflicto semántico —dos cambios que compilan juntos y rompen una
+      # regla— pasaría el build y publicaría. Volver a correr los tests cuesta
+      # ~25 s por release y cubre eso.
+      #
+      # También es defensa en profundidad: si algún día se relaja la protección
+      # de rama, el deploy sigue exigiendo tests en verde.
+      - run: npm test
+
       - name: Publicar en Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -174,6 +184,16 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+
+      # El gate de PR ya corrió build y tests, pero acá se compila **el tag**,
+      # que es el resultado del merge y no el árbol que aprobó el CI. Un
+      # conflicto semántico —dos cambios que compilan juntos y rompen una
+      # regla— pasaría el build y publicaría. Volver a correr los tests cuesta
+      # ~25 s por release y cubre eso.
+      #
+      # También es defensa en profundidad: si algún día se relaja la protección
+      # de rama, el deploy sigue exigiendo tests en verde.
+      - run: npm test
 
       - name: Publicar en Cloudflare Pages
         env:

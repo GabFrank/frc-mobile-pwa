@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs/operators';
 
+import { ActualizacionService } from '../core/actualizacion/actualizacion.service';
 import { AuthService } from '../core/auth/auth.service';
 import { CargandoService } from '../core/ui/cargando.service';
 import { TemaService } from '../core/tema/tema.service';
@@ -152,6 +153,14 @@ export class ShellComponent {
   private readonly breakpoints = inject(BreakpointObserver);
   readonly cargando = inject(CargandoService);
   readonly tema = inject(TemaService);
+  private readonly actualizacion = inject(ActualizacionService);
+
+  constructor() {
+    // Se arranca acá y no en el arranque de la app porque el shell es la
+    // pantalla con sesión: no tiene sentido ofrecer una recarga a alguien que
+    // todavía está escribiendo su contraseña.
+    this.actualizacion.iniciar();
+  }
 
   readonly esTablet = toSignal(
     this.breakpoints

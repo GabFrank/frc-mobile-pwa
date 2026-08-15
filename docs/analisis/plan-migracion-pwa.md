@@ -370,11 +370,38 @@ Cada una detrás de su interfaz actual, para que las pantallas no cambien:
 
 ### Ola A — Sin dependencia nativa (~10.000 LOC)
 
-`caja` · `conteo` · `moneda` · `maletin` · `caja-info` · `solicitud-pago` · `pago` · `mis-rrhh` · `mis-finanzas` · `home`
+`caja` · `conteo` · `moneda` · `maletin` · `caja-info` · `solicitud-pago` · ~~`pago`~~ · `mis-rrhh` · `mis-finanzas` · `home`
 
 **Por qué primero:** cero APIs de dispositivo, uso diario, y ejercita el catálogo completo (listas, formularios, importes, chips de estado, PDFs). Si el sistema de diseño tiene huecos, aparecen acá.
 
 **Empezar por `caja`:** de uso diario, valida la infra con usuarios reales rápido, y su regla crítica —el balance lo calcula el backend— hace que no haya lógica de negocio riesgosa que portar.
+
+> **`pago` sale de la ola.** Al revisarlo contra el código apareció que en
+> `frc-mobile` es código muerto: `PagoService` está declarado y ningún
+> componente lo inyecta. El pago real es una pantalla de tesorería de
+> escritorio —cuotas, cajas con clave compuesta, autorización por un segundo
+> usuario— y nunca se hizo desde el teléfono. De la relación se lee el estado
+> dentro de `solicitud-pago`, que sí se portó. Detalle en
+> [`docs/modulos/operaciones-pagos-y-varios.md`](../modulos/operaciones-pagos-y-varios.md).
+>
+> **Con eso la Ola A queda cerrada**, aunque no con un archivo por submódulo:
+> cuatro de ellos no eran pantallas y se absorbieron donde correspondía.
+>
+> | Submódulo | Dónde quedó en la PWA |
+> |---|---|
+> | `caja` | `pages/operaciones/caja/` — lista, detalle, abrir y cerrar |
+> | `caja-info` | Era **la** pantalla de apertura y cierre: hoy son `CajaAbrirPage` y `CajaCerrarPage` |
+> | `conteo` | Sus dos diálogos se unificaron en `ConteoFormComponent` |
+> | `maletin` | `domains/caja/maletin.model.ts` — no tenía componente, solo modelo y servicio |
+> | `moneda` | `domains/moneda/` — ídem |
+> | `solicitud-pago` | `pages/operaciones/solicitud-pago/` — lista, alta, detalle y PDF |
+> | ~~`pago`~~ | Fuera. Solo se lee el pago desde la solicitud |
+> | `mis-rrhh` · `mis-finanzas` | «Mi trabajo» y «Mis finanzas» |
+> | `home` | `pages/inicio/` |
+>
+> Lo único que sigue sin ejecutarse de esta ola es el **test manual de
+> apertura y cierre de caja** (bloque 7), porque la apertura se proxea a la
+> filial.
 
 ### Ola B — Listas y formularios grandes (~8.400 LOC)
 

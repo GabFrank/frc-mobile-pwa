@@ -103,3 +103,89 @@ gh workflow run "Deploy to Play Store" --ref develop -f version=<tag> -f track=i
 Valores de `track`: `internal` (alpha), `alpha` (closed testing, poco usado), `beta` (open testing), `production` (stable). Si se deja `version` vacío, el workflow resuelve el último tag del canal.
 
 **Nunca automático**: aunque `semantic-release` genere un tag nuevo en cada merge, la subida a Play Store requiere disparo y aprobación manual. Detalle completo del flujo de ramas y releases en la skill `frc-cicd`; no se duplica acá.
+
+---
+
+# Qué cambió en la PWA
+
+Nada de lo de arriba aplica: no hay Play Store, no hay AAB y no hay `cap sync`.
+Una PWA se sirve como sitio estático y la actualización la maneja
+`@angular/service-worker`. Pero **el service worker solo no alcanza**, y eso lo
+descubrió el testeo del bloque 5 en un Android real.
+
+## Lo que se encontró probando en un teléfono
+
+Con un cambio compilado y servido, **dos ciclos completos de cerrar y reabrir la
+app instalada dejaron la versión vieja**:
+
+- Reabrir el WebAPK desde el launcher **no re-navega**: restaura la página. Se
+  llegó a ver la app corriendo un chunk que ya **no existía** en el servidor.
+- El service worker estaba registrado, activo y controlando la página, pero su
+  propio diagnóstico (`/ngsw/state`) reportaba `Latest manifest hash: none` y
+  `Last update check: never`, incluso después de un `registration.update()`
+  explícito. **Nunca adoptaba una versión.**
+
+La causa: `registrationStrategy: 'registerWhenStable:30000'`. En una app
+**zoneless** el momento «estable» no llega igual, y una PWA instalada puede
+pasar días sin una navegación real que lo dispare. Con `registerImmediately` el
+worker adopta versión desde el arranque — verificado en el mismo teléfono:
+pasó a tener manifiesto y a consultar a los 9 segundos.
+
+## Cómo funciona ahora
+
+`core/actualizacion/`:
+
+| Pieza | Qué hace |
+|---|---|
+| `actualizacion.service.ts` | Escucha `VERSION_READY`, consulta al arrancar y cada 30 minutos, ofrece, aplica y recarga |
+| `actualizacion-reglas.ts` | Cuándo volver a ofrecer algo que se postergó, y cómo nombrar la versión. Sin Angular, con tests |
+
+**El usuario puede decir que no.** Puede estar en medio de una recepción o un
+arqueo, y una recarga ahí pierde lo que tenga en pantalla. El diálogo ofrece
+*Actualizar* y *Ahora no*.
+
+**Postergar no es rechazar.** Se guarda qué versión se postergó y cuándo, y se
+vuelve a ofrecer si pasaron **2 horas** —más que una descarga de camión, menos
+que una jornada— **o si aparece otra versión**, porque postergar la de ayer no
+cubre la de hoy.
+
+> ⚠️ **El corte es el tiempo, no la apertura de la app.** Una PWA instalada se
+> «abre» muchas veces por día; preguntar en cada arranque sería la interrupción
+> que se quiso evitar.
+
+Y en **Mi cuenta → Aplicación** están la versión instalada, la compilación y el
+botón, que dice *Actualizar a {{versión}}* cuando hay algo esperando y *Buscar*
+cuando no. Existe para el que sabe que salió un arreglo y no quiere esperar a
+que le pregunten.
+
+⚠️ **Aplicar incluye recargar.** `activateUpdate()` cambia lo que el worker va a
+servir, pero la pestaña sigue con el código viejo en memoria. Sin el `reload` el
+usuario toca «Actualizar», no ve ningún cambio, y vuelve a tocar.
+
+## De dónde sale el número de versión
+
+`scripts/sello-version.mjs`, que corre dos veces por build:
+
+1. **Antes de compilar** escribe `src/app/core/sello-version.ts` —generado, en
+   `.gitignore`— que es la versión que la app muestra como instalada.
+2. **Después de compilar** (`--dist`) reemplaza los marcadores en el `ngsw.json`
+   de `dist/`. Ahí vive `appData`, y es lo único que permite **nombrar la
+   versión nueva antes de aplicarla**: `VERSION_READY` trae el `appData` de la
+   build que está esperando.
+
+> ⚠️ **El marcador vive en `ngsw-config.json` y ese archivo no se toca.** Si el
+> sello se escribiera ahí, cada compilación dejaría un cambio para commitear.
+>
+> ⚠️ **El sello se calcula una vez y se reusa** entre las dos pasadas. Cuando
+> cada una calculaba su propia fecha, el aviso ofrecía «Actualizar a 11:06» y
+> después «Aplicación» mostraba 11:05: dos nombres para la misma build.
+
+**La versión es el número de `package.json`**, que es lo que va a manejar
+`semantic-release` igual que en los otros cuatro repos —`1.10.0-alpha.11`,
+`1.2.0-beta.1`, `1.2.2`—; el canal viaja adentro del número.
+
+Mientras `package.json` siga en `0.0.0` y no haya tags, se muestra la fecha de
+compilación **con la aclaración «(sin versionar)»**: con todas las builds
+diciendo «v0.0.0», el botón ofrecería actualizar a la misma versión que ya está
+instalada. En cuanto el número sea real, la pantalla lo muestra sin tocar código
+y la fecha se corre a «Compilación».

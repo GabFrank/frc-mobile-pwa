@@ -34,7 +34,7 @@ import { CajaService } from './caja.service';
   template: `
     <frc-pagina titulo="Caja" [conVolver]="true">
       <div acciones>
-        <button matButton="filled" class="ancho" (click)="nueva()">Abrir caja</button>
+        <button matButton="filled" (click)="nueva()">Abrir caja</button>
       </div>
 
       @if (cargando()) {
@@ -73,7 +73,6 @@ import { CajaService } from './caja.service';
     </frc-pagina>
   `,
   styles: `
-    .ancho { width: 100%; }
     .desde {
       font-size: var(--fs-caption);
       color: var(--text-soft);

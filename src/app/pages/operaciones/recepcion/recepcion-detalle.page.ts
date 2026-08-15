@@ -7,9 +7,9 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatMenuModule } from '@angular/material/menu';
 import { firstValueFrom } from 'rxjs';
 
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
@@ -33,7 +33,6 @@ import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
-import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
@@ -85,29 +84,31 @@ const FILTROS: OpcionFiltro[] = [
     SkeletonComponent,
     EstadoVacioComponent,
     EstadoErrorComponent,
-    IconoComponent,
     MatButtonModule,
-    MatMenuModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Recepción" [conVolver]="true">
-      <div acciones>
+      <!--
+        ⚠️ El atributo de proyección va en un elemento **hijo directo**, fuera
+        de todo bloque de control: lo que está adentro de un @if no se proyecta
+        al slot con nombre y termina en el contenido, arriba de la pantalla.
+
+        Como la barra reparte columnas iguales entre sus hijos y acá hay un
+        solo envoltorio, el reparto de los dos botones lo hace este grid.
+
+        Las dos acciones que corresponden al estado, y nada más: en proceso se
+        escanea y se finaliza; finalizada se reabre o se mira la constancia.
+        La constancia de una recepción a medio verificar no dice nada.
+      -->
+      <div acciones class="botonera">
         @if (enProceso()) {
           <button matButton="filled" (click)="escanear()">Escanear</button>
+          <button matButton (click)="finalizar()">Finalizar</button>
+        } @else if (finalizada()) {
+          <button matButton (click)="reabrir()">Reabrir</button>
+          <button matButton="filled" (click)="constancia()">Constancia</button>
         }
-        <button matButton [matMenuTriggerFor]="menu" aria-label="Más opciones">
-          <frc-icono nombre="masOpciones" />
-        </button>
-        <mat-menu #menu="matMenu">
-          @if (enProceso()) {
-            <button mat-menu-item (click)="finalizar()">Finalizar recepción</button>
-          }
-          @if (finalizada()) {
-            <button mat-menu-item (click)="reabrir()">Reabrir recepción</button>
-          }
-          <button mat-menu-item (click)="constancia()">Ver constancia (PDF)</button>
-        </mat-menu>
       </div>
 
       @if (cargando()) {
@@ -124,6 +125,26 @@ const FILTROS: OpcionFiltro[] = [
           <frc-dato etiqueta="Fecha" [valor]="fecha(r.fecha)" />
           <frc-dato etiqueta="Notas" [valor]="r.notas?.length ?? 0" />
         </frc-seccion>
+
+        <!--
+          El pago se pide después de recibir, nunca antes: el backend solo
+          acepta notas en RECEPCION_COMPLETA. Por eso este bloque aparece con
+          la recepción finalizada y no antes.
+
+          Va acá abajo y no en la barra de arriba porque serían tres botones
+          en una fila: en un teléfono la etiqueta no entra y queda cortada.
+        -->
+        @if (finalizada()) {
+          <frc-seccion titulo="Pago al proveedor" [panel]="true">
+            <p class="ayuda">
+              La mercadería ya entró. Se puede pedir autorización para pagar
+              estas notas.
+            </p>
+            <button matButton="filled" class="solicitar" (click)="solicitarPago()">
+              Solicitar pago
+            </button>
+          </frc-seccion>
+        }
 
         <div class="filtros">
           @for (f of filtros; track f.etiqueta) {
@@ -177,12 +198,22 @@ const FILTROS: OpcionFiltro[] = [
     </frc-pagina>
   `,
   styles: `
+    .botonera {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: var(--sp-2);
+    }
+    /* Sin acciones el envoltorio queda vacío y la barra tiene que ocultarse. */
+    .botonera:empty { display: none; }
+    .ayuda { color: var(--text-mute); font-size: var(--fs-caption); margin: 0; }
+    .solicitar { align-self: stretch; margin-top: var(--sp-2); }
     .filtros { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     .filtro {
       border: 1px solid var(--border);
       background: none;
       color: var(--text);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-full);
       padding: var(--sp-1) var(--sp-3);
       font-size: var(--fs-caption);
       cursor: pointer;
@@ -211,6 +242,7 @@ export class RecepcionDetallePage {
   private readonly dialog = inject(MatDialog);
   private readonly notificacion = inject(NotificacionService);
   private readonly pdf = inject(PdfService);
+  private readonly router = inject(Router);
 
   /** Input opcional: el router lo asigna después de construir (NG0950). */
   readonly id = input<string>();
@@ -399,8 +431,7 @@ export class RecepcionDetallePage {
 
     const ok = await this.dialogo.confirmar({
       titulo: 'Deshacer verificación',
-      mensaje:
-        'Se borran todas las cantidades cargadas de este producto, en todas las notas de la recepción.',
+      mensaje: this.avisoDeDeshacer(),
       confirmar: 'Deshacer',
     });
     if (!ok) {
@@ -411,12 +442,37 @@ export class RecepcionDetallePage {
       next: (hecho) => {
         if (hecho) {
           this.notificacion.ok('Verificación deshecha.');
-          this.cargarProductos();
+          // Se recarga la recepción entera, no solo los productos: si estaba
+          // finalizada, el backend la reabrió y el estado de arriba cambió.
+          this.cargar();
         } else {
           this.notificacion.warn('El servidor no deshizo la verificación.');
         }
       },
     });
+  }
+
+  /**
+   * Qué se le avisa antes de deshacer.
+   *
+   * ⚠️ **Sobre una recepción finalizada, deshacer hace más que borrar
+   * cantidades**: el backend la **reabre** y **elimina los movimientos de
+   * stock** de compra de ese producto —verificado en
+   * `RecepcionMercaderiaItemService.deshacerVerificacionPorProducto`—. Y solo
+   * lo permite dentro de las **24 horas** de finalizada, contadas desde el
+   * movimiento de stock. Decir «se borran las cantidades» sería quedarse muy
+   * corto.
+   */
+  private avisoDeDeshacer(): string {
+    const base =
+      'Se borran las cantidades cargadas de este producto, en todas las notas de la recepción.';
+    if (!this.finalizada()) {
+      return base;
+    }
+    return (
+      base +
+      ' Como la recepción está finalizada, además vuelve a quedar en proceso y se revierte el stock que entró por este producto. El servidor solo lo permite dentro de las 24 horas de finalizada.'
+    );
   }
 
   async finalizar(): Promise<void> {
@@ -507,6 +563,30 @@ export class RecepcionDetallePage {
           return;
         }
         this.pdf.abrirBase64(base64, res.nombreArchivo ?? 'constancia-' + recepcionId + '.pdf');
+      },
+    });
+  }
+
+  /**
+   * Abre el alta de solicitud de pago con esta recepción precargada.
+   *
+   * Se pasa también el proveedor: la pantalla lo necesita para poder agregar
+   * más notas por número, que se buscan siempre por proveedor.
+   *
+   * ⚠️ **No se pregunta nada acá.** Crear la solicitud no es lo que pasa al
+   * tocar el botón: se abre un formulario que el operador todavía puede
+   * abandonar. `frc-mobile` mostraba un «¿Realmente desea solicitar el pago?»
+   * antes de navegar, que confirmaba algo que no estaba por ocurrir.
+   */
+  solicitarPago(): void {
+    const recepcion = this.recepcion();
+    if (recepcion?.id == null) {
+      return;
+    }
+    void this.router.navigate(['/operaciones/solicitud-pago/nueva'], {
+      queryParams: {
+        recepcionId: recepcion.id,
+        proveedorId: recepcion.proveedor?.id ?? null,
       },
     });
   }

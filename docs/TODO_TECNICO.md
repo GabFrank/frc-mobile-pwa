@@ -2,7 +2,7 @@
 
 > ⚠️ **Este archivo cataloga los defectos de `frc-mobile`**, el repo anterior. Se conserva como memoria de qué NO repetir.
 >
-> **Ya resueltos en `frc-mobile-pwa`** (no hay que volver a hacerlos): **#1** fecha por defecto de `porFecha` · **#2** observables que no completaban ni propagaban errores · **#3** update forzado (desaparece con el service worker) · **#4** la cadena `"null"` en `localStorage` · **#7** módulos lazy y eager a la vez · **#9** roles con strings inline · **#11** `descodificarQr` sin validar · **#12** `comparatorLike` sin escapar el regex · **#16-19** código muerto y archivos `" copy"` (no se portaron) · **#24** `errorLink` vacío · **#26** `totalRs` sin tipo · **#34** typos `delele`/`toInpuList`/`ZonaesSearchGQL` · **#38** `pais.model.ts` vacío · **#46** carpeta `venta/` vacía · **#48** `pages/financiero` y `pages/general` movidos a `domains/` · **#56** dos sets de íconos.
+> **Ya resueltos en `frc-mobile-pwa`** (no hay que volver a hacerlos): **#1** fecha por defecto de `porFecha` · **#2** observables que no completaban ni propagaban errores · **#3** update forzado (desaparece con el service worker) · **#4** la cadena `"null"` en `localStorage` · **#7** módulos lazy y eager a la vez · **#9** roles con strings inline · **#11** `descodificarQr` sin validar · **#12** `comparatorLike` sin escapar el regex · **#16-19** código muerto y archivos `" copy"` (no se portaron) · **#24** `errorLink` vacío · **#26** `totalRs` sin tipo · **#34** typos `delele`/`toInpuList`/`ZonaesSearchGQL` · **#32** `SolicitudPago.pago` tipado `any` · **#38** `pais.model.ts` vacío · **#46** carpeta `venta/` vacía · **#48** `pages/financiero` y `pages/general` movidos a `domains/` · **#56** dos sets de íconos.
 >
 > **Siguen abiertos y aplican al repo nuevo:** **#5** `ProductoInput.tiempoGarantia` tipado `boolean` · **#6** `toInput()` que pierde campos · **#8** lectura de `Preferences` (ya no aplica: no hay Capacitor) · **#13** lint y tests (resuelto: vitest corre) · **#25** campos comentados en `Producto` · **#40** `RrhhMobileService` sin tipos · **#41** guard de aprobaciones RRHH · **#52** modelos faciales desde CDN · **#53** credenciales de terceros en el código.
 >
@@ -360,6 +360,14 @@ El backend la reemplazó por `RecepcionMercaderia`, pero la entidad conserva mod
 
 **Fix propuesto:** migrar la solicitud de pago a `RecepcionMercaderia` y después borrar la entidad. Coordinar con el backend: hay que confirmar que `solicitarPagoNotaRecepcionAgrupada` tiene equivalente.
 
+> ✅ **Resuelto en la PWA, y el equivalente existe.** La solicitud de pago se
+> abre desde una `RecepcionMercaderia` con
+> `datosInicialesSolicitudPagoPorRecepcion(recepcionMercaderiaId)`. En la PWA
+> no hay ni rastro de `NotaRecepcionAgrupada`: la capa portada usa
+> `RecepcionMercaderia` en todo el circuito.
+>
+> Queda abierto **en `frc-mobile`**, que sigue en mantenimiento.
+
 ---
 
 ### 29. `Moneda.toInput()` descarta la cotización
@@ -397,6 +405,15 @@ Apunta al documento origen, pero a qué entidad depende de `tipoMovimiento`. No 
 **Dónde:** `src/app/pages/operaciones/solicitud-pago/solicitud-pago.model.ts`
 
 **Fix propuesto:** tipar como `Pago`. Cuidado con la referencia circular: `Pago` ya importa `SolicitudPago`.
+
+> ✅ **Resuelto en la PWA.** `domains/pedidos/solicitud-pago.model.ts` lo tipa
+> como `PagoResumen`: solo los campos que la app lee. La circularidad
+> desaparece porque el resumen no vuelve a apuntar a la solicitud — y no hace
+> falta, porque **el pago es de solo lectura acá**.
+>
+> Al tiparlo apareció que el modelo del repo anterior también estaba mal en la
+> cardinalidad: `Pago` tiene `List<SolicitudPago>`, no una sola. Ver
+> [`modulos/operaciones-pagos-y-varios.md`](modulos/operaciones-pagos-y-varios.md).
 
 ---
 

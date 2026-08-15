@@ -329,7 +329,22 @@ Todo este bloque en `http://localhost:4300/design-system` (solo en desarrollo).
 
 ---
 
-## Bloque 5 — PWA
+## Bloque 5 — PWA — ⚠️ **6 de 7** (Android real, 2026-08-07)
+
+> **Falta un solo caso: la segunda mitad de 5.5.** 5.1, 5.2, 5.3, 5.4, 5.6 y
+> 5.7 pasaron contra el teléfono.
+
+> Corrido en un Motorola edge 60 pro por adb, con el build de producción
+> servido estático.
+>
+> **5.4 falló y se arregló el mismo día.** La causa era
+> `registrationStrategy: 'registerWhenStable:30000'`: en una app zoneless el
+> service worker quedaba registrado pero **sin adoptar nunca una versión**. Con
+> `registerImmediately` adopta versión al arrancar, y encima se sumó el aviso
+> con postergación y el control manual en Mi cuenta. Los casos 5.4 a 5.7
+> describen el comportamiento nuevo.
+>
+> Queda abierto **5.2**: el ícono sigue siendo el de Angular.
 
 ### 5.1 · Instalación
 1. Compilar y servir producción:
@@ -344,21 +359,127 @@ npx http-server dist/mobile-pwa/browser -p 4300
 
 > El service worker solo se activa en producción, no con `npm start`.
 
+✅ **Pasó.** Chrome ofrece *Instalar* —no solo «crear acceso directo»—, o sea
+que cumple los criterios de instalabilidad. Queda como WebAPK
+(`org.chromium.webapk.…`) y abre en modo standalone, sin barra de direcciones.
+La sesión se comparte con Chrome: entró ya logueada.
+
 ### 5.2 · Marca
-**Esperado:** el nombre es **"Bodega Franco"**. En Android, la barra de estado toma el rojo de marca.
+**Esperado:** el nombre es **"Bodega Franco"**. La barra de estado toma el color
+del tema: **el rojo de marca en tema claro** y `#2a2523` en oscuro — son dos
+`<meta name="theme-color">` con `prefers-color-scheme`, así que en oscuro **no**
+tiene que verse roja.
+
+✅ **Pasó** (2026-08-07), después de reemplazar los íconos: eran los del
+andamiaje de Angular. Ahora salen de `resources/icon.png` de `frc-mobile` —el
+mismo que usa la app Android en producción— redimensionados con `sips`.
+
+> ⚠️ **Son dos familias, no una.** El logo llena el cuadro hasta los bordes, así
+> que declararlo `maskable` haría que Android le corte las letras al aplicar la
+> máscara circular. Por eso hay dos juegos:
+> `icon-{n}.png` con `purpose: any` —el logo completo— e
+> `icon-maskable-{n}.png` con el logo al **66 %** centrado sobre su propio rojo
+> (`#b40000`), que es el margen que pide el recorte. Antes los ocho íconos
+> estaban declarados `"maskable any"`, que es pedirle a la misma imagen dos
+> cosas incompatibles.
+>
+> Verificado en el diálogo de instalación del teléfono: se lee **BODEGA
+> FRANCO** entero, sin recorte.
 
 ### 5.3 · Orientación
 1. Rotar el teléfono con la PWA instalada
 
 **Esperado:** se mantiene en vertical (`orientation: portrait`).
 
-### 5.4 · Actualización
-1. Con la PWA instalada, cambiar algo visible en el código y recompilar
-2. Cerrar y reabrir la app dos veces
+✅ **Pasó.** Forzando la rotación del sistema a horizontal, la app siguió
+vertical (`mLastNonFullscreenOrientation=1`).
 
-**Esperado:** en algún momento aparece el cambio, **sin reinstalar y sin interrumpir lo que estabas haciendo**.
+### 5.4 · Actualización *(el que importa)*
+1. Con la PWA instalada y abierta, compilar una versión nueva y servirla
+2. Esperar, o entrar a **Mi cuenta → Aplicación** y tocar *Buscar*
 
-> Contraste con `frc-mobile`, donde el update era forzado y bloqueante cada 50 segundos.
+**Esperado:** aparece un diálogo **«Hay una versión nueva»** que nombra la
+versión y avisa que actualizar recarga la app, con dos salidas: **Actualizar** y
+**Ahora no**.
+
+3. Tocar *Actualizar*
+
+**Esperado:** la app se recarga sola y queda en la versión nueva. En
+*Mi cuenta → Aplicación*, **Versión** pasa a ser la que ofrecía el diálogo.
+
+> ⚠️ **Cerrar y reabrir la app no alcanza y no es un fallo**: el WebAPK
+> restaura la página en vez de re-navegar. Por eso existe el aviso.
+
+✅ **Pasó** (2026-08-07). El diálogo apareció solo, sin forzar nada.
+
+### 5.5 · Postergar, y que vuelva a preguntar
+1. Con una versión esperando, tocar **Ahora no**
+2. Seguir usando la app
+
+**Esperado:** el diálogo se cierra y **no vuelve a molestar**. La app sigue
+funcionando con la versión vieja, sin recargar nada.
+
+3. Ir a *Mi cuenta → Aplicación*
+
+**Esperado:** el botón dice **Actualizar a {{versión}}** — postergar no esconde
+la actualización, la corre de lugar.
+
+4. Dejar pasar **2 horas**, o compilar y servir **otra** versión
+
+**Esperado:** vuelve a ofrecerla. Con una versión distinta pregunta enseguida,
+sin esperar las 2 horas: postergar la de ayer no cubre la de hoy.
+
+> Es el caso que motiva todo el diseño: el operador está en medio de una
+> recepción y dice «ahora no». Si nadie le vuelve a preguntar, se queda en una
+> versión vieja para siempre y no se entera.
+
+✅ **Pasó lo verificable sin esperar:** el aviso aparece, *Ahora no* guarda la
+postergación con su hash y su momento, una segunda consulta **dentro** de la
+ventana no vuelve a molestar, y el botón queda en Mi cuenta.
+
+❌ **Falta la reaparición pasada la espera**, y probarla necesita instrumentar,
+porque nadie va a esperar dos horas mirando el teléfono. El procedimiento, que
+ya se usó una vez y funciona:
+
+```bash
+# 1. Acortar los dos tiempos, que están en dos archivos distintos
+#    ESPERA_MS  → src/app/core/actualizacion/actualizacion-reglas.ts
+#    setInterval → src/app/core/actualizacion/actualizacion.service.ts
+#    10 * 1000 y 15 * 1000 alcanzan.
+npm run build
+# 2. Aplicar esa build en el teléfono (el aviso la va a ofrecer sola).
+# 3. Compilar otra versión cualquiera para tener algo pendiente.
+# 4. Cuando aparezca el aviso: "Ahora no", y esperar ~30 segundos sin tocar nada.
+```
+
+**Esperado:** el aviso **reaparece solo**, sin que nadie toque nada.
+
+⚠️ **Revertir los dos tiempos antes de commitear.** Y ojo con el atajo fácil:
+recargar la página **aplica** la versión pendiente, así que un `location.reload()`
+destruye el escenario en vez de probarlo.
+
+### 5.6 · Actualizar a mano desde Mi cuenta
+1. Sin ninguna versión esperando, ir a *Mi cuenta → Aplicación*
+
+**Esperado:** el botón dice **Buscar**. Al tocarlo, si no hay nada, avisa
+«Ya estás en la última versión».
+
+2. Con una versión esperando, tocar **Actualizar a {{versión}}**
+
+**Esperado:** aplica y recarga, igual que desde el diálogo.
+
+✅ **Pasó** (2026-08-07).
+
+### 5.7 · Qué versión estoy usando
+1. *Mi cuenta → Aplicación*
+
+**Esperado:** **Versión** y **Compilación**. Mientras el repo no tenga
+versionado, la versión es la fecha de compilación **con la aclaración
+«(sin versionar)»**, para que nadie lea una fecha creyendo que es una versión
+publicada. Cuando `semantic-release` empiece a numerar, ahí va a decir
+`v1.10.0-alpha.11` y la fecha se corre a *Compilación*.
+
+⚠️ **Sin verificar en pantalla**: el cambio se hizo después de la última pasada.
 
 ---
 
@@ -1185,7 +1306,7 @@ pendiente, y no agrega la línea.
 **Esperado:** abre el diálogo de ese producto directamente. Con un producto
 que **no** está en la recepción, avisa.
 
-### 20.14 · Deshacer
+### 20.14 · Deshacer con la recepción en proceso
 1. En un producto ya verificado, *Deshacer*
 
 **Esperado:** confirma avisando que se borran las cantidades **en todas las
@@ -1197,7 +1318,7 @@ notas**, y al aceptar el producto vuelve a Pendiente.
 **Esperado:** la lista responde a cada filtro.
 
 ### 20.16 · Finalizar con pendientes *(el que importa)*
-1. Con productos sin verificar, menú → *Finalizar recepción*
+1. Con productos sin verificar, *Finalizar*
 
 **Esperado:** dice **cuántos productos se van a rechazar** y los nombra, y
 **exige un motivo** antes de dejar finalizar.
@@ -1205,22 +1326,277 @@ notas**, y al aceptar el producto vuelve a Pendiente.
 > Finalizar no deja lo pendiente pendiente: lo rechaza.
 
 ### 20.17 · Finalizar completo
-1. Con todo verificado, *Finalizar recepción*
+1. Con todo verificado, *Finalizar*
 
 **Esperado:** confirma que las cantidades entran al stock. La recepción queda
 **Finalizada**.
 
 ### 20.18 · Reabrir
-1. En una recepción finalizada, menú → *Reabrir recepción*
+1. En una recepción finalizada, *Reabrir*
 
 **Esperado:** vuelve a **En proceso** y se pueden corregir cantidades. En una
-que ya está en proceso, la opción no aparece.
+que ya está en proceso, el botón no aparece.
 
 ### 20.19 · Constancia en PDF
-1. Menú → *Ver constancia (PDF)*
+1. En una recepción finalizada, *Constancia*
 
 **Esperado:** se abre el PDF. En iPhone con la PWA instalada se abre **dentro**
 de la app y el gesto de volver regresa.
+
+### 20.20 · La barra de acciones cambia con el estado
+1. Abrir una recepción **en proceso** y mirar la barra de arriba
+2. Abrir una **finalizada** y mirar la misma barra
+
+**Esperado:** en proceso hay exactamente dos botones, *Escanear* y *Finalizar*;
+finalizada, *Reabrir* y *Constancia*. Siempre dos, **mitad y mitad del ancho**,
+sin menú ⋮. Los botones se ven **en la barra de arriba**, nunca sueltos sobre
+el contenido de la pantalla.
+
+Con la recepción **finalizada** aparece además, más abajo en la pantalla, el
+bloque **«Pago al proveedor»** con el botón *Solicitar pago*. En proceso ese
+bloque no está.
+
+> La constancia de una recepción a medio verificar no dice nada: por eso no
+> está mientras está en proceso. Y el pago tampoco: el servidor solo acepta
+> notas ya recibidas por completo.
+>
+> El botón de pago va abajo y no en la barra porque tres botones en una fila
+> no entran en la pantalla de un teléfono.
+
+### 20.21 · Deshacer sobre una recepción finalizada *(el que importa)*
+1. En una recepción **recién finalizada**, *Deshacer* en un producto verificado
+2. Leer el texto de la confirmación **antes** de aceptar
+3. Aceptar
+
+**Esperado:** el aviso dice, además de las cantidades, que la recepción **vuelve
+a quedar en proceso**, que se **revierte el stock** que entró por ese producto,
+y que el servidor solo lo permite **dentro de las 24 horas** de finalizada. Al
+aceptar, el estado de la cabecera pasa a **En proceso** solo (sin recargar a
+mano) y la barra de arriba cambia a *Escanear* / *Finalizar*.
+
+4. Repetir sobre una recepción finalizada hace **más de 24 horas**
+
+**Esperado:** el servidor la rechaza y sale el error; nada cambia.
+
+> Deshacer no es solo borrar un número: mueve stock. Si el aviso se quedó en
+> «se borran las cantidades», el operador está aceptando algo que no leyó.
+
+---
+
+## Bloque 21 — Solicitud de pago a proveedor *(nuevo)*
+
+> **Estado de ejecución: 18 de 20 corridos** contra el central real. 21.17 se
+> corrió en un Android real, con el toque de verdad.
+>
+> **Faltan dos, los dos por falta de datos, no por la app:**
+>
+> - **21.10, monedas mezcladas** — las 12 notas elegibles están todas en
+>   guaraníes.
+> - **21.16, con pago vigente** — el único pago que existe está cancelado, y
+>   uno nuevo se crea desde el escritorio.
+>
+> Sobre **21.9**: el descuento por rechazos está verificado contra la base —el
+> backend guardó 1.014.720 en una nota que vale 1.159.680 en bruto— pero no en
+> pantalla, porque la única nota con rechazos que queda libre está rechazada al
+> 100% y crear esa solicitud dejaría un documento en cero.
+>
+> ⚠️ **Ojo al verificar 21.9 contra solicitudes viejas:** las anteriores al
+> 25/02/2026 guardaron el bruto, porque la lógica de rechazos entró en el
+> central entre el 23 y el 25. Ahí estimado y definitivo dan iguales y no es
+> un fallo.
+
+> Necesita **una recepción finalizada** cuyas notas no estén ya en otra
+> solicitud. Lo más cómodo es encadenarlo con el bloque 20: finalizar una
+> recepción y seguir de ahí.
+>
+> El **pago** en sí no se prueba acá: no se carga desde esta app. Lo único que
+> se verifica del pago es que el detalle lo muestre cuando existe.
+
+### 21.1 · Entrar desde el menú
+1. Operaciones → **Solicitudes de pago**
+
+**Esperado:** la lista abre con los filtros *Todas / Borradores / Solicitadas /
+Parciales / Concluidas / Canceladas* y el botón *Nueva solicitud* a lo ancho.
+
+> Dice **Borradores**, no «Pendientes». `PENDIENTE` dejó de significar
+> «esperando el pago» cuando el central sumó `SOLICITADO`. Cada tarjeta
+muestra proveedor, número `SP-…`, fecha, cantidad de notas, forma de pago, el
+chip de estado y el monto a la derecha.
+
+### 21.2 · Los tres estados de la lista
+1. Abrirla con la red cortada
+2. Reconectar y reintentar
+3. Filtrar por un estado sin ninguna solicitud
+
+**Esperado:** primero el esqueleto de carga, después el error con *Reintentar*
+—que funciona—, y con el filtro sin resultados el vacío «Sin solicitudes».
+
+### 21.3 · Filtrar por estado
+1. Alternar entre los cinco filtros
+
+**Esperado:** la lista se recarga desde la página 0 en cada cambio. Tocar el
+filtro que ya está activo no dispara otra consulta.
+
+### 21.4 · Crear desde una recepción *(el que importa)*
+1. Abrir una recepción **finalizada** → bloque *Pago al proveedor* → *Solicitar pago*
+
+**Esperado:** se abre *Nueva solicitud de pago* con el proveedor **ya puesto y
+con su nombre** —no un id—, las notas de esa recepción cargadas, y moneda,
+forma de pago y fecha propuesta completas. Debajo del proveedor dice de qué
+recepción viene. **No pregunta nada antes de abrir el formulario**: todavía no
+se creó nada.
+
+> El proveedor no se puede cambiar en este camino: las notas ya cargadas son
+> suyas y el servidor rechaza la solicitud si se mezclan proveedores.
+
+### 21.5 · Recepción sin notas pendientes de pago
+1. Repetir 21.4 sobre una recepción **cuyas notas ya estén en otra solicitud**
+
+**Esperado:** el formulario abre **vacío de notas** y avisa que no hay notas
+pendientes de pago: o ya están en otra solicitud, o no quedaron recibidas por
+completo. No se queda cargando ni muestra un error rojo.
+
+> ⚠️ **Hay que entrar navegando desde la recepción**, no pegando la URL en la
+> barra ni recargando la página. Con recarga dura el aviso no llegó a verse en
+> las pruebas; el texto de ayuda del bloque de notas sí queda, así que la
+> pantalla no miente, pero el toast se pierde. Si vas a verificar este caso,
+> hacelo por el camino del operador.
+
+### 21.6 · Crear desde cero
+1. *Nueva solicitud* → buscar un proveedor por nombre → elegirlo
+2. Cargar el **número** de una nota recibida por completo → *Agregar nota*
+
+**Esperado:** la nota aparece con fecha, moneda, valor y estado. Al agregar la
+primera, la moneda de la solicitud se completa con la de la nota.
+
+### 21.7 · Nota que no se puede pagar *(el que importa)*
+1. Probar con: un número que no existe; una nota **a medio recibir**; una nota
+   ya incluida en otra solicitud
+
+**Esperado:** en los tres casos el mismo aviso, que nombra las cuatro causas
+posibles —no existe, no está recibida por completo, ya está pagada, o ya
+pertenece a otra solicitud—. La nota **no** se agrega.
+
+> El servidor devuelve vacío sin decir cuál de las cuatro es. Un aviso que
+> afirme una sola causa estaría adivinando.
+
+### 21.8 · Nota repetida
+1. Agregar dos veces el mismo número
+
+**Esperado:** avisa que ya está en la lista y no la duplica.
+
+### 21.9 · El total es una estimación *(el que importa)*
+1. Cargar notas y mirar el pie del bloque de notas
+
+**Esperado:** dice **«Total estimado»**, no «Total», y debajo aclara que el
+monto definitivo lo calcula el servidor descontando lo rechazado en la
+recepción.
+
+2. Usar una recepción **con rechazos** y comparar ese estimado con el monto que
+   queda en el detalle después de guardar
+
+**Esperado:** el del detalle es **menor**. Esa diferencia es exactamente lo
+rechazado, y es la razón por la que el número de la pantalla anterior se
+rotula «estimado».
+
+> `frc-mobile` mostraba esta suma como si fuera el total. Es la regla 6 del
+> repo: el dinero lo calcula el backend.
+
+### 21.10 · Notas en monedas distintas
+1. Cargar dos notas de monedas diferentes, si hay
+
+**Esperado:** además de la aclaración de siempre, avisa que las notas no están
+todas en la misma moneda y que el servidor las convierte a la de la solicitud.
+
+### 21.11 · Cambiar de proveedor con notas cargadas
+1. Con notas ya agregadas, *Cambiar* en el proveedor
+
+**Esperado:** pregunta antes, avisando que las notas se van a quitar. Al
+aceptar, la lista queda vacía.
+
+> Sin esto el servidor rechaza la solicitud entera: todas las notas tienen que
+> ser del mismo proveedor.
+
+### 21.12 · Lo que falta para guardar
+1. Intentar *Crear solicitud* sin proveedor, después sin notas, después sin
+   moneda y sin forma de pago
+
+**Esperado:** un aviso distinto por cada faltante, y el primero que reclama es
+el proveedor.
+
+### 21.13 · Crear
+1. Con todo cargado, *Crear solicitud* → confirmar
+
+**Esperado:** el diálogo dice cuántas notas y de qué proveedor, y aclara que el
+monto final lo calcula el servidor. Al aceptar, avisa **«creada y enviada a
+pagos»** con el número `SP-…` que asignó el backend, y abre el detalle.
+
+El detalle tiene que quedar en **Solicitado**, no en Borrador.
+
+> Son dos llamadas al servidor: crear y solicitar. Si la segunda falla, el
+> aviso lo dice —«se creó, pero quedó como borrador»— y hay que entrar y tocar
+> *Solicitar*. Lo que **no** puede pasar es que diga que se creó y quede en
+> borrador sin avisar: eso es un pago que nadie va a ver.
+
+### 21.14 · Detalle
+1. Mirar el detalle recién creado
+
+**Esperado:** estado *Solicitado*, número, proveedor, fechas, forma de pago,
+monto —el del servidor—, quién la cargó, y la lista de notas incluidas **con
+el monto de cada una**. Al pie aclara que ese monto es el valor de la nota
+menos lo rechazado, convertido.
+
+### 21.15 · Sin pago asociado
+1. En una solicitud recién creada, mirar el bloque *Pago*
+
+**Esperado:** dice que todavía no hay pago asociado y que se registra desde el
+sistema de escritorio, autorizado por un usuario distinto del que lo carga. No
+aparece como error ni como pendiente de la solicitud.
+
+### 21.16 · Con pago asociado
+1. Abrir una solicitud que **ya tenga pago** (hay que crearlo desde el desktop)
+
+**Esperado:** el bloque *Pago* muestra el número, su estado, si es programado y
+quién lo autorizó.
+
+> Es lo único que esta app sabe del pago: se lee, no se toca.
+
+### 21.17 · Constancia en PDF
+1. En el detalle, *Constancia*
+
+**Esperado:** el botón pasa a «Generando…» y después se abre el PDF. En iPhone
+con la PWA instalada se abre **dentro** de la app y el gesto de volver regresa.
+
+### 21.18 · Paginación
+1. Con más de 10 solicitudes, *Cargar más*
+
+**Esperado:** suma la página siguiente sin perder las anteriores, y el botón
+desaparece al llegar al final.
+
+### 21.19 · Un borrador se reconoce y se puede enviar *(el que importa)*
+1. Abrir una solicitud en estado **Borrador** —filtro *Borradores*—
+
+**Esperado:** el chip dice **Borrador** en gris, aparece un bloque **«Todavía es
+un borrador»** avisando que **no la ve quien paga**, el bloque de pago dice que
+no puede haber pago mientras lo sea, y la barra de abajo tiene **dos** botones:
+*Solicitar* y *Constancia*.
+
+2. Tocar *Solicitar* y leer la confirmación
+
+**Esperado:** avisa que pasa a la cola de pagos y que **deja de ser corregible
+desde el teléfono**. Al aceptar: «Enviada a pagos», el chip pasa a
+**Solicitado**, desaparece el bloque de borrador y la barra queda solo con
+*Constancia*.
+
+> Es la diferencia entre pedir un pago y no pedirlo. El diálogo con el que
+> tesorería paga solo mira `SOLICITADO` y `PARCIAL`.
+
+### 21.20 · Una solicitada no se puede volver a solicitar
+1. En una solicitud ya **Solicitada**, mirar la barra
+
+**Esperado:** *Solicitar* no está. Solo *Constancia*.
+
+> Reabrir —volver a borrador— es del sistema de escritorio, no de acá.
 
 ---
 
@@ -1230,7 +1606,9 @@ Para que no se reporte como falla:
 
 | Área | Estado |
 |---|---|
-| Operaciones | De caja chica, el alta y la rendición. De recepción, la solicitud de pago |
+| Operaciones | De caja chica, el alta y la rendición |
+| Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
+| Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: carga del conteo y zonas | No portado — la consulta sí |
 | Producto: detalle, edición, modo kiosco | No portados — la búsqueda sí |
 | Recibir push (FCM) | No portado — la bandeja sí |
@@ -1238,6 +1616,8 @@ Para que no se reporte como falla:
 | Escáner de códigos | Implementado — falta probarlo en dispositivos de sucursal |
 | Suscripciones GraphQL | Falta configurar el transporte WebSocket |
 | Reconocimiento facial | No portado |
+| Ícono de la PWA | Es el de Angular, no la marca |
+| Versionado | `package.json` está en `0.0.0` y no hay tags. La app muestra la fecha de compilación **con la aclaración «(sin versionar)»** hasta que `semantic-release` empiece a numerar |
 
 ---
 
@@ -1249,7 +1629,7 @@ Para que no se reporte como falla:
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
-| 5 · PWA | 4 | | | |
+| 5 · PWA | 7 | 6 | 1 | |
 | 6 · Accesibilidad | 5 | | | |
 | 7 · Abrir y cerrar caja | 9 | | | |
 | 8 · Mi trabajo | 5 | | | |
@@ -1264,8 +1644,9 @@ Para que no se reporte como falla:
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |
-| 20 · Recepción de mercadería | 19 | | | |
-| **Total** | **144** | | | |
+| 20 · Recepción de mercadería | 21 | | | |
+| 21 · Solicitud de pago | 20 | 18 | | |
+| **Total** | **169** | | | |
 
 ### Los cinco que más importan
 

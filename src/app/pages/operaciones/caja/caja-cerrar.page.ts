@@ -61,14 +61,13 @@ import { MonedasConDenominacionesGQL } from './graphql/moneda-y-maletin';
       }
 
       <div acciones>
-        <button matButton="filled" class="ancho" [disabled]="guardando()" (click)="cerrar()">
+        <button matButton="filled" [disabled]="guardando()" (click)="cerrar()">
           {{ guardando() ? 'Cerrando…' : 'Cerrar caja' }}
         </button>
       </div>
     </frc-pagina>
   `,
   styles: `
-    .ancho { width: 100%; }
     .intro {
       margin: 0;
       color: var(--text-soft);

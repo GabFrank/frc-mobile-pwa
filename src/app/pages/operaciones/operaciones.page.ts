@@ -44,6 +44,13 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
       />
 
       <frc-card
+        titulo="Solicitudes de pago"
+        subtitulo="Pedir autorización para pagar al proveedor"
+        icono="dinero"
+        (abrir)="ir('/operaciones/solicitud-pago')"
+      />
+
+      <frc-card
         titulo="Devoluciones"
         subtitulo="Productos averiados o vencidos"
         icono="tirar"

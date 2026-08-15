@@ -93,6 +93,14 @@ import { IconoComponent } from '../icono/icono.component';
       botón ocupa todo el ancho, dos se reparten mitad y mitad, sin que la
       pantalla tenga que declarar nada. Antes el envoltorio se encogía a su
       contenido y el botón principal quedaba de 112 px en una barra de 430.
+
+      ⚠️ Eso vale para el hijo directo. Casi todas las pantallas envuelven
+      los botones en un <div acciones> —hace falta para que el atributo de
+      proyección quede fuera de cualquier @if— y adentro de ese envoltorio
+      el botón vuelve a su ancho natural. Que ocupe su columna lo resuelve
+      una regla global en styles.scss, por el mismo motivo de encapsulación
+      que impide escribirla acá. No agregues un width 100% por pantalla:
+      eso es lo que había antes y salían de dos anchos distintos.
     */
     .acciones {
       flex-shrink: 0;

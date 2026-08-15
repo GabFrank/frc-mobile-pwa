@@ -104,13 +104,12 @@ import { CajaService } from './caja.service';
 
       @if (caja(); as c) {
         <div acciones>
-          <button matButton="filled" class="ancho" (click)="irACerrar(c)">Cerrar caja</button>
+          <button matButton="filled" (click)="irACerrar(c)">Cerrar caja</button>
         </div>
       }
     </frc-pagina>
   `,
   styles: `
-    .ancho { width: 100%; }
     .aviso {
       margin: var(--sp-2) 0 0;
       font-size: var(--fs-label);

@@ -21,8 +21,15 @@
       "installMode": "lazy",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/**/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"]
+        "files": [
+          "/**/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"
+        ]
       }
     }
-  ]
+  ],
+  "appData": {
+    "etiqueta": "__SELLO_ETIQUETA__",
+    "fecha": "__SELLO_FECHA__",
+    "commit": "__SELLO_COMMIT__"
+  }
 }

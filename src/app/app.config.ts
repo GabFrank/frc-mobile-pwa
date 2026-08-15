@@ -26,7 +26,20 @@ export const appConfig: ApplicationConfig = {
 
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000',
+      /*
+        ⚠️ `registerImmediately` y no `registerWhenStable:30000`.
+
+        Con la estrategia por defecto, el testeo del bloque 5 en un Android
+        real encontró el service worker registrado y controlando la página
+        pero **sin manifiesto y sin haber consultado nunca** por una versión.
+        Una PWA instalada se reabre restaurando la página, no navegando, así
+        que el momento «estable» que dispara el registro puede no volver a
+        darse: la app se queda en una versión vieja para siempre.
+
+        Registrar de una hace que el worker adopte una versión desde el
+        arranque, que es la condición para que `SwUpdate` pueda avisar.
+      */
+      registrationStrategy: 'registerImmediately',
     }),
 
     provideApollo(() => {

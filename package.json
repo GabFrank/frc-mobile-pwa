@@ -3,9 +3,13 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "sello": "node scripts/sello-version.mjs",
+    "prestart": "npm run sello",
     "start": "ng serve",
-    "build": "ng build",
+    "prebuild": "npm run sello",
+    "build": "ng build && node scripts/sello-version.mjs --dist",
     "watch": "ng build --watch --configuration development",
+    "pretest": "npm run sello",
     "test": "ng test"
   },
   "private": true,

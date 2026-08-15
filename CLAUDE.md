@@ -32,6 +32,25 @@ npm test           # tests unitarios
 
 > **`localhost` es contexto seguro.** Cámara, geolocalización y service worker funcionan en desarrollo sin HTTPS. Para probar en un celular Android por USB: `adb reverse tcp:4300 tcp:4300`, y el teléfono lo ve como `localhost` — con las mismas APIs habilitadas.
 
+## Dónde corre
+
+La app se sirve desde **Cloudflare Pages**, un proyecto por canal, y habla con
+el central por HTTPS. **El backend por defecto sale del hostname**, no del
+build: una sola compilación sirve todas las puertas.
+
+| Canal | Puerta | API por defecto |
+|---|---|---|
+| alpha | `alpha.app.frcsuite.com` — detrás de **Cloudflare Access** | `alpha-api.frcsuite.com` → `mauro`, por túnel |
+| beta | `beta.app.frcsuite.com` | `farmacia-api.frcsuite.com` |
+| prod | `farmacia.app.frcsuite.com` · `bodega.app.frcsuite.com` | `farmacia-api` · `bodega-api` |
+
+> ⚠️ **El alpha del central vive en `mauro`, no en `159.203.86.103`.** En esa VM
+> había una instancia vieja en el puerto 8083 que se apagó el 2026-08-14. Si
+> algún documento todavía manda ahí, está viejo.
+
+El plan completo del pipeline —canales, aprobaciones, caché del service worker y
+los gotchas— está en `frc-cicd/plan-cicd-mobile-pwa.md`.
+
 ## Documentación
 
 **`docs/` es la especificación**, portada del repo anterior. Antes de reconstruir un módulo, leé su documento: contiene las reglas de negocio verificadas contra el código en producción.

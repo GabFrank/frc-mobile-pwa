@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 
@@ -23,7 +23,7 @@ import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { PaginacionComponent } from 'src/app/shared/paginacion/paginacion.component';
-import { MisFinanzasService } from './mis-finanzas.service';
+import { MisFinanzasService, ResumenCredito, resumirCredito } from './mis-finanzas.service';
 import { VentaDetalleData, VentaDetalleDialogComponent } from './venta-detalle-dialog.component';
 
 type Filtro = 'abiertos' | 'todos';
@@ -69,20 +69,20 @@ const FILTROS: readonly { clave: Filtro; etiqueta: string; estado: EstadoVentaCr
         </div>
       }
 
-      @if (cliente(); as c) {
+      @if (resumen(); as r) {
         <frc-seccion titulo="Crédito" [panel]="true">
           <frc-dato etiqueta="Límite">
-            <frc-importe [valor]="c.credito ?? 0" moneda="Guaraní" simbolo="₲" />
+            <frc-importe [valor]="r.limite" moneda="Guaraní" simbolo="₲" />
           </frc-dato>
           <frc-dato etiqueta="Utilizado">
-            <frc-importe [valor]="utilizado()" moneda="Guaraní" simbolo="₲" />
+            <frc-importe [valor]="r.utilizado" moneda="Guaraní" simbolo="₲" />
           </frc-dato>
           <!--
             El disponible negativo ya sale en rojo: frc-importe colorea los
             negativos por su cuenta. No hace falta una clase acá.
           -->
           <frc-dato etiqueta="Disponible">
-            <frc-importe [valor]="disponible()" moneda="Guaraní" simbolo="₲" />
+            <frc-importe [valor]="r.disponible" moneda="Guaraní" simbolo="₲" />
           </frc-dato>
         </frc-seccion>
       }
@@ -155,11 +155,16 @@ export class MisFinanzasPage {
 
   readonly filtros = FILTROS;
 
+  /** QR leído por el escáner universal del FAB, si se llegó por ahí. */
+  readonly qr = input<string>();
+  /** Se autoriza una sola vez, no en cada recarga de la lista. */
+  private qrConsumido = false;
+
   readonly cliente = signal<Cliente | null>(null);
   readonly convenios = signal<VentaCredito[]>([]);
   readonly page = signal<PageInfo<VentaCredito> | null>(null);
   readonly pagina = signal(0);
-  readonly utilizado = signal(0);
+  readonly resumen = signal<ResumenCredito | null>(null);
   readonly filtroActivo = signal<Filtro>('abiertos');
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
@@ -171,18 +176,11 @@ export class MisFinanzasPage {
     FILTROS.findIndex((f) => f.clave === this.filtroActivo()),
   );
 
-  /**
-   * Lo que le queda de crédito.
-   *
-   * Es una resta de dos números que **manda el backend** —el límite del
-   * cliente y la suma de sus convenios abiertos—, no un cálculo de negocio:
-   * la regla 6 del proyecto prohíbe recalcular montos, no restar dos totales
-   * ya emitidos para mostrarlos juntos.
-   */
-  readonly disponible = computed(() => (this.cliente()?.credito ?? 0) - this.utilizado());
-
   constructor() {
     this.cargar();
+    // No espera a que cargue el cliente: la autorización se valida contra la
+    // persona en sesión y el propio QR, no contra la lista de convenios.
+    this.consumirQrEntrante();
   }
 
   cargar(): void {
@@ -196,6 +194,7 @@ export class MisFinanzasPage {
     this.cargando.set(true);
     this.error.set(null);
     this.sinCliente.set(false);
+    this.resumen.set(null);
 
     this.finanzas.clientePorPersona(personaId).subscribe({
       next: (cliente) => {
@@ -205,7 +204,7 @@ export class MisFinanzasPage {
           this.cargando.set(false);
           return;
         }
-        this.cargarUtilizado(cliente.id);
+        this.cargarResumen(cliente.id, cliente.credito ?? 0);
         this.cargarPagina(0);
       },
       error: (err: Error) => {
@@ -216,18 +215,20 @@ export class MisFinanzasPage {
   }
 
   /**
-   * El total utilizado no bloquea la lista.
+   * El resumen no bloquea la lista.
    *
    * Son dos consultas independientes: si la suma falla, la lista de
    * convenios igual se muestra. Al revés sería peor — dejar la pantalla en
    * error por no poder pintar una línea del resumen.
    */
-  private cargarUtilizado(clienteId: number): void {
+  private cargarResumen(clienteId: number, limite: number): void {
     this.finanzas.conveniosAbiertos(clienteId).subscribe({
       next: (abiertos) => {
-        this.utilizado.set((abiertos ?? []).reduce((suma, c) => suma + (c.valorTotal ?? 0), 0));
+        this.resumen.set(resumirCredito(limite, abiertos));
       },
-      error: () => this.utilizado.set(0),
+      // Sin resumen se oculta el bloque entero. Mostrarlo en cero diría que
+      // no debe nada, que es una afirmación y no un «no pude averiguarlo».
+      error: () => this.resumen.set(null),
     });
   }
 
@@ -290,12 +291,6 @@ export class MisFinanzasPage {
    * una llamada al servidor que no podía prosperar.
    */
   async confirmarPorQr(): Promise<void> {
-    const personaId = this.auth.usuario()?.persona?.id;
-    if (personaId == null) {
-      this.notificacion.danger('No se pudo identificar a la persona en sesión.');
-      return;
-    }
-
     const texto = await this.escaner.escanear({
       titulo: 'Confirmar compra',
       ayuda: 'Apuntá al QR que muestra la caja',
@@ -305,6 +300,35 @@ export class MisFinanzasPage {
       etiquetaManual: 'Código del convenio',
     });
     if (!texto) {
+      return;
+    }
+    this.procesarQr(texto);
+  }
+
+  /** Procesa el QR que trajo la URL desde el escáner universal, una sola vez. */
+  private consumirQrEntrante(): void {
+    const texto = this.qr();
+    if (!texto || this.qrConsumido) {
+      return;
+    }
+    this.qrConsumido = true;
+    this.procesarQr(texto);
+  }
+
+  /**
+   * Valida un QR ya leído y autoriza la compra.
+   *
+   * Separado del escaneo porque el FAB universal lee este QR desde cualquier
+   * pantalla y llega acá con el texto en la URL. Las cuatro validaciones
+   * —que sea de la app, que sea de una compra a crédito, que sea de esta
+   * persona y que traiga sucursal— tienen que correr igual por los dos
+   * caminos: son lo que impide que escanear el QR de otro dispare una
+   * autorización.
+   */
+  private procesarQr(texto: string): void {
+    const personaId = this.auth.usuario()?.persona?.id;
+    if (personaId == null) {
+      this.notificacion.danger('No se pudo identificar a la persona en sesión.');
       return;
     }
 

@@ -19,8 +19,16 @@ export class SectorService {
   private readonly eliminarGQL = inject(DeleteSectorGQL);
   private readonly buscarGQL = inject(SectoresSearchGQL);
 
-  todos(): Observable<Sector[]> {
-    return this.datos.consultar<Sector[]>(this.todosGQL);
+  /**
+   * Los sectores de **una sucursal**.
+   *
+   * ⚠️ **El `id` de `sectores(id:)` es el de la sucursal, no el del
+   * sector.** El nombre del argumento en el schema no lo dice, y llamarlo
+   * sin variables —como hacía este servicio— devolvía un error de validación
+   * en vez de la lista entera.
+   */
+  deSucursal(sucursalId: number): Observable<Sector[]> {
+    return this.datos.porId<Sector[]>(this.todosGQL, sucursalId);
   }
 
   porId(id: number): Observable<Sector> {
@@ -33,9 +41,9 @@ export class SectorService {
     });
   }
 
-  /** El backend devuelve solo un booleano de éxito, no la entidad guardada. */
-  guardar(input: Record<string, unknown>): Observable<boolean> {
-    return this.datos.guardar<boolean>(this.guardarGQL, input);
+  /** Devuelve el sector guardado, con su id ya asignado si era nuevo. */
+  guardar(input: Record<string, unknown>): Observable<Sector> {
+    return this.datos.guardar<Sector>(this.guardarGQL, input);
   }
 
   eliminar(id: number): Observable<boolean> {

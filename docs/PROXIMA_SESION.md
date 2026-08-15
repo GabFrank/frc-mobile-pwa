@@ -1,91 +1,122 @@
 # Dónde retomar
 
-> **Al 2026-08-07.** Rama `feature/solicitud-pago`, PR #1 abierta contra
-> `develop`. Todo lo hecho está commiteado y pusheado.
+> **Al 2026-08-15.** Rama `feat/paridad-mobile-android`, PR **#2** abierta
+> contra `feature/solicitud-pago`. Todo commiteado y pusheado.
 >
 > Este archivo es un **traspaso, no una hoja de ruta**: dice qué quedó a medio
-> camino y con qué hay que tener cuidado al retomarlo. Cuando la PR se cierre y
-> el bloque 5 termine, borrarlo — un traspaso viejo miente más que un archivo
-> que no existe.
+> camino y con qué hay que tener cuidado. Cuando las PR se cierren y los
+> bloques nuevos se corran, borralo — un traspaso viejo miente más que un
+> archivo que no existe.
 
 ## Lo que se hizo
 
-**`solicitud-pago`** — lista, alta desde el menú o desde una recepción
-finalizada, envío a la cola de pagos, detalle y constancia en PDF. Cierra la
-Ola A. `pago` **no se porta**, y es una decisión: ver
-[`modulos/operaciones-pagos-y-varios.md`](modulos/operaciones-pagos-y-varios.md).
+**Paridad con `frc-mobile`, cerrada.** Las dos tandas están en la PR #2:
+crédito en Inicio, escáner universal, configuración en la app, badge de no
+leídas, productos vencidos, kiosco, ficha de producto, rendición de caja chica,
+carga del conteo — y después revisión del supervisor, control de inventario,
+lugares del depósito, configuración del kiosco, rostro, compartir por QR,
+instalar la PWA y notificaciones push.
 
-**Actualización de la app instalada** — el service worker no adoptaba nunca una
-versión y la app no se actualizaba jamás. Arreglado y con aviso que se puede
-postergar. Ver [`arquitectura/actualizaciones-app.md`](arquitectura/actualizaciones-app.md).
+Lo que **no** se portó, y por qué, está en los documentos de cada módulo:
+`adicionar-sector` y `edit-producto` de `frc-mobile` son scaffolds vacíos del
+CLI, y el histórico de recepción ya lo cubre la lista existente con la misma
+consulta.
 
-**Íconos de la PWA, barra de acciones y varios arreglos** salidos de probar en
-un teléfono real.
+## ⚠️ Hay un cambio del central **sin commitear**
+
+En `frc-comercial/central`, `FCMService.getWebpushConfig` manda el destino de
+la notificación **dentro** del `notification`, como `onActionClick`. Sin eso, el
+aviso llega, se muestra, y **tocarlo no hace nada**: con la app cerrada ni
+siquiera la abre.
+
+Está compilado y probado corriendo, pero **no commiteado**: esta sesión venía
+tocando solo el repo de la PWA. Hay que decidir por dónde sale.
+
+El porqué —y por qué no se puede resolver del lado del cliente— está en
+[`arquitectura/web-push.md`](arquitectura/web-push.md).
+
+## Las PR están encadenadas
+
+**La #1 (`feature/solicitud-pago` → `develop`) sigue abierta.** La #2 sale de
+esa rama a propósito, para que su diff muestre solo lo nuevo.
+
+**Mergear en orden.** Y hay dos PR más, de otra sesión: **#3** de convenciones
+y patrones, y **#4** del pipeline de CI/CD.
+
+### Cómo se evitó chocar con la #4
+
+La #4 **borra `environment.prod.ts`** y reescribe `environment.ts`, porque el
+backend de cada canal pasa a salir del hostname. La configuración de Firebase
+había quedado en esos dos archivos y se movió a
+**`core/notificaciones/firebase.config.ts`**, que además es su lugar correcto:
+el proyecto de Firebase es **uno solo** para los tres canales, así que no es
+configuración de entorno.
+
+Los dos archivos de entorno volvieron a ser idénticos a `develop`. La #4 puede
+borrarlos y reescribirlos sin pelearse con nada.
+
+### Lo que sí va a chocar
+
+`docs/PLAN_TESTEO_MANUAL.md` lo tocan tres ramas. El conflicto es la **fila de
+totales** y el orden de los bloques; el contenido no se pisa. Al resolver, sumar
+y seguir.
+
+`docs/PATRONES.md` **no existe en esta rama**: lo crea la #3. Las trampas de
+esta tanda están en
+[`arquitectura/trampas-de-angular.md`](arquitectura/trampas-de-angular.md),
+escrito aparte por eso mismo. **Al mergear la #3, fusionarlo ahí y borrar el
+archivo suelto.**
 
 ## Lo que falta, en orden
 
-### 1 · Terminar el bloque 5 — un solo caso
+### 1 · Correr el plan de testeo
 
-La segunda mitad de **5.5**: que el aviso de actualización **reaparezca solo**
-después de postergarlo. El procedimiento completo está en el bloque 5 del
-[plan de testeo](PLAN_TESTEO_MANUAL.md). Necesita:
+284 casos. De lo nuevo quedó sin correr:
 
-- El teléfono conectado por USB con los túneles armados.
-- El central arriba **y sesión iniciada** en la app: sin backend, cualquier
-  recarga termina en el login y no hay forma de ver el diálogo.
-
-### 2 · Los dos casos de `solicitud-pago` que quedaron sin datos
-
-- **21.10, monedas mezcladas** — hoy las 12 notas elegibles están todas en
-  guaraníes. Hace falta una nota en otra moneda.
-- **21.16, con pago vigente** — el único pago que existe está cancelado. Uno
-  nuevo se crea desde el escritorio.
-
-### 3 · El grueso del plan de testeo
-
-Bloques **12, 13, 16, 17, 18 y 19** —buscar producto, devoluciones,
-notificaciones, caja chica, transferencias e inventario—: implementados y sin
-ejecutar. El **12** está marcado ⚠️ REPASAR, así que conviene empezar por ahí.
-
-**Bloqueados, y no por la app:**
-
-| Bloque | Qué falta |
+| Bloque | Qué necesita |
 |---|---|
-| 7 · Abrir y cerrar caja | Una filial de desarrollo. La apertura se proxea a la filial |
-| 11 · iOS real | Un iPhone o iPad |
-| Escáner contra códigos reales | Manos: se puede abrir la cámara por adb, no apuntarla a un producto |
+| 7 · Apertura y cierre de caja | nunca se corrió: la apertura se proxea a la filial |
+| 11 · iOS real | un iPhone. **No hay ninguno en la flota** |
+| 31 · Rostro | un teléfono de verdad; acá se probó con la cámara del Mac |
+| 37.1 · Kiosco en modo lector | un lector HID conectado |
+| 38.4 y 38.8 · Push | recibir el aviso y **tocarlo**: eso es UI del sistema, fuera del navegador |
+| 38.6 / 38.7 · Push en iPhone | además, con la PWA **instalada**: sin instalar no aparece ni el botón |
 
-## Cosas que van a morder si no se saben
+### 2 · Lo que queda de paridad
 
-**El backend del central se cae con SIGTERM.** Pasó varias veces, con la misma
-firma que se lleva puesto al dev server. El síntoma en el teléfono es un mensaje
-de que el servidor rechazó el login, que hace pensar en un problema de
-credenciales cuando en realidad no hay backend. **Antes de debuggear un login,
-chequear que el 8081 responda.**
+- **Alta de solicitud de caja chica** — el formulario más grande que queda.
+- **Agregar a la toma un producto que no estaba** — necesita portar
+  `saveInventarioProducto`.
+- **Edición y alta de producto**, con rol `NUEVO-PRODUCTO`.
+- **Transporte WebSocket** para suscripciones.
 
-**Los túneles de adb no sobreviven a que se desconecte el cable**, y no se
-rearman solos. Sin `adb reverse tcp:8081` la app no llega al central y el
-síntoma es idéntico al anterior. Si el cable se desconecta seguido, conviene
-`adb tcpip 5555` y trabajar por wifi.
+### 3 · Una deuda técnica, sin urgencia
 
-**La sesión de la app expira seguido durante una sesión larga de pruebas.**
-`SesionService.restaurar()` cierra sesión cuando el central rechaza la
-credencial, así que aparece el login sin que nadie lo haya pedido.
+El **bundle inicial pesa 644 kB** contra un presupuesto de 500. No viene de
+esta tanda: Firebase quedó entero en chunks lazy y lo único que suma al
+arranque son unos 900 bytes de configuración. Hay que decidir si se sube el
+límite o se mira qué entró al chunk de arranque.
 
-**`npm run build` y `npm test` matan al `npm start`.** Ya está en el
-[CLAUDE.md](../CLAUDE.md); se repite acá porque cuesta media hora la primera vez
-que pasa.
+## Trampas del entorno
 
-## Deudas que dejó esta tanda
+**El central local necesita la variable de Firebase.** El service account se
+busca en `file:/opt/frc-backend-central/…`, que en un Mac de desarrollo no
+existe, y `FCMInitializer` **no tiene fallback a classpath**. Sin ella, Firebase
+nunca inicializa, el push falla en silencio y `/actuator/health` queda en
+`DOWN` — que es exactamente lo que estuvo pasando sin que nadie lo mirara.
 
-- **La PR #1 sigue abierta.** 10 commits. Nadie la revisó.
-- **`solicitud-pago` exige un central con la migración `V194.5`.** El cambio del
-  backend que agrega `SOLICITADO` **estaba sin commitear** en el árbol de
-  trabajo del central. Antes de publicar, confirmar que está liberado.
-- **`gestion-pago-dialog` del desktop quedó desactualizado**: ofrece los cuatro
-  estados viejos, sin `SOLICITADO`. No es este repo, pero es el mismo cambio.
-- **Las secuencias de `id` de Postgres se desfasan** y rompen los `insert`. Se
-  arreglaron siete en la base de prueba; **producción no se miró**.
-- **No hay versionado.** `package.json` está en `0.0.0`, así que la app muestra
-  la fecha de compilación rotulada «(sin versionar)». En cuanto
-  `semantic-release` numere, la pantalla lo toma sola.
+```bash
+APP_FIREBASE_CONFIGURATION_FILE=file:$PWD/src/main/resources/bodega-franco-frc-18e8c6ef35cf.json \
+  ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+**`ng serve` no sirve para probar push.** El service worker está en
+`enabled: !isDevMode()`. Hay que servir un build:
+
+```bash
+npm run build
+cd dist/mobile-pwa/browser && python3 -m http.server 4400 --bind 127.0.0.1
+```
+
+Ese servidor **no hace fallback de SPA**: recargar una ruta profunda sin el
+service worker activo da 404. Entrar por `/`.

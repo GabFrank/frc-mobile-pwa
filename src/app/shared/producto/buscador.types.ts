@@ -47,3 +47,14 @@ export interface SeleccionProducto {
 
 /** Acciones que el buscador maneja por su cuenta. */
 export const ACCION_STOCK = 'stock';
+
+/**
+ * Abre la ficha del producto.
+ *
+ * Es propia del buscador y no del llamador porque la ficha sirve igual
+ * desde cualquier pantalla que lo monte, y porque una acción declarada por
+ * el llamador **no puede distinguirse de otra**: todas emiten `seleccion`
+ * con el producto y nada más. Con una sola acción propia eso alcanzaba; con
+ * dos, ya no.
+ */
+export const ACCION_FICHA = 'ficha';

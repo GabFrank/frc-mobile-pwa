@@ -193,3 +193,47 @@ El inventario completo, función por función, está en
 | **Detalle de producto** | Con la ola de producto |
 | **Modo kiosco** (`mostrar-precio`) | Con la ola de producto. Con un lector HID es el caso más rentable |
 | **Edición y alta**, rol `NUEVO-PRODUCTO` | Con la ola de producto |
+
+---
+
+# La configuración del kiosco
+
+Un engranaje en la barra del kiosco elige **cómo lee los códigos**, y la
+elección queda **por dispositivo** en `localStorage` (`frc.kioscoModo`).
+
+⚠️ **Es de la tablet, no del usuario.** El kiosco es un equipo fijo a la
+góndola: lo configura quien lo instala y no se vuelve a tocar. El mismo usuario
+abre la app en su teléfono mañana, donde no hay ningún lector conectado.
+
+| Modo | Qué hace |
+|---|---|
+| **Lector** (default) | hay un lector HID. El campo queda enfocado y el teclado en pantalla se suprime |
+| **Cámara** | no hay lector. El escáner **se vuelve a abrir solo** después de cada consulta |
+
+## Por qué el modo cámara se rearma
+
+Sin eso, una tablet sin lector obliga a **tocar el ícono de la cámara antes de
+cada consulta**: eso no es un kiosco, es un teléfono prestado. La pantalla la
+mira un cliente.
+
+⚠️ **El rearme es en cadena, no en bucle.** Se encadena al cierre del diálogo
+anterior; un `setInterval` abriría escáneres encima del que ya está abierto.
+Salir del kiosco corta la cadena, o la cámara se reabre sobre Inicio.
+
+`frc-mobile` abre el escáner **una sola vez**, al entrar en modo `cam`, y
+después queda mudo hasta que alguien vuelva a tocar.
+
+## El servidor se muestra, no se edita
+
+`frc-mobile` repite acá el formulario de IP y puerto, con la IP de producción
+escrita a mano en el componente (`precio-config.component.ts`). Eso deja dos
+lugares que hay que mantener sincronizados.
+
+Cambiar de servidor **cierra la sesión**, así que no es algo que se haga con un
+kiosco abierto: se hace desde *Mi cuenta → Servidor*. Acá se dice cuál está
+activo, que es la pregunta real de quien instala la tablet.
+
+## Sin cámara no se puede elegir cámara
+
+La opción se deshabilita y explica por qué. Elegirla dejaría el kiosco **mudo**:
+sin lector no entra nada por el campo, y no habría de dónde leer.

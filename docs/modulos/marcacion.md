@@ -185,6 +185,64 @@ teléfono marca contra la sucursal del anterior.
 
 | Qué | Espera a |
 |---|---|
-| **Reconocimiento facial** | portar el motor on-device. `frc-gourmet` ya lo resolvió en web; los umbrales (3 frames, 3 aciertos, 0,75 verificación / 0,55 búsqueda) **no se bajan** |
-| Alta de rostros (`ingreso-persona`) | lo anterior |
+| Alta de rostros de **otra** persona (`ingreso-persona`) | cada uno registra el suyo desde Mi cuenta; dar de alta a un tercero es otra pantalla |
 | Historial propio | ya está en «Mi trabajo» → Marcación |
+
+---
+
+# El rostro en la PWA
+
+Se registra desde **Mi cuenta → Mi rostro** (`/cuenta/rostro`) y se usa al
+marcar. Todo ocurre **en el dispositivo**: no se manda una foto a ningún lado
+ni se le pregunta al servidor quién es la persona. Lo único que sale es el
+embedding consolidado, y solo si pasó.
+
+## Es verificación 1:1, no identificación 1:N
+
+`frc-mobile` **busca** contra todas las galerías (`buscarYValidarUsuario`).
+Acá el usuario ya está en sesión, así que la pregunta es otra: *¿sos vos?*, no
+*¿quién sos?*. Se compara contra la galería propia, que además es más barato y
+más difícil de confundir.
+
+## Los umbrales no se bajaron, y no se bajan
+
+`confirmarVerificacionFinal` viene de `frc-mobile` y exige **tres controles
+independientes**; `embedding-galeria.util.ts` se copió verbatim, cambiando solo
+la ruta del import.
+
+⚠️ Si en la práctica cuesta pasar, el problema es el **enrolamiento** —pocas
+poses, mala luz—, no el umbral. Aflojarlo convierte esto en un teatro.
+
+⚠️ **Los aciertos tienen que ser consecutivos.** Un fallo reinicia la cuenta y
+descarta los frames: acumular aciertos sueltos permitiría insistir un rato
+frente a la cámara con la foto de otro.
+
+## Cinco capturas libres, como `frc-gourmet`
+
+El usuario saca cinco seguidas en los ángulos que quiera, con sugerencias
+rotativas en vez de pasos con nombre: el ángulo lo elige la persona, y
+etiquetarlos «izquierda/derecha» mentiría sobre lo que hace falta.
+
+Se verificó que `construirGaleriaDesdeCapturas` acepta N capturas antes de
+fijar el número en cinco.
+
+## La ubicación sigue siendo un chequeo aparte
+
+El diálogo facial **no valida dónde está la persona**. Eso sigue en
+`MarcacionPage` con `GeoService`, y corre **después** del rostro. Son dos
+preguntas distintas —quién sos y dónde estás— y mezclarlas haría que aflojar
+una afloje la otra.
+
+## Los modelos no se commitean
+
+`@vladmandic/human` con `HUMAN-FACERES-1024` (1024 dimensiones). Los cinco
+pares de archivos se copian desde `node_modules` en cada build
+(`scripts/face-models.mjs`) y están en `.gitignore`.
+
+⚠️ **No es solo por peso** —10 MB, que además hicieron fallar un push—: los
+modelos tienen que corresponder a la versión de Human instalada. Un modelo
+viejo contra una librería nueva produce embeddings que **no se alinean con la
+galería** y no da ningún error: simplemente deja de reconocer a la gente.
+
+Se sirven desde `/face-models` y `ngsw-config.json` los declara como asset
+group **lazy**: quien nunca marca con rostro no los descarga.

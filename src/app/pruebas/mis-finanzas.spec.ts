@@ -121,8 +121,8 @@ describe('Mis finanzas · convenios', () => {
     f.detectChanges();
 
     const pagina1 = f.componentInstance;
-    expect(pagina1.utilizado()).toBe(800_000);
-    expect(pagina1.disponible()).toBe(1_200_000);
+    expect(pagina1.resumen()?.utilizado).toBe(800_000);
+    expect(pagina1.resumen()?.disponible).toBe(1_200_000);
   });
 
   it('si falla el total utilizado, la lista igual se muestra', () => {

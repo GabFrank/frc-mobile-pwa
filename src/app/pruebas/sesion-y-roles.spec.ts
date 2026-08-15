@@ -2,12 +2,15 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { of } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { authGuard } from '../core/auth/auth.guard';
 import { AuthService } from '../core/auth/auth.service';
 import { AUTH_TOKEN_KEY } from '../core/auth/auth.tokens';
 import { InicioPage } from '../pages/inicio/inicio.page';
+import { MisFinanzasService } from '../pages/mis-finanzas/mis-finanzas.service';
+import { APOLLO_DE_PRUEBA } from './apollo-de-prueba';
 import { OperacionesPage } from '../pages/operaciones/operaciones.page';
 import { Usuario } from '../domains/personas/usuario.model';
 import type { Persona } from '../domains/personas/persona.model';
@@ -24,7 +27,16 @@ describe('Sesión y control de acceso por rol', () => {
   beforeEach(() => {
     localStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      // Inicio muestra el resumen de crédito y el badge de no leídas: los dos
+      // consultan al central. Acá se prueban los roles, no ninguna de esas
+      // dos cosas.
+      imports: APOLLO_DE_PRUEBA,
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: MisFinanzasService, useValue: { resumenCredito: () => of(null) } },
+      ],
     });
   });
 

@@ -2,11 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -29,7 +31,7 @@ import { SkeletonComponent } from '../estados-ui/skeleton.component';
 import { IconoComponent } from '../icono/icono.component';
 import { ImporteComponent } from '../importe/importe.component';
 import { SeccionComponent } from '../layout/seccion.component';
-import { ACCION_STOCK, OpcionesBuscador, SeleccionProducto } from './buscador.types';
+import { ACCION_FICHA, ACCION_STOCK, OpcionesBuscador, SeleccionProducto } from './buscador.types';
 import { precioDe } from './presentacion.util';
 import { AccionProducto, ProductoCardComponent } from './producto-card.component';
 import {
@@ -211,6 +213,7 @@ export class BuscadorProductoComponent {
   private readonly escaner = inject(EscanerService);
   private readonly notificacion = inject(NotificacionService);
   private readonly dialogo = inject(DialogoService);
+  private readonly router = inject(Router);
 
   readonly opciones = input<OpcionesBuscador>({});
   /**
@@ -222,6 +225,14 @@ export class BuscadorProductoComponent {
    * media pantalla.
    */
   readonly autoFoco = input(false);
+  /**
+   * Código con el que arrancar, ya leído por otro.
+   *
+   * Es lo que permite que el escáner universal del FAB lea un producto desde
+   * cualquier pantalla y termine acá con el resultado ya resuelto, sin
+   * pedirle al usuario que vuelva a apuntar la cámara.
+   */
+  readonly codigoInicial = input<string>();
 
   readonly seleccion = output<SeleccionProducto>();
 
@@ -252,8 +263,25 @@ export class BuscadorProductoComponent {
    * el usuario pidió último. Con listas de red lentas eso se ve.
    */
   private enVuelo: Subscription | null = null;
+  /** Último `codigoInicial` resuelto, para no relanzar la misma búsqueda. */
+  private ultimoCodigoInicial: string | undefined;
+
+  constructor() {
+    // El router asigna los inputs después de construir el componente
+    // (NG0950), así que esto no puede ir en el cuerpo del constructor. Y se
+    // guarda el último valor porque el efecto también corre cuando cambian
+    // otras señales que se leen adentro.
+    effect(() => {
+      const codigo = this.codigoInicial()?.trim();
+      if (codigo && codigo !== this.ultimoCodigoInicial) {
+        this.ultimoCodigoInicial = codigo;
+        this.resolverCodigo(codigo);
+      }
+    });
+  }
 
   readonly accionesDe = computed<AccionProducto[]>(() => [
+    { id: ACCION_FICHA, etiqueta: 'Ver ficha del producto', icono: 'documento' },
     { id: ACCION_STOCK, etiqueta: 'Ver stock por sucursal', icono: 'inventario' },
     ...(this.opciones().acciones ?? []),
   ]);
@@ -404,6 +432,10 @@ export class BuscadorProductoComponent {
   }
 
   async ejecutarAccion(accionId: string, producto: Producto): Promise<void> {
+    if (accionId === ACCION_FICHA) {
+      await this.router.navigate(['/producto', producto.id]);
+      return;
+    }
     if (accionId === ACCION_STOCK) {
       await this.dialogo.abrir<StockSucursalesDialogComponent, StockSucursalesData>(
         StockSucursalesDialogComponent,
@@ -431,7 +463,19 @@ export class BuscadorProductoComponent {
     if (!codigo) {
       return;
     }
+    this.resolverCodigo(codigo);
+  }
 
+  /**
+   * Resuelve un código ya leído, venga de donde venga.
+   *
+   * Lo llaman dos caminos: el botón de escanear de este mismo buscador y el
+   * escáner universal del FAB, que lee desde cualquier pantalla y aterriza
+   * acá con el código en la URL. La bifurcación por pesable tiene que ser la
+   * misma en los dos: es la que evita que un código de balanza pierda el peso
+   * al tratarse como un código común.
+   */
+  resolverCodigo(codigo: string): void {
     this.texto.set(codigo);
 
     if (this.busqueda.esPesable(codigo)) {

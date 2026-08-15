@@ -5,6 +5,6 @@ import { saveUsuarioImageQuery } from './graphql-query';
 @Injectable({
   providedIn: 'root'
 })
-export class SaveUsuarioImageGQL extends Mutation<{ data?: Boolean }> {
+export class SaveUsuarioImageGQL extends Mutation<{ data?: boolean }> {
   document = saveUsuarioImageQuery;
 }

@@ -1,9 +1,17 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 
-import { Transferencia } from 'src/app/domains/transferencia/transferencia.model';
+import { EtapaTransferencia, Transferencia } from 'src/app/domains/transferencia/transferencia.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
@@ -55,6 +63,10 @@ const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: 
         }
       </mat-tab-group>
 
+      @if (filtrada()) {
+        <p class="acotada">Lista acotada por el filtro con el que llegaste.</p>
+      }
+
       @if (cargando()) {
         <frc-skeleton [cantidad]="4" [conMiniatura]="true" />
       } @else if (error()) {
@@ -93,6 +105,14 @@ const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: 
     </frc-pagina>
   `,
   styles: `
+    .acotada {
+      margin: 0;
+      font-size: var(--fs-label);
+      color: var(--text-soft);
+      background: var(--info-bg);
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--radius-sm);
+    }
     .etapa {
       font-size: var(--fs-caption);
       color: var(--text-mute);
@@ -114,8 +134,37 @@ export class TransferenciasListaPage {
 
   private pagina = 0;
 
+  /**
+   * Filtros que llegan por la URL.
+   *
+   * `frc-mobile` tiene una ruta aparte —`list/filtradas/:sucursalId/:etapa`—
+   * para esto. Acá son parámetros de la misma lista: es la misma pantalla con
+   * menos filas, y duplicarla obligaría a mantener dos.
+   *
+   * El caso real: desde un inventario se salta a «las transferencias en
+   * camino hacia esta sucursal».
+   */
+  readonly etapa = input<string>();
+  readonly sucursal = input<string>();
+
+  /** La etapa de la URL, solo si es una del enum. */
+  private etapaValida(): EtapaTransferencia | undefined {
+    const crudo = this.etapa();
+    const etapas = Object.values(EtapaTransferencia) as string[];
+    return crudo && etapas.includes(crudo) ? (crudo as EtapaTransferencia) : undefined;
+  }
+
+  /** `true` si la URL acotó la lista. Se avisa, o parece que faltan datos. */
+  readonly filtrada = computed(() => !!this.etapa() || !!this.sucursal());
+
   constructor() {
-    this.cargar();
+    // El router asigna los inputs después de construir (NG0950), así que la
+    // carga va en un efecto y no en el constructor.
+    effect(() => {
+      this.etapa();
+      this.sucursal();
+      this.cargar();
+    });
   }
 
   cargar(agregando = false): void {
@@ -127,10 +176,18 @@ export class TransferenciasListaPage {
     this.error.set(null);
 
     const vista = VISTAS[this.indice()];
+    const sucursalId = Number(this.sucursal());
     this.servicio
       .conFiltros({
         isOrigen: vista.isOrigen,
         isDestino: vista.isDestino,
+        // La etapa llega como texto de la URL: solo se pasa si es un valor
+        // real del enum. Una cadena inventada la rechazaría el central con un
+        // error de validación en vez de devolver lista vacía.
+        etapa: this.etapaValida(),
+        // La sucursal de la URL acota el destino: el caso que la usa es
+        // «qué viene en camino para acá».
+        sucursalDestinoId: Number.isFinite(sucursalId) && sucursalId > 0 ? sucursalId : undefined,
         page: this.pagina,
         size: TAMANO,
       })

@@ -8,6 +8,7 @@
  * Galería viva: ruta `/design-system` (solo en desarrollo).
  */
 export * from './icono/icono.component';
+export * from './escaneo/fab-escaneo.component';
 export * from './estado/estado-registry';
 export * from './estado/estado-chip.component';
 export * from './importe/importe.component';

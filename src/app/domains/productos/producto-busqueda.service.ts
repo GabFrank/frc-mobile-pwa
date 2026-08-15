@@ -3,7 +3,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, concatMap, defaultIfEmpty, filter, map, switchMap, take } from 'rxjs/operators';
 import { from } from 'rxjs';
 
-import { DatosService } from 'src/app/core/graphql/datos.service';
+import { DatosService, OpcionesOperacion } from 'src/app/core/graphql/datos.service';
 import { Codigo } from 'src/app/domains/productos/codigo.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
@@ -145,9 +145,12 @@ export class ProductoBusquedaService {
    * Las sucursales sin movimientos no vuelven en la lista: se muestran en
    * cero.
    */
-  stockPorSucursales(productoId: number): Observable<Map<string, number>> {
+  stockPorSucursales(
+    productoId: number,
+    opciones?: OpcionesOperacion,
+  ): Observable<Map<string, number>> {
     return this.datos
-      .consultar<StockPorSucursal[]>(this.stockTodasGQL, { proId: productoId })
+      .consultar<StockPorSucursal[]>(this.stockTodasGQL, { proId: productoId }, opciones)
       .pipe(
         map((filas) => {
           // Clave string: los ids llegan como string desde GraphQL y como

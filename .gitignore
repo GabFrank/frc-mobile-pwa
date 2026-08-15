@@ -46,3 +46,4 @@ Thumbs.db
 # Generado por scripts/sello-version.mjs antes de cada compilación
 /src/app/core/sello-version.ts
 /.sello-version.json
+public/face-models/

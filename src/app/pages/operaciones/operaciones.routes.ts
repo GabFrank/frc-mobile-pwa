@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 
+import { rolGuard } from 'src/app/core/auth/rol.guard';
+
 /** Submódulos de operaciones. Se van sumando por olas. */
 export const rutasOperaciones: Routes = [
   {
@@ -9,6 +11,7 @@ export const rutasOperaciones: Routes = [
   },
   {
     path: 'caja',
+    canActivate: [rolGuard('caja')],
     loadChildren: () => import('./caja/caja.routes').then((m) => m.rutasCaja),
   },
   {
@@ -22,6 +25,7 @@ export const rutasOperaciones: Routes = [
   },
   {
     path: 'recepcion',
+    canActivate: [rolGuard('recepcion')],
     loadChildren: () =>
       import('./recepcion/recepcion.routes').then((m) => m.rutasRecepcion),
   },

@@ -99,3 +99,78 @@ Tras guardar, sincroniza el token FCM con `pushNotificationsService.syncTokenToB
 - Varias queries de usuario traen el campo `password` en texto plano.
 
 Auditado en [`REPORTE_VULNERABILIDADES.md`](../../../../REPORTE_VULNERABILIDADES.md) (2026-04-02); la remediación es transversal a los 4 componentes y está en curso. **Antes de tocar código de auth, leé ese reporte.**
+
+---
+
+# Qué cambió en la PWA
+
+## Dos elecciones distintas, no una
+
+| Control | Qué hace | Default |
+|---|---|---|
+| **Recordar usuario** | Guarda el nickname y lo precarga, con el foco en Contraseña | activado |
+| **Mantenerme conectado** | Decide **dónde vive el token**: `localStorage` (sobrevive al cierre del navegador) o `sessionStorage` (muere con la pestaña) | activado |
+
+Se separaron porque prometen cosas distintas, y la segunda tenía que
+significar algo real: si solo cambiara una etiqueta, sería decorativa.
+
+**La contraseña no se guarda nunca.** Es lo único entre un teléfono
+desbloqueado y el ERP completo, y en este sistema además viaja en claro
+dentro del JWT (ver `REPORTE_VULNERABILIDADES.md`). Precargar el nombre y
+enfocar la clave da casi toda la comodidad sin abrir esa puerta. Hay un test
+que falla si aparece cualquier clave de almacenamiento que parezca una
+contraseña.
+
+Dos detalles que los tests fijan:
+
+- Cambiar la preferencia **limpia el almacén que se deja de usar**. Si no, una
+  sesión huérfana podría resucitar el token de otro usuario.
+- Apagar una opción guarda `'false'` explícito y no borra la clave: con un
+  default en `true`, borrarla equivale a volver a activarla.
+
+## Un fallo de red ya no cierra la sesión
+
+El repo anterior tenía el problema opuesto —ante un servidor inaccesible el
+observable no emitía nada y la app quedaba esperando—. La primera versión de
+la PWA lo corrigió pero se pasó de largo: **cualquier** error al restaurar
+cerraba la sesión. Bastaba que el central tardara un segundo de más al
+arrancar la app, o un hipo de wifi en la sucursal, para que el cajero
+apareciera en el login teniendo que escribir su contraseña otra vez, sin
+ninguna explicación.
+
+Ahora se distingue por el `status` de la respuesta:
+
+| Fallo | Qué se hace |
+|---|---|
+| 401 / 403 | El token no sirve: se descarta y se va al login |
+| 0 (sin respuesta) o 5xx | Es transporte: se reintenta 3 veces con espera creciente |
+
+Si aun así no se llega, la sesión se cierra —quedarse con un token sin roles
+deja la UI vacía sin decir por qué— pero **el login muestra el motivo real**:
+"no se pudo contactar al servidor", no "revisá tus credenciales".
+
+El clasificador es `esFalloDeTransporte()` en `core/graphql/datos.service.ts`.
+
+## Claves de almacenamiento
+
+| Clave | Dónde | Contenido |
+|---|---|---|
+| `frc.token` | según «mantenerme conectado» | Token de sesión |
+| `frc.usuarioId` | ídem | Id del usuario |
+| `frc.recordarUsuario` | `localStorage` | Preferencia |
+| `frc.usuarioRecordado` | `localStorage` | El nickname. **Nunca la contraseña** |
+| `frc.mantenerConectado` | `localStorage` | Preferencia |
+| `frc.deviceId` | `localStorage` | UUID por instalación |
+| `frc.serverBaseUrl` | `localStorage` | Servidor destino |
+| `frc.tema` | `localStorage` | Preferencia de tema |
+
+Las preferencias viven siempre en `localStorage`, aunque la sesión no: si
+vivieran junto a la sesión, al cerrar el navegador se olvidaría que el usuario
+había pedido **no** ser recordado.
+
+Todas llevan prefijo `frc.` a propósito. En `localhost` conviven con las
+claves de otros proyectos —`token` y `usuarioId` sin prefijo ya estaban
+ocupadas por otra app—; sin el prefijo se pisarían entre sí.
+
+Y se usa `removeItem`, nunca `setItem(clave, null)`: aquello persistía la
+cadena `"null"` y obligaba a chequeos defensivos en todo el código.

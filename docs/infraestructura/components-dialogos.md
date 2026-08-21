@@ -1,5 +1,7 @@
 # Componentes reutilizables y diálogos
 
+> ⚠️ **Documento histórico.** Describe `frc-mobile` (Ionic + Capacitor), no este repo. Se conserva porque explica reglas de negocio y decisiones que se heredaron. Para la implementación actual, ver [`../design-system.md`](../design-system.md) y [`../arquitectura/capa-de-datos.md`](../arquitectura/capa-de-datos.md).
+
 ## `ComponentsModule`
 
 `src/app/components/components.module.ts`. Para usar cualquiera de estos componentes, importá `ComponentsModule` en el módulo de tu página.

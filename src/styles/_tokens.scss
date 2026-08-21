@@ -20,12 +20,18 @@
   --brand-hover:  #b33026;
   --brand-accent: #f57c00;
   --on-brand:     #ffffff;
+  // El rojo de marca como RELLENO pasa (blanco encima: 4.53:1), pero como
+  // COLOR DE TEXTO sobre superficie clara da 4.17:1 — insuficiente. Esta es
+  // la variante para ese uso: 5.53:1, y sigue siendo el mismo rojo.
+  --brand-text:   #c43026;
 
   // ─── Semántica de estado ─────────────────────────────────────
   // Vocabulario cerrado. Todo estado de toda máquina del sistema
   // se mapea a uno de estos cinco tonos. Ver estado-registry.ts
-  --ok:      #2e7d32;
-  --warn:    #ef6c00;
+  --ok:      #2a7030;
+  // El naranja de Material (#ef6c00) sobre su propio fondo tintado daba
+  // 2.75:1: ilegible. Este da 4.71:1 en el chip y 5.28:1 como texto.
+  --warn:    #b34d00;
   --danger:  #c62828;
   --info:    #1565c0;
   --neutral: #6b6462;
@@ -35,6 +41,30 @@
   --danger-bg:  #fbeaea;
   --info-bg:    #e8eff8;
   --neutral-bg: #f0eeed;
+
+  // ─── Rellenos ────────────────────────────────────────────────
+  // Un tono como RELLENO —toast, botón destructivo— no puede ser el mismo
+  // valor que como TEXTO. El de texto tiene que resaltar contra la
+  // superficie: en oscuro eso lo obliga a ser claro. El de relleno tiene
+  // que aguantar la etiqueta encima.
+  //
+  // Estos valores NO cambian con el tema, y por eso la etiqueta siempre es
+  // blanca: un botón rojo se ve igual en claro y en oscuro. La alternativa
+  // era relleno claro con texto oscuro, que da los números pero se lee como
+  // un botón desteñido.
+  --brand-fill:   #db392e;  // blanco encima: 4.53:1
+  --ok-fill:      #2a7030;  // 6.07:1
+  --warn-fill:    #b34d00;  // 5.28:1
+  --danger-fill:  #c62828;  // 5.62:1
+  --info-fill:    #1565c0;  // 5.75:1
+  --neutral-fill: #6b6462;  // 5.79:1
+
+  /** Texto sobre cualquiera de los rellenos de arriba. */
+  --on-tono: #ffffff;
+
+  // Fondo de un código QR. Blanco en los dos temas —por eso no se redefine
+  // en el bloque oscuro—: un QR sobre fondo oscuro no lo lee ningún lector.
+  --qr-fondo: #ffffff;
 
   // ─── Superficies y texto ─────────────────────────────────────
   // Neutros con sesgo cálido hacia el rojo de marca: un gris puro
@@ -47,7 +77,12 @@
 
   --text:      #1c1917;
   --text-soft: #6b6462;
-  --text-mute: #a09895;
+  // 4.90:1 sobre la superficie. Antes era #a09895 y daba 2.83:1 — el peor
+  // valor de toda la paleta, en el gris de las etiquetas de la barra
+  // inferior. Para pasar AA tiene que acercarse mucho a --text-soft: en
+  // tema claro la jerarquía entre secundario y terciario la marcan el
+  // tamaño y el peso, no el color.
+  --text-mute: #767068;
 
   // ─── Espaciado — escala de 4 ─────────────────────────────────
   // Siete valores. El repo anterior acumuló catorce.
@@ -96,15 +131,35 @@
 //  tokens: ninguna regla de componente vive dentro del media query.
 // ═══════════════════════════════════════════════════════════════
 
+// Revisión del 2026-08-04, después de mirar la app en un teléfono real: se
+// veía "apagada", como con el brillo bajo. Medido contra Material 3, GitHub,
+// iOS y Slack, el texto principal (14.5:1) y el secundario (7.4:1) estaban
+// bien —arriba de varias de esas referencias—. Los problemas eran otros tres:
+//
+//   1. `--text-mute` daba 3.71:1: REPROBABA AA. Es el gris de las etiquetas
+//      de la barra inferior y de los textos de ayuda.
+//   2. El rojo de marca daba 4.67:1, el valor más bajo de toda la paleta,
+//      justo en el piso. De ahí los íconos "apagados".
+//   3. Las cards no se despegaban del fondo. La separación numérica estaba
+//      en rango, pero la dábamos con una SOMBRA, y una sombra sobre
+//      casi-negro no se ve. Material 3 separa aclarando la superficie.
+//
+// Subir la superficie obligó a retocar `--danger` (quedaba en 4.34) y
+// `--neutral-bg` (quedaba idéntico a la superficie: el chip desaparecía).
 @mixin dark-tokens {
-  --brand:        #e8544a;
-  --brand-hover:  #f06a60;
+  // El relleno de marca (--brand-fill) NO se redefine acá: es el mismo rojo
+  // en los dos temas, con la etiqueta blanca. Lo que sí cambia es el rojo
+  // como COLOR DE TEXTO E ÍCONO, que sobre una superficie oscura tiene que
+  // ser claro para no verse apagado.
+  --brand:        #ff7368;  // 5.70:1 sobre la superficie
+  --brand-hover:  #ff8c82;
   --brand-accent: #ffa726;
-  --on-brand:     #1c1917;
+  --on-brand:     #ffffff;
+  --brand-text:   #ff7368;
 
   --ok:      #66bb6a;
   --warn:    #ffa726;
-  --danger:  #ef5350;
+  --danger:  #ff6f6a;  // 5.57:1 (antes 4.34 con la superficie nueva)
   --info:    #64b5f6;
   --neutral: #a39c99;
 
@@ -112,17 +167,17 @@
   --warn-bg:    #32261a;
   --danger-bg:  #331d1d;
   --info-bg:    #1a2836;
-  --neutral-bg: #2a2523;
+  --neutral-bg: #332e2b;  // separado de --surface, si no el chip se pierde
 
   --bg:             #16130f;
-  --surface:        #201c1a;
+  --surface:        #2a2523;  // 1.22x sobre el fondo (antes 1.10x)
   --surface-sunken: #171412;
   --border:         rgba(255, 244, 240, 0.14);
   --border-light:   rgba(255, 244, 240, 0.07);
 
   --text:      #f2ede9;
   --text-soft: #b3aaa5;
-  --text-mute: #7d7470;
+  --text-mute: #9a918c;  // 4.90:1 sobre la superficie (antes 3.71, reprobaba)
 
   --elev-1: 0 1px 3px rgba(0, 0, 0, 0.5);
   --elev-2: 0 4px 14px rgba(0, 0, 0, 0.6);
@@ -137,11 +192,12 @@
 :root[data-theme='dark']  { @include dark-tokens; }
 :root[data-theme='light'] {
   --brand: #db392e; --brand-hover: #b33026; --brand-accent: #f57c00; --on-brand: #ffffff;
-  --ok: #2e7d32; --warn: #ef6c00; --danger: #c62828; --info: #1565c0; --neutral: #6b6462;
+  --brand-text: #c43026;
+  --ok: #2a7030; --warn: #b34d00; --danger: #c62828; --info: #1565c0; --neutral: #6b6462;
   --ok-bg: #e8f3e9; --warn-bg: #fdf0e3; --danger-bg: #fbeaea; --info-bg: #e8eff8; --neutral-bg: #f0eeed;
   --bg: #f7f5f4; --surface: #ffffff; --surface-sunken: #efecea;
   --border: rgba(30, 20, 18, 0.12); --border-light: rgba(30, 20, 18, 0.06);
-  --text: #1c1917; --text-soft: #6b6462; --text-mute: #a09895;
+  --text: #1c1917; --text-soft: #6b6462; --text-mute: #767068;
   --elev-1: 0 1px 3px rgba(30, 20, 18, 0.10);
   --elev-2: 0 4px 14px rgba(30, 20, 18, 0.14);
 }

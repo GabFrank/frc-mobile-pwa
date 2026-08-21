@@ -117,3 +117,71 @@ La entrega llega por FCM (`PushNotificationsService`, ver [`../infraestructura/s
 3. Respetá `esObligatorio` en preferencias.
 4. `data` es string: parsealo defensivamente.
 5. Las operaciones GraphQL usan la convención `*-query.service.ts`, no la del resto del repo.
+
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** portados la bandeja, el hilo de comentarios y las preferencias.
+> **El push en sí no** — falta el registro FCM.
+
+| Ruta | Componente |
+|---|---|
+| `/notificaciones` | `NotificacionesPage` |
+| `/notificaciones/preferencias` | `PreferenciasPage` |
+| `/notificaciones/:id` | `ComentariosPage` |
+
+**Una sola ruta raíz.** En `frc-mobile`, `/notificacion` y `/comentarios`
+cargaban el mismo módulo. Acá el hilo es **el detalle** de una notificación,
+no otra sección: `/notificaciones/:id`.
+
+## El alias `data:` había que agregarlo
+
+> ⚠️ **Este era el único módulo del repo sin el alias `data:`** en sus
+> operaciones, porque no pasaba por `GenericCrudService`. En la PWA sí pasan
+> por `DatosService`, que desenvuelve `data`: **sin el alias el resultado
+> llega `undefined`, sin error ni log**. Se agregó a las ocho operaciones.
+
+También hereda la convención de nombres del resto del repo
+(`graphql/notificaciones/nombreOperacion.ts`), en vez de
+`*-query.service.ts`.
+
+⚠️ Varios argumentos son **`Int!`**, no `ID!` — `notificacionId`,
+`comentarioPadreId`. Mandar un string hace fallar la operación entera.
+
+## El árbol de comentarios se arma en el cliente
+
+El backend los devuelve **planos** con `comentarioPadre`; el agrupado es de la
+pantalla. Se soporta **un nivel de respuesta**: responder a una respuesta
+engancha al mismo padre. Tres niveles de sangría en un teléfono dejan el texto
+en una columna de cinco caracteres.
+
+## Dos cosas que se simplificaron
+
+**`refrescarConteo()` es la única forma de mover el contador.** El repo
+anterior tenía además `resetConteoNoLeidas()`, que solo ponía el número local
+en cero, y usar una por la otra dejaba el badge desincronizado. Acá el cero lo
+pone `marcarTodasLeidas()`, que además sabe que es verdad.
+
+**Los modelos duplicados desaparecen.** `frc-mobile` definía su propio
+`Usuario` y `Persona` locales, no asignables a los de `domains/`. Acá se usan
+los de `domains/personas/`.
+
+## Las obligatorias se muestran apagadas, no ocultas
+
+`esObligatorio` marca las de control, que llegan sí o sí. Esconderlas haría
+creer que el aviso no va a llegar; mostrarlas deshabilitadas dice la verdad.
+
+El interruptor se mueve en el acto y **vuelve si el backend rechaza**: esperar
+la respuesta se siente roto, y dejarlo cambiado deja la pantalla mintiendo.
+
+## Lo que falta
+
+| Qué | Espera a |
+|---|---|
+| **Recibir push** | registro del service worker contra FCM. En iOS solo funciona con la PWA **instalada** (16.4+) — ver la regla 7 de `CLAUDE.md` |
+| Badge de no leídas en el shell | el contador ya está en el servicio; falta mostrarlo en la barra |
+| Envío manual (`crear-notificacion`) | `enviarNotificacionPersonalizada` y la lista de usuarios activos |
+| Adjuntos en comentarios (`mediaUrl`) | subida de imágenes |
+| Filtro por `estadoTablero` y fechas | el servicio ya los acepta |

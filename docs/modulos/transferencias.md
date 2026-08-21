@@ -153,3 +153,63 @@ Cada transferencia concluida genera movimientos de stock de tipo `TRANSFERENCIA`
 3. Usá `onAvanzarEtapa`, no `onSaveTransferencia`, para mover el workflow.
 4. `estado` y `etapa` son dimensiones distintas: fijate cuál filtra la pantalla.
 5. Usá `isOrigen` / `isDestino` en vez de comparar sucursales a mano.
+
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** portadas la **lista y el detalle con las cuatro etapas**. El
+> alta, la gestión de ítems y el avance de etapa no.
+
+| Ruta | Componente |
+|---|---|
+| `/transferencias` | `TransferenciasListaPage` |
+| `/transferencias/:id` | `TransferenciaDetallePage` |
+
+## El modo E del buscador, por fin con consumidor
+
+`ProductoCardComponent` ahora acepta **dos existencias** —`stock` y
+`stockDestino`, con sus etiquetas—, y `OpcionesBuscador` una
+`sucursalDestinoId`.
+
+> Era exactamente lo que faltaba: `TransaferenciaListProductosComponent`
+> **copió la pantalla entera del buscador** en `frc-mobile` porque hacía falta
+> una columna más de stock y el componente no la aceptaba. Ahora entra por
+> input.
+
+## Las cuatro etapas se muestran, no se colapsan
+
+Es la razón de ser del módulo. Si se piden 10, se preparan 8, se despachan 8
+y llegan 7, **las cuatro cifras quedan a la vista**: la diferencia 10→8 es
+falta de stock en origen, la 8→7 un faltante en tránsito. Con una sola cifra
+los dos casos son indistinguibles.
+
+⚠️ **Una etapa sin cantidad no se muestra en cero**: significa «no llegó
+ahí», no «cero unidades». Mostrarla en cero diría algo falso.
+
+⚠️ **Cada etapa lleva su presentación.** Se pide en cajas y se despacha en
+unidades: comparar cantidades sin mirar la presentación da diferencias
+falsas.
+
+## El rol lo dice el backend
+
+`isOrigen` / `isDestino` vienen resueltos y deciden qué corresponde hacer: en
+origen se prepara y despacha, en destino se recibe y verifica. **No se infiere
+comparando ids de sucursal**, y la lista filtra por esos mismos flags.
+
+Que una sucursal sea origen **y** destino es un caso válido, no un error.
+
+## Lo que falta
+
+| Qué | Nota |
+|---|---|
+| **Avanzar de etapa** | `avanzarEtapaTransferencia` ya está en el servicio. La UI necesita saber qué etapa sigue según el rol, que es la parte con reglas |
+| Alta de transferencia | usa el buscador en modo E, que ya existe |
+| Gestión y edición de ítems | con motivos de rechazo y modificación |
+| Impresión | `imprimirTransferencia` devuelve base64 |
+
+> ⚠️ **`onAvanzarEtapa` es el único camino correcto para cambiar de etapa.**
+> Guardar la transferencia con la etapa modificada saltea las validaciones y
+> los movimientos de stock que el backend aplica en el avance. Está anotado en
+> el servicio.

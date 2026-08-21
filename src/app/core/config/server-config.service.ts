@@ -1,5 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from '../auth/auth.tokens';
+import { apiParaHost } from './api-por-host';
 
 const KEY_BASE_URL = 'frc.serverBaseUrl';
 
@@ -36,10 +38,28 @@ export class ServerConfigService {
    */
   cambiarServidor(baseUrl: string): void {
     const normalizada = baseUrl.replace(/\/+$/, '');
+    if (normalizada === this.baseUrl()) {
+      return;
+    }
     localStorage.setItem(KEY_BASE_URL, normalizada);
     this.baseUrl.set(normalizada);
+
+    // Invalida la sesión: el token de la instancia vieja no vale en la nueva,
+    // y seguir mandándolo produce 401 que parecen "contraseña incorrecta".
+    //
+    // Se borran las claves directamente en vez de inyectar `AuthService`,
+    // porque `AuthService` ya depende de este servicio y habría ciclo.
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_ID_KEY);
   }
 
+  /**
+   * Orden de precedencia, de más específico a más general:
+   *
+   * 1. Lo que el usuario eligió a mano, que persiste en `localStorage`.
+   * 2. La instancia que le corresponde al host desde el que se sirvió la app.
+   * 3. El valor de `environment`, que es el de desarrollo.
+   */
   private leerBaseUrl(): string {
     const guardada = localStorage.getItem(KEY_BASE_URL);
     // El repo anterior persistía la cadena "null" con
@@ -48,6 +68,6 @@ export class ServerConfigService {
     if (guardada && guardada !== 'null') {
       return guardada.replace(/\/+$/, '');
     }
-    return environment.defaultServerUrl;
+    return apiParaHost(location.hostname) ?? environment.defaultServerUrl;
   }
 }

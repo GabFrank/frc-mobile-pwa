@@ -25,12 +25,40 @@ Guía para trabajar en este repositorio.
 ## Comandos
 
 ```bash
-npm start          # ng serve → http://localhost:4200
+npm start          # ng serve → http://localhost:4300
 npm run build      # build de producción — el gate real
 npm test           # tests unitarios
 ```
 
-> **`localhost` es contexto seguro.** Cámara, geolocalización y service worker funcionan en desarrollo sin HTTPS. Para probar en un celular Android por USB: `adb reverse tcp:4200 tcp:4200`, y el teléfono lo ve como `localhost` — con las mismas APIs habilitadas.
+> Los tres corren antes `scripts/sello-version.mjs`, que genera
+> `src/app/core/sello-version.ts` con la versión, la fecha y el commit. Es un
+> archivo **generado y en `.gitignore`**: si falta, es porque nunca se compiló
+> en esa copia del repo. Ver [`docs/arquitectura/actualizaciones-app.md`](docs/arquitectura/actualizaciones-app.md).
+
+> ⚠️ **`npm run build` y `npm test` matan al `npm start` que esté corriendo** (SIGTERM, salida 143): comparten `.angular/cache` y la salida de compilación. El síntoma engaña —la pantalla del navegador deja de responder y parece un bug de la app—, así que si estás probando a mano, terminá la prueba antes de compilar, o contá con relevantar el serve. Si el navegador se cuelga de golpe, chequeá primero que el 4300 siga vivo.
+
+> **`localhost` es contexto seguro.** Cámara, geolocalización y service worker funcionan en desarrollo sin HTTPS. Para probar en un celular Android por USB: `adb reverse tcp:4300 tcp:4300`, y el teléfono lo ve como `localhost` — con las mismas APIs habilitadas.
+>
+> Si además la app tiene que hablar con un central local, hace falta el segundo túnel: `adb reverse tcp:8081 tcp:8081`. Sin eso el teléfono resuelve `localhost:8081` contra sí mismo y no hay backend.
+
+## Dónde corre
+
+La app se sirve desde **Cloudflare Pages**, un proyecto por canal, y habla con
+el central por HTTPS. **El backend por defecto sale del hostname**, no del
+build: una sola compilación sirve todas las puertas.
+
+| Canal | Puerta | API por defecto |
+|---|---|---|
+| alpha | `alpha.app.frcsuite.com` — detrás de **Cloudflare Access** | `alpha-api.frcsuite.com` → `mauro`, por túnel |
+| beta | `beta.app.frcsuite.com` | `farmacia-api.frcsuite.com` |
+| prod | `farmacia.app.frcsuite.com` · `bodega.app.frcsuite.com` | `farmacia-api` · `bodega-api` |
+
+> ⚠️ **El alpha del central vive en `mauro`, no en `159.203.86.103`.** En esa VM
+> había una instancia vieja en el puerto 8083 que se apagó el 2026-08-14. Si
+> algún documento todavía manda ahí, está viejo.
+
+El plan completo del pipeline —canales, aprobaciones, caché del service worker y
+los gotchas— está en `frc-cicd/plan-cicd-mobile-pwa.md`.
 
 ## Documentación
 
@@ -66,6 +94,8 @@ Sin el alias, el resultado llega `undefined` **sin error ni log**.
 
 Esto existe porque el repo anterior acumuló 14 valores de espaciado, 8 radios y `#f44336` hardcodeado 50 veces.
 
+**Relleno y texto son tokens distintos.** `--brand-fill` es el fondo de un botón y siempre lleva etiqueta blanca (`--on-tono`); `--brand-text` es el rojo para íconos y texto sobre la superficie, que en tema oscuro tiene que ser claro. Confundirlos da botones desteñidos o íconos ilegibles. Lo mismo para los cinco tonos semánticos.
+
 ### 3 · Componentes genéricos por regla de tres
 
 Un componente se vuelve genérico cuando aparece en **3 o más pantallas de módulos distintos**, o cuando **encapsula una regla de negocio** que no debe duplicarse — como el importe en guaraníes, que no lleva decimales.
@@ -76,13 +106,50 @@ Fuera de eso, no. Las cards por módulo, los formularios por entidad y los layou
 
 Carga, vacío y error. Es parte de la definición de terminado, no una mejora posterior.
 
+### 4.1 · Ni sin su guía de prueba manual
+
+Toda implementación termina con **dos entregas**, las dos:
+
+1. Un bloque numerado en [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md), con «Esperado» por caso, y la tabla de totales actualizada.
+2. **Los pasos escritos en la respuesta**, no un link al archivo.
+
+Haber validado en Chrome no reemplaza esto. Esa validación corre contra un estado de datos puntual, no puede tocar diálogos del navegador —permisos de cámara, descargas—, no usa el teléfono real y no conoce el flujo operativo.
+
+Marcar siempre **qué quedó sin verificar**: eso es justamente lo que hay que probar a mano.
+
 ### 5 · Antes de tocar el backend, verificá si lo usa el desktop
 
 Si lo usa, se crea un método paralelo con sufijo `Mobile`. El desktop es producto en producción en farmacias y bodegas. Ver `docs/REGLAS_DESARROLLO.md`.
 
+### 5.1 · Antes de portar una pantalla, leé cómo la hace `frc-mobile`
+
+Los documentos de `docs/modulos/` son buenos pero **no cubren todo**. Si algo del repo viejo parece un error, verificalo antes de «corregirlo»: suele codificar una regla del negocio que no está escrita en ningún lado.
+
+Dos cosas que costó aprender así:
+
+- **No existe «entrar a una sucursal».** La app está **siempre conectada al central**. La sucursal del usuario viene de `inicioSesion.sucursal` y sirve como valor por defecto; las pantallas que necesitan una la **seleccionan**.
+- **Qué sucursal puede operar lo dice `deposito`.** Con depósito mueve stock; sin depósito es virtual —`SERVIDOR` y `COMPRAS`— y no participa de devoluciones, inventarios ni transferencias. Se filtra con `soloOperables()` / `esSucursalOperable()`, que además exigen `activo`. `frc-mobile` las descarta por nombre en seis pantallas; filtrar por `deposito` deja afuera sola a cualquier virtual nueva. Ver [`docs/infraestructura/domains-modelos.md`](docs/infraestructura/domains-modelos.md).
+
 ### 6 · El dinero lo calcula el backend
 
 Balances de caja, diferencias de arqueo, distribución de cantidades entre notas de recepción. El cliente muestra, no calcula.
+
+### 7 · iOS es un objetivo, no un caso futuro
+
+**Soportar iPhone es uno de los motivos de esta migración.** La APK no podía darlo; la PWA sí. Que hoy no haya un solo iPhone en la flota no cambia nada: es la razón por la que el repo existe.
+
+En la práctica, toda capacidad de dispositivo necesita su camino en **Safari**, no solo en Chromium:
+
+| Capacidad | Chromium | Safari / iOS |
+|---|---|---|
+| Lectura de códigos | `BarcodeDetector` | **ZXing** por `import()` dinámico |
+| Cámara | `getUserMedia` | `getUserMedia` + `playsinline` y `muted` obligatorios en el `<video>` |
+| Notificaciones push | Web Push | Solo con la PWA **instalada** (iOS 16.4+) |
+| Instalación | Prompt del navegador | Solo desde «Compartir → Añadir a inicio»; no hay prompt |
+
+Lo que se carga solo para Safari va en un **chunk aparte**: el peso no lo paga Android. Es la diferencia entre «no lo agrego porque pesa» y «lo agrego donde no cuesta».
+
+> ⚠️ Ya pasó una vez: el escáner se escribió sin fallback «porque hoy no hay iOS». Eso invierte el orden — el soporte de iOS es el requisito, no una consecuencia de tener usuarios de iOS.
 
 ## Estructura
 
@@ -101,7 +168,35 @@ src/
 
 ## Estado
 
-**Fase 2 del plan de migración.** Esqueleto listo; la capa de datos y los módulos se portan por olas. Ver `docs/analisis/plan-migracion-pwa.md`.
+**Fase 2 del plan de migración, con la Ola A cerrada.**
+
+Implementado: capa de datos completa (~450 archivos portados), sistema de diseño, autenticación con «recordar usuario» y «mantenerme conectado», shell responsivo, **módulo de caja completo** (lista, detalle, apertura y cierre con arqueo), **«Mi trabajo»** (autoservicio de RRHH: marcación, vales, recibos, vacaciones y solicitudes), **«Mis finanzas»** (compras a crédito por convenio), **escáner de códigos** (`BarcodeDetector` + ZXing para Safari) **búsqueda de productos** por texto, código y balanza, con card expandible y stock por sucursal, **devoluciones** (carga, historial y separado) **venta con tarjeta** (registro del cupón por escaneo) **marcación** con validación de ubicación **notificaciones** con hilo de comentarios y preferencias, **caja chica** (consulta y retiro con QR) **transferencias** (lista y detalle con las cuatro etapas) e **inventario** (resumen del conteo y finalización), **recepción de mercadería** (abrir con las notas del proveedor, verificar producto por producto, deshacer, finalizar y reabrir), **solicitud de pago a proveedor** (lista, alta desde el menú o desde una recepción finalizada, envío a la cola de pagos, detalle y constancia en PDF), galería viva en `/design-system`.
+
+Sumado en la tanda de paridad con `frc-mobile`: **crédito por convenio en Inicio**, **escáner universal** en un botón flotante que lee cualquier código y decide el destino, **configuración dentro de la app** (servidor, tema con sus tres estados, datos de la persona), **badge de no leídas**, **productos vencidos**, **modo kiosco** de consulta de precios, **ficha de producto**, **rendición de caja chica** con fotos, y **carga del conteo** de inventario.
+
+Sumado en la segunda tanda de paridad: **revisión del supervisor** y **control de inventario**, **lugares del depósito** (sectores y zonas), **configuración del kiosco** (lector o cámara), **registro del rostro y marcación facial**, **compartir por QR**, **instalar la PWA** y **notificaciones push** con su destino por pantalla.
+
+Pendiente: de **caja chica**, el **alta** de la solicitud —es el formulario más grande que queda: tipo de gasto, activo imputado con su buscador paginado, beneficiario y detalle financiero—; de **inventario**, agregar a la toma un producto que no estaba (necesita `saveInventarioProducto`, que no está portado); de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; y el **transporte WebSocket** para suscripciones.
+
+La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
+
+**`pago` no se porta, y es una decisión.** En `frc-mobile` es código muerto —`PagoService` declarado y nunca inyectado— y el pago real es tesorería de escritorio: cuotas, cajas con clave compuesta y autorización por un segundo usuario. En la PWA solo se **lee** el pago asociado a una solicitud. Ver [`docs/modulos/operaciones-pagos-y-varios.md`](docs/modulos/operaciones-pagos-y-varios.md).
+
+**La app instalada se actualiza sola, con permiso.** El service worker consulta al arrancar y cada 30 minutos; cuando hay versión nueva, un diálogo ofrece aplicarla o postergarla, y en «Mi cuenta → Aplicación» están la versión instalada y el botón para actualizar a mano. Esto **no venía gratis**: el testeo en un Android real encontró que con la estrategia de registro por defecto el service worker nunca adoptaba una versión y la app no se actualizaba jamás. Ver [`docs/arquitectura/actualizaciones-app.md`](docs/arquitectura/actualizaciones-app.md).
+
+**Falta el test manual de apertura y cierre de caja** — bloque 7 del plan. Es lo único implementado de la primera tanda que no se ejecutó contra el central real, porque la apertura se proxea a la filial.
+
+⚠️ **La ficha de producto necesita un central con `stockPorSucursales`.** Es una consulta nueva y la instancia **alpha todavía no la tiene**: ahí la sección de existencia dice «No se pudo consultar», que es lo esperado. Lo que no puede pasar es que muestre las sucursales en cero.
+
+⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
+
+Verificación: **536 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+
+⚠️ **Las notificaciones push necesitan las dos mitades.** El cliente acuña un token de FCM —no una suscripción cruda— y lo ata al `idDispositivo` de **su** sesión; sin esa fila, el central escribe el token en la primera sesión abierta del usuario, que puede ser la de otro aparato. Y el destino del aviso viaja **dentro** del `notification`, no en el `data` del mensaje, o tocarlo no abre nada. Ver [`docs/arquitectura/web-push.md`](docs/arquitectura/web-push.md).
+
+Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
+
+Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.
 
 ## Lo que nunca se hace
 
@@ -111,3 +206,6 @@ src/
 4. Calcular dinero en el cliente
 5. Push directo a `master` o `develop` — siempre vía PR
 6. Dar por terminado un módulo sin sus estados de carga, vacío y error
+7. Escribir un token `--mdc-*`: Material 21 renombró toda esa familia a `--mat-*` y los nombres viejos **fallan en silencio** — la regla se aplica, la variable queda definida y el componente sigue con su valor por defecto. Hay un test que lo impide
+8. Escribir un backtick dentro de `template:` o `styles:` de un componente: rompe el literal y el error que sale no señala la causa
+9. Dejar una capacidad de dispositivo sin camino en Safari «porque hoy no hay iOS» — ver la regla 7

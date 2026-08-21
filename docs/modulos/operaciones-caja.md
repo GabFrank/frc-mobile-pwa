@@ -1,5 +1,14 @@
 # operaciones / caja — apertura, cierre y arqueo
 
+> **Estado en `frc-mobile-pwa`:** implementado — lista, detalle, **apertura y cierre**.
+> Verificado por 249 tests automatizados y probado contra el central real.
+> **Falta el test manual del circuito completo** (abrir una caja de verdad, operar, cerrarla):
+> ver [`../PLAN_TESTEO_MANUAL.md`](../PLAN_TESTEO_MANUAL.md), bloque 7.
+>
+> La descripción de abajo documenta el módulo tal como está en `frc-mobile`,
+> que es la especificación de origen. Lo que cambió al portarlo está al final,
+> en «Qué cambió en la PWA».
+
 Cubre cinco submódulos que forman un solo circuito: **`caja`** (1.483 LOC), **`conteo`** (1.018), **`moneda`** (481), **`maletin`** (325) y **`caja-info`** (221).
 
 **Rutas:** `/operaciones/caja` y `/operaciones/caja/info` (ambas eager, declaradas en `operaciones-routing.module.ts`).
@@ -181,3 +190,72 @@ Hay dos diálogos de conteo separados porque el de cierre muestra además lo esp
 3. Para saber si el usuario tiene caja abierta, usá la variante **local** salvo que necesites cobertura multi-sucursal.
 4. `onGetBalanceByDate` siempre con ambas fechas.
 5. El enum `PdvCajaEstado` se indexa por etiqueta con espacios, no por constante.
+
+---
+
+# Qué cambió en la PWA
+
+## Pantallas
+
+| Ruta | Componente | Estado |
+|---|---|---|
+| `/operaciones/caja` | `CajaListaPage` | ✅ |
+| `/operaciones/caja/abrir` | `CajaAbrirPage` | ✅ falta test manual |
+| `/operaciones/caja/:id` | `CajaDetallePage` | ✅ |
+| `/operaciones/caja/:id/cerrar` | `CajaCerrarPage` | ✅ falta test manual |
+
+Los dos diálogos de conteo se unificaron en **un solo componente**,
+`ConteoFormComponent`. Lo único que los distinguía era mostrar lo esperado,
+y eso ahora es un input opcional: dos componentes casi iguales divergen.
+
+## Un tab por moneda, generado de los datos
+
+El repo anterior declaraba **tres formularios con las denominaciones escritas
+a mano** (`500`…`100000`, `0.05`…`200`, `1`…`100`) y después cruzaba cada
+`MonedaBillete` del servidor contra esa lista buscando por `valor`.
+
+Dos consecuencias, las dos silenciosas:
+
+- Una denominación que existiera en la base y no en la lista **no aparecía en
+  el arqueo y su efectivo no se contaba**.
+- Indexar por valor colisionaba cuando dos denominaciones comparten importe
+  —un billete y una moneda de 1.000—: lo contado en una se perdía o se
+  duplicaba en la otra.
+
+Ahora las denominaciones y las monedas salen del backend, y las cantidades se
+indexan por **id**. En la base de producción hay **cuatro** monedas: la cuarta
+es PESO ARG, que el formulario viejo nunca habría contado.
+
+Se ocultan las monedas inactivas y las que no tienen denominaciones cargadas:
+no hay nada que contar en ellas.
+
+## El límite de tres totales es del backend, no de la UI
+
+`Conteo` tiene exactamente `totalGs`, `totalRs` y `totalDs`. Los tabs se
+generan de los datos, pero solo esas tres monedas tienen dónde ser guardadas.
+Si aparece una quinta moneda con denominaciones, **la pantalla lo dice** en
+vez de contarla y perderla al guardar. Arreglarlo de verdad requiere un campo
+nuevo en `ConteoInput`.
+
+## Bugs corregidos al portar
+
+| Qué | Consecuencia |
+|---|---|
+| `abrirCajaDesdeServidor` recibía `cajaInput` donde declara `$input` | El argumento obligatorio llegaba null |
+| El cierre omitía `$input` y mandaba un `sucursalId` no declarado | La mutation no podía resolverse |
+| Ambas se tipaban como `boolean` | Devuelven `CajaFilialOperacionResult`; el aviso de éxito salía también con `exito: false` |
+| `cajasPorFecha` usaba `$susId`, variable inexistente | La query no validaba |
+| `imprimirBalance` no aliaseaba su raíz a `data:` | `DatosService` no podía desenvolver la respuesta |
+| `pdvCaja` no pedía los seis totales que el detalle muestra | El balance mostraba ₲ 0 en todo |
+| La lista navegaba solo con el id de caja | El id se repite entre filiales: abría la caja de otra sucursal. Ahora viaja `?suc=` |
+
+## Cierre y apertura son la misma mutation
+
+El central **no tiene** `cerrarCajaDesdeServidor`. Las dos operaciones llaman
+a `abrirCajaDesdeServidor`; lo que las distingue es mandar `cajaId`
+(`boolean esCierre = cajaId != null`, `PdvCajaGraphQL.java:221`). El nombre de
+la operación en el documento GraphQL es solo una etiqueta para los logs.
+
+⚠️ La sucursal del cierre sale de **la caja**, no de la sesión: se puede
+cerrar una caja de otra sucursal, y usar la de la sesión mandaría la
+operación a la filial equivocada.

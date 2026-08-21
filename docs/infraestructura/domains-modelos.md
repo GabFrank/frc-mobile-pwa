@@ -83,6 +83,56 @@ Es el más grande y el que más flags de negocio concentra:
 | `codigoPrincipal` | Código preferido para mostrar |
 | `presentaciones: Presentacion[]` | Unidad, caja, pack… cada una con su precio |
 
+## ⚠️ Qué sucursales pueden operar: el campo es `deposito`
+
+**Una sucursal con depósito mueve stock** y puede participar de devoluciones,
+inventarios y transferencias. **Una sin depósito es virtual** y no participa
+de nada de eso.
+
+En la base son exactamente dos las virtuales, y las dos vienen `activo = true`:
+
+| id | nombre | `deposito` |
+|---|---|---|
+| 0 | `SERVIDOR` | `false` |
+| 999 | `COMPRAS` | `false` |
+
+Las otras 27 tienen `deposito = true`.
+
+```ts
+import { soloOperables, esSucursalOperable } from 'src/app/domains/empresarial/sucursal/sucursal.util';
+
+const paraElSelector = soloOperables(sucursales);
+if (esSucursalOperable(sucursal)) { … }
+```
+
+> **`frc-mobile` filtra por nombre** —`s.nombre != 'SERVIDOR' && s.nombre != 'COMPRAS'`—
+> en seis pantallas. Filtrar por `deposito` dice lo mismo pero por la razón
+> correcta: **una sucursal virtual nueva queda afuera sola**, sin tocar seis
+> archivos.
+
+### `activo` es otra dimensión
+
+Hay **8 sucursales con depósito que están cerradas** (`activo = false`). Una
+operación nueva no puede ir a una sucursal cerrada, pero sus datos históricos
+sí se consultan. `esSucursalOperable()` exige las dos cosas.
+
+### Dos campos que parecen servir y no sirven
+
+| Campo | Por qué no |
+|---|---|
+| `tipo_local` | Está **al revés** de lo que sugiere: `SERVIDOR` y `COMPRAS` son `VENTA`, y las 27 reales son `DEPOSITO` |
+| `manejo_stock` | Es `true` en las 29. Hoy no discrimina nada |
+
+> ⚠️ **No existe «entrar a una sucursal».** La app está siempre conectada al
+> central. La sucursal del usuario sale de `inicioSesion.sucursal` y sirve
+> como **valor por defecto**; la pantalla que necesita una la **selecciona**.
+> Un usuario cuya sesión está en una sucursal virtual es normal, no un error
+> de configuración.
+
+Aplicado en el buscador de productos, en el diálogo de stock por sucursal y
+en la carga de devoluciones. Al portar inventario, transferencias y
+movimiento de stock hay que volver a aplicarlo.
+
 > ⚠️ **Gotcha — `Producto` tiene campos comentados en el modelo.** `subfamilia`, `sucursales`, `productoUltimasCompras` y `costo` están comentados en `producto.model.ts`, pero `ProductoInput` **sí** declara `subfamiliaId`. O sea: se puede enviar la subfamilia pero no leerla desde el modelo tipado. Si necesitás ese dato, la query debe pedirlo y hay que acceder sin tipo.
 
 > ⚠️ **Gotcha — `ProductoInput.tiempoGarantia` está tipado `boolean`** (`producto.model.ts`), mientras que `Producto.tiempoGarantia` es `number`. Es un error de tipado en el input: el valor real que espera el backend es numérico. TypeScript no te va a ayudar acá.

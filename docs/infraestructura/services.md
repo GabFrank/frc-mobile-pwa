@@ -1,5 +1,7 @@
 # Servicios transversales
 
+> ⚠️ **Documento histórico.** Describe `frc-mobile` (Ionic + Capacitor), no este repo. Se conserva porque explica reglas de negocio y decisiones que se heredaron. Para la implementación actual, ver [`../design-system.md`](../design-system.md) y [`../arquitectura/capa-de-datos.md`](../arquitectura/capa-de-datos.md).
+
 Catálogo de `src/app/services/`. Son los servicios que cualquier módulo puede usar. Todos son `providedIn: 'root'` salvo aviso.
 
 Para el servicio de datos genérico (`GenericCrudService`) ver [`../arquitectura/apollo-graphql.md`](../arquitectura/apollo-graphql.md). Para login ver [`../arquitectura/autenticacion-sesion.md`](../arquitectura/autenticacion-sesion.md).

@@ -380,6 +380,8 @@ Orientativo, para dimensionar — no es un compromiso:
 
 Lo que inclina la balanza no es una sola ventaja sino el conjunto: **solo el 3,5% del código toca APIs nativas**, la impresión ya es server-side, el reconocimiento facial ya es web, iOS hoy no existe, y **hay una implementación de referencia propia en frc-gourmet** que ya resolvió el escáner y el facial en PWA.
 
+> ⚠️ **«iOS hoy no existe» describe la flota actual, no el alcance del proyecto.** Poder correr en iPhone es **una de las razones de migrar**: es lo que la APK no daba. Leer esa frase como «no hace falta soportar Safari» es exactamente al revés. Regla 7 de [`../../CLAUDE.md`](../../CLAUDE.md).
+
 El costo real está concentrado y es identificable: OCR, GPS de precisión y biometría. Tres problemas acotados, con salidas conocidas.
 
 ---
@@ -408,6 +410,12 @@ Actualiza el análisis con lo definido por el usuario: dominio en Cloudflare, es
 **Sí, y es el camino correcto.** Con tres precisiones que conviene resolver antes de empezar.
 
 ### A.1 Modo de SSL: Full (strict), no Flexible
+
+> ⚠️ **No aplica a como quedó.** El TLS del central se resolvió con **Let's
+> Encrypt en el origen y la nube gris**, así que Cloudflare no termina TLS y el
+> modo SSL de la zona no interviene. El motivo fue el corte de WebSocket ocioso
+> a ~100 s del proxy. Ver el encabezado de
+> [`runbook-cloudflare.md`](runbook-cloudflare.md).
 
 | Modo | Navegador → Cloudflare | Cloudflare → origen | Veredicto |
 |---|---|---|---|

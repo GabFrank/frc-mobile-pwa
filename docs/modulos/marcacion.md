@@ -126,3 +126,123 @@ El historial de marcaciones también aparece en [`mis-rrhh`](mis-rrhh-y-finanzas
 4. Las jornadas las calcula el backend.
 5. `esSalidaAlmuerzo` no cierra la jornada.
 6. El manejo de `localStorage` de este módulo es el patrón correcto: copialo.
+
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** portado el **marcado con validación de ubicación**. El
+> **reconocimiento facial no**.
+
+| Ruta | Componente |
+|---|---|
+| `/marcacion` | `MarcacionPage` |
+
+La cascada de rutas anidadas del repo anterior —tipo → ubicación →
+identificación— desaparece: sin paso facial queda **una sola pantalla** que
+muestra el estado del día, la sucursal y el botón que corresponda.
+
+## El GPS se reimplementó, no se perdió
+
+`GeoService` en `core/dispositivo/` reemplaza al `NativeLocationPlugin`, un
+plugin Java de 155 líneas sobre `FusedLocationProvider`. La web no ofrece el
+fusionado de sensores, pero **el patrón que lo hacía útil sí**: calentar,
+exigir varias lecturas, filtrar por precisión y promediar. Se conservan sus
+constantes (`±33 m`, 700 ms de calentamiento, 6,3 s de tope, 2 lecturas).
+
+> ⚠️ **Es la pérdida técnica más concreta de la migración.** Sin fusionado
+> nativo la precisión empeora en interiores, que es justo donde se marca.
+
+**Por eso la distancia no bloquea: avisa.** Si la marcación queda lejos, se
+pide confirmación y se guarda igual — con `precisionGps` y
+`distanciaSucursalMetros`. Bloquear con un umbral que todavía no está
+calibrado dejaría gente sin poder marcar; guardar la evidencia permite
+recalibrarlo con datos reales, que es lo que el módulo ya hacía.
+
+Si no hay ubicación en absoluto, también se puede marcar confirmando: queda
+registrado sin GPS, que es un dato honesto.
+
+## Una sola acción a la vez
+
+El backend dice qué corresponde (`accionPendiente`) y la pantalla ofrece
+**solo eso**. Mostrar entrada y salida juntas permite dos entradas seguidas.
+
+`esSalidaAlmuerzo` viaja aparte del `tipo`: una salida de almuerzo es
+`SALIDA` pero **no cierra la jornada**.
+
+## La sucursal persistida, con su gotcha
+
+Se guarda en `localStorage` con el patrón correcto del repo anterior —
+`removeItem`, no `setItem(clave, null)`, y `JSON.parse` en `try/catch` que
+limpia la clave si está corrupta.
+
+⚠️ **Se borra al cerrar sesión** (`auth.service.ts`): la sucursal es del
+funcionario, no del dispositivo. Sin eso, el próximo que entre en ese
+teléfono marca contra la sucursal del anterior.
+
+## Lo que falta
+
+| Qué | Espera a |
+|---|---|
+| Alta de rostros de **otra** persona (`ingreso-persona`) | cada uno registra el suyo desde Mi cuenta; dar de alta a un tercero es otra pantalla |
+| Historial propio | ya está en «Mi trabajo» → Marcación |
+
+---
+
+# El rostro en la PWA
+
+Se registra desde **Mi cuenta → Mi rostro** (`/cuenta/rostro`) y se usa al
+marcar. Todo ocurre **en el dispositivo**: no se manda una foto a ningún lado
+ni se le pregunta al servidor quién es la persona. Lo único que sale es el
+embedding consolidado, y solo si pasó.
+
+## Es verificación 1:1, no identificación 1:N
+
+`frc-mobile` **busca** contra todas las galerías (`buscarYValidarUsuario`).
+Acá el usuario ya está en sesión, así que la pregunta es otra: *¿sos vos?*, no
+*¿quién sos?*. Se compara contra la galería propia, que además es más barato y
+más difícil de confundir.
+
+## Los umbrales no se bajaron, y no se bajan
+
+`confirmarVerificacionFinal` viene de `frc-mobile` y exige **tres controles
+independientes**; `embedding-galeria.util.ts` se copió verbatim, cambiando solo
+la ruta del import.
+
+⚠️ Si en la práctica cuesta pasar, el problema es el **enrolamiento** —pocas
+poses, mala luz—, no el umbral. Aflojarlo convierte esto en un teatro.
+
+⚠️ **Los aciertos tienen que ser consecutivos.** Un fallo reinicia la cuenta y
+descarta los frames: acumular aciertos sueltos permitiría insistir un rato
+frente a la cámara con la foto de otro.
+
+## Cinco capturas libres, como `frc-gourmet`
+
+El usuario saca cinco seguidas en los ángulos que quiera, con sugerencias
+rotativas en vez de pasos con nombre: el ángulo lo elige la persona, y
+etiquetarlos «izquierda/derecha» mentiría sobre lo que hace falta.
+
+Se verificó que `construirGaleriaDesdeCapturas` acepta N capturas antes de
+fijar el número en cinco.
+
+## La ubicación sigue siendo un chequeo aparte
+
+El diálogo facial **no valida dónde está la persona**. Eso sigue en
+`MarcacionPage` con `GeoService`, y corre **después** del rostro. Son dos
+preguntas distintas —quién sos y dónde estás— y mezclarlas haría que aflojar
+una afloje la otra.
+
+## Los modelos no se commitean
+
+`@vladmandic/human` con `HUMAN-FACERES-1024` (1024 dimensiones). Los cinco
+pares de archivos se copian desde `node_modules` en cada build
+(`scripts/face-models.mjs`) y están en `.gitignore`.
+
+⚠️ **No es solo por peso** —10 MB, que además hicieron fallar un push—: los
+modelos tienen que corresponder a la versión de Human instalada. Un modelo
+viejo contra una librería nueva produce embeddings que **no se alinean con la
+galería** y no da ningún error: simplemente deja de reconocer a la gente.
+
+Se sirven desde `/face-models` y `ngsw-config.json` los declara como asset
+group **lazy**: quien nunca marca con rostro no los descarga.

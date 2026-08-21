@@ -2,9 +2,10 @@ import {
   ApplicationConfig,
   inject,
   isDevMode,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideApollo } from 'apollo-angular';
@@ -15,16 +16,30 @@ import { SetContextLink } from '@apollo/client/link/context';
 import { routes } from './app.routes';
 import { ServerConfigService } from './core/config/server-config.service';
 import { AUTH_TOKEN_KEY } from './core/auth/auth.tokens';
+import { SesionService } from './core/auth/sesion.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(),
 
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000',
+      /*
+        ⚠️ `registerImmediately` y no `registerWhenStable:30000`.
+
+        Con la estrategia por defecto, el testeo del bloque 5 en un Android
+        real encontró el service worker registrado y controlando la página
+        pero **sin manifiesto y sin haber consultado nunca** por una versión.
+        Una PWA instalada se reabre restaurando la página, no navegando, así
+        que el momento «estable» que dispara el registro puede no volver a
+        darse: la app se queda en una versión vieja para siempre.
+
+        Registrar de una hace que el worker adopte una versión desde el
+        arranque, que es la condición para que `SwUpdate` pueda avisar.
+      */
+      registrationStrategy: 'registerImmediately',
     }),
 
     provideApollo(() => {
@@ -67,5 +82,11 @@ export const appConfig: ApplicationConfig = {
         // explícitamente sin tocar configuración global.
       };
     }),
+
+    // Restaura la sesión antes de resolver la primera ruta: si hay token
+    // guardado, carga el usuario y sus roles. Sin esto, recargar la página
+    // dejaba la sesión válida para el guard pero sin identidad, y la UI
+    // ocultaba en silencio todo lo que depende de roles.
+    provideAppInitializer(() => inject(SesionService).restaurar()),
   ],
 };

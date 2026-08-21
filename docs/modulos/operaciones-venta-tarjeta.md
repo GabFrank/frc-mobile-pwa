@@ -145,3 +145,63 @@ El FAB del home ofrece "Escanear venta" (`app.component.html:188`). `AppComponen
 2. `monto` y `montoEscaneado` son campos distintos; mantené ambos.
 3. Para escanear desde otro lado, usá `VentaTarjetaQrService`.
 4. El guard con caché + refresco en segundo plano es el patrón a replicar para otros feature flags.
+
+
+---
+
+# Qué cambió en la PWA
+
+> **Estado:** portado — lista de cupones de la caja y registro por escaneo.
+> **Sin OCR** (ver abajo).
+
+| Ruta | Componente |
+|---|---|
+| `/operaciones/venta-tarjeta` | `VentaTarjetaListaPage` |
+| `/operaciones/venta-tarjeta/registro` | `VentaTarjetaRegistroPage` |
+
+Las dos pasan por `ventaTarjetaHabilitadaGuard`, con la **misma estrategia de
+caché** del repo anterior: con el flag cacheado navega al instante y refresca
+en segundo plano; solo la primera navegación espera la red. Si la consulta
+falla, bloquea — es preferible a registrar contra una configuración
+desconocida.
+
+## El parseo del QR es una función pura
+
+`interpretarQrVenta(texto, cajaActualId)` en vez de un servicio: no depende
+de nada, se prueba sin montar Angular y **tiene un test por cada motivo de
+rechazo**. Es la única validación de seguridad del módulo.
+
+⚠️ **La comparación de caja es por valor.** Los ids llegan como string desde
+GraphQL; un `!==` contra un número dejaría pasar el cupón de otra caja, que
+es justo lo que hay que impedir.
+
+## Sin OCR, y por eso sin foto
+
+`frc-mobile` exigía fotografiar el cupón y un plugin de ML Kit
+(`@pantrist/capacitor-plugin-ml-kit-text-recognition`) extraía el monto a
+`montoEscaneado` para contrastarlo con el de la venta. **No hay equivalente
+web** hoy.
+
+> ⚠️ **La foto nunca se guardaba.** `imagenUrl` no viaja en
+> `VentaTarjetaInput` (`add-venta-tarjeta.component.ts:383`): la imagen
+> existía **solo** para alimentar el OCR. Por eso quitar el OCR quita también
+> el requisito de la foto, sin perder ninguna evidencia — no había ninguna.
+
+Los campos `montoEscaneado` e `imagenUrl` **se conservan** en el modelo: el
+desktop sí los carga, y `monto` vs `montoEscaneado` es lo que permite
+auditar discrepancias entre lo declarado y lo impreso.
+
+Con el OCR se pierde también la confirmación de «monto diferente», que
+comparaba lo escaneado contra lo cobrado. Vuelve si alguna vez hay OCR web.
+
+## El monto no se edita
+
+Es el de la venta, que ya está cobrada; lo que falta es el respaldo del
+cupón. Editable permitiría registrar un importe que no cuadra con la caja.
+
+## Lo que falta
+
+| Qué | Espera a |
+|---|---|
+| OCR del cupón y `montoEscaneado` | una API web de reconocimiento de texto |
+| Punto de entrada desde el home | el FAB del home, que no está portado |

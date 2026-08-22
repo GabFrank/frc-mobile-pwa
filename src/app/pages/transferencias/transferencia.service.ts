@@ -63,10 +63,26 @@ export class TransferenciaService {
     });
   }
 
+  /**
+   * ⚠️ **El central devuelve una página, no una lista.** Los ítems vienen en
+   * `getContent`; se desenvuelve acá para que las páginas sigan recibiendo un
+   * `TransferenciaItem[]` plano.
+   *
+   * ⚠️ **`producto` no existe en `TransferenciaItem` del central**: cuelga de
+   * la presentación. Se copia al ítem para no tocar la vista.
+   */
   items(id: number, page = 0, size = 50): Observable<TransferenciaItem[]> {
     return this.datos
-      .consultar<TransferenciaItem[]>(this.itemsGQL, { id, page, size })
-      .pipe(map((lista) => lista ?? []));
+      .consultar<{ getContent?: TransferenciaItem[] }>(this.itemsGQL, { id, page, size })
+      .pipe(
+        map((pagina) =>
+          (pagina?.getContent ?? []).map((item) => ({
+            // clonar: Apollo congela los resultados y la vista lee `item.producto`
+            ...item,
+            producto: item.producto ?? item.presentacionPreTransferencia?.producto,
+          })),
+        ),
+      );
   }
 
   /**

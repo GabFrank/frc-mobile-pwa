@@ -3,8 +3,9 @@ import { Query } from 'src/app/core/graphql/gql-base';
 import { TransferenciaItem } from 'src/app/domains/transferencia/transferencia.model';
 import { itemsPorTransferenciaQuery } from './graphql-query';
 
+/** La query devuelve un `TransferenciaItemPage`: los ítems van en `getContent`. */
 export interface Response {
-  data?: TransferenciaItem[];
+  data?: { getContent?: TransferenciaItem[] };
 }
 
 @Injectable({ providedIn: 'root' })

@@ -18,23 +18,6 @@ export const zonasQuery = gql`
   }
 `;
 
-export const zonasSearch = gql`
-  query ($texto: String) {
-    data: zonasSearch(texto: $texto) {
-      id
-      sector {
-        id
-        descripcion
-      }
-      descripcion
-      activo
-      creadoEn
-      usuario {
-        id
-      }
-    }
-  }
-`;
 
 export const zonaQuery = gql`
   query ($id: ID!) {

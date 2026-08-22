@@ -99,7 +99,7 @@ export const reabrirInventarioMutation = gql`
 
 export const saveInventarioProductoItemMutation = gql`
   mutation saveInventarioProductoItem($entity: InventarioProductoItemInput!) {
-    data: saveInventarioProductoItem(entity: $entity) {
+    data: saveInventarioProductoItem(inventarioProductoItem: $entity) {
       id
       cantidad
       cantidadFisica

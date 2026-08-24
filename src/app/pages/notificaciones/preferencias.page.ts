@@ -2,7 +2,10 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
-import { ConfiguracionNotificacion } from 'src/app/domains/notificacion/notificacion.model';
+import {
+  ConfiguracionNotificacion,
+  descripcionDeTipo,
+} from 'src/app/domains/notificacion/notificacion.model';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
@@ -47,13 +50,13 @@ import { NotificacionesService } from './notificacion.service';
           @for (c of configuraciones(); track c.tipo) {
             <div class="fila">
               <div class="datos">
-                <span class="titulo">{{ c.descripcion || c.tipo }}</span>
+                <span class="titulo">{{ etiqueta(c) }}</span>
                 @if (c.esObligatorio) {
                   <span class="obligatoria">Siempre se envía</span>
                 }
               </div>
               <mat-slide-toggle
-                [checked]="c.habilitado ?? false"
+                [checked]="c.habilitado ?? true"
                 [disabled]="c.esObligatorio === true"
                 (change)="cambiar(c, $event.checked)"
               />
@@ -103,7 +106,7 @@ export class PreferenciasPage {
 
     this.servicio.configuraciones().subscribe({
       next: (lista) => {
-        this.configuraciones.set(lista);
+        this.configuraciones.set(this.ordenar(lista));
         this.cargando.set(false);
       },
       error: (err: Error) => {
@@ -131,6 +134,28 @@ export class PreferenciasPage {
         this.notificacion.danger('No se pudo cambiar la preferencia.');
       },
     });
+  }
+
+  /**
+   * Qué dice la fila.
+   *
+   * El central manda `descripcion`, pero no para todos los tipos y no siempre
+   * en la redacción que usa la lista de notificaciones. `DESCRIPCION_POR_TIPO`
+   * es el respaldo local, y `tipo` el último recurso: una fila sin texto es
+   * un interruptor que nadie sabe qué apaga.
+   */
+  etiqueta(config: ConfiguracionNotificacion): string {
+    return config.descripcion || descripcionDeTipo(config.tipo);
+  }
+
+  /**
+   * ⚠️ **El central devuelve esta lista sin orden.** La arma recorriendo un
+   * `HashMap`, así que el orden cambia entre llamadas y los interruptores
+   * saltan de lugar entre una entrada y la siguiente. Ordenar acá cuesta una
+   * línea; en el central hay que tocar el servicio de preferencias.
+   */
+  private ordenar(lista: ConfiguracionNotificacion[]): ConfiguracionNotificacion[] {
+    return [...lista].sort((a, b) => this.etiqueta(a).localeCompare(this.etiqueta(b), 'es'));
   }
 
   private aplicar(tipo: string, habilitado: boolean): void {

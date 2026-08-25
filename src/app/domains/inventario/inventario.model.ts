@@ -1,7 +1,6 @@
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
-import { Producto } from 'src/app/domains/productos/producto.model';
 import { Zona } from 'src/app/domains/zona/zona.model';
 
 export enum InventarioEstado {
@@ -56,17 +55,22 @@ export interface InventarioProductoItem {
   revisado?: boolean;
   vencimiento?: string;
   estado?: InventarioProductoEstado;
-  /**
-   * ⚠️ **Un ítem con esto no se contó en esta toma**: se arrastró de una
-   * anterior. Hay que filtrarlo antes de calcular la cobertura del conteo.
-   */
-  copiedFromItemId?: number;
   inventarioProducto?: { id?: number };
   creadoEn?: string;
+  // ⚠️ **No hay `copiedFromItemId`.** En `frc-mobile` es una marca de memoria
+  // del diálogo de edición —se pone al copiar el conteo de una toma anterior
+  // y `toInput()` nunca la manda—, así que el central no tiene ni columna ni
+  // campo: pedirlo hace que rechace la consulta entera por validación. Si
+  // alguna vez hace falta distinguir lo arrastrado, primero se persiste allá.
 }
 
 /**
- * Un producto dentro de una **zona**.
+ * Lo que se cuenta en **una zona**.
+ *
+ * ⚠️ **El nombre engaña: no es un producto.** El central le sacó
+ * `producto_id` a la tabla (migración `V61.1`) y la unicidad quedó en
+ * `(inventario_id, zona_id)`: un renglón es una zona con todos sus ítems
+ * adentro. El producto de cada ítem sale de `presentacion.producto`.
  *
  * ⚠️ **El conteo es por presentación, no por producto.** Un producto con
  * «unidad» y «caja x12» genera ítems separados; sumarlos sin convertir da un
@@ -74,11 +78,9 @@ export interface InventarioProductoItem {
  */
 export interface InventarioProducto {
   id?: number;
-  producto?: Producto;
   zona?: Zona;
   concluido?: boolean;
   usuario?: Usuario;
-  creadoEn?: string;
   inventarioProductoItemList?: InventarioProductoItem[];
 }
 

@@ -38,11 +38,15 @@ const ESTADOS: OpcionSeleccion[] = [
 ];
 
 /**
- * Cargar el conteo de un producto.
+ * Cargar el conteo de una zona.
  *
  * Es la pantalla que faltaba para que el inventario se pudiera **hacer**
  * desde el teléfono y no solo consultar: se para frente a la góndola, cuenta
  * y escribe.
+ *
+ * ⚠️ **Un `InventarioProducto` es una zona, no un producto.** El central le
+ * sacó `producto_id` a esa tabla; acá se listan todos los ítems de la zona y
+ * cada uno dice de qué producto es, leyéndolo de `presentacion.producto`.
  *
  * ⚠️ **El conteo es por presentación, no por producto.** Un producto con
  * «unidad» y «caja x12» tiene un ítem por cada una: sumarlos sin convertir
@@ -82,15 +86,15 @@ const ESTADOS: OpcionSeleccion[] = [
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
       } @else if (items().length === 0) {
         <frc-estado-vacio
-          titulo="Sin presentaciones que contar"
-          detalle="Este producto no tiene presentaciones cargadas en esta toma."
+          titulo="Sin ítems que contar"
+          detalle="Esta zona no tiene presentaciones cargadas en esta toma."
           icono="inventario"
         />
       } @else {
         @for (fila of items(); track fila.itemId) {
           <frc-seccion [titulo]="fila.etiqueta" [panel]="true">
             <div class="linea">
-              <span class="sistema">Sistema: {{ fila.sistema }}</span>
+              <span class="sistema">{{ fila.presentacion }} · Sistema: {{ fila.sistema }}</span>
               @if (fila.diferencia !== null) {
                 <span class="dif" [class.falta]="fila.diferencia < 0" [class.sobra]="fila.diferencia > 0">
                   {{ fila.diferencia > 0 ? '+' : '' }}{{ fila.diferencia }}
@@ -125,15 +129,6 @@ const ESTADOS: OpcionSeleccion[] = [
               [valor]="fila.estado"
               (valorChange)="cambiarEstado(fila.itemId, $event)"
             />
-
-            @if (fila.arrastrado) {
-              <!--
-                Un ítem copiado de la toma anterior no se contó ahora. Se
-                dice, porque si no alguien lo lee como mercadería ya
-                recorrida.
-              -->
-              <p class="aviso">Arrastrado de una toma anterior. Todavía no se contó.</p>
-            }
           </frc-seccion>
         }
 
@@ -163,7 +158,6 @@ const ESTADOS: OpcionSeleccion[] = [
     }
     .dif.falta { color: var(--danger); }
     .dif.sobra { color: var(--warn); }
-    .aviso { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
   `,
 })
 export class InventarioCargaPage {
@@ -194,7 +188,7 @@ export class InventarioCargaPage {
     );
   });
 
-  readonly titulo = computed(() => this.producto()?.producto?.descripcion ?? 'Conteo');
+  readonly titulo = computed(() => this.producto()?.zona?.descripcion || 'Conteo');
 
   readonly items = computed(() => {
     const cambios = this.edicion();
@@ -205,7 +199,10 @@ export class InventarioCargaPage {
       const sistema = item.cantidad ?? 0;
       return {
         itemId,
-        etiqueta: item.presentacion ? etiquetaPresentacion(item.presentacion) : 'Presentación',
+        // El producto cuelga de la presentación: `InventarioProducto` es la
+        // zona, y en una zona hay más de un producto.
+        etiqueta: String(item.presentacion?.producto?.descripcion ?? 'Producto'),
+        presentacion: item.presentacion ? etiquetaPresentacion(item.presentacion) : 'Presentación',
         sistema: formatearCantidad(sistema, 2),
         contado,
         // La diferencia se recalcula en vivo con lo que se está escribiendo,
@@ -214,7 +211,6 @@ export class InventarioCargaPage {
         vencimiento:
           cambio?.vencimiento ?? (item.vencimiento ? item.vencimiento.slice(0, 10) : ''),
         estado: cambio?.estado ?? item.estado ?? InventarioProductoEstado.BUENO,
-        arrastrado: item.copiedFromItemId != null,
         original: item,
       };
     });

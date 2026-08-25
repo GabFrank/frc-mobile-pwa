@@ -17,8 +17,7 @@ const item = (extra: Partial<InventarioProductoItem> = {}): InventarioProductoIt
 
 /**
  * La diferencia **es** el resultado del inventario. Estos casos fijan que no
- * se confunda con un error, ni se mezcle lo contado con lo arrastrado de una
- * toma anterior.
+ * se confunda con un error ni con «todavía sin contar».
  */
 describe('Diferencia de un ítem', () => {
   it('es lo contado menos lo que dice el sistema', () => {
@@ -42,29 +41,27 @@ describe('Qué se contó en esta toma', () => {
     expect(fueContadoEnEstaToma(item({ cantidadFisica: 5 }))).toBe(true);
   });
 
-  it('un ítem arrastrado de otra toma no', () => {
-    // `copiedFromItemId` marca lo que se copió de un inventario anterior:
-    // nadie lo tocó en esta toma.
-    expect(fueContadoEnEstaToma(item({ cantidadFisica: 5, copiedFromItemId: 99 }))).toBe(false);
+  it('contado en cero también cuenta', () => {
+    // Cero es un resultado del conteo: la góndola estaba vacía.
+    expect(fueContadoEnEstaToma(item({ cantidadFisica: 0 }))).toBe(true);
   });
 
-  it('un ítem sin contar tampoco', () => {
+  it('un ítem sin contar no', () => {
     expect(fueContadoEnEstaToma(item())).toBe(false);
   });
 });
 
 describe('Resumen del conteo', () => {
-  it('separa lo contado de lo arrastrado', () => {
+  it('separa lo contado de lo que falta contar', () => {
     const resumen = resumirItems([
       item({ id: 1, cantidad: 10, cantidadFisica: 10 }),
       item({ id: 2, cantidad: 5, cantidadFisica: 3 }),
-      item({ id: 3, cantidad: 8, cantidadFisica: 8, copiedFromItemId: 50 }),
+      item({ id: 3, cantidad: 8 }),
       item({ id: 4 }),
     ]);
 
-    // Contados: solo el 1 y el 2. El 3 se arrastró; el 4 no se contó.
+    // Contados: solo el 1 y el 2. Los otros dos siguen sin contar.
     expect(resumen.contados).toBe(2);
-    expect(resumen.arrastrados).toBe(1);
   });
 
   it('suma las diferencias y cuenta cuántos ítems las tienen', () => {
@@ -85,10 +82,10 @@ describe('Resumen del conteo', () => {
     expect(resumen.revisados).toBe(1);
   });
 
-  it('lo arrastrado no aporta a la diferencia', () => {
-    const resumen = resumirItems([
-      item({ id: 1, cantidad: 10, cantidadFisica: 2, copiedFromItemId: 7 }),
-    ]);
+  it('lo que no se contó no aporta a la diferencia', () => {
+    // Sin `cantidadFisica` no hay diferencia que reportar: falta contarlo,
+    // no es que coincida con el sistema.
+    const resumen = resumirItems([item({ id: 1, cantidad: 10 })]);
     expect(resumen.diferencia).toBe(0);
     expect(resumen.conDiferencia).toBe(0);
   });
@@ -98,7 +95,7 @@ describe('Resumen del conteo', () => {
     expect(resumirInventario([]).contados).toBe(0);
   });
 
-  it('resume todos los productos juntos', () => {
+  it('resume todas las zonas juntas', () => {
     const resumen = resumirInventario([
       { id: 1, inventarioProductoItemList: [item({ cantidad: 10, cantidadFisica: 8 })] },
       { id: 2, inventarioProductoItemList: [item({ cantidad: 5, cantidadFisica: 6 })] },
@@ -108,7 +105,7 @@ describe('Resumen del conteo', () => {
   });
 });
 
-describe('Productos concluidos', () => {
+describe('Zonas concluidas', () => {
   it('cuenta los marcados', () => {
     expect(productosConcluidos([{ id: 1, concluido: true }, { id: 2 }, { id: 3, concluido: true }])).toBe(2);
   });

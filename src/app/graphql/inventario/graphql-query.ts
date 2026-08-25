@@ -12,6 +12,14 @@ const cabecera = `
   usuario { id persona { nombre } }
 `;
 
+/**
+ * ⚠️ **`InventarioProducto` agrupa por zona, no por producto.** El central
+ * dejó de tener `producto_id` en esa tabla (migración `V61.1`) y la unicidad
+ * quedó en `(inventario_id, zona_id)`. El producto de cada renglón sale de
+ * `presentacion.producto`, que es de donde lo lee también `frc-mobile`.
+ * Pedirlo sobre `InventarioProducto` hace que el central rechace la consulta
+ * entera por validación y la pantalla no cargue.
+ */
 export const inventarioPorIdQuery = gql`
   query ($id: ID!) {
     data: inventario(id: $id) {
@@ -19,10 +27,8 @@ export const inventarioPorIdQuery = gql`
       inventarioProductoList {
         id
         concluido
-        creadoEn
         usuario { id persona { nombre } }
         zona { id descripcion sector { id descripcion } }
-        producto { id descripcion }
         inventarioProductoItemList {
           id
           cantidad
@@ -32,8 +38,7 @@ export const inventarioPorIdQuery = gql`
           revisado
           vencimiento
           estado
-          copiedFromItemId
-          presentacion { id cantidad }
+          presentacion { id cantidad producto { id descripcion } }
         }
       }
     }

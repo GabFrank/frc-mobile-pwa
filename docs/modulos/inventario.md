@@ -39,7 +39,7 @@ Inventario (cabecera, por sucursal)
 
 **`Inventario`** — la cabecera: sucursal, `fechaInicio`/`fechaFin`, `abierto`, `tipo`, `estado`, observación.
 
-**`InventarioProducto`** — un producto dentro de una **zona**, con flag `concluido`.
+**`InventarioProducto`** — **una zona** del inventario, con flag `concluido`. El nombre engaña: la tabla tenía `producto_id` y el central se lo sacó en la migración `V61.1`, dejando la unicidad en `(inventario_id, zona_id)`. **El producto de cada renglón sale de `presentacion.producto` del item**, que es de donde lo lee `frc-mobile` (`invProItem?.presentacion?.producto?.descripcion`). Pedir `producto` o `creadoEn` sobre `InventarioProducto` hace que el central rechace la consulta entera.
 
 **`InventarioProductoItem`** — el conteo concreto:
 
@@ -53,7 +53,7 @@ Inventario (cabecera, por sucursal)
 | `revisado` | Ya pasó revisión de un supervisor |
 | `vencimiento` | Fecha de vencimiento del lote contado |
 | `estado` | `BUENO` / `AVERIADO` / `VENCIDO` |
-| `copiedFromItemId` | Item del que se copió |
+| `copiedFromItemId` | Item del que se copió — **solo en memoria de `frc-mobile`**, ver abajo |
 
 > **Regla clave — tres cantidades, tres propósitos.** `cantidad` (sistema) vs `cantidadFisica` (contado) da la diferencia del inventario actual; `cantidadAnterior` permite ver la evolución entre tomas. **Nunca sobreescribas `cantidad` con `cantidadFisica`**: la diferencia es el resultado del inventario.
 
@@ -61,7 +61,7 @@ Inventario (cabecera, por sucursal)
 
 > ⚠️ **Gotcha — el conteo es por presentación, no por producto.** Un producto con presentaciones "unidad" y "caja x12" genera items separados. Sumar cantidades entre presentaciones sin convertir por `unidadPorCaja` da un número sin sentido.
 
-> ⚠️ **Gotcha — `copiedFromItemId` señala items copiados de inventarios anteriores.** `onGetItemsDeInventariosAnteriores` permite arrastrar un conteo previo como base. Un item con este campo **no fue contado en esta toma**: filtralo antes de calcular cobertura del conteo.
+> ⚠️ **Gotcha — `copiedFromItemId` no existe en el central.** `onGetItemsDeInventariosAnteriores` permite arrastrar un conteo previo como base, y el diálogo de edición marca así el item copiado, pero la marca **vive solo en memoria**: `toInput()` no la manda, la tabla `inventario_producto_item` no tiene la columna y el tipo GraphQL no expone el campo. **Pedirlo en una consulta la hace fallar entera** (`FieldUndefined`). Si alguna vez hay que distinguir lo arrastrado, primero se persiste en el central.
 
 ### Enums
 
@@ -160,7 +160,7 @@ Inventario (cabecera, por sucursal)
 2. El conteo es **por presentación**; convertí por `unidadPorCaja` antes de sumar.
 3. Chequeá `onGetInventarioAbiertoPorSucursal` antes de abrir uno nuevo.
 4. `onFinalizar/onCancelar/onReabrir` devuelven `Observable`, no `Promise`.
-5. Filtrá los items con `copiedFromItemId` al medir cobertura del conteo.
+5. No pidas `producto` ni `creadoEn` sobre `InventarioProducto`, ni `copiedFromItemId` sobre el item: no existen en el schema del central y tumban la consulta entera.
 
 
 ---
@@ -188,12 +188,14 @@ no desde adentro del inventario.
   borra.
 - **Sin contar no es cero.** `diferenciaDe()` devuelve `null` cuando no hay
   `cantidadFisica`: cero significa «contado y coincide».
-- **Lo arrastrado se cuenta aparte.** Un ítem con `copiedFromItemId` viene de
-  una toma anterior y **nadie lo tocó ahora**: no suma a la cobertura ni a la
-  diferencia. Sumarlo haría creer que se recorrió mercadería que nadie contó.
+- **Lo arrastrado no se puede distinguir.** `copiedFromItemId` es una marca
+  de memoria de `frc-mobile` que nunca llega al central: no hay columna ni
+  campo. La PWA no lo pide —pedirlo tumbaba la pantalla entera con un
+  `FieldUndefined`— y por eso tampoco separa lo arrastrado de lo contado.
 
-El detalle muestra la diferencia por producto y en total, **con signo**: `+`
-es sobrante y `−` faltante.
+El detalle lista **una card por zona** —`inventarioProductoList` agrupa por
+zona, no por producto— y muestra la diferencia por zona y en total, **con
+signo**: `+` es sobrante y `−` faltante.
 
 ## Finalizar aplica las diferencias
 
@@ -239,9 +241,10 @@ vencimiento y el estado.
 > La diferencia se recalcula **mientras se escribe**, no al guardar: es lo que
 > le dice al operador si tiene que volver a contar antes de irse del pasillo.
 
-> ⚠️ **Un ítem arrastrado de una toma anterior lo dice.** `copiedFromItemId`
-> lo marca y la pantalla lo avisa: sin eso, alguien lo lee como mercadería ya
-> recorrida.
+> ⚠️ **La pantalla es de una zona, no de un producto.** Lista todos los ítems
+> de la zona y cada renglón se titula con su producto, leído de
+> `presentacion.producto`. Titularlo con `InventarioProducto.producto` era
+> imposible: ese campo no existe en el central.
 
 ## Lo que no se puede hacer desde acá
 

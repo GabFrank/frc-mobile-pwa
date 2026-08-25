@@ -62,7 +62,8 @@ Dos pasadas. La **primera automatizada**, sin navegador. La **segunda con la ext
 10. **Texto blanco sobre los tonos en tema oscuro.** 1,94:1 sobre `--warn` — un aviso prácticamente invisible sobre su propio fondo. Nuevo token `--on-tono`, que cambia con el tema, y el caso "tono como relleno" incorporado a la suite de contraste.
 11. **El chip de estado de la lista mostraba un guión en cada fila.** La query no pedía `estado`, y en las cajas replicadas viejas viene null igual. Donde no hay estado, la card muestra la fecha de apertura.
 12. **El buscador abría sin foco en el campo.** En el teléfono eso significa que no aparece el teclado, en un componente cuyo único propósito es escribir.
-13. **Bugs latentes en abrir/cerrar caja** (todavía sin pantalla): se mandaba `cajaInput` donde la mutation declara `$input`; el cierre omitía `$input` y mandaba un `sucursalId` no declarado; el resultado es un objeto `{ exito, cajaId }`, así que el aviso de éxito salía también con `exito: false`. Más un `$susId` inexistente en `cajasPorFecha` y un `imprimirBalance` sin alias `data:`.
+13. **El detalle de inventario no abría contra el central real.** La consulta pedía tres campos que el central no expone —`producto` y `creadoEn` sobre `InventarioProducto`, `copiedFromItemId` sobre el ítem— y con uno solo que sobre, rechaza la consulta **entera**: la pantalla mostraba «No se pudieron cargar los datos» con el `FieldUndefined` crudo. `InventarioProducto` es **una zona**, no un producto: el central le sacó `producto_id` a esa tabla (migración `V61.1`) y el producto sale de `presentacion.producto`. `copiedFromItemId` nunca existió del lado del servidor: en `frc-mobile` es una marca de memoria del diálogo de edición que `toInput()` no manda.
+14. **Bugs latentes en abrir/cerrar caja** (todavía sin pantalla): se mandaba `cajaInput` donde la mutation declara `$input`; el cierre omitía `$input` y mandaba un `sucursalId` no declarado; el resultado es un objeto `{ exito, cajaId }`, así que el aviso de éxito salía también con `exito: false`. Más un `$susId` inexistente en `cajasPorFecha` y un `imprimirBalance` sin alias `data:`.
 
 ### Lo que queda para vos
 
@@ -1173,26 +1174,30 @@ sucursal.
 
 **Esperado:** tus inventarios, del más reciente al más viejo, con su estado.
 
-### 19.2 · Resumen del conteo
-1. Abrir uno con productos contados
+### 19.2 · El detalle abre *(el que importa)*
+1. Abrir cualquier inventario de la lista
 
-**Esperado:** productos, concluidos, ítems contados, revisados, con
-diferencia y **diferencia total con signo** — `+` sobrante, `−` faltante.
+**Esperado:** carga el resumen. **No** aparece «No se pudieron cargar los
+datos» con un texto de `Validation error of type FieldUndefined`.
 
-### 19.3 · Lo arrastrado se muestra aparte *(el que importa)*
-1. Abrir un inventario donde se hayan copiado conteos de una toma anterior
+> Es la regresión de esta corrección: la consulta pedía `producto` y
+> `creadoEn` sobre `InventarioProducto` y `copiedFromItemId` sobre el ítem,
+> tres campos que el central no tiene. Con uno solo que sobre, el central
+> rechaza la consulta **entera** y la pantalla no muestra nada.
 
-**Esperado:** aparece una línea **«Arrastrados»** separada de «Ítems
-contados», y esos ítems **no** suman a la diferencia.
+### 19.3 · Resumen del conteo
+1. Abrir uno con ítems contados
 
-> Si los arrastrados aparecen como contados, la cobertura del conteo miente:
-> diría que se recorrió mercadería que nadie tocó.
+**Esperado:** zonas, concluidas, ítems contados, revisados, con diferencia y
+**diferencia total con signo** — `+` sobrante, `−` faltante. Ya no hay línea
+«Arrastrados»: el central no guarda de dónde se copió un ítem.
 
-### 19.4 · Diferencia por producto
-1. Mirar la lista de productos
+### 19.4 · Una card por zona
+1. Mirar la lista de abajo
 
-**Esperado:** cada uno con su diferencia al costado, en rojo si es negativa,
-y abajo cuántos ítems se contaron.
+**Esperado:** el título de cada card es la **zona** y abajo el sector — no un
+nombre de producto ni la palabra «Producto» repetida. Cada una con su
+diferencia al costado, en rojo si es negativa, y al pie `N de M contados`.
 
 ### 19.5 · Finalizar
 1. En un inventario **Abierto**, *Finalizar inventario*
@@ -1961,14 +1966,20 @@ aparece en la lista con su monto.
 ### 29.1 · El botón solo en inventarios abiertos
 1. Abrir un inventario abierto y uno concluido.
 
-**Esperado:** en el abierto cada producto tiene *Contar*. En el concluido, no:
+**Esperado:** en el abierto cada zona tiene *Contar*. En el concluido, no:
 escribir encima cambiaría el resultado de una toma cerrada.
 
-### 29.2 · Un renglón por presentación
-1. Entrar a contar un producto con unidad y caja.
+### 29.2 · Un renglón por presentación, con su producto
+1. Entrar a contar una zona que tenga varios productos, alguno con unidad y
+   caja.
 
-**Esperado:** un bloque por presentación, cada uno con lo que dice el sistema,
-el campo *Contado*, vencimiento y estado.
+**Esperado:** el título de la pantalla es la **zona**. Un bloque por
+presentación, titulado con la **descripción del producto**, y adentro
+`Cantidad: N · Sistema: …`, el campo *Contado*, vencimiento y estado.
+
+> Si todos los bloques se llaman igual —«Producto», o solo `Cantidad: 1`— no
+> se sabe qué se está contando: el producto se lee de `presentacion.producto`,
+> no de `InventarioProducto`.
 
 ### 29.3 · La diferencia se calcula mientras escribís
 1. Escribir una cantidad distinta a la del sistema.
@@ -1983,18 +1994,13 @@ si sobra— y cambia con cada tecla.
 se cargó. **La diferencia entre los dos es el resultado del inventario**: si
 al volver son iguales, se perdió.
 
-### 29.5 · Lo arrastrado se avisa
-1. Buscar un ítem copiado de una toma anterior.
-
-**Esperado:** dice *Arrastrado de una toma anterior. Todavía no se contó.*
-
-### 29.6 · Guarda solo lo tocado
+### 29.5 · Guarda solo lo tocado
 1. Editar dos presentaciones de cinco y guardar.
 
 **Esperado:** el botón dice *Guardar conteo (2)* y al terminar avisa. Si
 alguna falla, lo dice y recarga igual para que se vea lo que sí entró.
 
-### 29.7 · Estado de la mercadería
+### 29.6 · Estado de la mercadería
 1. Marcar una presentación como *Averiado* y guardar.
 
 **Esperado:** queda guardado. Averiados y vencidos alimentan devoluciones.
@@ -2714,7 +2720,7 @@ no va a preguntar.
 | 26 · Modo kiosco | 8 | 3 | | |
 | 27 · Ficha de producto | 5 | 2 | | |
 | 28 · Rendición de caja chica | 9 | | | |
-| 29 · Carga del conteo | 7 | | | |
+| 29 · Carga del conteo | 6 | | | |
 | 30 · Permisos por rol | 6 | | | |
 | 31 · Rostro: registro y marcación | 11 | | | |
 | 32 · Compartir por QR | 4 | 2 | | |
@@ -2724,7 +2730,7 @@ no va a preguntar.
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
 | 38 · Notificaciones push | 9 | 6 | | |
-| **Total** | **284** | | | |
+| **Total** | **283** | | | |
 
 ### Los cinco que más importan
 

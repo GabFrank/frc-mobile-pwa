@@ -3,14 +3,12 @@ import {
   InventarioProductoItem,
 } from 'src/app/domains/inventario/inventario.model';
 
-/** Cómo va el conteo de un producto o de todo el inventario. */
+/** Cómo va el conteo de una zona o de todo el inventario. */
 export interface ResumenConteo {
-  /** Ítems contados en **esta** toma. */
+  /** Ítems con cantidad contada. */
   contados: number;
   /** De esos, los que ya pasó a revisar un supervisor. */
   revisados: number;
-  /** Arrastrados de una toma anterior: no se contaron ahora. */
-  arrastrados: number;
   /** Suma de las diferencias sistema − contado. */
   diferencia: number;
   /** Ítems donde lo contado no coincide con el sistema. */
@@ -31,30 +29,27 @@ export function diferenciaDe(item: InventarioProductoItem): number | null {
 }
 
 /**
- * ⚠️ **Un ítem copiado de una toma anterior no se contó ahora.**
- * `copiedFromItemId` lo marca, y hay que excluirlo de la cobertura del
- * conteo: contarlo como hecho haría creer que se recorrió mercadería que
- * nadie tocó.
+ * Contado es tener `cantidadFisica`; cero cuenta, `null` no.
+ *
+ * ⚠️ **No hay forma de saber si un ítem se arrastró de una toma anterior.**
+ * `frc-mobile` lo marca con `copiedFromItemId`, pero es una marca de memoria
+ * de su diálogo de edición: nunca se manda al central, que no tiene dónde
+ * guardarla. Pedirla hacía que rechazara la consulta entera.
  */
 export function fueContadoEnEstaToma(item: InventarioProductoItem): boolean {
-  return item.copiedFromItemId == null && item.cantidadFisica != null;
+  return item.cantidadFisica != null;
 }
 
-/** Resume una lista de ítems sin mezclar lo contado con lo arrastrado. */
+/** Resume una lista de ítems. */
 export function resumirItems(items: InventarioProductoItem[]): ResumenConteo {
   const resumen: ResumenConteo = {
     contados: 0,
     revisados: 0,
-    arrastrados: 0,
     diferencia: 0,
     conDiferencia: 0,
   };
 
   for (const item of items ?? []) {
-    if (item.copiedFromItemId != null) {
-      resumen.arrastrados += 1;
-      continue;
-    }
     if (!fueContadoEnEstaToma(item)) {
       continue;
     }
@@ -72,13 +67,13 @@ export function resumirItems(items: InventarioProductoItem[]): ResumenConteo {
   return resumen;
 }
 
-/** Ídem sobre todos los productos del inventario. */
+/** Ídem sobre todas las zonas del inventario. */
 export function resumirInventario(productos: InventarioProducto[]): ResumenConteo {
   const todos = (productos ?? []).flatMap((p) => p.inventarioProductoItemList ?? []);
   return resumirItems(todos);
 }
 
-/** Cuántos productos quedaron marcados como concluidos. */
+/** Cuántas zonas quedaron marcadas como concluidas. */
 export function productosConcluidos(productos: InventarioProducto[]): number {
   return (productos ?? []).filter((p) => p.concluido).length;
 }

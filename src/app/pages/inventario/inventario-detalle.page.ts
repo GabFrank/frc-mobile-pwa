@@ -39,11 +39,11 @@ import { InventarioService } from './inventario.service';
  *
  * ⚠️ **La diferencia es el resultado del inventario**, no un error a
  * corregir: es lo contado menos lo que dice el sistema. Por eso se muestra
- * por producto y en total.
+ * por zona y en total.
  *
- * ⚠️ **Lo arrastrado de tomas anteriores se cuenta aparte.** Un ítem con
- * `copiedFromItemId` no se contó ahora; sumarlo a la cobertura haría creer
- * que se recorrió mercadería que nadie tocó.
+ * ⚠️ **Cada renglón de `inventarioProductoList` es una zona, no un
+ * producto.** El central le sacó `producto_id` a esa tabla; el producto vive
+ * en cada ítem, colgando de `presentacion`.
  */
 @Component({
   selector: 'frc-inventario-detalle',
@@ -102,34 +102,27 @@ import { InventarioService } from './inventario.service';
         </frc-seccion>
 
         <frc-seccion titulo="Conteo" [panel]="true">
-          <frc-dato etiqueta="Productos" [valor]="productos().length" />
-          <frc-dato etiqueta="Concluidos" [valor]="concluidos()" />
+          <frc-dato etiqueta="Zonas" [valor]="productos().length" />
+          <frc-dato etiqueta="Concluidas" [valor]="concluidos()" />
           <frc-dato etiqueta="Ítems contados" [valor]="resumen().contados" />
           <frc-dato etiqueta="Revisados" [valor]="resumen().revisados" />
-          @if (resumen().arrastrados > 0) {
-            <!--
-              Se muestran aparte porque no se contaron en esta toma: sumarlos
-              a los contados diría que se recorrió algo que nadie tocó.
-            -->
-            <frc-dato etiqueta="Arrastrados" [valor]="resumen().arrastrados" />
-          }
           <frc-dato etiqueta="Con diferencia" [valor]="resumen().conDiferencia" />
           <frc-dato etiqueta="Diferencia total" [valor]="diferenciaTotal()" />
         </frc-seccion>
 
         @if (productos().length === 0) {
           <frc-estado-vacio
-            titulo="Sin productos"
-            detalle="Todavía no se cargó ningún producto en esta toma."
+            titulo="Sin zonas"
+            detalle="Todavía no se cargó ninguna zona en esta toma."
             icono="inventario"
           />
         } @else {
-          <frc-seccion [titulo]="'Productos (' + productos().length + ')'">
+          <frc-seccion [titulo]="'Zonas (' + productos().length + ')'">
             @for (p of productos(); track p.id) {
               <frc-card
-                [titulo]="p.producto?.descripcion ?? 'Producto'"
-                [subtitulo]="zonaDe(p)"
-                icono="producto"
+                [titulo]="zonaDe(p)"
+                [subtitulo]="sectorDe(p)"
+                icono="inventario"
               >
                 <span aparte class="dif" [class.negativa]="diferenciaDe(p) < 0">
                   {{ diferenciaLegible(p) }}
@@ -219,11 +212,13 @@ export class InventarioDetallePage {
     return fechaLegible(valor) ?? '—';
   }
 
+  // Zona y sector se llaman `descripcion`, no `nombre`.
   zonaDe(p: InventarioProducto): string {
-    // Zona y sector se llaman `descripcion`, no `nombre`.
-    const zona = p.zona?.descripcion;
-    const sector = p.zona?.sector?.descripcion;
-    return [sector, zona].filter(Boolean).join(' · ') || 'Sin zona';
+    return p.zona?.descripcion || 'Sin zona';
+  }
+
+  sectorDe(p: InventarioProducto): string {
+    return p.zona?.sector?.descripcion || 'Sin sector';
   }
 
   diferenciaDe(p: InventarioProducto): number {
@@ -235,12 +230,9 @@ export class InventarioDetallePage {
   }
 
   conteoDe(p: InventarioProducto): string {
-    const r = resumirItems(p.inventarioProductoItemList ?? []);
-    const partes = [`${r.contados} contados`];
-    if (r.arrastrados > 0) {
-      partes.push(`${r.arrastrados} arrastrados`);
-    }
-    return partes.join(' · ');
+    const items = p.inventarioProductoItemList ?? [];
+    const r = resumirItems(items);
+    return `${r.contados} de ${items.length} contados`;
   }
 
   /** El signo importa: `+` es sobrante y `−` faltante. */

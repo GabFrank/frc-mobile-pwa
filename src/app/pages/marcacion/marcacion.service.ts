@@ -35,7 +35,30 @@ export class MarcacionService {
   }
 
   guardar(input: MarcacionInput): Observable<Marcacion> {
-    return this.datos.mutar<Marcacion>(this.guardarGQL, { entity: input });
+    return this.datos.mutar<Marcacion>(this.guardarGQL, { entity: this.aWire(input) });
+  }
+
+  /**
+   * Ajusta el input al tipo que declara el central antes de mandarlo.
+   *
+   * ⚠️ **`distanciaSucursalMetros` es `Int` en el esquema**, pero acá nace de
+   * un cálculo de Haversine, que da decimales. Mandarlo crudo hace que
+   * graphql-java rechace la mutation entera —«Variable 'entity' has an
+   * invalid value: Expected type 'Int' but was 'Double'»— y la marcación no
+   * se registra. El redondeo va acá, en el único punto por el que pasan
+   * todas las marcaciones, y no en la pantalla: así no hay una segunda
+   * pantalla que lo reintroduzca.
+   *
+   * `latitud`, `longitud` y `precisionGps` son `Float` y viajan intactos: el
+   * metro de resolución alcanza para auditar una distancia, no para ubicar
+   * un punto.
+   */
+  private aWire(input: MarcacionInput): MarcacionInput {
+    const metros = input.distanciaSucursalMetros;
+    return {
+      ...input,
+      distanciaSucursalMetros: Number.isFinite(metros) ? Math.round(metros!) : undefined,
+    };
   }
 
   /**

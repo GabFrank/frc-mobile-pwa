@@ -42,8 +42,12 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
 /**
  * Marcar entrada y salida, con validación de ubicación.
  *
- * ⚠️ **Se ofrece una sola acción: la que el backend dice que corresponde.**
- * Mostrar entrada y salida a la vez permite dos entradas seguidas.
+ * ⚠️ **Se ofrece solo lo que el backend habilita.** Mostrar entrada y salida
+ * a la vez permite dos entradas seguidas. La excepción es la primera salida
+ * del día: ahí el central habilita `puedeMarcarSalida` **y**
+ * `puedeMarcarSalidaAlmuerzo` a la vez —la acción `SALIDA` es ambigua a
+ * propósito— y quién elige es el funcionario, con `esSalidaAlmuerzo`. Ver
+ * {@link puedeElegirSalida}.
  *
  * ⚠️ **La distancia no bloquea, se registra.** El umbral de precisión de la
  * web es peor que el del plugin nativo que se reemplaza —sobre todo en
@@ -69,8 +73,13 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
     <frc-pagina titulo="Marcación" [conVolver]="true">
       @if (accion(); as a) {
         <div acciones>
-          <button matButton="filled" [disabled]="marcando()" (click)="marcar()">
-            {{ marcando() ? 'Marcando…' : ETIQUETAS[a] }}
+          @if (puedeElegirSalida()) {
+            <button matButton [disabled]="marcando()" (click)="marcar(true)">
+              {{ enCurso() === true ? 'Marcando…' : 'Salir a almorzar' }}
+            </button>
+          }
+          <button matButton="filled" [disabled]="marcando()" (click)="marcar(false)">
+            {{ enCurso() === false ? 'Marcando…' : ETIQUETAS[a] }}
           </button>
         </div>
       }
@@ -144,10 +153,30 @@ export class MarcacionPage {
   readonly distancia = signal<number | null>(null);
   readonly cargando = signal(true);
   readonly marcando = signal(false);
+  /**
+   * `esSalidaAlmuerzo` de la marcación en vuelo, o `null` si no hay ninguna.
+   *
+   * Existe solo para que «Marcando…» aparezca en el botón que se tocó y no
+   * en los dos a la vez.
+   */
+  readonly enCurso = signal<boolean | null>(null);
   readonly error = signal<string | null>(null);
 
   readonly jornada = computed(() => this.estado()?.jornadaRelevante ?? null);
   readonly accion = computed(() => this.estado()?.accionPendiente ?? null);
+  /**
+   * `true` cuando el central acepta las dos salidas y la elección es del
+   * funcionario: irse a almorzar —la jornada sigue abierta— o cerrar el día.
+   *
+   * ⚠️ **Se lee de los dos flags, no de la acción.** `accionPendiente` vale
+   * `SALIDA` en ese estado, así que deducir el tipo de ahí marcaba siempre
+   * salida de almuerzo y dejaba al funcionario obligado a marcar el retorno.
+   * Los flags son justamente lo que el central manda para desambiguar.
+   */
+  readonly puedeElegirSalida = computed(() => {
+    const e = this.estado();
+    return e?.puedeMarcarSalida === true && e?.puedeMarcarSalidaAlmuerzo === true;
+  });
   readonly opcionesSucursal = computed<OpcionSeleccion[]>(() =>
     this.sucursales().map((s) => ({ valor: s.id, texto: String(s.nombre ?? `Sucursal ${s.id}`) })),
   );
@@ -159,7 +188,12 @@ export class MarcacionPage {
     if (!e.estaEnJornada) {
       return 'Fuera de jornada';
     }
-    return e.accionPendiente ? `En jornada · falta ${ETIQUETAS[e.accionPendiente].toLowerCase()}` : 'En jornada';
+    // Con las dos salidas habilitadas no «falta» una: hay dos posibles, y
+    // anunciar una de las dos empuja a marcar la que no era.
+    if (this.puedeElegirSalida() || !e.accionPendiente) {
+      return 'En jornada';
+    }
+    return `En jornada · falta ${ETIQUETAS[e.accionPendiente].toLowerCase()}`;
   });
   readonly trabajadas = computed(() => {
     const min = this.jornada()?.minutosTrabajados;
@@ -265,7 +299,14 @@ export class MarcacionPage {
     });
   }
 
-  async marcar(): Promise<void> {
+  /**
+   * @param esSalidaAlmuerzo Qué salida se está marcando, cuando hay elección.
+   *   Irrelevante en una entrada: `AlmuerzoProcessor.handleEntrada()` del
+   *   central ignora el flag y decide por posición —si ya hay entrada y hay
+   *   salida de almuerzo sin retorno, es el retorno—. Solo pesa en la
+   *   salida, que es donde decide si la jornada cierra.
+   */
+  async marcar(esSalidaAlmuerzo: boolean): Promise<void> {
     const usuarioId = this.auth.usuario()?.id;
     const accion = this.accion();
     const sucursal = this.sucursales().find((s) => String(s.id) === String(this.sucursalId()));
@@ -273,12 +314,14 @@ export class MarcacionPage {
       this.notificacion.warn('Elegí la sucursal donde estás marcando.');
       return;
     }
+    this.enCurso.set(esSalidaAlmuerzo);
 
     // Quién sos, antes de dónde estás. Son dos preguntas independientes y se
     // hacen en ese orden porque la cara es la que puede fallar por gusto del
     // usuario —cancelar, no tener rostro cargado— y no tiene sentido esperar
     // el GPS para descubrirlo.
     if (!(await this.verificarRostro(usuarioId))) {
+      this.enCurso.set(null);
       return;
     }
 
@@ -294,9 +337,10 @@ export class MarcacionPage {
         confirmar: 'Marcar igual',
       });
       if (!seguir) {
+        this.enCurso.set(null);
         return;
       }
-      this.enviar(usuarioId, accion, sucursal, null, null);
+      this.enviar(usuarioId, accion, sucursal, null, null, esSalidaAlmuerzo);
       return;
     }
 
@@ -311,11 +355,12 @@ export class MarcacionPage {
       });
       if (!seguir) {
         this.marcando.set(false);
+        this.enCurso.set(null);
         return;
       }
     }
 
-    this.enviar(usuarioId, accion, sucursal, posicion, metros);
+    this.enviar(usuarioId, accion, sucursal, posicion, metros, esSalidaAlmuerzo);
   }
 
   private distanciaA(sucursal: Sucursal, posicion: Posicion): number | null {
@@ -363,6 +408,7 @@ export class MarcacionPage {
     sucursal: Sucursal,
     posicion: Posicion | null,
     metros: number | null,
+    esSalidaAlmuerzo: boolean,
   ): void {
     // Solo ENTRADA y SALIDA existen como tipo; el matiz de almuerzo va en
     // `esSalidaAlmuerzo`, que es lo que evita que la jornada se parta en dos.
@@ -374,7 +420,7 @@ export class MarcacionPage {
       usuarioId,
       sucursalId: Number(sucursal.id),
       tipo: esSalida ? TipoMarcacion.SALIDA : TipoMarcacion.ENTRADA,
-      esSalidaAlmuerzo: accion === AccionMarcacionPendiente.SALIDA,
+      esSalidaAlmuerzo,
       latitud: posicion?.latitud,
       longitud: posicion?.longitud,
       precisionGps: posicion?.precision,
@@ -386,12 +432,14 @@ export class MarcacionPage {
     this.servicio.guardar(input).subscribe({
       next: () => {
         this.marcando.set(false);
+        this.enCurso.set(null);
         this.notificacion.ok('Marcación registrada.');
         this.incorporarRostro(usuarioId);
         this.cargar();
       },
       error: (err: Error) => {
         this.marcando.set(false);
+        this.enCurso.set(null);
         this.notificacion.danger(err.message);
       },
     });

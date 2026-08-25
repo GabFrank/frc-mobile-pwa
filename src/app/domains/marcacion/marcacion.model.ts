@@ -61,6 +61,11 @@ export interface MarcacionInput {
   latitud?: number;
   longitud?: number;
   precisionGps?: number;
+  /**
+   * ⚠️ **El central lo declara `Int`.** Un decimal —lo que devuelve el
+   * cálculo de distancia— hace que rechace la mutation completa.
+   * `MarcacionService.guardar()` lo redondea; no lo mandes por otra vía.
+   */
   distanciaSucursalMetros?: number;
   deviceId?: string;
   deviceInfo?: string;

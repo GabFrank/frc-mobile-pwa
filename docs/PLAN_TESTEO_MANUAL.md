@@ -2364,7 +2364,7 @@ Para que no se reporte como falla:
 | Operaciones | De caja chica, **el alta** de la solicitud. La rendición ya está (bloque 28) |
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
-| Inventario: zonas y sectores | No portado. La carga del conteo ya está (bloque 29); agregar un producto que la toma no incluye necesita `saveInventarioProducto`, que tampoco |
+| Inventario: agregar un producto que la toma no incluye | No portado. Abrir la toma (bloque 39), agregarle zonas (bloque 40), contar (bloque 29), revisar (35) y finalizar sí. Sumar a una zona una presentación que no está necesita el buscador paginado y el alta de ítem |
 | Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
 | Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
@@ -2688,6 +2688,249 @@ no va a preguntar.
 
 ---
 
+## Bloque 39 — Abrir una toma de inventario *(nuevo)*
+
+**Necesita:** un usuario con rol `CREAR INVENTARIO` (o `ADMIN`) y **una sucursal
+sin ninguna toma abierta**. Si todas las que ves tienen una abierta, finalizá o
+cancelá esa primero desde el escritorio.
+
+### 39.1 · El botón aparece solo con el rol
+
+1. Entrá con un usuario **sin** `CREAR INVENTARIO` pero **con** `VER INVENTARIO`.
+2. Andá a Inicio → Inventario.
+3. Escribí a mano `/inventario/nuevo` en la barra del navegador.
+
+**Esperado:** en el paso 2 **no** hay botón *Nuevo inventario*. En el paso 3 la
+app avisa «No tenés permiso para entrar a esa sección» y vuelve a Inicio. Que el
+botón no esté no alcanza: la URL escrita a mano tiene que rebotar igual.
+
+### 39.2 · Con el rol, el botón lleva al alta
+
+1. Entrá con un usuario **con** `CREAR INVENTARIO`.
+2. Inicio → Inventario → *Nuevo inventario*.
+
+**Esperado:** pantalla «Nuevo inventario» con el selector de sucursal ya puesto
+en **tu** sucursal, tu nombre en *Responsable*, tipo *Por zona*, y el aviso
+sobre sectores y zonas.
+
+### 39.3 · Solo sucursales que pueden contar
+
+1. Abrí el selector de sucursal.
+
+**Esperado:** **no** están `SERVIDOR` ni `COMPRAS`. Son sucursales sin depósito:
+no mueven stock, así que no hay nada que inventariar. Tampoco están las
+inactivas.
+
+### 39.4 · Las tomas abiertas se listan todas
+
+1. Elegí una sucursal que ya tenga inventarios abiertos — `SUC. CENTRAL` tiene
+   **24** en la base de bodega.
+
+**Esperado:** «Tomas abiertas en esta sucursal (N)» con **todas**, cada una con
+su número, quién la abrió y **hace cuántos días está abierta**. Arriba, una
+línea que dice cuántas son y cuál es la más vieja. **El botón *Iniciar
+inventario* sigue disponible.**
+
+⚠️ Lo que no puede pasar es que muestre una sola: con 24 abiertas, ver una hace
+pensar «la cierro y sigo».
+
+### 39.4b · Cancelar una toma abandonada
+
+1. En una toma vieja de la lista, tocá **Cancelar** y confirmá.
+2. Verificá que desaparece de la lista.
+3. Consultá el stock de algún producto que esa toma tuviera contado.
+
+**Esperado:** desaparece de las abiertas y **el stock no se movió**. Cancelar
+pone la toma en `CANCELADO` y desactiva sus ajustes; no aplica nada.
+
+⚠️ Tocar *Cancelar* **no** tiene que abrir el detalle de la toma: la card
+entera navega, y el botón tiene que frenar ese click.
+
+### 39.4c · Iniciar igual, avisado
+
+1. Con tomas abiertas en la lista, tocá *Iniciar inventario*.
+
+**Esperado:** la confirmación **dice cuántas tomas abiertas hay** y cuál es la
+más vieja, antes de preguntar. Confirmando, la toma nueva se crea igual.
+
+### 39.5 · Cancelar la confirmación no crea nada
+
+1. Elegí una sucursal libre y tocá *Iniciar inventario*.
+2. En el diálogo, tocá **Cancelar**.
+3. Volvé a la lista de inventarios y refrescá.
+
+**Esperado:** no se creó ninguna toma. En `frc-mobile` sí se crea — su
+confirmación compara mal y siempre sigue de largo.
+
+### 39.6 · Iniciar de verdad
+
+1. Elegí una sucursal libre, tocá *Iniciar inventario* y confirmá.
+
+**Esperado:** aparece el detalle del inventario recién creado, con estado
+**ABIERTO**, tu nombre, tipo `ZONA`, y **«Sin zonas»** con el texto «Agregá la
+primera para empezar». El botón *Volver* no debería regresar al formulario de
+alta.
+
+### 39.7 · El aviso push le llega a los demás
+
+1. Con otro dispositivo o usuario que tenga rol de inventario y las
+   notificaciones activadas, mirá si llega el aviso de «inventario iniciado».
+
+**Esperado:** llega. Lo manda el central al detectar que es un alta. Si no
+llega, revisá primero las notificaciones push (bloque 38) antes de culpar a esta
+pantalla.
+
+### 39.8 · Sin conexión al central, no deja crear a ciegas
+
+1. Elegí una sucursal y, antes de que responda, cortá la conexión (modo avión o
+   apagando el túnel al central).
+2. Cambiá de sucursal en el selector.
+
+**Esperado:** un aviso de que **no se pudo verificar** si hay tomas abiertas.
+La lista queda vacía pero **sin decir que no hay ninguna**: eso sería afirmar
+algo que nadie comprobó.
+
+---
+
+## Bloque 40 — Zonas de la toma *(nuevo)*
+
+**Necesita:** el inventario abierto del bloque 39 y una sucursal con sectores y
+zonas cargadas (si no hay, creálas en Lugares del depósito — bloque 36).
+
+### 40.1 · Agregar la primera zona
+
+1. En el detalle del inventario abierto, tocá *Agregar zona*.
+2. Elegí una zona de la lista.
+
+**Esperado:** el diálogo lista las zonas con su sector abajo y tiene un campo
+para buscar por nombre. Al elegir una, el detalle recarga y muestra una card de
+esa zona, con «0 de 0 contados».
+
+### 40.2 · Una zona ya agregada no se vuelve a ofrecer
+
+1. Tocá *Agregar zona* de nuevo.
+
+**Esperado:** la zona del paso anterior **no está** en la lista. Si apareciera y
+la eligieras, el central rechazaría el duplicado con un error.
+
+### 40.3 · Las zonas inactivas tampoco
+
+1. Desactivá una zona desde Lugares del depósito (bloque 36).
+2. Volvé al inventario y tocá *Agregar zona*.
+
+**Esperado:** esa zona no aparece. Desactivar es exactamente eso: sacarla de las
+tomas nuevas sin tocar el histórico de las viejas.
+
+### 40.4 · Buscar por nombre
+
+1. Con varias zonas disponibles, escribí parte del nombre de una en el campo de
+   búsqueda.
+
+**Esperado:** la lista se recorta. Buscando por el nombre del **sector** también
+filtra. Con un texto que no coincide con nada, dice «Ninguna zona coincide con
+eso» en vez de quedar en blanco.
+
+### 40.5 · Sin zonas para agregar
+
+1. Agregá **todas** las zonas de la sucursal a la toma y tocá *Agregar zona*.
+
+**Esperado:** el diálogo explica que no quedan zonas y que hay que crearlas en
+Lugares del depósito. No un diálogo vacío.
+
+### 40.6 · Concluir una zona
+
+1. En la card de una zona, tocá *Concluir* y confirmá.
+
+**Esperado:** la card queda marcada «Concluido» y el botón pasa a *Reabrir*. El
+contador «Concluidas» del resumen sube en uno.
+
+### 40.7 · Una sola zona abierta a la vez
+
+1. Con una zona **sin concluir**, tocá *Reabrir* en otra que sí está concluida.
+
+**Esperado:** avisa «Ya tenés otra zona abierta. Concluila antes de reabrir
+esta» y **no** la reabre. Concluí la abierta y repetí: ahora sí reabre.
+
+### 40.8 · Con la toma cerrada no se tocan las zonas
+
+1. Finalizá el inventario y volvé al detalle.
+
+**Esperado:** desaparecen *Agregar zona*, *Concluir*, *Reabrir* y *Contar*. Solo
+queda *Revisar*: un conteo cerrado es un hecho histórico.
+
+---
+
+## Bloque 41 — Lo contado llega al stock *(nuevo, crítico)*
+
+**Por qué está acá:** la app escribía el conteo en un campo que el central
+**no mira** al finalizar el inventario, así que el ajuste de stock salía de un
+número que nadie había contado. Es un defecto que no se puede ver mirando la
+pantalla — hay que mirar el stock después de finalizar.
+
+**Necesita:** un producto de prueba con stock conocido y permiso para consultar
+el stock desde el escritorio o la ficha de producto.
+
+### 41.1 · La diferencia en pantalla tiene el signo correcto
+
+1. Abrí una toma, agregá una zona con productos y entrá a *Contar*.
+2. En un ítem que el sistema dice **10**, escribí **7**.
+
+**Esperado:** la diferencia se muestra **−3** (faltante) mientras escribís, no
++3. Con **12** tiene que decir **+3**.
+
+### 41.2 · El stock queda como lo contado
+
+1. Anotá el stock del sistema de un producto antes de empezar: **S**.
+2. Contá ese producto con un número distinto: **C**.
+3. Guardá el conteo, concluí la zona y **finalizá** el inventario.
+4. Consultá el stock de ese producto.
+
+**Esperado:** el stock pasa a ser **C**, lo contado. Si quedó en **S** —sin
+moverse— el conteo no llegó al cálculo, que es exactamente el bug que este
+bloque cuida.
+
+### 41.3 · Lo que coincide queda «cantidad exacta»; lo que no, «modificado»
+
+1. En una zona, contá un ítem **igual** al sistema y otro **distinto**.
+2. Guardá y andá a *Revisar*.
+
+**Esperado:** el que coincidió aparece con el chip **Cantidad exacta**; el que
+no, con **Modificado**. Antes todos salían «Cantidad exacta», incluidos los que
+tenían diferencia — que son justo los que el supervisor busca.
+
+### 41.4 · Sin contar no es contado en cero
+
+1. Dejá un ítem de la zona **sin escribir nada**.
+2. Mirá el resumen del detalle y la pantalla de revisión.
+
+**Esperado:** ese ítem cuenta como **no contado** —no suma a «Ítems contados» ni
+a «Con diferencia»— y en revisión dice «sin contar», no «0».
+
+⚠️ **Al finalizar sí entra como diferencia contra el stock.** Eso es
+intencional y es lo que hace el central; por eso la confirmación de *Finalizar*
+dice cuántos ítems tienen diferencia.
+
+### 41.5 · Finalizar una toma vieja avisa lo que va a hacer
+
+1. Abrí una toma con más de 180 días (las de 2023 de `SUC. CENTRAL` sirven) y
+   tocá *Finalizar*.
+
+**Esperado:** la confirmación dice **cuántos días lleva abierta** y que va a
+ajustar el stock de **hoy** con lo que se contó entonces, y sugiere cancelarla.
+El botón de confirmar se ve como destructivo.
+
+⚠️ **No la finalices en producción para probar esto** — mirá el diálogo y
+cancelá. Si la toma tiene ítems contados, finalizarla mueve stock de verdad.
+
+### 41.6 · Cancelar desde el detalle
+
+1. En una toma abierta, tocá *Cancelar toma* y confirmá.
+
+**Esperado:** el estado pasa a **CANCELADO**, desaparece de las tomas abiertas
+de la sucursal, y el stock queda igual.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -2730,7 +2973,10 @@ no va a preguntar.
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
 | 38 · Notificaciones push | 9 | 6 | | |
-| **Total** | **283** | | | |
+| 39 · Abrir una toma de inventario | 10 | | | |
+| 40 · Zonas de la toma | 8 | | | |
+| 41 · Lo contado llega al stock | 6 | | | |
+| **Total** | **307** | | | |
 
 ### Los cinco que más importan
 

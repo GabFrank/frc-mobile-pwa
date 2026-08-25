@@ -7,6 +7,16 @@ export const rutasInventario: Routes = [
     path: '',
     loadComponent: () => import('./inventario-lista.page').then((m) => m.InventarioListaPage),
   },
+  /**
+   * ⚠️ Literal antes que `:id`, como todo el repo: con el orden invertido
+   * `/inventario/nuevo` resuelve `nuevo` como id y la pantalla carga el
+   * inventario `NaN`.
+   */
+  {
+    path: 'nuevo',
+    canActivate: [rolGuard('inventarioAlta')],
+    loadComponent: () => import('./inventario-nuevo.page').then((m) => m.InventarioNuevoPage),
+  },
   {
     path: 'control',
     loadComponent: () =>

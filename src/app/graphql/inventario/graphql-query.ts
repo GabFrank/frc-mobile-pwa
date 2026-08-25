@@ -102,6 +102,37 @@ export const reabrirInventarioMutation = gql`
   }
 `;
 
+/**
+ * Abre una toma.
+ *
+ * ⚠️ **Sin `id` en el input, el central la trata como alta** y recién ahí
+ * dispara el aviso push de «inventario iniciado» a los roles de inventario.
+ */
+export const saveInventarioMutation = gql`
+  mutation saveInventario($entity: InventarioInput!) {
+    data: saveInventario(inventario: $entity) {
+      ${cabecera}
+    }
+  }
+`;
+
+/**
+ * Suma una zona a la toma, o la marca concluida.
+ *
+ * ⚠️ **El input no acepta `productoId` ni `creadoEn`.** El `toInput()` de
+ * `frc-mobile` los manda igual; acá no, porque el `InventarioProductoInput`
+ * del central no los declara y la validación rechaza la mutation entera.
+ */
+export const saveInventarioProductoMutation = gql`
+  mutation saveInventarioProducto($entity: InventarioProductoInput!) {
+    data: saveInventarioProducto(inventarioProducto: $entity) {
+      id
+      concluido
+      zona { id descripcion sector { id descripcion } }
+    }
+  }
+`;
+
 export const saveInventarioProductoItemMutation = gql`
   mutation saveInventarioProductoItem($entity: InventarioProductoItemInput!) {
     data: saveInventarioProductoItem(inventarioProductoItem: $entity) {

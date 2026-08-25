@@ -5,6 +5,9 @@ import { map } from 'rxjs/operators';
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import {
   Inventario,
+  InventarioInput,
+  InventarioProducto,
+  InventarioProductoInput,
   InventarioProductoItem,
   InventarioProductoItemInput,
 } from 'src/app/domains/inventario/inventario.model';
@@ -16,6 +19,8 @@ import { InventarioPorIdGQL } from 'src/app/graphql/inventario/inventarioPorId';
 import { InventariosPorUsuarioGQL } from 'src/app/graphql/inventario/inventariosPorUsuario';
 import { ItemsParaRevisarGQL } from 'src/app/graphql/inventario/itemsParaRevisar';
 import { ReabrirInventarioGQL } from 'src/app/graphql/inventario/reabrirInventario';
+import { SaveInventarioGQL } from 'src/app/graphql/inventario/saveInventario';
+import { SaveInventarioProductoGQL } from 'src/app/graphql/inventario/saveInventarioProducto';
 import { SaveInventarioProductoItemGQL } from 'src/app/graphql/inventario/saveInventarioProductoItem';
 import type { OrdenRevision } from './revision-item';
 
@@ -34,6 +39,8 @@ export class InventarioService {
   private readonly finalizarGQL = inject(FinalizarInventarioGQL);
   private readonly cancelarGQL = inject(CancelarInventarioGQL);
   private readonly reabrirGQL = inject(ReabrirInventarioGQL);
+  private readonly guardarGQL = inject(SaveInventarioGQL);
+  private readonly guardarProductoGQL = inject(SaveInventarioProductoGQL);
   private readonly guardarItemGQL = inject(SaveInventarioProductoItemGQL);
   private readonly paraRevisarGQL = inject(ItemsParaRevisarGQL);
 
@@ -85,6 +92,30 @@ export class InventarioService {
   }
 
   /**
+   * Abre una toma.
+   *
+   * ⚠️ **Consultar `abiertosDe()` antes.** El central no lo impide: acepta
+   * dos tomas abiertas en la misma sucursal y los conteos se pisan.
+   *
+   * El input se arma con {@link nuevoInventarioInput}, que deja afuera el
+   * `id` a propósito — es lo que hace que el central lo tome como alta y
+   * mande el aviso push a los roles de inventario.
+   */
+  crear(input: InventarioInput): Observable<Inventario> {
+    return this.datos.guardar<Inventario>(this.guardarGQL, { ...input });
+  }
+
+  /**
+   * Suma una zona a la toma, o la marca concluida.
+   *
+   * Es la misma mutation para las dos cosas: sin `id` da de alta el renglón,
+   * con `id` lo actualiza. `frc-mobile` la usa igual.
+   */
+  guardarZona(input: InventarioProductoInput): Observable<InventarioProducto> {
+    return this.datos.guardar<InventarioProducto>(this.guardarProductoGQL, { ...input });
+  }
+
+  /**
    * Cierra el inventario y **aplica las diferencias**.
    *
    * No es solo un cambio de estado: lo que quedó sin contar entra como
@@ -105,9 +136,11 @@ export class InventarioService {
   /**
    * Guarda un conteo.
    *
-   * ⚠️ **`cantidad` no se toca.** Es lo que dice el sistema; lo que se contó
-   * va en `cantidadFisica`, y la diferencia entre las dos **es** el resultado
-   * del inventario.
+   * ⚠️ **Lo contado va en `cantidad`**, no en `cantidadFisica` — los nombres
+   * engañan. Es el campo que `finalizarInventario` suma para calcular el
+   * ajuste; `cantidadFisica` guarda el stock del sistema y se devuelve tal
+   * como vino. La diferencia entre las dos **es** el resultado del
+   * inventario, así que pisar una con la otra lo borra.
    */
   guardarItem(input: InventarioProductoItemInput): Observable<InventarioProductoItem> {
     return this.datos.mutar<InventarioProductoItem>(this.guardarItemGQL, { entity: input });

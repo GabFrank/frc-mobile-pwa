@@ -730,10 +730,32 @@ Afirma que el `postinstall` de mobile parchea el Gradle de `phonegap-plugin-barc
 
 ---
 
+### 60. 🔴 La documentación del inventario tenía `cantidad` y `cantidadFisica` al revés
+
+**Dónde:** este mismo repo — `docs/modulos/inventario.md`, `domains/inventario/inventario.model.ts`, `pages/inventario/inventario-conteo.ts`, `inventario-carga.page.ts`.
+
+Lo contado va en **`cantidad`** y el stock del sistema en **`cantidadFisica`**, al revés de lo que sugieren los nombres y de lo que este repo documentaba. Lo fija el central: `InventarioGraphQL.finalizarInventarioEnSucursal()` suma `ipi.getCantidad() * ipi.getPresentacion().getCantidad()` y le resta el saldo de `movimiento_stock`.
+
+**Por qué no se veía:** la PWA escribía el conteo en `cantidadFisica` y devolvía `cantidad` intacta, así que finalizar ajustaba el stock contra un número que nadie había contado. Hasta que la PWA no pudo **abrir** una toma, el circuito no se cerraba dentro de la app y ninguna prueba manual podía llegar al síntoma.
+
+**Estado:** corregido, con `inventario-conteo.spec.ts` citando el cálculo del central. Queda como recordatorio de que **un documento portado puede estar equivocado sobre el sistema que describe**: la regla se verificó contra el java del central y contra el diálogo de conteo de `frc-mobile`, no contra el nombre del campo.
+
+---
+
+### 61. 🟡 `frc-mobile` muta el array del servicio al filtrar zonas
+
+**Dónde:** `frc-mobile` — `edit-inventario.component.ts`, `onAddZona()`.
+
+Descuenta las zonas ya usadas con `s.zonaList = s.zonaList.filter(...)` sobre los sectores que devolvió el servicio, así que el segundo intento en la misma pantalla arranca con la lista ya recortada.
+
+**Estado:** no se porta. `zonasDisponibles()` devuelve una lista nueva y no toca la entrada.
+
+---
+
 ## Cómo usar este archivo
 
 Al arrancar la fase de corrección: convertir cada ítem en un issue, empezando por los 🔴. Los ítems 16-19, 46-48 y 50-51 son borrado o movimiento puro y pueden agruparse en un solo PR de limpieza — pero el 17 toca `capacitor.config.ts` y por lo tanto exige release nativo, y el 47 requiere actualizar un import.
 
 Los ítems 34-36 son cosméticos **con riesgo de contrato**: antes de renombrar cualquier cosa que viaje al backend, verificá el schema del central.
 
-**Resumen:** 59 hallazgos — 6 🔴, 26 🟡, 27 🟢.
+**Resumen:** 61 hallazgos — 7 🔴, 27 🟡, 27 🟢. Los dos últimos salieron al portar el alta de inventario: el #60 es un defecto **de este repo**, no de `frc-mobile`.

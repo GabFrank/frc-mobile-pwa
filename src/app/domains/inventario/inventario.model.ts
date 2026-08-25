@@ -33,22 +33,33 @@ export enum TipoInventario {
 /**
  * El conteo concreto de una presentación.
  *
- * ⚠️ **Tres cantidades, tres propósitos.** `cantidad` es lo que dice el
- * sistema y `cantidadFisica` lo que se contó: **la diferencia entre las dos
- * es el resultado del inventario**. `cantidadAnterior` permite ver la
- * evolución entre tomas. Sobrescribir `cantidad` con `cantidadFisica` borra
- * justamente el resultado.
+ * ⚠️ **Los nombres están al revés de lo que dicen.** `cantidad` es **lo que
+ * se contó** y `cantidadFisica` **lo que dice el sistema**. No es una
+ * interpretación: `InventarioGraphQL.finalizarInventarioEnSucursal()` suma
+ * `ipi.getCantidad() * presentacion.getCantidad()` y le resta el saldo de
+ * `movimiento_stock`, así que `cantidad` es el conteo para el central.
+ * `frc-mobile` coincide: su diálogo de conteo escribe `cantidad` y llena
+ * `cantidadFisica`/`cantidadAnterior` con el stock del momento.
  *
- * ⚠️ **`verificado` y `revisado` son etapas distintas.** Primero alguien
- * cuenta, después un supervisor valida.
+ * La diferencia entre las dos **es el resultado del inventario**;
+ * sobrescribir una con la otra lo borra.
+ *
+ * Esta app las tuvo al derecho por un tiempo, y la consecuencia era muda:
+ * lo contado desde el teléfono viajaba en `cantidadFisica`, que el central
+ * no mira al finalizar, así que el ajuste de stock salía de un número que
+ * nadie había contado.
+ *
+ * ⚠️ **`verificado` y `revisado` no son dos etapas sino dos resultados del
+ * mismo paso.** Los escribe quien cuenta: coincide con el sistema →
+ * `verificado`; hubo que corregir → `revisado`. Nunca las dos.
  */
 export interface InventarioProductoItem {
   id?: number;
-  /** Lo que dice el sistema. */
-  cantidad?: number;
   /** Lo que se contó realmente. */
+  cantidad?: number;
+  /** Lo que dice el sistema. */
   cantidadFisica?: number;
-  /** Lo que había en el inventario previo. */
+  /** El stock del sistema al momento de sumar el ítem a la toma. */
   cantidadAnterior?: number;
   presentacion?: Presentacion;
   verificado?: boolean;
@@ -101,6 +112,42 @@ export interface Inventario {
   usuario?: Usuario;
   observacion?: string;
   inventarioProductoList?: InventarioProducto[];
+}
+
+/**
+ * El alta o la edición de una cabecera.
+ *
+ * ⚠️ **`fechaInicio` y `fechaFin` van como texto**, no como `Date`: el
+ * `InventarioInput` del central las declara `String` y las parsea con
+ * `stringToDate`. Al abrir una toma no se mandan — la pone el central.
+ */
+export interface InventarioInput {
+  id?: number;
+  sucursalId?: number;
+  fechaInicio?: string;
+  fechaFin?: string;
+  abierto?: boolean;
+  tipo?: TipoInventario;
+  estado?: InventarioEstado;
+  observacion?: string;
+  usuarioId?: number;
+}
+
+/**
+ * Una zona dentro de una toma.
+ *
+ * ⚠️ **No lleva `productoId` ni `creadoEn`.** El `toInput()` de `frc-mobile`
+ * los manda y el `InventarioProductoInput` del central no los tiene: la
+ * validación de GraphQL rechaza la mutation entera antes de llegar al
+ * resolver. Es el mismo campo fantasma que ya tumbó consultas en este módulo
+ * — el central le sacó `producto_id` a la tabla en la migración `V61.1`.
+ */
+export interface InventarioProductoInput {
+  id?: number;
+  inventarioId?: number;
+  zonaId?: number;
+  concluido?: boolean;
+  usuarioId?: number;
 }
 
 export interface InventarioProductoItemInput {

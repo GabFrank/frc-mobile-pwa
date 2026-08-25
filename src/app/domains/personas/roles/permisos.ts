@@ -35,6 +35,21 @@ export const PERMISOS = {
   inventario: [ROLES.ADMIN, ROLES.VER_INVENTARIO],
 
   /**
+   * Abrir una toma.
+   *
+   * ⚠️ **Más restrictivo que `inventario`, por el mismo motivo que
+   * `lugares`.** `VER INVENTARIO` (36 usuarios) es mirar un conteo; abrir una
+   * toma define el alcance de lo que se va a contar y termina, al
+   * finalizarla, ajustando el stock de la sucursal contra lo contado.
+   * `CREAR INVENTARIO` (29 usuarios) es exactamente el rol de quien arma la
+   * toma.
+   *
+   * `frc-mobile` no pide ninguno: el botón «Nuevo inventario» cuelga del hub
+   * y lo ve cualquiera que llegue al módulo.
+   */
+  inventarioAlta: [ROLES.ADMIN, ROLES.CREAR_INVENTARIO],
+
+  /**
    * Sectores y zonas del depósito.
    *
    * ⚠️ **Más restrictivo que `inventario`, a propósito.** `VER INVENTARIO`

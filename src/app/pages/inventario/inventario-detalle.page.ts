@@ -31,7 +31,10 @@ import { DatosQr, QrDialogComponent } from 'src/app/shared/qr/qr-dialog.componen
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
+import { antiguedadEnDias, hayZonaSinConcluir, zonasDisponibles } from './inventario-alta';
 import { productosConcluidos, resumirInventario, resumirItems } from './inventario-conteo';
+import { DatosZona, ResultadoZona, ZonaDialogComponent } from './zona-dialog.component';
+import { SectorService } from 'src/app/domains/sector/sector.service';
 import { InventarioService } from './inventario.service';
 
 /**
@@ -73,6 +76,12 @@ import { InventarioService } from './inventario.service';
             de lo que quedó, y esa pregunta no caduca al finalizarlo.
           -->
           <button matButton (click)="revisar()">Revisar</button>
+          @if (abierto()) {
+            <button matButton [disabled]="operando()" (click)="agregarZona()">Agregar zona</button>
+          }
+          @if (puedeFinalizar()) {
+            <button matButton [disabled]="operando()" (click)="cancelar()">Cancelar toma</button>
+          }
           @if (puedeFinalizar()) {
             <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
               {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
@@ -113,7 +122,11 @@ import { InventarioService } from './inventario.service';
         @if (productos().length === 0) {
           <frc-estado-vacio
             titulo="Sin zonas"
-            detalle="Todavía no se cargó ninguna zona en esta toma."
+            [detalle]="
+              abierto()
+                ? 'Una toma se cuenta zona por zona. Agregá la primera para empezar.'
+                : 'Esta toma se cerró sin ninguna zona cargada.'
+            "
             icono="inventario"
           />
         } @else {
@@ -131,8 +144,24 @@ import { InventarioService } from './inventario.service';
                 @if (p.concluido) {
                   <span pie class="concluido">Concluido</span>
                 }
+                <!--
+                  Un bloque por botón, y no uno solo con los dos adentro: un
+                  control de flujo con más de un nodo raíz no proyecta al
+                  slot (NG8011) y los botones caen fuera del pie de la card.
+                  Sale como aviso, no como error, así que el build pasa igual.
+                -->
                 @if (abierto()) {
                   <button pie matButton (click)="contar(p)">Contar</button>
+                }
+                @if (abierto() && p.concluido) {
+                  <button pie matButton [disabled]="operando()" (click)="marcarZona(p, false)">
+                    Reabrir
+                  </button>
+                }
+                @if (abierto() && !p.concluido) {
+                  <button pie matButton [disabled]="operando()" (click)="marcarZona(p, true)">
+                    Concluir
+                  </button>
                 }
               </frc-card>
             }
@@ -158,6 +187,7 @@ import { InventarioService } from './inventario.service';
 export class InventarioDetallePage {
   private readonly router = inject(Router);
   private readonly servicio = inject(InventarioService);
+  private readonly sectores = inject(SectorService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
 
@@ -250,12 +280,19 @@ export class InventarioDetallePage {
       return;
     }
     const r = this.resumen();
+    // Finalizar no es cerrar: el central crea movimientos de ajuste que
+    // llevan el stock **de hoy** al conteo de esta toma. En una toma vieja
+    // eso es un descuadre, no un cierre, así que la confirmación lo dice y
+    // pasa a ser destructiva.
+    const dias = antiguedadEnDias(this.inventario()?.fechaInicio, new Date());
+    const vieja = dias != null && dias >= 180;
     const ok = await this.dialogo.confirmar({
       titulo: 'Finalizar inventario',
-      // Finalizar no es cerrar: aplica las diferencias contra el stock. Lo
-      // que quedó sin contar entra como diferencia.
-      mensaje: `Se aplican las diferencias al stock. Hay ${r.conDiferencia} ítems con diferencia y ${this.diferenciaTotal()} de diferencia total.`,
+      mensaje: vieja
+        ? `Esta toma lleva ${dias} días abierta. Finalizarla ajusta el stock de HOY con lo que se contó entonces. Si nadie la va a terminar, lo correcto es cancelarla.`
+        : `Se aplican las diferencias al stock. Hay ${r.conDiferencia} ítems con diferencia y ${this.diferenciaTotal()} de diferencia total.`,
       confirmar: 'Finalizar',
+      destructivo: vieja,
     });
     if (!ok) {
       return;
@@ -284,6 +321,143 @@ export class InventarioDetallePage {
   readonly abierto = computed(
     () => String(this.inventario()?.estado ?? '').toUpperCase() === 'ABIERTO',
   );
+
+  /**
+   * Cancelar la toma.
+   *
+   * ⚠️ **No es finalizar.** Cancelar pone `CANCELADO` y **desactiva** los
+   * ajustes que la toma hubiera generado; finalizar **crea** ajustes contra
+   * el stock de hoy. Para una toma que nadie va a terminar, cancelar es la
+   * salida correcta — y hasta ahora la pantalla no la ofrecía, aunque el
+   * servicio la tuviera.
+   */
+  async cancelar(): Promise<void> {
+    const inv = this.inventario();
+    if (inv?.id == null) {
+      return;
+    }
+    const ok = await this.dialogo.confirmar({
+      titulo: 'Cancelar inventario',
+      mensaje: 'La toma queda cancelada y deja de bloquear la sucursal. El stock no se toca: lo contado acá no se aplica.',
+      confirmar: 'Cancelar la toma',
+      destructivo: true,
+    });
+    if (!ok) {
+      return;
+    }
+
+    this.operando.set(true);
+    this.servicio.cancelar(inv.id).subscribe({
+      next: () => {
+        this.operando.set(false);
+        this.notificacion.ok('Inventario cancelado.');
+        this.cargar();
+      },
+      error: (err: Error) => {
+        this.operando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  /**
+   * Sumar una zona a la toma.
+   *
+   * Los sectores se piden en el momento y no al cargar la pantalla: es una
+   * consulta que solo necesita quien va a agregar, y la mayoría entra acá a
+   * mirar cómo va el conteo.
+   */
+  async agregarZona(): Promise<void> {
+    const inv = this.inventario();
+    const sucursalId = Number(inv?.sucursal?.id);
+    if (inv?.id == null || !Number.isFinite(sucursalId) || sucursalId <= 0) {
+      this.notificacion.warn('La toma no tiene sucursal: no se puede saber qué zonas ofrecer.');
+      return;
+    }
+
+    this.operando.set(true);
+    this.sectores.deSucursal(sucursalId).subscribe({
+      next: async (sectores) => {
+        this.operando.set(false);
+        const disponibles = zonasDisponibles(sectores ?? [], this.productos());
+
+        const res = await this.dialogo.abrir<ZonaDialogComponent, DatosZona, ResultadoZona>(
+          ZonaDialogComponent,
+          { disponibles, contexto: inv.sucursal?.nombre },
+        );
+        if (res?.zonaId == null) {
+          return;
+        }
+
+        this.operando.set(true);
+        this.servicio.guardarZona({ inventarioId: inv.id, zonaId: res.zonaId, concluido: false }).subscribe({
+          next: () => {
+            this.operando.set(false);
+            this.cargar();
+          },
+          error: (err: Error) => {
+            this.operando.set(false);
+            this.notificacion.danger(err.message);
+          },
+        });
+      },
+      error: (err: Error) => {
+        this.operando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  /**
+   * Concluir una zona, o volver a abrirla.
+   *
+   * ⚠️ **Una sola zona abierta a la vez.** Es la regla de `frc-mobile`
+   * (`verificarAbiertos`): con dos zonas en curso, quien cuenta pierde de
+   * vista en cuál está y los conteos se mezclan. Por eso reabrir exige que
+   * las demás estén concluidas.
+   */
+  async marcarZona(p: InventarioProducto, concluido: boolean): Promise<void> {
+    const inv = this.inventario();
+    if (inv?.id == null || p.id == null) {
+      return;
+    }
+
+    const otras = this.productos().filter((z) => z.id !== p.id);
+    if (!concluido && hayZonaSinConcluir(otras)) {
+      this.notificacion.warn(
+        'Ya tenés otra zona abierta. Concluila antes de reabrir esta.',
+      );
+      return;
+    }
+
+    const zona = this.zonaDe(p);
+    const ok = await this.dialogo.confirmar({
+      titulo: concluido ? 'Concluir zona' : 'Reabrir zona',
+      mensaje: concluido
+        ? `Se marca ${zona} como contada. Vas a poder reabrirla si hace falta.`
+        : `Se vuelve a abrir ${zona} para seguir contándola.`,
+      confirmar: concluido ? 'Concluir' : 'Reabrir',
+    });
+    if (!ok) {
+      return;
+    }
+
+    this.operando.set(true);
+    // Va el `id` del renglón: la misma mutation da de alta sin él y
+    // actualiza con él.
+    this.servicio
+      .guardarZona({ id: p.id, inventarioId: inv.id, zonaId: p.zona?.id, concluido })
+      .subscribe({
+        next: () => {
+          this.operando.set(false);
+          this.cargar();
+        },
+        error: (err: Error) => {
+          this.operando.set(false);
+          this.notificacion.danger(err.message);
+        },
+      });
+  }
 
   revisar(): void {
     const id = this.inventario()?.id;

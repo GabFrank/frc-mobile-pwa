@@ -45,9 +45,9 @@ Inventario (cabecera, por sucursal)
 
 | Campo | Significado |
 |---|---|
-| `cantidad` | Lo que dice el sistema |
-| `cantidadFisica` | **Lo que se contó realmente** |
-| `cantidadAnterior` | Lo que había en el inventario previo |
+| `cantidad` | **Lo que se contó realmente** — sí, al revés de lo que suena |
+| `cantidadFisica` | Lo que dice el sistema |
+| `cantidadAnterior` | El stock del sistema al sumar el ítem a la toma |
 | `presentacion` | Unidad, caja, pack… |
 | `verificado` | Ya se contó |
 | `revisado` | Ya pasó revisión de un supervisor |
@@ -55,9 +55,11 @@ Inventario (cabecera, por sucursal)
 | `estado` | `BUENO` / `AVERIADO` / `VENCIDO` |
 | `copiedFromItemId` | Item del que se copió — **solo en memoria de `frc-mobile`**, ver abajo |
 
-> **Regla clave — tres cantidades, tres propósitos.** `cantidad` (sistema) vs `cantidadFisica` (contado) da la diferencia del inventario actual; `cantidadAnterior` permite ver la evolución entre tomas. **Nunca sobreescribas `cantidad` con `cantidadFisica`**: la diferencia es el resultado del inventario.
+> ⚠️ **Regla clave — los nombres están al revés.** Lo contado va en **`cantidad`** y el stock del sistema en **`cantidadFisica`**. No es una interpretación: `InventarioGraphQL.finalizarInventarioEnSucursal()` suma `ipi.getCantidad() * ipi.getPresentacion().getCantidad()` y le resta el saldo de `movimiento_stock`, así que `cantidad` **es** el conteo para el central. `EditInventarioItemDialogComponent` coincide: el campo del formulario escribe `cantidad`, y `cantidadFisica`/`cantidadAnterior` se llenan con el stock del momento. La resta es el resultado del inventario; sobrescribir una con otra lo borra.
+>
+> *Este documento decía lo contrario, y la PWA lo implementó así: el conteo cargado desde el teléfono viajaba en un campo que el central no mira al finalizar.*
 
-> **Regla clave — `verificado` y `revisado` son etapas distintas.** Primero alguien cuenta (`verificado`), después un supervisor valida (`revisado`). `RevisarInventarioComponent` trabaja sobre los verificados no revisados.
+> ⚠️ **Regla clave — `verificado` y `revisado` no son dos etapas sino dos resultados del mismo paso.** Los escribe **quien cuenta**: si lo contado coincide con el sistema queda `verificado`; si hubo que corregirlo, `revisado`. Nunca las dos. `RevisarInventarioComponent` trabaja sobre los `revisado`, que son los que tuvieron diferencia.
 
 > ⚠️ **Gotcha — el conteo es por presentación, no por producto.** Un producto con presentaciones "unidad" y "caja x12" genera items separados. Sumar cantidades entre presentaciones sin convertir por `unidadPorCaja` da un número sin sentido.
 
@@ -156,7 +158,7 @@ Inventario (cabecera, por sucursal)
 
 ## Al trabajar en este módulo
 
-1. Nunca pises `cantidad` con `cantidadFisica`: la diferencia es el resultado.
+1. Lo contado es `cantidad` y el sistema `cantidadFisica`, al revés de lo que suenan. Nunca pises una con la otra: la diferencia es el resultado.
 2. El conteo es **por presentación**; convertí por `unidadPorCaja` antes de sumar.
 3. Chequeá `onGetInventarioAbiertoPorSucursal` antes de abrir uno nuevo.
 4. `onFinalizar/onCancelar/onReabrir` devuelven `Observable`, no `Promise`.
@@ -173,7 +175,8 @@ Inventario (cabecera, por sucursal)
 | Ruta | Componente |
 |---|---|
 | `/inventario` | `InventarioListaPage` |
-| `/inventario/:id` | `InventarioDetallePage` |
+| `/inventario/nuevo` | `InventarioNuevoPage` — rol `CREAR INVENTARIO` |
+| `/inventario/:id` | `InventarioDetallePage` — incluye el alta y el cierre de zonas |
 
 Las rutas de hasta **seis segmentos y cuatro parámetros** del repo anterior
 desaparecen: la geografía de zonas y sectores se gestiona desde configuración,
@@ -183,15 +186,39 @@ no desde adentro del inventario.
 
 `inventario-conteo.ts` concentra el cálculo, con tests:
 
-- **`cantidad` es lo que dice el sistema; `cantidadFisica`, lo contado.** La
-  resta **es** el resultado del inventario. Sobrescribir una con otra lo
-  borra.
+- ⚠️ **`cantidad` es lo contado; `cantidadFisica`, lo que dice el sistema.**
+  Al revés de lo que sugieren los nombres, y al revés de lo que decía este
+  documento. Lo fija el central:
+  `InventarioGraphQL.finalizarInventarioEnSucursal()` suma
+  `ipi.getCantidad() * presentacion.getCantidad()` y le resta el saldo de
+  `movimiento_stock`. `frc-mobile` coincide: el campo del diálogo de conteo
+  escribe `cantidad`, y `cantidadFisica`/`cantidadAnterior` guardan el stock
+  del momento. La resta **es** el resultado del inventario; sobrescribir una
+  con otra lo borra.
 - **Sin contar no es cero.** `diferenciaDe()` devuelve `null` cuando no hay
-  `cantidadFisica`: cero significa «contado y coincide».
+  `cantidad`: cero significa «contado y coincide».
 - **Lo arrastrado no se puede distinguir.** `copiedFromItemId` es una marca
   de memoria de `frc-mobile` que nunca llega al central: no hay columna ni
   campo. La PWA no lo pide —pedirlo tumbaba la pantalla entera con un
   `FieldUndefined`— y por eso tampoco separa lo arrastrado de lo contado.
+
+> ⚠️ **Esto estuvo al revés y no se notaba.** La PWA escribía el conteo en
+> `cantidadFisica` y devolvía `cantidad` intacta, así que
+> `finalizarInventario` ajustaba el stock contra un número que nadie había
+> contado. No podía verse en una prueba manual: hasta que la PWA no pudo
+> **abrir** una toma, el circuito nunca se cerraba dentro de la app. Lo fija
+> `inventario-conteo.spec.ts`, con un caso que cita el cálculo del central.
+
+## Quién escribe `verificado` y `revisado`
+
+Los escribe **quien cuenta**, no un supervisor aparte, comparando lo contado
+contra lo que decía el sistema: coincide → `verificado`; hubo que corregir →
+`revisado`. Nunca las dos. Vive en `marcasDeConteo()`, junto a
+`estadoDeRevision()`, que es la misma regla leída del otro lado.
+
+⚠️ La carga marcaba `verificado: true` fijo. Con eso, todo ítem contado
+aparecía en la revisión como «cantidad exacta» — incluidos los que tenían
+diferencia, que son justo los que el supervisor busca.
 
 El detalle lista **una card por zona** —`inventarioProductoList` agrupa por
 zona, no por producto— y muestra la diferencia por zona y en total, **con
@@ -218,7 +245,9 @@ diferencia y cuánto suma**, en vez de preguntar «¿seguro?».
 | ~~Revisión del supervisor~~ | ✅ `/inventario/:id/revisar`. Ver abajo |
 | ~~Gestión de zonas y sectores~~ | ✅ `/inventario/lugares`. Ver abajo |
 | ~~Reportes de control~~ | ✅ `/inventario/control`. Ver abajo |
-| Agregar a la toma un producto que no estaba | necesita `saveInventarioProducto`, que no está portado |
+| ~~**Abrir una toma**~~ | ✅ `/inventario/nuevo`, con rol propio. Ver abajo |
+| ~~Agregar zonas a la toma~~ | ✅ desde el detalle, con `saveInventarioProducto`. Ver abajo |
+| Agregar a la toma un producto que no estaba | necesita el buscador paginado y el alta de ítem |
 | Cancelar y reabrir | ya están en el servicio |
 
 ---
@@ -364,3 +393,131 @@ Aparecieron usándola, no leyéndola:
 - **`Zona.activo` estaba tipado `number`** contra un `Boolean` del schema, y
   `saveSector`/`saveZona` como si devolvieran un booleano cuando devuelven la
   entidad.
+
+---
+
+# Abrir una toma — `/inventario/nuevo`
+
+Se llega desde el botón *Nuevo inventario* de la lista. Es el paso que
+faltaba para que el ciclo entero —abrir, contar, finalizar— ocurra en el
+teléfono.
+
+## Rol propio, más restrictivo
+
+`CREAR INVENTARIO` (29 usuarios), no `VER INVENTARIO` (36): abrir una toma
+define el alcance de lo que se va a contar y, al finalizarla, ajusta el stock
+de la sucursal. `frc-mobile` no pide ninguno — el botón cuelga del hub y lo ve
+cualquiera que llegue al módulo.
+
+## Las tomas abiertas se avisan, no bloquean
+
+Al elegir la sucursal se consulta `inventarioAbiertoPorSucursal` y **se listan
+todas** las que vuelven, con quién las abrió y hace cuántos días, más un botón
+para **cancelar** cada una. El alta sigue disponible; la confirmación dice
+cuántas hay antes de abrir otra.
+
+⚠️ **Esto empezó siendo un bloqueo y los datos reales lo desmintieron.** La
+regla «una sola toma abierta por sucursal» es correcta, pero nunca se aplicó:
+en la base de bodega, **`SUC. CENTRAL` tiene 24 inventarios en estado
+`ABIERTO`** —el más viejo de mayo de 2023, casi todos de otra gente y sin
+ítems cargados— y en toda la tabla hay **2.851 filas donde `estado` y
+`abierto` no coinciden**. Con un bloqueo, cerrás una y aparece la siguiente: el
+alta quedaba inutilizable.
+
+⚠️ **Y el bloqueo empujaba a la peor salida.** La única forma de destrabarlo
+era *Finalizar*, y finalizar una toma de 2023 hace que el central cree
+movimientos de ajuste que llevan el stock **de hoy** al conteo de entonces. Por
+eso ahora la pantalla ofrece **Cancelar**, que era el remedio correcto y estaba
+en el servicio sin que ninguna pantalla lo usara.
+
+| | Qué le hace al stock |
+|---|---|
+| **Cancelar** | Nada. Pone `CANCELADO` y **desactiva** los ajustes que la toma hubiera generado |
+| **Finalizar** | **Crea** ajustes que llevan el stock de hoy a lo contado en esa toma |
+
+`frc-mobile` también avisa y sigue. La diferencia es que acá el aviso dice
+**cuántas** son: ver una sola hace pensar «la cierro y sigo»; ver que son 24
+dice que el problema es otro.
+
+⚠️ `frc-mobile` tiene ese chequeo escrito y **nunca lo ejecuta**: vive en
+`cargarDatos()`, que solo se llama desde `onScanQr()`, dentro de un bloque
+oculto por `[hidden]="isNew"` con `isNew` siempre en `true`. Desde el hub, el
+alta pasa de largo.
+
+⚠️ Y su confirmación es `if (res.role = 'aceptar')` — una **asignación**, no
+una comparación. Cancelar crea el inventario igual.
+
+**Si la consulta falla, se avisa pero no se afirma que la sucursal está
+limpia.** «No hay ninguna» y «no pude preguntar» son respuestas distintas.
+
+## Finalizar una toma vieja lo dice
+
+Cuando la toma lleva **180 días o más** abierta, la confirmación de *Finalizar*
+cambia: dice cuántos días lleva, que va a ajustar el stock de hoy con lo que se
+contó entonces, y que si nadie la va a terminar lo correcto es cancelarla. El
+diálogo pasa a ser destructivo.
+
+El detalle también ofrece **Cancelar toma** junto a *Finalizar*, con el
+inventario abierto.
+
+## Solo sucursales operables, y el tipo no se elige
+
+Sin depósito no hay stock que contar: `SERVIDOR` y `COMPRAS` quedan afuera por
+`soloOperables()`. El tipo es siempre `ZONA`, como en `frc-mobile`: toda la
+app —el detalle, la carga, la revisión— cuenta por zona. Un `ABC` o un
+`CATEGORIA` define su alcance en el escritorio.
+
+⚠️ **El input no lleva `id`.** `saveInventario` decide que es un alta con
+`input.getId() == null`, y de eso depende que dispare el aviso push de
+«inventario iniciado» a los roles de inventario.
+
+---
+
+# Zonas de la toma — dentro de `/inventario/:id`
+
+Con el inventario abierto, el detalle suma *Agregar zona* y, por zona,
+*Concluir* / *Reabrir*.
+
+⚠️ **Un `@if` por botón, no uno con los tres adentro.** Un bloque de control
+de flujo con más de un nodo raíz **no proyecta al slot** y los botones caen
+sueltos en el cuerpo de la card en vez del pie. Angular lo avisa con `NG8011`,
+que es un **warning**: el build pasa igual y solo se ve mirando la pantalla.
+Lo cuida `inventario-zonas.spec.ts`, que mira **dónde** está el botón y no si
+su texto aparece — con la proyección rota el texto está igual, en el lugar
+equivocado. Es la segunda vez que se cae en esto; la primera fue el botón de
+guardar de la carga del conteo.
+
+Los sectores se piden **al tocar el botón**, no al cargar la pantalla: es una
+consulta que solo necesita quien va a agregar, y la mayoría entra al detalle a
+mirar cómo va el conteo.
+
+## Qué zonas se ofrecen
+
+`zonasDisponibles()` descuenta las que **ya están en la toma** y las
+**inactivas**.
+
+⚠️ La unicidad de `inventario_producto` es `(inventario_id, zona_id)`:
+ofrecer una repetida termina en un error del central donde tenía que haber una
+lista más corta. `frc-mobile` también las descuenta, con un `filter` sobre
+`s.zonaList` que **muta el array del servicio** — el segundo intento en la
+misma pantalla arranca con la lista ya recortada.
+
+El selector es una **lista con filtro por texto**, no un acordeón de sectores:
+un depósito grande tiene decenas de zonas y se las busca por nombre.
+
+## Una sola zona abierta a la vez
+
+Reabrir una zona con otra sin concluir queda bloqueado, igual que en
+`verificarAbiertos()` de `frc-mobile`: con dos zonas en curso, quien cuenta
+pierde de vista en cuál está y los conteos se mezclan.
+
+`concluido` sin valor cuenta como abierta — el central deja la columna en
+`null` hasta que alguien la concluye.
+
+## El input de la zona no lleva `productoId` ni `creadoEn`
+
+El `toInput()` de `frc-mobile` los manda igual. El
+`InventarioProductoInput` del central no los declara, así que la validación de
+GraphQL rechaza la mutation entera antes de llegar al resolver — el mismo
+campo fantasma que ya tumbó consultas acá: el central le sacó `producto_id` a
+la tabla en la migración `V61.1`.

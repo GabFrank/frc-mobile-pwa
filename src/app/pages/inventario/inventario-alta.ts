@@ -3,9 +3,12 @@ import {
   InventarioEstado,
   InventarioInput,
   InventarioProducto,
+  InventarioProductoItem,
+  InventarioProductoItemInput,
   TipoInventario,
 } from 'src/app/domains/inventario/inventario.model';
 import type { Sector } from 'src/app/domains/sector/sector.model';
+import { marcasDeConteo } from './revision-item';
 
 /** Una zona que todavía se puede sumar a la toma. */
 export interface ZonaDisponible {
@@ -162,4 +165,62 @@ function sufijoAntiguedad(inventario: Inventario, ahora: Date): string {
     return '';
   }
   return `, desde hace ${dias} días`;
+}
+
+/**
+ * Si esa presentación ya está contada en la zona.
+ *
+ * ⚠️ **La clave real es `(inventario_producto, presentacion)`**, no el
+ * producto: «unidad» y «caja x12» son dos ítems legítimos del mismo
+ * producto. Pero dos renglones de la **misma** presentación dan un conteo
+ * sumado que no corresponde a nada — el central los suma a los dos al
+ * finalizar.
+ *
+ * Los ids se comparan como texto porque GraphQL los devuelve a veces como
+ * número y a veces como string.
+ */
+export function presentacionYaEnLaZona(
+  items: InventarioProductoItem[] | undefined | null,
+  presentacionId: number,
+): boolean {
+  return (items ?? []).some(
+    (item) => String(item.presentacion?.id ?? '') === String(presentacionId),
+  );
+}
+
+/**
+ * El ítem que se crea al sumar un producto a la zona.
+ *
+ * ⚠️ **El stock del sistema va a `cantidadFisica`, no a `cantidad`.** Los
+ * nombres engañan y esta es la trampa: `cantidad` es lo contado y es lo que
+ * el central suma al finalizar. Ponerle el stock ahí haría que la toma se
+ * cerrara sola, con cero diferencia, sin que nadie hubiera contado.
+ *
+ * Nace sin `verificado` ni `revisado`: son el resultado de contar, y todavía
+ * no contó nadie. La excepción es el peso de un código de balanza, que **es**
+ * el conteo — pesar, escanear la etiqueta y que la cantidad salga del código
+ * es el flujo real de la balanza.
+ */
+export function nuevoItemInput(datos: {
+  inventarioProductoId: number;
+  presentacionId: number;
+  stock: number | null | undefined;
+  usuarioId: number;
+  peso?: number;
+}): InventarioProductoItemInput {
+  const sistema = datos.stock ?? 0;
+  const base: InventarioProductoItemInput = {
+    inventarioProductoId: datos.inventarioProductoId,
+    presentacionId: datos.presentacionId,
+    cantidadFisica: sistema,
+    cantidadAnterior: sistema,
+    usuarioId: datos.usuarioId,
+    verificado: false,
+    revisado: false,
+  };
+
+  if (datos.peso == null) {
+    return base;
+  }
+  return { ...base, cantidad: datos.peso, ...marcasDeConteo(datos.peso, sistema) };
 }

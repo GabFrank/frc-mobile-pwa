@@ -247,7 +247,8 @@ diferencia y cuánto suma**, en vez de preguntar «¿seguro?».
 | ~~Reportes de control~~ | ✅ `/inventario/control`. Ver abajo |
 | ~~**Abrir una toma**~~ | ✅ `/inventario/nuevo`, con rol propio. Ver abajo |
 | ~~Agregar zonas a la toma~~ | ✅ desde el detalle, con `saveInventarioProducto`. Ver abajo |
-| Agregar a la toma un producto que no estaba | necesita el buscador paginado y el alta de ítem |
+| ~~Agregar a la toma un producto que no estaba~~ | ✅ con el buscador, desde la pantalla de conteo. Ver abajo |
+| Arrastrar el conteo de una toma anterior | `getInventarioItemsDeInventariosAnteriores` está; la marca de lo arrastrado no llega al central |
 | Cancelar y reabrir | ya están en el servicio |
 
 ---
@@ -275,16 +276,38 @@ vencimiento y el estado.
 > `presentacion.producto`. Titularlo con `InventarioProducto.producto` era
 > imposible: ese campo no existe en el central.
 
-## Lo que no se puede hacer desde acá
+## Agregar un producto a la zona
 
-**Agregar a la toma un producto que no estaba.**
-`saveInventarioProductoItem` resuelve `inventarioProductoId` pero **no lo
-crea**, y `saveInventarioProducto` no está portado. Abrir el inventario —donde
-se define el alcance— sigue siendo del escritorio.
+*Agregar producto* abre `frc-buscador-producto-dialog`, el mismo buscador de
+la pestaña Buscar: descripción, código, cámara y códigos de balanza. Recibe la
+sucursal de la toma, así que muestra el stock de cada producto antes de
+elegirlo.
 
-Guardar va **de a un ítem**, porque no hay mutation de lote, y espera a que
-terminen todas antes de recargar: recargar en el medio mostraría la lista a
-mitad de camino. Si alguna falla, lo dice y recarga igual, para que se vea lo
+El ítem se **persiste al elegirlo**, con el stock del sistema y sin conteo, y
+la lista se recarga. Así hay una sola fuente de verdad —lo que dice el
+central— y no un renglón a medio existir que se pierde si alguien sale de la
+pantalla antes de guardar.
+
+⚠️ **El stock va a `cantidadFisica`, no a `cantidad`.** Es la trampa de este
+módulo aplicada al alta: `cantidad` es lo contado y es lo que el central suma
+al finalizar. Ponerle el stock ahí haría que la toma se cerrara sola, con cero
+diferencia, sin que nadie hubiera contado. El ítem nace sin `verificado` ni
+`revisado` — son el resultado de contar, y todavía no contó nadie.
+
+**El peso de un código de balanza entra como lo contado.** Pesar, escanear la
+etiqueta y que la cantidad salga del código es el flujo real de la balanza.
+
+**Una presentación que ya está en la zona no se duplica.** La clave real es
+`(inventario_producto, presentacion)`: dos renglones de lo mismo se suman los
+dos al finalizar. Otra presentación del mismo producto sí se puede agregar —
+«unidad» y «caja x12» son dos ítems legítimos.
+
+**Si no se pudo consultar el stock, no se agrega.** Un cero inventado diría que
+el sistema no tiene nada de ese producto, que es una afirmación que nadie hizo.
+
+Guardar el conteo va **de a un ítem**, porque no hay mutation de lote, y espera
+a que terminen todas antes de recargar: recargar en el medio mostraría la lista
+a mitad de camino. Si alguna falla, lo dice y recarga igual, para que se vea lo
 que sí entró.
 
 ---
@@ -504,6 +527,27 @@ misma pantalla arranca con la lista ya recortada.
 
 El selector es una **lista con filtro por texto**, no un acordeón de sectores:
 un depósito grande tiene decenas de zonas y se las busca por nombre.
+
+## Crear la zona que falta, sin salir de la toma
+
+Si la zona no existe, el mismo diálogo la crea: sector —de los que hay, o uno
+nuevo escrito ahí— y descripción. La zona recién creada **se suma a la toma sin
+un segundo paso**, como si se la hubiera elegido de la lista.
+
+Es lo que hace útil el flujo de `frc-mobile`, que anida la gestión de lugares
+adentro del inventario: encontrarse con que falta una zona **con la mercadería
+delante** no puede obligar a salir, ir a otra pantalla y volver. La diferencia
+es que acá solo se **crea**; administrar, desactivar y borrar sigue en
+`/inventario/lugares`, y no se heredan las seis rutas anidadas.
+
+⚠️ **Tres escrituras encadenadas y ninguna transacción.** Sector, zona y
+renglón de la toma. Si falla la zona, el sector ya quedó creado: se avisa qué
+pasó y se recarga, en vez de decir «no se pudo» sobre algo que sí ocurrió —
+negarlo deja a la persona creando el sector de nuevo y duplicándolo.
+
+**Mayúsculas al guardar, titlecase al mostrar**, igual que en Lugares del
+depósito: en el central conviven cargas de años distintos y se comparan por
+texto.
 
 ## Una sola zona abierta a la vez
 

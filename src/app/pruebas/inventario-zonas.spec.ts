@@ -1,11 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
 import { SectorService } from '../domains/sector/sector.service';
+import { ZonaService } from '../domains/zona/zona.service';
 import type { Zona } from '../domains/zona/zona.model';
 import { InventarioEstado } from '../domains/inventario/inventario.model';
 import type { InventarioProducto } from '../domains/inventario/inventario.model';
@@ -21,7 +22,8 @@ describe('Zonas de la toma', () => {
     guardarZona: ReturnType<typeof vi.fn>;
     finalizar: ReturnType<typeof vi.fn>;
   };
-  let sectores: { deSucursal: ReturnType<typeof vi.fn> };
+  let sectores: { deSucursal: ReturnType<typeof vi.fn>; guardar: ReturnType<typeof vi.fn> };
+  let zonas: { guardar: ReturnType<typeof vi.fn> };
   let dialogo: { confirmar: ReturnType<typeof vi.fn>; abrir: ReturnType<typeof vi.fn> };
   let notificacion: { warn: ReturnType<typeof vi.fn>; danger: ReturnType<typeof vi.fn>; ok: ReturnType<typeof vi.fn> };
 
@@ -51,7 +53,8 @@ describe('Zonas de la toma', () => {
       guardarZona: vi.fn(() => of({ id: 91 })),
       finalizar: vi.fn(() => of({ id: 5 })),
     };
-    sectores = { deSucursal: vi.fn(() => of([])) };
+    sectores = { deSucursal: vi.fn(() => of([])), guardar: vi.fn(() => of({ id: 55 })) };
+    zonas = { guardar: vi.fn(() => of({ id: 77 })) };
     dialogo = { confirmar: vi.fn(async () => true), abrir: vi.fn(async () => undefined) };
     notificacion = { warn: vi.fn(), danger: vi.fn(), ok: vi.fn() };
 
@@ -60,6 +63,7 @@ describe('Zonas de la toma', () => {
         provideRouter([]),
         { provide: InventarioService, useValue: servicio },
         { provide: SectorService, useValue: sectores },
+        { provide: ZonaService, useValue: zonas },
         { provide: DialogoService, useValue: dialogo },
         { provide: NotificacionService, useValue: notificacion },
       ],
@@ -151,7 +155,7 @@ describe('Zonas de la toma', () => {
         },
       ]),
     );
-    dialogo.abrir = vi.fn(async () => ({ zonaId: 12 }));
+    dialogo.abrir = vi.fn(async () => ({ accion: 'elegir', zonaId: 12 }));
 
     const f = montar();
     await f.componentInstance.agregarZona();
@@ -166,5 +170,101 @@ describe('Zonas de la toma', () => {
       zonaId: 12,
       concluido: false,
     });
+  });
+
+  /**
+   * Crear al paso lo que falta para poder contar.
+   *
+   * Sin esto, encontrarse con que la zona no existe obliga a salir del
+   * inventario, ir a Lugares del depósito, crearla y volver — con la
+   * mercadería delante. `frc-mobile` lo resuelve anidando la gestión de
+   * lugares adentro de la toma; acá se crea solamente lo que hace falta.
+   */
+  const SECTORES = [
+    { id: 1, descripcion: 'gondola', zonaList: [{ id: 11, descripcion: 'estante alto', activo: true }] },
+  ];
+
+  it('crear una zona en un sector que ya existe la suma a la toma', async () => {
+    sectores.deSucursal = vi.fn(() => of(SECTORES));
+    dialogo.abrir = vi.fn(async () => ({
+      accion: 'crear',
+      descripcion: 'RACK NUEVO',
+      sectorId: 1,
+    }));
+
+    const f = montar();
+    await f.componentInstance.agregarZona();
+    await f.whenStable();
+
+    // No crea sector: ya había uno elegido.
+    expect(sectores.guardar).not.toHaveBeenCalled();
+    expect(zonas.guardar).toHaveBeenCalledWith({
+      sectorId: 1,
+      descripcion: 'RACK NUEVO',
+      activo: true,
+    });
+    // Y la zona recién creada entra a la toma sin un segundo paso.
+    expect(servicio.guardarZona).toHaveBeenCalledWith({
+      inventarioId: 5,
+      zonaId: 77,
+      concluido: false,
+    });
+  });
+
+  it('si el sector tampoco está, lo crea antes y usa su id', async () => {
+    sectores.deSucursal = vi.fn(() => of(SECTORES));
+    dialogo.abrir = vi.fn(async () => ({
+      accion: 'crear',
+      descripcion: 'RACK NUEVO',
+      sectorId: null,
+      sectorNuevo: 'DEPOSITO FONDO',
+    }));
+
+    const f = montar();
+    await f.componentInstance.agregarZona();
+    await f.whenStable();
+
+    expect(sectores.guardar).toHaveBeenCalledWith({
+      sucursalId: 3,
+      descripcion: 'DEPOSITO FONDO',
+      activo: true,
+    });
+    // El 55 sale del sector recién creado, no del que venía en la lista.
+    expect(zonas.guardar).toHaveBeenCalledWith({
+      sectorId: 55,
+      descripcion: 'RACK NUEVO',
+      activo: true,
+    });
+  });
+
+  it('si falla la zona, no dice que no se pudo hacer nada', async () => {
+    // El sector ya quedó creado: negarlo deja al usuario creándolo de nuevo
+    // y duplicándolo.
+    sectores.deSucursal = vi.fn(() => of(SECTORES));
+    zonas.guardar = vi.fn(() => throwError(() => new Error('descripcion duplicada')));
+    dialogo.abrir = vi.fn(async () => ({
+      accion: 'crear',
+      descripcion: 'ESTANTE ALTO',
+      sectorId: 1,
+    }));
+
+    const f = montar();
+    await f.componentInstance.agregarZona();
+    await f.whenStable();
+
+    expect(notificacion.danger).toHaveBeenCalledWith('descripcion duplicada');
+    expect(servicio.guardarZona).not.toHaveBeenCalled();
+  });
+
+  it('cerrar el diálogo sin elegir no escribe nada', async () => {
+    sectores.deSucursal = vi.fn(() => of(SECTORES));
+    dialogo.abrir = vi.fn(async () => undefined);
+
+    const f = montar();
+    await f.componentInstance.agregarZona();
+    await f.whenStable();
+
+    expect(zonas.guardar).not.toHaveBeenCalled();
+    expect(servicio.guardarZona).not.toHaveBeenCalled();
   });
 });

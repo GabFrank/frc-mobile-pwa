@@ -2834,8 +2834,36 @@ eso» en vez de quedar en blanco.
 
 1. Agregá **todas** las zonas de la sucursal a la toma y tocá *Agregar zona*.
 
-**Esperado:** el diálogo explica que no quedan zonas y que hay que crearlas en
-Lugares del depósito. No un diálogo vacío.
+**Esperado:** el diálogo explica que no quedan zonas y ofrece **Crear una
+zona**. No un diálogo vacío.
+
+### 40.5b · Crear la zona que falta, en un sector que ya existe
+
+1. En *Agregar zona*, tocá **No está la zona**.
+2. Elegí un sector, escribí el nombre de la zona y tocá **Crear**.
+
+**Esperado:** la zona se crea y **queda agregada a la toma en un solo paso**,
+sin volver a la lista a elegirla. Aparece su card en el detalle.
+
+**Verificá también** que en Lugares del depósito la zona nueva figura dentro
+del sector elegido, **en mayúsculas** en la base y mostrada con inicial
+mayúscula en pantalla.
+
+### 40.5c · Crear también el sector
+
+1. En el formulario de zona nueva, tocá **El sector tampoco está**.
+2. Escribí el nombre del sector y el de la zona, y tocá **Crear**.
+
+**Esperado:** se crean los dos y la zona entra a la toma. En Lugares del
+depósito aparece el sector nuevo con esa única zona.
+
+### 40.5d · Si la zona falla, el sector no se pierde
+
+1. Repetí 40.5b usando el nombre de una zona **que ya exista en ese sector**.
+
+**Esperado:** avisa el error del central. Al volver a abrir *Agregar zona* →
+*No está la zona*, el sector que hayas creado **sigue estando en el selector**:
+no hay que crearlo de nuevo.
 
 ### 40.6 · Concluir una zona
 
@@ -2857,6 +2885,80 @@ esta» y **no** la reabre. Concluí la abierta y repetí: ahora sí reabre.
 
 **Esperado:** desaparecen *Agregar zona*, *Concluir*, *Reabrir* y *Contar*. Solo
 queda *Revisar*: un conteo cerrado es un hecho histórico.
+
+---
+
+## Bloque 42 — Agregar un producto al conteo *(nuevo)*
+
+**Necesita:** una toma abierta con al menos una zona, y productos con código de
+barras a mano.
+
+### 42.1 · El botón está incluso con la zona vacía
+
+1. Agregá una zona nueva a la toma y tocá *Contar*.
+
+**Esperado:** la pantalla dice que la zona todavía no tiene productos e invita
+a agregar el primero. El botón **Agregar producto** está en la barra de abajo.
+
+### 42.2 · Buscar por descripción
+
+1. Tocá *Agregar producto* y escribí parte del nombre de un producto.
+2. Elegí una presentación.
+
+**Esperado:** el ítem aparece en la lista con **Sistema** ya cargado con el
+stock de esa sucursal y el campo **Contado en blanco**. Escribí una cantidad y
+guardá.
+
+### 42.3 · Buscar por código de barras
+
+1. Tocá *Agregar producto* y escribí el código de barras completo.
+
+**Esperado:** encuentra el producto igual que por descripción.
+
+### 42.4 · Escanear con la cámara
+
+1. Tocá *Agregar producto* y después el ícono de la cámara.
+2. Escaneá un producto de la góndola.
+
+**Esperado:** lo encuentra y lo suma al conteo. **Probalo en el teléfono
+real**, no solo en Chrome.
+
+### 42.5 · Un código de balanza trae el peso como conteo
+
+1. Pesá un producto en la balanza, y escaneá la etiqueta que imprime.
+
+**Esperado:** el ítem entra con **Contado ya cargado con los kilos** del
+código, y *Sistema* con el stock. La diferencia se ve enseguida.
+
+### 42.6 · No se duplica una presentación
+
+1. Agregá un producto y, sin salir, volvé a *Agregar producto* y elegí **la
+   misma presentación**.
+
+**Esperado:** avisa que ya está en esta zona y **no la agrega de nuevo**. Dos
+renglones de lo mismo se suman los dos al finalizar.
+
+### 42.7 · Otra presentación del mismo producto sí entra
+
+1. Con un producto que tenga «unidad» y «caja», agregá las dos.
+
+**Esperado:** entran las dos como ítems separados. Es correcto: el conteo es
+por presentación.
+
+### 42.8 · Con la toma cerrada no aparece
+
+1. Finalizá o cancelá la toma y entrá a una zona.
+
+**Esperado:** no está el botón *Agregar producto*. El alcance de una toma
+cerrada ya es un hecho histórico.
+
+### 42.9 · Sin conexión no agrega con un cero inventado
+
+1. Cortá la conexión y tocá *Agregar producto*, eligiendo algo.
+
+**Esperado:** avisa el error y **no crea el ítem**. Lo que no puede pasar es
+que lo agregue con Sistema en 0: eso afirmaría que no hay stock de ese
+producto.
 
 ---
 
@@ -2974,9 +3076,10 @@ de la sucursal, y el stock queda igual.
 | 37 · Configuración del kiosco | 7 | 4 | | |
 | 38 · Notificaciones push | 9 | 6 | | |
 | 39 · Abrir una toma de inventario | 10 | | | |
-| 40 · Zonas de la toma | 8 | | | |
+| 40 · Zonas de la toma | 11 | | | |
 | 41 · Lo contado llega al stock | 6 | | | |
-| **Total** | **307** | | | |
+| 42 · Agregar un producto al conteo | 9 | | | |
+| **Total** | **319** | | | |
 
 ### Los cinco que más importan
 

@@ -7,6 +7,8 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { of } from 'rxjs';
+
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -28,6 +30,11 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
 import { etiquetaPresentacion } from 'src/app/shared/producto/presentacion.util';
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
+import { BuscadorProductoDialogComponent } from 'src/app/shared/producto/buscador-producto-dialog.component';
+import type { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/buscador.types';
+import { nuevoItemInput, presentacionYaEnLaZona } from './inventario-alta';
 import { diferenciaDe } from './inventario-conteo';
 import { marcasDeConteo } from './revision-item';
 import { InventarioService } from './inventario.service';
@@ -62,9 +69,9 @@ const ESTADOS: OpcionSeleccion[] = [
  * Regresión: se escribía al revés, así que nada de lo contado desde el
  * teléfono llegaba al cálculo de finalización.
  *
- * ⚠️ **Solo se cuentan presentaciones que ya están en el inventario.** El
- * central resuelve `inventarioProductoId` pero no lo crea: agregar a la zona
- * un producto que la toma no incluye sigue siendo del escritorio.
+ * **Agregar producto** suma a la zona una presentación que la toma no
+ * incluía, con el buscador que ya existe: busca por descripción, por código,
+ * escanea con la cámara y entiende los códigos de balanza.
  */
 @Component({
   selector: 'frc-inventario-carga',
@@ -90,7 +97,11 @@ const ESTADOS: OpcionSeleccion[] = [
       } @else if (items().length === 0) {
         <frc-estado-vacio
           titulo="Sin ítems que contar"
-          detalle="Esta zona no tiene presentaciones cargadas en esta toma."
+          [detalle]="
+            puedeAgregar()
+              ? 'Esta zona todavía no tiene productos. Agregá el primero para empezar a contar.'
+              : 'Esta zona no tiene presentaciones cargadas en esta toma.'
+          "
           icono="inventario"
         />
       } @else {
@@ -142,11 +153,18 @@ const ESTADOS: OpcionSeleccion[] = [
         con más de un nodo raíz no proyecta al slot (NG8011), y el botón de
         guardar caía en el cuerpo en vez de la barra fija.
       -->
-      @if (items().length > 0 && !cargando() && !error()) {
+      @if (!cargando() && !error()) {
         <div acciones>
-          <button matButton="filled" [disabled]="!hayCambios() || guardando()" (click)="guardar()">
-            {{ guardando() ? 'Guardando…' : 'Guardar conteo (' + cambiados().length + ')' }}
-          </button>
+          @if (puedeAgregar()) {
+            <button matButton [disabled]="agregando() || guardando()" (click)="agregarProducto()">
+              {{ agregando() ? 'Agregando…' : 'Agregar producto' }}
+            </button>
+          }
+          @if (items().length > 0) {
+            <button matButton="filled" [disabled]="!hayCambios() || guardando()" (click)="guardar()">
+              {{ guardando() ? 'Guardando…' : 'Guardar conteo (' + cambiados().length + ')' }}
+            </button>
+          }
         </div>
       }
     </frc-pagina>
@@ -165,6 +183,8 @@ const ESTADOS: OpcionSeleccion[] = [
 })
 export class InventarioCargaPage {
   private readonly servicio = inject(InventarioService);
+  private readonly busqueda = inject(ProductoBusquedaService);
+  private readonly dialogo = inject(DialogoService);
   private readonly auth = inject(AuthService);
   private readonly notificacion = inject(NotificacionService);
 
@@ -177,6 +197,7 @@ export class InventarioCargaPage {
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
+  readonly agregando = signal(false);
 
   /** Lo editado, por id de ítem. Vacío hasta que alguien escribe. */
   private readonly edicion = signal<
@@ -285,6 +306,107 @@ export class InventarioCargaPage {
    * Se espera a que terminen todas antes de recargar, porque recargar en el
    * medio traería la lista a mitad de camino.
    */
+  /**
+   * Solo se agrega a una toma abierta.
+   *
+   * Cerrada o cancelada, el alcance del conteo ya es un hecho histórico:
+   * sumarle un producto cambiaría qué se contó en una toma que ya ajustó el
+   * stock.
+   */
+  readonly puedeAgregar = computed(
+    () => String(this.inventario()?.estado ?? '').toUpperCase() === 'ABIERTO',
+  );
+
+  /**
+   * Sumar a la zona una presentación que la toma no incluía.
+   *
+   * El ítem se **persiste al elegirlo**, con el stock del sistema y sin
+   * conteo, y la lista se recarga: así hay una sola fuente de verdad —lo que
+   * dice el central— y no un renglón a medio existir que se pierde si alguien
+   * sale de la pantalla antes de guardar.
+   */
+  async agregarProducto(): Promise<void> {
+    const inventarioProductoId = Number(this.producto()?.id);
+    const sucursalId = Number(this.inventario()?.sucursal?.id);
+    const usuarioId = this.auth.usuario()?.id;
+
+    if (!Number.isFinite(inventarioProductoId) || usuarioId == null) {
+      this.notificacion.warn('No se pudo identificar la zona o el usuario.');
+      return;
+    }
+
+    const opciones: OpcionesBuscador = {
+      devuelve: 'presentacion',
+      // Con la sucursal, el buscador muestra el stock de cada producto: es lo
+      // que deja ver contra qué se va a comparar antes de agregarlo.
+      sucursalId: Number.isFinite(sucursalId) ? sucursalId : undefined,
+      mostrarPrecio: false,
+      etiquetaCampo: 'Código, descripción o escaneo',
+    };
+
+    const elegido = await this.dialogo.abrir<
+      BuscadorProductoDialogComponent,
+      { titulo: string; opciones: OpcionesBuscador },
+      SeleccionProducto | undefined
+    >(BuscadorProductoDialogComponent, { titulo: 'Agregar al conteo', opciones });
+
+    const presentacionId = Number(elegido?.presentacion?.id);
+    const productoId = Number(elegido?.producto?.id);
+    if (!Number.isFinite(presentacionId) || presentacionId <= 0) {
+      return;
+    }
+
+    if (presentacionYaEnLaZona(this.producto()?.inventarioProductoItemList, presentacionId)) {
+      // Dos renglones de la misma presentación se suman los dos al finalizar.
+      this.notificacion.warn('Esa presentación ya está en esta zona.');
+      return;
+    }
+
+    this.agregando.set(true);
+    this.stockDe(productoId, sucursalId).subscribe({
+      next: (stock) => {
+        this.servicio
+          .guardarItem(
+            nuevoItemInput({
+              inventarioProductoId,
+              presentacionId,
+              stock,
+              usuarioId,
+              peso: elegido?.peso,
+            }),
+          )
+          .subscribe({
+            next: () => {
+              this.agregando.set(false);
+              this.cargar();
+            },
+            error: (err: Error) => {
+              this.agregando.set(false);
+              this.notificacion.danger(err.message);
+            },
+          });
+      },
+      error: (err: Error) => {
+        this.agregando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  /**
+   * El stock del sistema para el ítem nuevo.
+   *
+   * Sin sucursal no se puede preguntar, y **cero no es la respuesta**: se
+   * agrega con el sistema en cero y la diferencia sale de lo que se cuente.
+   * Es explícito para que no parezca que el central dijo que no hay nada.
+   */
+  private stockDe(productoId: number, sucursalId: number) {
+    if (!Number.isFinite(productoId) || !Number.isFinite(sucursalId)) {
+      return of(0);
+    }
+    return this.busqueda.stock(productoId, sucursalId);
+  }
+
   guardar(): void {
     const filas = this.cambiados().filter((f) => f.contado != null);
     if (filas.length === 0) {

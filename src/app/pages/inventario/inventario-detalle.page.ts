@@ -8,6 +8,8 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { of } from 'rxjs';
+import { map, switchMap } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
 
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
@@ -35,6 +37,7 @@ import { antiguedadEnDias, hayZonaSinConcluir, zonasDisponibles } from './invent
 import { productosConcluidos, resumirInventario, resumirItems } from './inventario-conteo';
 import { DatosZona, ResultadoZona, ZonaDialogComponent } from './zona-dialog.component';
 import { SectorService } from 'src/app/domains/sector/sector.service';
+import { ZonaService } from 'src/app/domains/zona/zona.service';
 import { InventarioService } from './inventario.service';
 
 /**
@@ -188,6 +191,7 @@ export class InventarioDetallePage {
   private readonly router = inject(Router);
   private readonly servicio = inject(InventarioService);
   private readonly sectores = inject(SectorService);
+  private readonly zonas = inject(ZonaService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
 
@@ -383,29 +387,91 @@ export class InventarioDetallePage {
 
         const res = await this.dialogo.abrir<ZonaDialogComponent, DatosZona, ResultadoZona>(
           ZonaDialogComponent,
-          { disponibles, contexto: inv.sucursal?.nombre },
+          { disponibles, sectores: sectores ?? [], contexto: inv.sucursal?.nombre },
         );
-        if (res?.zonaId == null) {
+        if (res == null) {
           return;
         }
 
-        this.operando.set(true);
-        this.servicio.guardarZona({ inventarioId: inv.id, zonaId: res.zonaId, concluido: false }).subscribe({
-          next: () => {
-            this.operando.set(false);
-            this.cargar();
-          },
-          error: (err: Error) => {
-            this.operando.set(false);
-            this.notificacion.danger(err.message);
-          },
-        });
+        if (res.accion === 'elegir') {
+          this.sumarZonaALaToma(inv.id as number, res.zonaId);
+          return;
+        }
+        this.crearZonaYSumarla(inv.id as number, sucursalId, res);
       },
       error: (err: Error) => {
         this.operando.set(false);
         this.notificacion.danger(err.message);
       },
     });
+  }
+
+  private sumarZonaALaToma(inventarioId: number, zonaId: number): void {
+    this.operando.set(true);
+    this.servicio.guardarZona({ inventarioId, zonaId, concluido: false }).subscribe({
+      next: () => {
+        this.operando.set(false);
+        this.cargar();
+      },
+      error: (err: Error) => {
+        this.operando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  /**
+   * Crear la zona que falta —y su sector si tampoco está— y sumarla a la toma.
+   *
+   * ⚠️ **Tres escrituras encadenadas y ninguna transacción.** Si falla la
+   * zona, el sector ya quedó creado; se avisa qué se pudo hacer en vez de
+   * decir «no se pudo» sobre algo que sí ocurrió, porque el sector huérfano
+   * está ahí y el siguiente intento tiene que poder elegirlo.
+   */
+  private crearZonaYSumarla(
+    inventarioId: number,
+    sucursalId: number,
+    pedido: Extract<ResultadoZona, { accion: 'crear' }>,
+  ): void {
+    this.operando.set(true);
+
+    const sector$ = pedido.sectorNuevo
+      ? this.sectores
+          .guardar({ sucursalId, descripcion: pedido.sectorNuevo, activo: true })
+          .pipe(map((s) => Number(s?.id)))
+      : of(pedido.sectorId as number);
+
+    sector$
+      .pipe(
+        switchMap((sectorId) => {
+          if (!Number.isFinite(sectorId) || sectorId <= 0) {
+            throw new Error('El central no devolvió el sector creado.');
+          }
+          return this.zonas.guardar({
+            sectorId,
+            descripcion: pedido.descripcion,
+            activo: true,
+          });
+        }),
+      )
+      .subscribe({
+        next: (zona) => {
+          this.operando.set(false);
+          const zonaId = Number(zona?.id);
+          if (!Number.isFinite(zonaId) || zonaId <= 0) {
+            this.notificacion.danger('El central no devolvió la zona creada.');
+            return;
+          }
+          this.sumarZonaALaToma(inventarioId, zonaId);
+        },
+        error: (err: Error) => {
+          this.operando.set(false);
+          this.notificacion.danger(err.message);
+          // Puede haber quedado un sector nuevo: recargar deja la próxima
+          // apertura del diálogo viéndolo.
+          this.cargar();
+        },
+      });
   }
 
   /**

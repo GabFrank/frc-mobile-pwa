@@ -7,9 +7,9 @@ import {
 export interface ResumenConteo {
   /** Ítems con cantidad contada. */
   contados: number;
-  /** De esos, los que ya pasó a revisar un supervisor. */
+  /** De esos, los que quedaron marcados como corregidos por un supervisor. */
   revisados: number;
-  /** Suma de las diferencias sistema − contado. */
+  /** Suma de las diferencias contado − sistema. */
   diferencia: number;
   /** Ítems donde lo contado no coincide con el sistema. */
   conDiferencia: number;
@@ -20,16 +20,32 @@ export interface ResumenConteo {
  *
  * Positivo es sobrante, negativo es faltante. `null` si todavía no se contó
  * — que no es lo mismo que una diferencia de cero.
+ *
+ * ⚠️ **Los nombres de los campos están al revés de lo que sugieren.** Lo
+ * contado va en `cantidad`; el stock del sistema, en `cantidadFisica`. No es
+ * una interpretación: `InventarioGraphQL.finalizarInventarioEnSucursal()`
+ * suma `ipi.getCantidad() * presentacion.getCantidad()` y le resta el saldo
+ * de `movimiento_stock`, así que `cantidad` **es** el conteo para el central.
+ * `frc-mobile` coincide: el campo del diálogo de conteo escribe `cantidad`, y
+ * `cantidadFisica`/`cantidadAnterior` guardan el stock al crear el ítem.
+ *
+ * Leerlo al derecho —como hacía esta función— dejaba el conteo cargado desde
+ * la PWA fuera del cálculo de finalización: el central ajustaba el stock
+ * contra un número que nadie contó.
  */
 export function diferenciaDe(item: InventarioProductoItem): number | null {
-  if (item.cantidadFisica == null) {
+  if (item.cantidad == null) {
     return null;
   }
-  return item.cantidadFisica - (item.cantidad ?? 0);
+  return item.cantidad - (item.cantidadFisica ?? 0);
 }
 
 /**
- * Contado es tener `cantidadFisica`; cero cuenta, `null` no.
+ * Contado es tener `cantidad`; cero cuenta, `null` no.
+ *
+ * Un ítem recién sumado a la toma llega con `cantidadFisica` cargada —el
+ * stock del sistema— y `cantidad` vacía: trae el número del sistema, pero
+ * nadie fue a la góndola todavía.
  *
  * ⚠️ **No hay forma de saber si un ítem se arrastró de una toma anterior.**
  * `frc-mobile` lo marca con `copiedFromItemId`, pero es una marca de memoria
@@ -37,7 +53,7 @@ export function diferenciaDe(item: InventarioProductoItem): number | null {
  * guardarla. Pedirla hacía que rechazara la consulta entera.
  */
 export function fueContadoEnEstaToma(item: InventarioProductoItem): boolean {
-  return item.cantidadFisica != null;
+  return item.cantidad != null;
 }
 
 /** Resume una lista de ítems. */

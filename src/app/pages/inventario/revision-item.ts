@@ -45,3 +45,30 @@ const TEXTOS: Record<EstadoRevision, string> = {
 export function textoDeRevision(estado: EstadoRevision): string {
   return TEXTOS[estado];
 }
+
+/** Las dos marcas que lleva un ítem al guardarse un conteo. */
+export interface MarcasDeConteo {
+  verificado: boolean;
+  revisado: boolean;
+}
+
+/**
+ * Qué marcas le corresponden a un conteo recién cargado.
+ *
+ * ⚠️ **Las escribe quien cuenta, no un supervisor aparte.** Salen de
+ * comparar lo contado contra lo que decía el sistema, que es lo que hace
+ * `frc-mobile` al guardar el ítem. Son excluyentes por construcción: es la
+ * misma regla que {@link estadoDeRevision} lee del otro lado.
+ *
+ * Regresión: la carga marcaba `verificado: true` fijo. Con eso, todo ítem
+ * contado aparecía como «cantidad exacta» en la pantalla de revisión —
+ * incluidos los que tenían diferencia, que son justo los que el supervisor
+ * está buscando.
+ */
+export function marcasDeConteo(
+  contado: number,
+  sistema: number | null | undefined,
+): MarcasDeConteo {
+  const coincide = contado === (sistema ?? 0);
+  return { verificado: coincide, revisado: !coincide };
+}

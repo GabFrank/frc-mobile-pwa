@@ -29,6 +29,7 @@ import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
 import { etiquetaPresentacion } from 'src/app/shared/producto/presentacion.util';
 import { diferenciaDe } from './inventario-conteo';
+import { marcasDeConteo } from './revision-item';
 import { InventarioService } from './inventario.service';
 
 const ESTADOS: OpcionSeleccion[] = [
@@ -52,16 +53,18 @@ const ESTADOS: OpcionSeleccion[] = [
  * «unidad» y «caja x12» tiene un ítem por cada una: sumarlos sin convertir
  * da un número sin sentido.
  *
- * ⚠️ **`cantidad` no se toca.** Es lo que dice el sistema, y la diferencia
- * contra `cantidadFisica` **es** el resultado del inventario. Pisar una con
- * la otra borra justamente el resultado; por eso acá solo se escribe
- * `cantidadFisica`.
+ * ⚠️ **Los campos están al revés de lo que sugieren sus nombres.** Lo que se
+ * cuenta va en `cantidad`; el stock del sistema, en `cantidadFisica`. Lo fija
+ * el central: `finalizarInventarioEnSucursal()` suma `cantidad` y le resta el
+ * saldo de `movimiento_stock`. Esta pantalla escribe `cantidad` y devuelve
+ * `cantidadFisica` tal como vino.
+ *
+ * Regresión: se escribía al revés, así que nada de lo contado desde el
+ * teléfono llegaba al cálculo de finalización.
  *
  * ⚠️ **Solo se cuentan presentaciones que ya están en el inventario.** El
- * central resuelve `inventarioProductoId` pero no lo crea: agregar un
- * producto que la toma no incluye necesita `saveInventarioProducto`, que no
- * está portado. Abrir el inventario —donde se define el alcance— sigue
- * siendo del escritorio.
+ * central resuelve `inventarioProductoId` pero no lo crea: agregar a la zona
+ * un producto que la toma no incluye sigue siendo del escritorio.
  */
 @Component({
   selector: 'frc-inventario-carga',
@@ -195,8 +198,10 @@ export class InventarioCargaPage {
     return (this.producto()?.inventarioProductoItemList ?? []).map((item) => {
       const itemId = Number(item.id);
       const cambio = cambios.get(itemId);
-      const contado = cambio?.contado !== undefined ? cambio.contado : item.cantidadFisica ?? null;
-      const sistema = item.cantidad ?? 0;
+      // Lo contado es `cantidad` y el stock del sistema `cantidadFisica`:
+      // los nombres engañan, pero es el par que usa el central al finalizar.
+      const contado = cambio?.contado !== undefined ? cambio.contado : item.cantidad ?? null;
+      const sistema = item.cantidadFisica ?? 0;
       return {
         itemId,
         // El producto cuelga de la presentación: `InventarioProducto` es la
@@ -301,14 +306,15 @@ export class InventarioCargaPage {
           id: item.id,
           inventarioProductoId,
           presentacionId: item.presentacion?.id,
-          // `cantidad` viaja igual que vino: es lo que dice el sistema y
-          // pisarla con lo contado borra el resultado del inventario.
-          cantidad: item.cantidad,
-          cantidadFisica: fila.contado ?? undefined,
+          // Lo contado va en `cantidad`, que es el campo que el central
+          // suma al finalizar. `cantidadFisica` —el stock del sistema—
+          // viaja igual que vino: pisarla borra contra qué se comparó.
+          cantidad: fila.contado ?? undefined,
+          cantidadFisica: item.cantidadFisica,
           cantidadAnterior: item.cantidadAnterior,
           vencimiento: fila.vencimiento || undefined,
           estado: fila.estado as InventarioProductoEstado,
-          verificado: true,
+          ...marcasDeConteo(fila.contado ?? 0, item.cantidadFisica),
           usuarioId,
         })
         .subscribe({

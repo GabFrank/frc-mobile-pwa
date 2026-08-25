@@ -1,7 +1,7 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
@@ -259,6 +259,76 @@ describe('Zonas de la toma', () => {
 
     expect(notificacion.danger).toHaveBeenCalledWith('descripcion duplicada');
     expect(servicio.guardarZona).not.toHaveBeenCalled();
+  });
+
+  /**
+   * ⚠️ **Un menú renderiza en un overlay, fuera del árbol del componente.**
+   * Mirar `nativeElement.textContent` daría siempre vacío y el test pasaría
+   * sin probar nada — que es peor que no tenerlo. Hay que abrirlo y buscar en
+   * el contenedor del overlay.
+   */
+  describe('Menú de acciones', () => {
+    const abrirMenu = (f: ComponentFixture<InventarioDetallePage>) => {
+      const disparador = f.nativeElement.querySelector(
+        '[aria-label="Más opciones"]',
+      ) as HTMLButtonElement;
+      disparador.click();
+      f.detectChanges();
+      return [
+        ...document.querySelectorAll('.mat-mdc-menu-content [mat-menu-item], .mat-mdc-menu-content button'),
+      ].map((b) => b.textContent?.trim());
+    };
+
+    afterEach(() => {
+      document.querySelectorAll('.cdk-overlay-container').forEach((n) => n.remove());
+    });
+
+    /**
+     * Regresión: el disparador y el `<mat-menu>` vivían en el mismo `@if`.
+     * Con más de un nodo raíz, Angular **no proyecta al slot** —lo avisa con
+     * NG8011, que es un warning y no frena el build— y el botón terminaba
+     * suelto en el cuerpo de la página, debajo de la barra roja y centrado.
+     * Por eso se mira **dónde** está, no si existe.
+     */
+    it('el disparador va en la barra superior, no en el cuerpo', () => {
+      const f = montar();
+      const barra = f.nativeElement.querySelector('header.barra') as HTMLElement;
+
+      expect(barra.querySelector('[aria-label="Más opciones"]')).not.toBeNull();
+    });
+
+    it('la barra de abajo queda solo con la acción principal', () => {
+      // Con los cuatro botones apilados, la barra fija se comía media
+      // pantalla y tapaba justo lo que hay que mirar: el conteo.
+      const f = montar();
+      const pie = f.nativeElement.querySelector('footer.acciones') as HTMLElement;
+      const textos = [...pie.querySelectorAll('button')].map((b) => b.textContent?.trim());
+
+      expect(textos).toEqual(['Finalizar inventario']);
+    });
+
+    it('lo secundario sigue siendo alcanzable desde el menú', () => {
+      const f = montar();
+      const items = abrirMenu(f);
+
+      expect(items).toContain('Revisar');
+      expect(items).toContain('Agregar zona');
+      expect(items).toContain('Cancelar toma');
+      expect(items).toContain('Compartir por QR');
+    });
+
+    it('con la toma cerrada el menú no ofrece escribir', () => {
+      servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO, [ZONA_ABIERTA])));
+      const f = montar();
+      const items = abrirMenu(f);
+
+      // Revisar y Compartir sí: leer lo que quedó no caduca al finalizar.
+      expect(items).toContain('Revisar');
+      expect(items).not.toContain('Agregar zona');
+      expect(items).not.toContain('Cancelar toma');
+      // Y sin acción principal, la barra de abajo no existe.
+      expect(f.nativeElement.querySelector('footer.acciones button')).toBeNull();
+    });
   });
 
   /**

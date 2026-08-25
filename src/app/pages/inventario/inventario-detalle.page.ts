@@ -11,6 +11,7 @@ import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
@@ -67,31 +68,55 @@ import { InventarioService } from './inventario.service';
     EstadoVacioComponent,
     EstadoErrorComponent,
     MatButtonModule,
+    MatMenuModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Inventario" [conVolver]="true">
-      <button accionBarra type="button" class="icono-compartir" aria-label="Compartir por QR" (click)="compartir()">
-        <frc-icono nombre="codigo" [tamano]="22" />
-      </button>
+      <!--
+        Todo lo secundario va al menú y abajo queda solo la acción principal.
+        Con cuatro botones apilados, la barra fija se comía media pantalla del
+        teléfono — y lo que hay que ver es el conteo, no los botones.
+
+        ⚠️ El botón va solo dentro del @if y el menú queda AFUERA: un bloque de
+        control de flujo con más de un nodo raíz no proyecta al slot (NG8011),
+        y el disparador terminaba suelto en el cuerpo de la página en vez de la
+        barra superior. Sale como aviso, así que el build pasa igual.
+      -->
       @if (inventario()) {
+        <button
+          accionBarra
+          type="button"
+          class="icono-barra"
+          [matMenuTriggerFor]="menu"
+          aria-label="Más opciones"
+        >
+          <frc-icono nombre="masOpciones" [tamano]="22" />
+        </button>
+      }
+
+      <mat-menu #menu="matMenu">
+        <!--
+          Revisar sigue disponible con el inventario cerrado: es la lectura
+          de lo que quedó, y esa pregunta no caduca al finalizarlo.
+        -->
+        <button mat-menu-item (click)="revisar()">Revisar</button>
+        @if (abierto()) {
+          <button mat-menu-item [disabled]="operando()" (click)="agregarZona()">
+            Agregar zona
+          </button>
+          <button mat-menu-item [disabled]="operando()" (click)="cancelar()">
+            Cancelar toma
+          </button>
+        }
+        <button mat-menu-item (click)="compartir()">Compartir por QR</button>
+      </mat-menu>
+
+      @if (puedeFinalizar()) {
         <div acciones>
-          <!--
-            Revisar sigue disponible con el inventario cerrado: es la lectura
-            de lo que quedó, y esa pregunta no caduca al finalizarlo.
-          -->
-          <button matButton (click)="revisar()">Revisar</button>
-          @if (abierto()) {
-            <button matButton [disabled]="operando()" (click)="agregarZona()">Agregar zona</button>
-          }
-          @if (puedeFinalizar()) {
-            <button matButton [disabled]="operando()" (click)="cancelar()">Cancelar toma</button>
-          }
-          @if (puedeFinalizar()) {
-            <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
-              {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
-            </button>
-          }
+          <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
+            {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
+          </button>
         </div>
       }
 
@@ -167,7 +192,7 @@ import { InventarioService } from './inventario.service';
                   slot (NG8011) y los botones caen fuera del pie de la card.
                   Sale como aviso, no como error, así que el build pasa igual.
                 -->
-                @if (abierto()) {
+              @if (abierto()) {
                   <button pie matButton (click)="contar(p)">Contar</button>
                 }
                 @if (abierto() && p.concluido) {
@@ -199,6 +224,21 @@ import { InventarioService } from './inventario.service';
       color: var(--text-mute);
     }
     .concluido { color: var(--ok); }
+    /*
+      Mismo aspecto que el botón de volver de la barra: es contenido
+      proyectado, así que hereda la encapsulación de esta pantalla y no puede
+      usar la clase que define frc-pagina.
+    */
+    .icono-barra {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: var(--sp-1);
+      border-radius: var(--radius-sm);
+      line-height: 0;
+    }
+    .icono-barra:hover { background: rgb(255 255 255 / 0.16); }
     .aviso {
       display: flex;
       align-items: center;

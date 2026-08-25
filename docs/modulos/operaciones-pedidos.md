@@ -328,6 +328,16 @@ El diálogo trae los lotes ya registrados del producto con `lotesPorProducto`
 **bloqueados y en cuarentena a propósito**: si el operador está por recibir
 uno de ésos hay que avisarle, no esconderlo.
 
+**Con el campo vacío no se sugiere nada.** Un producto de rotación alta junta
+un lote por compra, y a los pocos meses son cientos: volcarlos al abrir el
+diálogo empujaba el vencimiento y el retiro fuera de la pantalla, que es
+justamente lo que hay que cargar. El reconocimiento arranca con la primera
+tecla —`MIN_CARACTERES_LOTE`—, corta en seis opciones y **dice cuántas
+coincidencias quedaron afuera**: un corte silencioso se lee como «no hay más»
+y el operador termina creando un lote nuevo teniendo el suyo registrado.
+Cuando ninguna coincide, el texto avisa que ese número va a crear un lote
+nuevo; cuando coincide entero, lo dice el aviso de «lote ya registrado».
+
 Las reglas puras están en `recepcion-lote.ts`, con tests en
 `pruebas/recepcion-lote.spec.ts`.
 

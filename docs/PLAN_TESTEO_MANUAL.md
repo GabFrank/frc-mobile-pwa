@@ -1469,6 +1469,39 @@ pasar que todo el stock quede en el último número tipeado.
 el central** a partir de los días de vencimiento del producto (o vacía si el
 producto no los tiene configurados).
 
+### 20.29 · Los lotes aparecen mientras se tipea, no antes *(el que importa)*
+
+> Hace falta un producto con **varios lotes ya registrados** — cuantos más,
+> mejor: el caso existe justamente para los productos que juntan cientos.
+
+1. Abrir la verificación de ese producto
+
+**Esperado:** debajo de *Número de lote* **no hay ninguna lista**. La ayuda
+del campo dice que al escribir el número aparecen los lotes registrados, y
+enseguida están *Vencimiento* y *Fecha de retiro*, **a la vista sin
+scrollear**.
+
+2. Escribir el **primer carácter** del número
+
+**Esperado:** aparecen las opciones que coinciden, como máximo **seis**, con
+su vencimiento, su retiro y su estado. Tocar una completa el campo.
+
+3. Seguir escribiendo hasta que ninguna coincida
+
+**Esperado:** la lista desaparece y avisa que **ningún lote registrado
+coincide: se va a crear uno nuevo** con ese número. No es un error — se puede
+guardar igual.
+
+4. Borrar todo el campo
+
+**Esperado:** vuelve al estado del paso 1. La lista no reaparece.
+
+5. Con un producto que tenga **más de seis** lotes, escribir un carácter que
+   coincida con muchos
+
+**Esperado:** debajo de las seis opciones dice **cuántas quedaron afuera** y
+que hay que seguir escribiendo. Nunca corta en silencio.
+
 ---
 
 ## Bloque 21 — Solicitud de pago a proveedor *(nuevo)*
@@ -2794,7 +2827,7 @@ no va a preguntar.
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |
-| 20 · Recepción de mercadería | 28 | | | |
+| 20 · Recepción de mercadería | 29 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
 | 22 · Crédito en Inicio | 6 | | | |
 | 23 · Escáner universal | 9 | 3 | | |
@@ -2813,7 +2846,7 @@ no va a preguntar.
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
 | 38 · Notificaciones push | 9 | 6 | | |
-| **Total** | **291** | | | |
+| **Total** | **292** | | | |
 
 ### Los cinco que más importan
 

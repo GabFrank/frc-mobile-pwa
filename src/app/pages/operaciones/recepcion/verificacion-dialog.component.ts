@@ -49,6 +49,7 @@ import {
   fechaDeLote,
   indexarLotes,
   sugerenciasDeLote,
+  textoDeSugerencias,
   validarLoteDeVerificacion,
 } from './recepcion-lote';
 import { RecepcionService } from './recepcion.service';
@@ -189,7 +190,12 @@ interface Linea {
           <h3 class="titulo">Trazabilidad</h3>
 
           @if (requiereLote) {
-            <mat-form-field appearance="outline" class="campo">
+            <!--
+              subscriptSizing dinámico: la ayuda ocupa dos renglones en un
+              teléfono angosto y con la altura fija de Material se montaba
+              encima de la etiqueta del campo siguiente.
+            -->
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
               <mat-label>Número de lote</mat-label>
               <input
                 matInput
@@ -198,16 +204,16 @@ interface Linea {
                 [ngModel]="lote()"
                 (ngModelChange)="escribirLote($event)"
               />
-              <mat-hint>Obligatorio: este producto se mueve por lote.</mat-hint>
+              <mat-hint>Obligatorio: al escribir aparecen los lotes registrados.</mat-hint>
             </mat-form-field>
 
             @if (avisoLote(); as aviso) {
               <p class="aviso" [class.atencion]="aviso.requiereAtencion">{{ aviso.texto }}</p>
             }
 
-            @if (sugerencias().length > 0) {
+            @if (sugerencias().opciones.length > 0) {
               <ul class="sugerencias">
-                @for (s of sugerencias(); track s.numeroLote) {
+                @for (s of sugerencias().opciones; track s.numeroLote) {
                   <li>
                     <button
                       type="button"
@@ -222,9 +228,13 @@ interface Linea {
                 }
               </ul>
             }
+
+            @if (ayudaSugerencias(); as ayuda) {
+              <p class="aviso">{{ ayuda }}</p>
+            }
           }
 
-          <mat-form-field appearance="outline" class="campo">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
             <mat-label>Vencimiento</mat-label>
             <input
               matInput
@@ -236,7 +246,7 @@ interface Linea {
           </mat-form-field>
 
           @if (requiereLote) {
-            <mat-form-field appearance="outline" class="campo">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
               <mat-label>Fecha de retiro</mat-label>
               <input
                 matInput
@@ -300,7 +310,17 @@ interface Linea {
     }
     .aviso { margin: 0; font-size: var(--fs-caption); color: var(--text-soft); }
     .aviso.atencion { color: var(--danger); }
-    .sugerencias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+    .sugerencias {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      /* Tope duro: con seis opciones el vencimiento seguiría a la vista. */
+      max-height: 40vh;
+      overflow-y: auto;
+    }
     .sugerencia {
       width: 100%;
       display: flex;
@@ -453,8 +473,19 @@ export class VerificacionDialogComponent {
       : 'Opcional: sin ella la calcula el central.',
   );
 
-  /** Filtra sobre la lista ya cargada: no hay una consulta por tecla. */
+  /**
+   * Filtra sobre la lista ya cargada: no hay una consulta por tecla.
+   *
+   * Solo aparecen **mientras se tipea**. Un producto de rotación alta junta
+   * cientos de lotes y volcarlos todos al abrir el diálogo tapaba el
+   * vencimiento y el retiro, que es lo que hay que cargar.
+   */
   readonly sugerencias = computed(() => sugerenciasDeLote(this.lotesDelProducto(), this.lote()));
+
+  /** Por qué no hay sugerencias, o qué queda fuera del corte. */
+  readonly ayudaSugerencias = computed(() =>
+    textoDeSugerencias(this.sugerencias(), this.lote(), !!this.loteExistente()),
+  );
 
   /** Fechas que escribió el reconocimiento de lote, para poder deshacerlas. */
   private autocompletado = { vencimiento: '', fechaRetiro: '' };

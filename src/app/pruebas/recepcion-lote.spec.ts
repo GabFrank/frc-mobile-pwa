@@ -6,6 +6,7 @@ import {
   fechaDeLote,
   indexarLotes,
   sugerenciasDeLote,
+  textoDeSugerencias,
   validarLoteDeVerificacion,
 } from '../pages/operaciones/recepcion/recepcion-lote';
 
@@ -83,33 +84,74 @@ describe('Sugerencias mientras se tipea', () => {
     lote({ id: 3, numeroLote: 'X-AB' }),
   ];
 
-  it('sin filtro ofrece todos, que es volver a recibir un lote ya comprado', () => {
-    expect(sugerenciasDeLote(lotes, '').map((s) => s.numeroLote)).toEqual(['AB-1', 'AB-2', 'X-AB']);
+  const numeros = (filtro: string, max?: number) =>
+    sugerenciasDeLote(lotes, filtro, max).opciones.map((s) => s.numeroLote);
+
+  it('con el campo vacío no ofrece nada: es un reconocimiento, no un catálogo', () => {
+    // Un producto de rotación alta junta cientos de lotes; volcarlos al abrir
+    // el diálogo tapa el vencimiento y el retiro, que es lo que hay que cargar.
+    expect(sugerenciasDeLote(lotes, '')).toEqual({ opciones: [], restantes: 0 });
+    expect(sugerenciasDeLote(lotes, '   ')).toEqual({ opciones: [], restantes: 0 });
+  });
+
+  it('con la primera tecla ya sugiere', () => {
+    expect(numeros('a')).toEqual(['AB-1', 'AB-2', 'X-AB']);
   });
 
   it('los que empiezan con lo tipeado van antes que los que lo contienen', () => {
-    expect(sugerenciasDeLote(lotes, 'ab').map((s) => s.numeroLote)).toEqual([
-      'AB-1',
-      'AB-2',
-      'X-AB',
-    ]);
+    expect(numeros('ab')).toEqual(['AB-1', 'AB-2', 'X-AB']);
   });
 
   it('no repite el que ya está tipeado entero: ése se anuncia como lote registrado', () => {
     // 'AB-1' coincide exacto y queda fuera; 'AB-10' sigue siendo una sugerencia
     // útil, porque el operador todavía puede estar tipeando.
     const conPrefijo = lotes.concat(lote({ id: 4, numeroLote: 'AB-10' }));
-    expect(sugerenciasDeLote(conPrefijo, 'ab-1').map((s) => s.numeroLote)).toEqual(['AB-10']);
+    expect(sugerenciasDeLote(conPrefijo, 'ab-1', 6).opciones.map((s) => s.numeroLote)).toEqual([
+      'AB-10',
+    ]);
   });
 
-  it('corta en el tope para no volverse un listado', () => {
+  it('corta en el tope y dice cuántas quedaron afuera', () => {
     const muchos = Array.from({ length: 20 }, (_, i) => lote({ id: i, numeroLote: 'L' + i }));
-    expect(sugerenciasDeLote(muchos, '', 6)).toHaveLength(6);
+    const sugerencias = sugerenciasDeLote(muchos, 'l', 6);
+    // Cortar en silencio se lee como «no hay más» y el operador termina
+    // creando un lote nuevo teniendo el suyo registrado.
+    expect(sugerencias.opciones).toHaveLength(6);
+    expect(sugerencias.restantes).toBe(14);
   });
 
   it('marca el que está fuera de circulación', () => {
-    const [sugerencia] = sugerenciasDeLote([lote({ estado: EstadoLote.CUARENTENA })], '');
+    const [sugerencia] = sugerenciasDeLote(
+      [lote({ estado: EstadoLote.CUARENTENA })],
+      'l-1',
+    ).opciones;
     expect(sugerencia.requiereAtencion).toBe(true);
+  });
+});
+
+describe('Qué se dice debajo del campo de lote', () => {
+  const sinNada = { opciones: [], restantes: 0 };
+
+  it('con el campo vacío no dice nada: eso ya lo anuncia la ayuda del campo', () => {
+    expect(textoDeSugerencias(sinNada, '', false)).toBeNull();
+  });
+
+  it('sin coincidencias avisa que el lote va a ser nuevo', () => {
+    expect(textoDeSugerencias(sinNada, 'ZZ-9', false)).toContain('se va a crear uno nuevo');
+  });
+
+  it('un lote reconocido no necesita explicación: ya la da el aviso de arriba', () => {
+    expect(textoDeSugerencias(sinNada, 'AB-1', true)).toBeNull();
+  });
+
+  it('con sugerencias a la vista y nada cortado no dice nada', () => {
+    const sugerencias = sugerenciasDeLote([lote({ numeroLote: 'AB-1' })], 'ab');
+    expect(textoDeSugerencias(sugerencias, 'ab', false)).toBeNull();
+  });
+
+  it('cuando cortó, dice cuántas faltan y en singular si es una', () => {
+    expect(textoDeSugerencias({ opciones: [], restantes: 1 }, 'a', false)).toContain('1 lote más');
+    expect(textoDeSugerencias({ opciones: [], restantes: 4 }, 'a', false)).toContain('4 lotes más');
   });
 });
 

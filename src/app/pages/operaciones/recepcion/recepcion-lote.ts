@@ -22,6 +22,17 @@ import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 /** Más que esto deja de ser una ayuda y pasa a ser un listado. */
 export const MAX_SUGERENCIAS_LOTE = 6;
 
+/**
+ * Nada se sugiere con el campo vacío.
+ *
+ * Un producto que se mueve por lote acumula uno por compra: a los pocos meses
+ * son cientos, y volcarlos apenas se abre el diálogo empuja el vencimiento y
+ * el retiro fuera de la pantalla. El número está impreso en la caja que el
+ * operador tiene en la mano, así que el reconocimiento arranca con la primera
+ * tecla y no antes.
+ */
+export const MIN_CARACTERES_LOTE = 1;
+
 /** Una opción del reconocimiento de lote, con todo ya formateado. */
 export interface LoteSugerido {
   numeroLote: string;
@@ -29,6 +40,18 @@ export interface LoteSugerido {
   detalle: string;
   /** Fuera de circulación —bloqueado o en cuarentena—: la opción va en rojo. */
   requiereAtencion: boolean;
+}
+
+/** Lo que el diálogo pinta debajo del campo de lote. */
+export interface SugerenciasLote {
+  /** Las que entran, ya cortadas en `max`. */
+  opciones: LoteSugerido[];
+  /**
+   * Coincidencias que quedaron afuera del corte. Se anuncian: cortar en
+   * silencio se lee como «no hay más» y el operador tipea un lote nuevo
+   * teniendo el suyo registrado.
+   */
+  restantes: number;
 }
 
 /**
@@ -85,8 +108,12 @@ export function indexarLotes(lotes: Lote[]): Map<string, Lote> {
 }
 
 /**
- * Lotes que empiezan con lo tipeado y después los que lo contienen; dentro de
- * cada grupo se respeta el orden FEFO con el que llegaron.
+ * Lo que se ofrece mientras se tipea: los que empiezan con lo escrito y
+ * después los que lo contienen; dentro de cada grupo se respeta el orden FEFO
+ * con el que llegaron.
+ *
+ * **Con el campo vacío no se ofrece nada.** Es un reconocimiento, no un
+ * catálogo: ver `MIN_CARACTERES_LOTE`.
  *
  * El que ya está tipeado entero **no** se sugiere: ese se anuncia como «lote
  * ya registrado», que dice más que repetirlo en una lista.
@@ -95,8 +122,12 @@ export function sugerenciasDeLote(
   lotes: Lote[],
   filtroCrudo: string,
   max = MAX_SUGERENCIAS_LOTE,
-): LoteSugerido[] {
+): SugerenciasLote {
   const filtro = normalizarNumeroLote(filtroCrudo);
+  if (filtro.length < MIN_CARACTERES_LOTE) {
+    return { opciones: [], restantes: 0 };
+  }
+
   const empiezan: Lote[] = [];
   const contienen: Lote[] = [];
 
@@ -105,21 +136,48 @@ export function sugerenciasDeLote(
     if (!numero || numero === filtro) {
       continue;
     }
-    if (!filtro || numero.startsWith(filtro)) {
+    if (numero.startsWith(filtro)) {
       empiezan.push(lote);
     } else if (numero.includes(filtro)) {
       contienen.push(lote);
     }
   }
 
-  return empiezan
-    .concat(contienen)
-    .slice(0, max)
-    .map((lote) => ({
+  const coincidencias = empiezan.concat(contienen);
+  return {
+    opciones: coincidencias.slice(0, max).map((lote) => ({
       numeroLote: lote.numeroLote ?? '',
       detalle: detalleDeLote(lote),
       requiereAtencion: loteRequiereAtencion(lote),
-    }));
+    })),
+    restantes: Math.max(0, coincidencias.length - max),
+  };
+}
+
+/**
+ * Qué decir debajo de las sugerencias, o `null` si no hay nada que decir.
+ *
+ * Con el campo vacío no dice nada: eso ya lo anuncia la ayuda del campo, y
+ * repetirlo sería empujar el vencimiento una línea más abajo por nada.
+ */
+export function textoDeSugerencias(
+  sugerencias: SugerenciasLote,
+  tipeado: string,
+  hayLoteExistente: boolean,
+): string | null {
+  if (sugerencias.restantes > 0) {
+    const cuantos =
+      sugerencias.restantes === 1 ? '1 lote más' : sugerencias.restantes + ' lotes más';
+    return 'Coinciden ' + cuantos + ': seguí escribiendo para achicar la lista.';
+  }
+  if (
+    sugerencias.opciones.length > 0 ||
+    hayLoteExistente ||
+    normalizarNumeroLote(tipeado).length < MIN_CARACTERES_LOTE
+  ) {
+    return null;
+  }
+  return 'Ningún lote registrado coincide: se va a crear uno nuevo con este número.';
 }
 
 /**

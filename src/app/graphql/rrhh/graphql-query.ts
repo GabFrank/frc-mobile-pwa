@@ -85,6 +85,20 @@ export const aprobarVacacionMobileMutation = gql`
   }
 `;
 
+// Los cuatro fichajes de la jornada, para el historial.
+//
+// ⚠️ **Solo campos propios de `Marcacion`.** `usuario`, `sucursalEntrada` y
+// `sucursalSalida` son relaciones LAZY en el central: pedirlas acá las
+// resolvería fuera de la transacción del resolver. Con `id`, `tipo` y las dos
+// fechas alcanza para mostrar el horario, y es exactamente lo que ya pide
+// `estadoMarcacionUsuario`, que funciona contra el central real.
+const fichaje = `
+  id
+  tipo
+  fechaEntrada
+  fechaSalida
+`;
+
 // `page`/`size` son opcionales en el schema para no romper clientes viejos,
 // pero acá se mandan siempre: sin ellos el central devuelve una fila por cada
 // día trabajado desde que el funcionario entró.
@@ -92,6 +106,10 @@ export const misMarcacionesMobileQuery = gql`
   query ($usuarioId: ID!, $page: Int, $size: Int) {
     data: misMarcacionesMobile(usuarioId: $usuarioId, page: $page, size: $size) {
       id fecha minutosTrabajados minutosExtras minutosLlegadaTardia estado
+      marcacionEntrada { ${fichaje} }
+      marcacionSalidaAlmuerzo { ${fichaje} }
+      marcacionEntradaAlmuerzo { ${fichaje} }
+      marcacionSalida { ${fichaje} }
     }
   }
 `;

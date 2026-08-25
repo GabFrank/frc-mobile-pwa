@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -8,6 +17,7 @@ import { AuthService } from 'src/app/core/auth/auth.service';
 import { PdfService } from 'src/app/core/ui/pdf.service';
 import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
 import { RoleService } from 'src/app/domains/personas/roles/role.service';
+import { HorarioMarcado, horariosDeJornada } from 'src/app/domains/marcacion/jornada.util';
 import { Jornada, Recibo, ResumenRrhh, Vacacion, Vale } from 'src/app/domains/rrhh/rrhh.model';
 import { convertMsToTime, fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
@@ -71,6 +81,19 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
       trae ancho automático: sin esto queda chico dentro de su celda.
     */
     .mas { align-self: center; margin-top: var(--sp-3); }
+    /*
+      Cada fichaje como una pastilla propia. Junta en una sola línea de texto,
+      la hora se lee peor que el resto del renglón, y es lo único que se viene
+      a mirar acá.
+    */
+    .horario {
+      font-size: var(--fs-caption);
+      color: var(--text-soft);
+      background: var(--surface-sunken);
+      border-radius: var(--radius-full);
+      padding: 2px var(--sp-2);
+      white-space: nowrap;
+    }
   `,
   template: `
     <frc-pagina titulo="Mi trabajo" [conVolver]="true">
@@ -175,6 +198,14 @@ const SEGMENTOS: readonly { clave: Segmento; etiqueta: string }[] = [
                 icono="reloj"
                 [clickable]="false"
               >
+                <!--
+                  Los horarios van al pie y no al subtítulo: el subtítulo es
+                  una sola línea con puntos suspensivos, y un día con almuerzo
+                  tiene cuatro fichajes que no entran. El pie acomoda en varias.
+                -->
+                @for (h of horarios(j); track h.clave) {
+                  <span pie class="horario">{{ h.etiqueta }} {{ h.hora }}</span>
+                }
                 <!-- Sin estado no hay chip: uno vacío ocupa lugar sin decir nada. -->
                 @if (j.estado) {
                   <frc-estado-chip pie enumerado="EstadoJornada" [valor]="j.estado" />
@@ -224,6 +255,15 @@ export class MiTrabajoPage {
   readonly vacaciones = signal<Vacacion[]>([]);
   readonly marcaciones = signal<Jornada[]>([]);
 
+  /**
+   * Pestaña inicial, por query param.
+   *
+   * ⚠️ **`input()` y no `input.required`**: el router lo asigna después de
+   * construir el componente, y sin el parámetro vale `undefined` — que acá
+   * significa «la primera», no un error.
+   */
+  readonly tab = input<string>();
+
   readonly indice = signal(0);
   readonly segmento = computed<Segmento>(() => SEGMENTOS[this.indice()]!.clave);
   readonly cargando = signal(true);
@@ -269,7 +309,26 @@ export class MiTrabajoPage {
 
   constructor() {
     this.cargarResumen();
-    this.cargarSegmento();
+
+    /*
+      La pestaña inicial puede venir por query param: `/mi-trabajo?tab=marcaciones`
+      es a donde lleva el «Historial» de la pantalla de Marcación.
+
+      ⚠️ **`untracked` alrededor del cuerpo.** Sin él, el efecto también
+      seguiría a `indice()` —que lee `cargarSegmento`— y volvería a correr en
+      cada cambio de pestaña, disparando una carga que la pestaña ya hizo.
+      Depende solo de `tab()`, que es lo que trae la navegación.
+    */
+    effect(() => {
+      const clave = this.tab();
+      untracked(() => {
+        const indice = SEGMENTOS.findIndex((s) => s.clave === clave);
+        if (indice >= 0) {
+          this.indice.set(indice);
+        }
+        this.cargarSegmento();
+      });
+    });
   }
 
   cambiarSegmento(indice: number): void {
@@ -288,6 +347,17 @@ export class MiTrabajoPage {
 
   fecha(valor: string | undefined): string | null {
     return fechaLegible(valor);
+  }
+
+  /**
+   * Los horarios que marcó ese día. Los slots vacíos no vuelven.
+   *
+   * ⚠️ **La hora sale de la marcación, no de la jornada.** `jornada.fecha` es
+   * el día; el momento de cada fichaje vive en la marcación, y en un campo
+   * distinto según sea entrada o salida. Ver `jornada.util.ts`.
+   */
+  horarios(j: Jornada): HorarioMarcado[] {
+    return horariosDeJornada(j);
   }
 
   detalleJornada(j: Jornada): string {

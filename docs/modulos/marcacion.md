@@ -186,7 +186,63 @@ teléfono marca contra la sucursal del anterior.
 | Qué | Espera a |
 |---|---|
 | Alta de rostros de **otra** persona (`ingreso-persona`) | cada uno registra el suyo desde Mi cuenta; dar de alta a un tercero es otra pantalla |
-| Historial propio | ya está en «Mi trabajo» → Marcación |
+
+---
+
+# El historial: una sola lista, en «Mi trabajo»
+
+El funcionario ve lo que marcó en **«Mi trabajo» → Marcación**, y desde
+`/marcacion` lo lleva ahí el botón **Historial** de la barra superior
+(`/mi-trabajo?tab=marcaciones`).
+
+**No se hizo una pantalla aparte, y es una decisión.** Esa pestaña ya listaba
+las jornadas del funcionario con la misma consulta —`misMarcacionesMobile`, la
+única que filtra por la sesión y no por el `usuarioId` que mande el cliente—.
+Duplicarla habría dado dos listas de lo mismo que se desincronizan a la
+tercera corrección. Lo que faltaba no era la lista: eran **las horas**.
+
+## Lo que faltaba era el fichaje, no la pantalla
+
+La consulta pedía `minutosTrabajados` y el estado del día, así que el
+historial decía *cuánto* se trabajó y nunca *a qué hora se marcó*. Ahora trae
+también los cuatro fichajes de la jornada.
+
+⚠️ **Solo campos propios de `Marcacion`** — `id`, `tipo`, `fechaEntrada`,
+`fechaSalida`. `usuario`, `sucursalEntrada` y `sucursalSalida` son relaciones
+**LAZY** en el central: pedirlas las resolvería fuera de la transacción del
+resolver. Es exactamente el subconjunto que ya pide `estadoMarcacionUsuario`,
+que funciona contra el central real.
+
+**No hizo falta tocar el central.** El tipo `Jornada` del schema ya exponía
+los cuatro slots; lo que no los pedía era el cliente. Por eso esto se puede
+publicar contra cualquier instancia, alpha incluida.
+
+## La regla que no está en el modelo
+
+⚠️ **Una marcación no tiene un campo «fecha»**: guarda su momento en
+`fechaEntrada` **o** en `fechaSalida`, según su tipo. Leer siempre el mismo
+deja la mitad de los fichajes sin hora, y como el campo existe y llega
+`undefined`, no hay error que lo delate.
+
+Vive en `domains/marcacion/jornada.util.ts` (`momentoDeMarcacion`,
+`horariosDeJornada`), con su spec, y la usan las **tres** pantallas que
+muestran horarios: el «Hoy» de `/marcacion`, la pestaña de «Mi trabajo» y
+—cuando exista— cualquiera que venga después.
+
+Dos cosas que esa regla resuelve y conviene no deshacer:
+
+- **Los slots vacíos no se muestran.** Una jornada sin almuerzo no marcó
+  almuerzo; una fila con un guion ocupa lugar para decir que no pasó nada.
+- **Un turno noche cruza la medianoche**, así que la salida puede caer al día
+  siguiente de `jornada.fecha`. En ese caso la hora lleva el día
+  —`05:40 (15/08)`—: sola se leería como una salida de madrugada del mismo día.
+
+## Un tipo, no dos
+
+`domains/rrhh/rrhh.model.ts` declaraba su propia `Jornada`, un subconjunto sin
+los fichajes y con `estado` como `string` suelto. Mientras el historial solo
+mostraba minutos nadie lo notaba. Ahora reexporta la de marcación: **una fila
+del central, un tipo**.
 
 ---
 

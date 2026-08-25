@@ -2682,6 +2682,62 @@ no va a preguntar.
 
 ---
 
+## Bloque 39 — Historial de marcaciones *(nuevo)*
+
+> No es una pantalla nueva: es la pestaña **Marcación** de «Mi trabajo», que
+> ya listaba las jornadas pero **solo mostraba los minutos trabajados**. Ahora
+> muestra la hora de cada fichaje, que es lo que se viene a mirar.
+
+### 39.1 · Se llega desde donde se marca
+1. Inicio → **Marcación**
+2. Tocar **Historial**, arriba a la derecha
+
+**Esperado:** abre «Mi trabajo» con la pestaña **Marcación** ya elegida, sin
+pasar por otra. El botón se lee blanco sobre la barra roja, no rojo sobre rojo.
+
+### 39.2 · Los horarios de cada día
+1. Mirar un día en el que hayas trabajado completo
+
+**Esperado:** debajo del día aparecen las horas marcadas como pastillas:
+**Entrada**, **Salida a almorzar**, **Vuelta del almuerzo** y **Salida**, en
+ese orden, en formato `HH:mm`. Los minutos trabajados siguen en el subtítulo.
+
+### 39.3 · Un día incompleto no inventa filas
+1. Buscar el día de hoy con la jornada todavía abierta, o un día sin almuerzo
+
+**Esperado:** solo aparecen los fichajes que **ocurrieron**. Un almuerzo que
+no se marcó **no** aparece con un guion ni con `00:00`.
+
+### 39.4 · Turno noche *(si hay alguien que lo haga)*
+1. Buscar una jornada cuya salida haya sido después de la medianoche
+
+**Esperado:** la salida muestra la hora **y el día** entre paréntesis —
+`05:40 (15/08)`—, para que no se lea como una salida de madrugada del mismo
+día en que se entró.
+
+### 39.5 · Cargar más sigue trayendo horarios
+1. Con más de 30 jornadas, bajar y tocar **Cargar más**
+
+**Esperado:** las filas nuevas traen sus horarios igual que las primeras. Es
+el caso que se rompería si la consulta de la página siguiente pidiera menos
+campos que la primera.
+
+### 39.6 · Los tres estados
+1. Entrar con un funcionario **sin ninguna jornada**
+2. Apagar el central y tocar **Reintentar**
+
+**Esperado:** sin jornadas, «Sin marcaciones» con su explicación; con el
+central caído, el estado de error con **Reintentar** — nunca una lista vacía
+que parezca «nunca marcaste».
+
+### 39.7 · La pantalla de Marcación muestra la hora, no la fecha entera
+1. Volver a **Marcación** con la jornada del día abierta
+
+**Esperado:** en «Hoy», cada fichaje se lee como `07:12` y no como
+`14/08/2026 07:12`: el día ya lo dice el título de la sección.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -2724,7 +2780,8 @@ no va a preguntar.
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
 | 38 · Notificaciones push | 9 | 6 | | |
-| **Total** | **284** | | | |
+| 39 · Historial de marcaciones | 7 | | | |
+| **Total** | **291** | | | |
 
 ### Los cinco que más importan
 

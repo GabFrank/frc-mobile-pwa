@@ -138,6 +138,27 @@ llevaba a la lista de convenios y la otra abría el escáner; con el escáner
 todavía sin portar, quedaba una pantalla intermedia con un solo destino. La
 lista **es** la pantalla.
 
+## La pestaña de Marcación **es** el historial
+
+Es donde el funcionario ve a qué hora fichó, y el botón **Historial** de
+`/marcacion` lleva ahí con `?tab=marcaciones`. No hay una segunda lista en el
+módulo de marcación, y es una decisión: sería la misma consulta mostrando lo
+mismo. Ver [`marcacion.md`](marcacion.md).
+
+Hasta acá la pestaña mostraba **solo los minutos trabajados** del día. Ahora
+la consulta trae también los cuatro fichajes de la jornada y cada día muestra
+sus horas.
+
+⚠️ **La hora sale de la marcación, no de la jornada.** `jornada.fecha` es el
+día; el momento de cada fichaje vive en la marcación, en `fechaEntrada` **o**
+en `fechaSalida` según el tipo. La regla está en
+`domains/marcacion/jornada.util.ts`, con su spec, y no se reescribe por
+pantalla.
+
+⚠️ **La página siguiente tiene que pedir los mismos campos.** Es el caso que
+rompería sin avisar: filas nuevas sin horarios abajo de filas que sí los
+tienen. Acá no pasa porque «Cargar más» reusa la misma operación.
+
 ## Todo lo que crece se pagina en el servidor
 
 Las cuatro listas del repo anterior traían la tabla entera. La de marcaciones

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { GeoService, PRECISION_MAXIMA_M, Posicion, ProgresoGeo } from 'src/app/core/dispositivo/geo.service';
@@ -15,13 +16,14 @@ import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { soloOperables } from 'src/app/domains/empresarial/sucursal/sucursal.util';
+import { horariosDeJornada } from 'src/app/domains/marcacion/jornada.util';
 import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
   MarcacionInput,
   TipoMarcacion,
 } from 'src/app/domains/marcacion/marcacion.model';
-import { convertMsToTime, fechaLegible } from 'src/app/generic/utils/dateUtils';
+import { convertMsToTime } from 'src/app/generic/utils/dateUtils';
 import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
@@ -67,6 +69,8 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Marcación" [conVolver]="true">
+      <button accionBarra matButton class="historial" (click)="verHistorial()">Historial</button>
+
       @if (accion(); as a) {
         <div acciones>
           <button matButton="filled" [disabled]="marcando()" (click)="marcar()">
@@ -91,16 +95,9 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
 
         <frc-seccion titulo="Hoy" [panel]="true">
           <frc-dato etiqueta="Estado" [valor]="resumenEstado()" />
-          @if (jornada(); as j) {
-            <frc-dato etiqueta="Entrada" [valor]="hora(j.marcacionEntrada?.fechaEntrada)" />
-            @if (j.marcacionSalidaAlmuerzo) {
-              <frc-dato etiqueta="Salió a almorzar" [valor]="hora(j.marcacionSalidaAlmuerzo.fechaSalida)" />
-            }
-            @if (j.marcacionEntradaAlmuerzo) {
-              <frc-dato etiqueta="Volvió" [valor]="hora(j.marcacionEntradaAlmuerzo.fechaEntrada)" />
-            }
-            @if (j.marcacionSalida) {
-              <frc-dato etiqueta="Salida" [valor]="hora(j.marcacionSalida.fechaSalida)" />
+          @if (jornada()) {
+            @for (h of horarios(); track h.clave) {
+              <frc-dato [etiqueta]="h.etiqueta" [valor]="h.hora" />
             }
             <frc-dato etiqueta="Trabajadas" [valor]="trabajadas()" />
           }
@@ -120,6 +117,10 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
       }
     </frc-pagina>
   `,
+  styles: `
+    /* La barra superior es de color de marca: la etiqueta va sobre ella. */
+    .historial { --mat-button-text-label-text-color: var(--on-brand); }
+  `,
 })
 export class MarcacionPage {
   private readonly servicio = inject(MarcacionService);
@@ -134,6 +135,7 @@ export class MarcacionPage {
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
+  private readonly router = inject(Router);
 
   readonly ETIQUETAS = ETIQUETAS;
 
@@ -165,6 +167,14 @@ export class MarcacionPage {
     const min = this.jornada()?.minutosTrabajados;
     return min != null ? convertMsToTime(min * 60_000) : '—';
   });
+  /**
+   * Los fichajes del día, con la misma regla que el historial.
+   *
+   * Antes cada fila se leía a mano de su marcación, y eso obligaba a saber
+   * que el momento vive en `fechaEntrada` o en `fechaSalida` según el tipo.
+   * Esa regla es una sola y está en `jornada.util.ts`.
+   */
+  readonly horarios = computed(() => horariosDeJornada(this.jornada()));
 
   constructor() {
     this.cargar();
@@ -218,8 +228,15 @@ export class MarcacionPage {
     this.servicio.guardarSucursal(elegida);
   }
 
-  hora(valor: string | undefined): string {
-    return fechaLegible(valor) ?? '—';
+  /**
+   * Lleva al historial, que vive en «Mi trabajo».
+   *
+   * No se duplica la lista acá: es la misma consulta y la misma pantalla. El
+   * parámetro deja la pestaña elegida sin depender del orden en que estén
+   * declaradas allá.
+   */
+  verHistorial(): void {
+    void this.router.navigate(['/mi-trabajo'], { queryParams: { tab: 'marcaciones' } });
   }
 
   redondear(n: number): string {

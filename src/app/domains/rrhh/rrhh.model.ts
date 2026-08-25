@@ -95,12 +95,13 @@ export interface VacacionPeriodo {
   autorizadoPor?: Usuario;
 }
 
-/** Un día de trabajo ya consolidado por el backend. */
-export interface Jornada {
-  id?: number;
-  fecha?: string;
-  minutosTrabajados?: number;
-  minutosExtras?: number;
-  minutosLlegadaTardia?: number;
-  estado?: string;
-}
+/**
+ * Un día de trabajo ya consolidado por el backend.
+ *
+ * ⚠️ **Es el mismo tipo que usa la marcación**, así que se reexporta en vez de
+ * redeclararse. Había dos `Jornada` describiendo la misma fila del central: la
+ * de acá era un subconjunto sin los fichajes y con `estado` como `string`
+ * suelto. Mientras el historial solo mostraba minutos nadie lo notaba; mostrar
+ * las horas marcadas no compiló contra ella, que es como apareció.
+ */
+export type { Jornada } from 'src/app/domains/marcacion/marcacion.model';

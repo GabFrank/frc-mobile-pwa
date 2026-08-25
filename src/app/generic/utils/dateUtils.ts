@@ -83,3 +83,25 @@ function esEpoch(valor: string): boolean {
   // el test que cubre justamente ese caso.
   return /^1970-01-01(?:[T ]00:00(?::00(?:\.0+)?)?Z?)?$/.test(valor.trim());
 }
+
+/**
+ * Solo la hora de lo que manda el central: `HH:mm`.
+ *
+ * Se apoya en `fechaLegible` en vez de parsear de nuevo, así hereda gratis
+ * las dos cosas que cuestan: el formato con espacio que Safari no entiende y
+ * la época Unix leída como fecha ausente.
+ *
+ * Devuelve `null` cuando el valor **no trae hora**. Es intencional: el
+ * central manda `yyyy-MM-dd` para lo que ocurre en un día —la fecha de una
+ * jornada— y `yyyy-MM-dd HH:mm` para lo que ocurre en un momento —una
+ * marcación—. Inventar `00:00` para las primeras diría que alguien fichó a
+ * medianoche.
+ */
+export function horaLegible(valor: string | Date | null | undefined): string | null {
+  const legible = fechaLegible(valor);
+  if (legible == null) {
+    return null;
+  }
+  const [, hora] = legible.split(' ');
+  return hora ?? null;
+}

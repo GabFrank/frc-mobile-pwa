@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -45,13 +46,29 @@ export type ResultadoZona =
 @Component({
   selector: 'frc-zona-dialog',
   standalone: true,
-  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, SelectorComponent],
+  imports: [
+    FormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    SelectorComponent,
+    TitleCasePipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="caja">
       <h2>Agregar zona</h2>
       @if (datos.contexto) {
-        <p class="contexto">{{ datos.contexto }}</p>
+        <!--
+          Etiqueta tenue, valor destacado: la forma que ya tiene frc-dato en
+          todo el repo. Antes iba al revés —el nombre de la sucursal suelto y
+          en gris chico—, y es el dato que evita agregarle la zona a la toma
+          equivocada.
+        -->
+        <p class="contexto">
+          <span class="etiqueta">Sucursal</span>
+          {{ datos.contexto | titlecase }}
+        </p>
       }
 
       @if (creando()) {
@@ -151,7 +168,20 @@ export type ResultadoZona =
   styles: `
     .caja { display: flex; flex-direction: column; gap: var(--sp-3); }
     h2 { margin: 0; font-size: var(--fs-title); font-weight: var(--fw-medium); color: var(--text); }
-    .contexto { margin: 0; font-size: var(--fs-label); color: var(--text-soft); }
+    .contexto {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      margin: 0;
+      font-size: var(--fs-body);
+      font-weight: var(--fw-medium);
+      color: var(--text);
+    }
+    .contexto .etiqueta {
+      font-size: var(--fs-label);
+      font-weight: var(--fw-regular);
+      color: var(--text-soft);
+    }
     .vacio { margin: 0; font-size: var(--fs-label); color: var(--text-mute); }
     .lista { list-style: none; margin: 0; padding: 0; max-height: 45vh; overflow-y: auto; }
     .opcion {

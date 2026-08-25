@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -51,13 +52,18 @@ const TITULOS: Record<TipoLugar, { nuevo: string; editar: string }> = {
     MatFormFieldModule,
     MatInputModule,
     MatSlideToggleModule,
+    TitleCasePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="caja">
       <h2>{{ titulo }}</h2>
       @if (datos.contexto) {
-        <p class="contexto">{{ datos.contexto }}</p>
+        <!-- Etiqueta tenue y valor destacado, como frc-dato. -->
+        <p class="contexto">
+          <span class="etiqueta">{{ etiquetaContexto }}</span>
+          {{ datos.contexto | titlecase }}
+        </p>
       }
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -92,7 +98,20 @@ const TITULOS: Record<TipoLugar, { nuevo: string; editar: string }> = {
   styles: `
     .caja { display: flex; flex-direction: column; gap: var(--sp-3); }
     h2 { margin: 0; font-size: var(--fs-title); font-weight: var(--fw-medium); color: var(--text); }
-    .contexto { margin: 0; font-size: var(--fs-label); color: var(--text-soft); }
+    .contexto {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      margin: 0;
+      font-size: var(--fs-body);
+      font-weight: var(--fw-medium);
+      color: var(--text);
+    }
+    .contexto .etiqueta {
+      font-size: var(--fs-label);
+      font-weight: var(--fw-regular);
+      color: var(--text-soft);
+    }
     .aviso { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
     .acciones { display: flex; align-items: center; gap: var(--sp-2); }
     .empuje { flex: 1; }
@@ -109,6 +128,9 @@ export class LugarDialogComponent {
   readonly titulo = this.datos.descripcion
     ? TITULOS[this.datos.tipo].editar
     : TITULOS[this.datos.tipo].nuevo;
+
+  /** De dónde cuelga: un sector de la sucursal, una zona de su sector. */
+  readonly etiquetaContexto = this.datos.tipo === 'sector' ? 'Sucursal' : 'Sector';
 
   valido(): boolean {
     return this.descripcion().trim().length > 0;

@@ -2962,6 +2962,80 @@ producto.
 
 ---
 
+## Bloque 43 — Vencimiento sugerido y transferencias pendientes *(nuevo)*
+
+### 43.1 · El vencimiento viene cargado
+
+1. Entrá a contar una zona con productos que hayan entrado por compra o
+   transferencia.
+
+**Esperado:** el campo *Vencimiento* llega **con fecha**, y debajo dice de
+dónde salió: «Sugerido de Nota de compra #…», «Sugerido de el último
+inventario», «Sugerido de una transferencia».
+
+### 43.2 · Es el más próximo a vencer
+
+1. Buscá un producto que tenga **dos lotes** con vencimientos distintos
+   (mirá Control de inventario → productos vencidos para encontrar uno).
+
+**Esperado:** el campo trae **el que vence primero**, no el más lejano ni el
+último que entró.
+
+### 43.3 · Una fecha ya vencida se avisa
+
+1. Buscá una presentación cuyo único vencimiento conocido ya pasó.
+
+**Esperado:** trae esa fecha igual, pero la pista dice **«ya vencido»** y se ve
+en rojo. Lo que no puede pasar es que aparezca una fecha pasada sin ninguna
+señal.
+
+### 43.4 · Lo cargado a mano no se pisa
+
+1. Contá un ítem, escribile un vencimiento y guardá.
+2. Salí de la pantalla y volvé a entrar.
+
+**Esperado:** conserva **tu** fecha, sin la pista de «sugerido». Una sugerencia
+no corrige lo que alguien escribió mirando el envase.
+
+### 43.5 · La sugerencia se guarda con el conteo
+
+1. En un ítem con fecha sugerida, escribí solo la cantidad y guardá.
+2. Volvé a entrar.
+
+**Esperado:** el vencimiento quedó guardado junto con el conteo.
+
+### 43.6 · Si no se puede consultar, lo dice
+
+1. Cortá la conexión y entrá a contar una zona.
+
+**Esperado:** los campos quedan vacíos **y aparece el aviso** de que no se
+pudieron traer los vencimientos. Un campo vacío en silencio diría que no hay
+vencimiento conocido, que es otra cosa.
+
+### 43.7 · Aviso de transferencias sin recibir
+
+1. Dejá una transferencia en camino a la sucursal de la toma, sin recibir.
+2. Abrí el detalle del inventario.
+
+**Esperado:** franja de aviso arriba con cuántas hay y por qué importa. Tocarla
+lleva a transferencias.
+
+### 43.8 · También ve las que ya llegaron
+
+1. Avanzá esa transferencia hasta que esté **en destino**, sin recibirla.
+
+**Esperado:** el aviso **sigue apareciendo**. ⚠️ Es el caso que `frc-mobile` no
+cubre: filtra solo `TRANSPORTE_EN_CAMINO` y no ve las que están en destino
+esperando recepción.
+
+### 43.9 · Con la toma cerrada no aparece
+
+1. Finalizá o cancelá la toma y volvé al detalle.
+
+**Esperado:** sin aviso. El conteo ya ocurrió; avisarlo ahora no sirve de nada.
+
+---
+
 ## Bloque 41 — Lo contado llega al stock *(nuevo, crítico)*
 
 **Por qué está acá:** la app escribía el conteo en un campo que el central
@@ -3079,7 +3153,8 @@ de la sucursal, y el stock queda igual.
 | 40 · Zonas de la toma | 11 | | | |
 | 41 · Lo contado llega al stock | 6 | | | |
 | 42 · Agregar un producto al conteo | 9 | | | |
-| **Total** | **319** | | | |
+| 43 · Vencimiento sugerido y transferencias | 9 | | | |
+| **Total** | **328** | | | |
 
 ### Los cinco que más importan
 

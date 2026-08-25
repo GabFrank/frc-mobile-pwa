@@ -224,6 +224,25 @@ El detalle lista **una card por zona** —`inventarioProductoList` agrupa por
 zona, no por producto— y muestra la diferencia por zona y en total, **con
 signo**: `+` es sobrante y `−` faltante.
 
+## El aviso de transferencias sin recibir
+
+Con la toma **abierta**, el detalle muestra una franja si hay transferencias en
+camino a esa sucursal que nadie recibió todavía, con un enlace a la lista
+filtrada. Contar una sucursal con mercadería sin recibir **da diferencias que
+no son diferencias**.
+
+⚠️ **Se filtra por estado, no por etapa, y eso corrige al repo anterior.**
+`frc-mobile` usa `etapa: TRANSPORTE_EN_CAMINO`, y una transferencia en tránsito
+puede estar en esa etapa **o** en `TRANSPORTE_EN_DESTINO`: con ese filtro **no
+ve las que ya llegaron y esperan recepción**, que son justamente las que más
+ensucian un conteo. Acá se piden los estados `EN_TRANSITO` y `EN_DESTINO`, que
+las agarra a todas en una consulta.
+
+Es un **banner fijo**, no el toast de seis segundos del repo anterior: el
+problema sigue existiendo después de que el aviso se va.
+
+Consulta de fondo —nadie la pidió—: sin barra de carga y sin toast de error.
+
 ## Finalizar aplica las diferencias
 
 No es un cambio de estado: lo que quedó sin contar entra como diferencia
@@ -275,6 +294,49 @@ vencimiento y el estado.
 > de la zona y cada renglón se titula con su producto, leído de
 > `presentacion.producto`. Titularlo con `InventarioProducto.producto` era
 > imposible: ese campo no existe en el central.
+
+## El vencimiento viene sugerido
+
+El campo llega prellenado con el vencimiento que el central conoce de esa
+presentación en esa sucursal, y debajo dice **de dónde salió**: «Sugerido de
+Nota de compra #123», «Sugerido de el último inventario».
+
+⚠️ **La elección de la fuente la hace el central, no la app.**
+`productosVencidos` unifica **inventario, compra** (nota y recepción) **y
+transferencia** (salida e ingreso) y rankea así:
+
+```sql
+CASE WHEN fuente_verdad <> 'INVENTARIO' AND fecha_fuente > ultimo_inventario
+     THEN 0 ELSE 1 END, fecha_fuente DESC
+```
+
+Gana una compra o transferencia **posterior** al último inventario; si no, la
+fuente más reciente. Repetir ese criterio en el cliente sería tenerlo escrito
+en dos lugares que se van a desincronizar.
+
+Lo único que decide la app —en `vencimiento-sugerido.ts`, con tests— es **cuál
+de las fechas que sobrevivieron** va al campo: la **más próxima a vencer que
+todavía no venció**, que es la que le importa a quien está frente a la
+góndola. Si todas ya vencieron, la más próxima igual, **rotulada «ya
+vencido»**: hay mercadería caduca y el conteo tiene que registrarla, pero no se
+prellena una fecha pasada en silencio.
+
+**Una sola consulta para toda la zona**, con todos sus productos a la vez: una
+por ítem serían treinta viajes para llenar treinta campos. Va sin filtro de
+fechas y con `soloRealmenteVencidos` en falso — con el filtro puesto, el
+central devuelve solo lo caduco y la mayoría de los campos quedarían vacíos.
+
+**Un vencimiento ya cargado nunca se pisa.** Lo que alguien escribió mirando el
+envase gana sobre cualquier sugerencia.
+
+**Es una consulta secundaria**: `mostrarCarga: false` y `notificarError: false`,
+la pantalla cuenta igual sin ella. Si falla, lo dice — un campo vacío afirmaría
+«no hay vencimiento conocido», que es una respuesta distinta de «no pude
+preguntar».
+
+⚠️ **`frc-mobile` no tiene nada de esto.** Su único camino es
+`inventarioItemsDeInventariosAnteriores`, que mira **solo inventarios** y exige
+abrir un acordeón y copiar el ítem a mano.
 
 ## Agregar un producto a la zona
 

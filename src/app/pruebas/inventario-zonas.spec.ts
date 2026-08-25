@@ -7,6 +7,8 @@ import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
 import { SectorService } from '../domains/sector/sector.service';
 import { ZonaService } from '../domains/zona/zona.service';
+import { TransferenciaEstado } from '../domains/transferencia/transferencia.model';
+import { TransferenciaService } from '../pages/transferencias/transferencia.service';
 import type { Zona } from '../domains/zona/zona.model';
 import { InventarioEstado } from '../domains/inventario/inventario.model';
 import type { InventarioProducto } from '../domains/inventario/inventario.model';
@@ -24,6 +26,7 @@ describe('Zonas de la toma', () => {
   };
   let sectores: { deSucursal: ReturnType<typeof vi.fn>; guardar: ReturnType<typeof vi.fn> };
   let zonas: { guardar: ReturnType<typeof vi.fn> };
+  let transferencias: { conFiltros: ReturnType<typeof vi.fn> };
   let dialogo: { confirmar: ReturnType<typeof vi.fn>; abrir: ReturnType<typeof vi.fn> };
   let notificacion: { warn: ReturnType<typeof vi.fn>; danger: ReturnType<typeof vi.fn>; ok: ReturnType<typeof vi.fn> };
 
@@ -55,6 +58,7 @@ describe('Zonas de la toma', () => {
     };
     sectores = { deSucursal: vi.fn(() => of([])), guardar: vi.fn(() => of({ id: 55 })) };
     zonas = { guardar: vi.fn(() => of({ id: 77 })) };
+    transferencias = { conFiltros: vi.fn(() => of({ getTotalElements: 0 })) };
     dialogo = { confirmar: vi.fn(async () => true), abrir: vi.fn(async () => undefined) };
     notificacion = { warn: vi.fn(), danger: vi.fn(), ok: vi.fn() };
 
@@ -64,6 +68,7 @@ describe('Zonas de la toma', () => {
         { provide: InventarioService, useValue: servicio },
         { provide: SectorService, useValue: sectores },
         { provide: ZonaService, useValue: zonas },
+        { provide: TransferenciaService, useValue: transferencias },
         { provide: DialogoService, useValue: dialogo },
         { provide: NotificacionService, useValue: notificacion },
       ],
@@ -254,6 +259,66 @@ describe('Zonas de la toma', () => {
 
     expect(notificacion.danger).toHaveBeenCalledWith('descripcion duplicada');
     expect(servicio.guardarZona).not.toHaveBeenCalled();
+  });
+
+  /**
+   * ⚠️ **Contar una sucursal con mercadería sin recibir da diferencias que no
+   * son diferencias**: el stock del sistema todavía no la tiene y la góndola
+   * tampoco, o al revés. `frc-mobile` avisa con un toast de seis segundos que
+   * se pierde si mirás para otro lado.
+   */
+  describe('Aviso de transferencias pendientes', () => {
+    it('filtra por estado y no por etapa, para no perder las que ya llegaron', () => {
+      montar();
+
+      expect(transferencias.conFiltros).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sucursalDestinoId: 3,
+          estados: [TransferenciaEstado.EN_TRANSITO, TransferenciaEstado.EN_DESTINO],
+        }),
+      );
+      // `frc-mobile` filtra `etapa: TRANSPORTE_EN_CAMINO` y con eso no ve las
+      // que están en destino esperando recepción, que son las peores.
+      const filtros = transferencias.conFiltros.mock.calls[0][0];
+      expect(filtros.etapa).toBeUndefined();
+    });
+
+    it('muestra el aviso cuando hay alguna', () => {
+      transferencias.conFiltros = vi.fn(() => of({ getTotalElements: 3 }));
+      const f = montar();
+      f.detectChanges();
+
+      expect(f.componentInstance.transferenciasPendientes()).toBe(3);
+      expect(f.nativeElement.textContent).toContain('3 transferencias sin recibir');
+    });
+
+    it('en singular no dice 1 transferencias', () => {
+      transferencias.conFiltros = vi.fn(() => of({ getTotalElements: 1 }));
+      const f = montar();
+      f.detectChanges();
+      expect(f.nativeElement.textContent).toContain('1 transferencia sin recibir');
+    });
+
+    it('sin ninguna no ocupa lugar', () => {
+      const f = montar();
+      f.detectChanges();
+      expect(f.nativeElement.textContent).not.toContain('sin recibir');
+    });
+
+    it('con la toma cerrada no pregunta: el conteo ya ocurrió', () => {
+      servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO, [ZONA_ABIERTA])));
+      montar();
+      expect(transferencias.conFiltros).not.toHaveBeenCalled();
+    });
+
+    it('si la consulta falla no afirma que no hay ninguna ni rompe la pantalla', () => {
+      transferencias.conFiltros = vi.fn(() => throwError(() => new Error('sin conexión')));
+      const f = montar();
+      f.detectChanges();
+
+      expect(f.componentInstance.transferenciasPendientes()).toBe(0);
+      expect(f.nativeElement.textContent).toContain('Zonas');
+    });
   });
 
   it('cerrar el diálogo sin elegir no escribe nada', async () => {

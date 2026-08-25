@@ -38,6 +38,8 @@ import { productosConcluidos, resumirInventario, resumirItems } from './inventar
 import { DatosZona, ResultadoZona, ZonaDialogComponent } from './zona-dialog.component';
 import { SectorService } from 'src/app/domains/sector/sector.service';
 import { ZonaService } from 'src/app/domains/zona/zona.service';
+import { TransferenciaEstado } from 'src/app/domains/transferencia/transferencia.model';
+import { TransferenciaService } from 'src/app/pages/transferencias/transferencia.service';
 import { InventarioService } from './inventario.service';
 
 /**
@@ -91,6 +93,18 @@ import { InventarioService } from './inventario.service';
             </button>
           }
         </div>
+      }
+
+      @if (transferenciasPendientes() > 0) {
+        <!--
+          Fijo mientras el problema exista, no un toast de seis segundos como
+          en el repo anterior: contar una sucursal con mercadería sin recibir
+          da diferencias que no son diferencias.
+        -->
+        <button type="button" class="aviso" (click)="verTransferencias()">
+          <frc-icono nombre="camion" [tamano]="20" />
+          <span>{{ textoTransferencias() }}</span>
+        </button>
       }
 
       @if (cargando()) {
@@ -185,6 +199,21 @@ import { InventarioService } from './inventario.service';
       color: var(--text-mute);
     }
     .concluido { color: var(--ok); }
+    .aviso {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      width: 100%;
+      padding: var(--sp-3);
+      border: 1px solid var(--warn);
+      border-radius: var(--radius-md);
+      background: var(--warn-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: var(--fs-label);
+      text-align: left;
+      cursor: pointer;
+    }
   `,
 })
 export class InventarioDetallePage {
@@ -192,6 +221,7 @@ export class InventarioDetallePage {
   private readonly servicio = inject(InventarioService);
   private readonly sectores = inject(SectorService);
   private readonly zonas = inject(ZonaService);
+  private readonly transferencias = inject(TransferenciaService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
 
@@ -211,6 +241,23 @@ export class InventarioDetallePage {
     () => this.inventario()?.estado === InventarioEstado.ABIERTO,
   );
   readonly diferenciaTotal = computed(() => this.conSigno(this.resumen().diferencia));
+
+  /**
+   * Transferencias en camino a esta sucursal que todavía nadie recibió.
+   *
+   * ⚠️ **Se filtra por estado, no por etapa.** Una transferencia en tránsito
+   * puede estar en la etapa `TRANSPORTE_EN_CAMINO` o en
+   * `TRANSPORTE_EN_DESTINO`; `frc-mobile` filtra solo la primera, así que no
+   * ve las que **ya llegaron y esperan recepción** — que son justamente las
+   * que más ensucian un conteo.
+   */
+  readonly transferenciasPendientes = signal(0);
+
+  readonly textoTransferencias = computed(() => {
+    const n = this.transferenciasPendientes();
+    const cuantas = n === 1 ? '1 transferencia' : `${n} transferencias`;
+    return `${cuantas} sin recibir en esta sucursal. Contar antes de recibirlas da diferencias que no son diferencias.`;
+  });
 
   constructor() {
     effect(() => {
@@ -234,11 +281,45 @@ export class InventarioDetallePage {
       next: (inv) => {
         this.inventario.set(inv ?? null);
         this.cargando.set(false);
+        this.contarTransferenciasPendientes();
       },
       error: (err: Error) => {
         this.error.set(err.message);
         this.cargando.set(false);
       },
+    });
+  }
+
+  /**
+   * Consulta de fondo: nadie la pidió, así que no aporta a la barra de carga
+   * ni tira un toast si falla. Sin ella el detalle sirve igual.
+   */
+  private contarTransferenciasPendientes(): void {
+    this.transferenciasPendientes.set(0);
+    const sucursalId = Number(this.inventario()?.sucursal?.id);
+    // Con la toma cerrada el aviso no sirve para nada: el conteo ya ocurrió.
+    if (!this.abierto() || !Number.isFinite(sucursalId) || sucursalId <= 0) {
+      return;
+    }
+
+    this.transferencias
+      .conFiltros({
+        sucursalDestinoId: sucursalId,
+        estados: [TransferenciaEstado.EN_TRANSITO, TransferenciaEstado.EN_DESTINO],
+        page: 0,
+        // Solo hace falta el total; el contenido no se usa.
+        size: 1,
+      })
+      .subscribe({
+        next: (pagina) => this.transferenciasPendientes.set(pagina?.getTotalElements ?? 0),
+        error: () => this.transferenciasPendientes.set(0),
+      });
+  }
+
+  verTransferencias(): void {
+    const sucursalId = this.inventario()?.sucursal?.id;
+    void this.router.navigate(['/transferencias'], {
+      queryParams: sucursalId != null ? { sucursalId } : undefined,
     });
   }
 

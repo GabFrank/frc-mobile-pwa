@@ -9,6 +9,7 @@ import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
 import { InventarioEstado } from '../domains/inventario/inventario.model';
 import { ProductoBusquedaService } from '../domains/productos/producto-busqueda.service';
+import { ProductoService } from '../pages/producto/producto.service';
 import { InventarioCargaPage } from '../pages/inventario/inventario-carga.page';
 import { InventarioService } from '../pages/inventario/inventario.service';
 
@@ -21,6 +22,7 @@ import { InventarioService } from '../pages/inventario/inventario.service';
 describe('Agregar un producto al conteo', () => {
   let servicio: { porId: ReturnType<typeof vi.fn>; guardarItem: ReturnType<typeof vi.fn> };
   let busqueda: { stock: ReturnType<typeof vi.fn> };
+  let productos: { vencidos: ReturnType<typeof vi.fn> };
   let dialogo: { abrir: ReturnType<typeof vi.fn> };
   let notificacion: { warn: ReturnType<typeof vi.fn>; danger: ReturnType<typeof vi.fn>; ok: ReturnType<typeof vi.fn> };
 
@@ -51,6 +53,7 @@ describe('Agregar un producto al conteo', () => {
     // Un stock que no coincide con ningún otro número del test: si la
     // pantalla leyera otro campo, se vería.
     busqueda = { stock: vi.fn(() => of(42)) };
+    productos = { vencidos: vi.fn(() => of({ getContent: [] })) };
     dialogo = { abrir: vi.fn(async () => SELECCION) };
     notificacion = { warn: vi.fn(), danger: vi.fn(), ok: vi.fn() };
 
@@ -59,6 +62,7 @@ describe('Agregar un producto al conteo', () => {
         provideRouter([]),
         { provide: InventarioService, useValue: servicio },
         { provide: ProductoBusquedaService, useValue: busqueda },
+        { provide: ProductoService, useValue: productos },
         { provide: DialogoService, useValue: dialogo },
         { provide: NotificacionService, useValue: notificacion },
         {

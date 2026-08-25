@@ -34,10 +34,23 @@ import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
 import { BuscadorProductoDialogComponent } from 'src/app/shared/producto/buscador-producto-dialog.component';
 import type { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/buscador.types';
+import { ProductoService } from 'src/app/pages/producto/producto.service';
+import type { ProductoVencido } from 'src/app/domains/productos/producto-vencido.model';
 import { nuevoItemInput, presentacionYaEnLaZona } from './inventario-alta';
+import {
+  textoDeSugerencia,
+  vencimientoSugerido,
+  type SugerenciaVencimiento,
+} from './vencimiento-sugerido';
 import { diferenciaDe } from './inventario-conteo';
 import { marcasDeConteo } from './revision-item';
 import { InventarioService } from './inventario.service';
+
+/**
+ * Cuántos vencimientos traer para una zona. Una presentación puede tener
+ * varios lotes, así que no alcanza con uno por producto.
+ */
+const TAMANO_SUGERENCIAS = 300;
 
 const ESTADOS: OpcionSeleccion[] = [
   { valor: InventarioProductoEstado.BUENO, texto: 'Bueno' },
@@ -105,6 +118,16 @@ const ESTADOS: OpcionSeleccion[] = [
           icono="inventario"
         />
       } @else {
+        @if (sugerenciasFallaron()) {
+          <!--
+            «No hay vencimiento conocido» y «no pude preguntar» son
+            respuestas distintas: un campo vacío afirmaría la primera.
+          -->
+          <p class="sin-sugerencias">
+            No se pudieron traer los vencimientos conocidos. Los campos quedan
+            vacíos; cargalos a mano si hace falta.
+          </p>
+        }
         @for (fila of items(); track fila.itemId) {
           <frc-seccion [titulo]="fila.etiqueta" [panel]="true">
             <div class="linea">
@@ -136,6 +159,13 @@ const ESTADOS: OpcionSeleccion[] = [
                 (input)="cambiarVencimiento(fila.itemId, $event)"
               />
             </mat-form-field>
+            @if (fila.sugerencia; as s) {
+              <!--
+                De dónde salió la fecha. Sin el origen, «sugerido» a secas no
+                deja decidir si creerle.
+              -->
+              <p class="pista" [class.vencido]="s.vencido">{{ pista(s) }}</p>
+            }
 
             <frc-selector
               etiqueta="Estado"
@@ -179,11 +209,15 @@ const ESTADOS: OpcionSeleccion[] = [
     }
     .dif.falta { color: var(--danger); }
     .dif.sobra { color: var(--warn); }
+    .pista { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
+    .pista.vencido { color: var(--danger); }
+    .sin-sugerencias { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
   `,
 })
 export class InventarioCargaPage {
   private readonly servicio = inject(InventarioService);
   private readonly busqueda = inject(ProductoBusquedaService);
+  private readonly productos = inject(ProductoService);
   private readonly dialogo = inject(DialogoService);
   private readonly auth = inject(AuthService);
   private readonly notificacion = inject(NotificacionService);
@@ -198,6 +232,16 @@ export class InventarioCargaPage {
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
   readonly agregando = signal(false);
+
+  /**
+   * Vencimientos conocidos de los productos de esta zona.
+   *
+   * Es una consulta **secundaria**: la pantalla cuenta igual sin ella. Por
+   * eso `sugerenciasFallaron` existe aparte — «no hay vencimiento conocido»
+   * y «no pude preguntar» no se pueden mostrar igual.
+   */
+  private readonly conocidos = signal<ProductoVencido[]>([]);
+  readonly sugerenciasFallaron = signal(false);
 
   /** Lo editado, por id de ítem. Vacío hasta que alguien escribe. */
   private readonly edicion = signal<
@@ -223,6 +267,11 @@ export class InventarioCargaPage {
       // los nombres engañan, pero es el par que usa el central al finalizar.
       const contado = cambio?.contado !== undefined ? cambio.contado : item.cantidad ?? null;
       const sistema = item.cantidadFisica ?? 0;
+      const sugerido = vencimientoSugerido(
+        this.conocidos(),
+        Number(item.presentacion?.id),
+        new Date(),
+      );
       return {
         itemId,
         // El producto cuelga de la presentación: `InventarioProducto` es la
@@ -235,7 +284,10 @@ export class InventarioCargaPage {
         // que es lo que el operador necesita para decidir si recuenta.
         diferencia: contado == null ? null : contado - sistema,
         vencimiento:
-          cambio?.vencimiento ?? (item.vencimiento ? item.vencimiento.slice(0, 10) : ''),
+          cambio?.vencimiento ?? (item.vencimiento ? item.vencimiento.slice(0, 10) : sugerido?.fecha ?? ''),
+        // ⚠️ Solo se rotula como sugerido lo que **no** tenía fecha propia:
+        // un vencimiento ya cargado nunca se pisa ni se pone en duda.
+        sugerencia: item.vencimiento || cambio?.vencimiento ? null : sugerido,
         estado: cambio?.estado ?? item.estado ?? InventarioProductoEstado.BUENO,
         original: item,
       };
@@ -267,6 +319,7 @@ export class InventarioCargaPage {
       next: (inv) => {
         this.inventario.set(inv ?? null);
         this.cargando.set(false);
+        this.cargarVencimientosConocidos();
       },
       error: (err: Error) => {
         this.error.set(err.message);
@@ -275,12 +328,63 @@ export class InventarioCargaPage {
     });
   }
 
+  /**
+   * Los vencimientos que el central conoce de los productos de esta zona.
+   *
+   * ⚠️ **Una sola consulta para toda la zona**, con todos los productos a la
+   * vez: una por ítem serían treinta viajes para llenar treinta campos.
+   *
+   * El central ya unifica las tres fuentes —inventario, compra y
+   * transferencia— y elige cuál manda. Acá solo se le pide sin filtro de
+   * fechas y con `soloVencidos` en falso, que es lo que hace que devuelva
+   * **todos** los vencimientos y no solo los caducos.
+   */
+  private cargarVencimientosConocidos(): void {
+    const sucursalId = Number(this.inventario()?.sucursal?.id);
+    const productoIds = [
+      ...new Set(
+        (this.producto()?.inventarioProductoItemList ?? [])
+          .map((item) => Number(item.presentacion?.producto?.id))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    ];
+
+    this.conocidos.set([]);
+    this.sugerenciasFallaron.set(false);
+    if (!Number.isFinite(sucursalId) || productoIds.length === 0) {
+      return;
+    }
+
+    this.productos
+      .vencidos(
+        {
+          sucursalIds: [sucursalId],
+          productoIds,
+          soloVencidos: false,
+          size: TAMANO_SUGERENCIAS,
+        },
+        // Secundaria: la pantalla cuenta igual sin sugerencias, así que no
+        // aporta a la barra de carga ni tira un toast si falla.
+        { mostrarCarga: false, notificarError: false },
+      )
+      .subscribe({
+        next: (pagina) => this.conocidos.set(pagina?.getContent ?? []),
+        // Un campo vacío diría «no hay vencimiento conocido», que es una
+        // afirmación que nadie hizo.
+        error: () => this.sugerenciasFallaron.set(true),
+      });
+  }
+
   private editar(itemId: number, parche: Record<string, unknown>): void {
     this.edicion.update((mapa) => {
       const copia = new Map(mapa);
       copia.set(itemId, { ...(copia.get(itemId) ?? {}), ...parche });
       return copia;
     });
+  }
+
+  pista(sugerencia: SugerenciaVencimiento): string {
+    return textoDeSugerencia(sugerencia);
   }
 
   cambiarContado(itemId: number, evento: Event): void {

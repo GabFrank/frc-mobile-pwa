@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { DatosService } from 'src/app/core/graphql/datos.service';
+import { DatosService, type OpcionesOperacion } from 'src/app/core/graphql/datos.service';
 import type { PageInfo } from 'src/app/domains/page-info.model';
 import type {
   FuenteVerdadVencimiento,
@@ -37,18 +37,31 @@ export class ProductoService {
   private readonly datos = inject(DatosService);
   private readonly vencidosGQL = inject(ProductosVencidosGQL);
 
-  vencidos(filtros: FiltrosVencidos = {}): Observable<PageInfo<ProductoVencido>> {
-    return this.datos.consultar<PageInfo<ProductoVencido>>(this.vencidosGQL, {
-      // Todo explícito en `null`: el central distingue «sin filtro» de una
-      // lista vacía, que no devolvería nada.
-      startDate: filtros.desde ?? null,
-      endDate: filtros.hasta ?? null,
-      sucursalIdList: filtros.sucursalIds?.length ? filtros.sucursalIds : null,
-      productoIdList: filtros.productoIds?.length ? filtros.productoIds : null,
-      fuenteVerdadList: filtros.fuentes?.length ? filtros.fuentes : null,
-      soloRealmenteVencidos: filtros.soloVencidos ?? false,
-      page: filtros.page ?? 0,
-      size: filtros.size ?? TAMANO_PAGINA_VENCIDOS,
-    });
+  /**
+   * `opciones` existe para el uso **secundario** de esta consulta: el
+   * inventario la usa para sugerir un vencimiento al contar, y ahí un toast
+   * de error o la barra de carga global estorbarían — la pantalla sirve
+   * igual sin la sugerencia.
+   */
+  vencidos(
+    filtros: FiltrosVencidos = {},
+    opciones?: OpcionesOperacion,
+  ): Observable<PageInfo<ProductoVencido>> {
+    return this.datos.consultar<PageInfo<ProductoVencido>>(
+      this.vencidosGQL,
+      {
+        // Todo explícito en `null`: el central distingue «sin filtro» de una
+        // lista vacía, que no devolvería nada.
+        startDate: filtros.desde ?? null,
+        endDate: filtros.hasta ?? null,
+        sucursalIdList: filtros.sucursalIds?.length ? filtros.sucursalIds : null,
+        productoIdList: filtros.productoIds?.length ? filtros.productoIds : null,
+        fuenteVerdadList: filtros.fuentes?.length ? filtros.fuentes : null,
+        soloRealmenteVencidos: filtros.soloVencidos ?? false,
+        page: filtros.page ?? 0,
+        size: filtros.size ?? TAMANO_PAGINA_VENCIDOS,
+      },
+      opciones,
+    );
   }
 }

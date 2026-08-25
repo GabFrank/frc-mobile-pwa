@@ -19,6 +19,17 @@ export interface FiltrosTransferencia {
   sucursalOrigenId?: number;
   sucursalDestinoId?: number;
   estado?: string | null;
+  /**
+   * Varios estados a la vez.
+   *
+   * ⚠️ **Estado y etapa son dimensiones distintas**, y para «viene en camino
+   * a esta sucursal» hace falta el estado: una transferencia en tránsito
+   * puede estar en la etapa `TRANSPORTE_EN_CAMINO` o en
+   * `TRANSPORTE_EN_DESTINO`, así que filtrar por una sola etapa deja afuera
+   * justo las que ya llegaron y esperan recepción. `frc-mobile` filtra por
+   * `TRANSPORTE_EN_CAMINO` y no las ve.
+   */
+  estados?: string[] | null;
   tipo?: string | null;
   /** ⚠️ **Etapa, no estado.** Son dimensiones distintas. */
   etapa?: EtapaTransferencia | null;
@@ -52,6 +63,7 @@ export class TransferenciaService {
       sucursalOrigenId: filtros.sucursalOrigenId ?? null,
       sucursalDestinoId: filtros.sucursalDestinoId ?? null,
       estado: filtros.estado ?? null,
+      estados: filtros.estados?.length ? filtros.estados : null,
       tipo: filtros.tipo ?? null,
       etapa: filtros.etapa ?? null,
       isOrigen: filtros.isOrigen ?? null,

@@ -176,7 +176,7 @@ Sumado en la tanda de paridad con `frc-mobile`: **crédito por convenio en Inici
 
 Sumado en la segunda tanda de paridad: **revisión del supervisor** y **control de inventario**, **lugares del depósito** (sectores y zonas), **configuración del kiosco** (lector o cámara), **registro del rostro y marcación facial**, **compartir por QR**, **instalar la PWA** y **notificaciones push** con su destino por pantalla.
 
-Sumado en la tercera: **abrir una toma de inventario** (`/inventario/nuevo`, con rol `CREAR INVENTARIO` y el chequeo de toma abierta que `frc-mobile` tiene escrito y nunca ejecuta), **agregar zonas a la toma** desde el detalle —creando la zona y su sector al paso si faltan—, y **sumar un producto al conteo** con el buscador de siempre: descripción, código, cámara y códigos de balanza. Con eso el ciclo entero —abrir, definir el alcance, contar, finalizar— ocurre en el teléfono.
+Sumado en la tercera: **abrir una toma de inventario** (`/inventario/nuevo`, con rol `CREAR INVENTARIO` y el chequeo de toma abierta que `frc-mobile` tiene escrito y nunca ejecuta), **agregar zonas a la toma** desde el detalle —creando la zona y su sector al paso si faltan—, y **sumar un producto al conteo** con el buscador de siempre: descripción, código, cámara y códigos de balanza. El **vencimiento viene sugerido** de lo que el central conoce —compra, transferencia o el último inventario, con el ranking que ya resuelve `productosVencidos`—, y el detalle **avisa si hay transferencias sin recibir** en esa sucursal, que es lo que produce diferencias que no son diferencias. Con eso el ciclo entero —abrir, definir el alcance, contar, finalizar— ocurre en el teléfono.
 
 Pendiente: de **caja chica**, el **alta** de la solicitud —es el formulario más grande que queda: tipo de gasto, activo imputado con su buscador paginado, beneficiario y detalle financiero—; de **inventario**, arrastrar el conteo de una toma anterior; de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; y el **transporte WebSocket** para suscripciones.
 
@@ -192,7 +192,7 @@ La lista operativa de esto, escrita para que nadie lo reporte como falla durante
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **614 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **640 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 ⚠️ **`cantidad` es lo contado y `cantidadFisica` lo que dice el sistema**, al revés de lo que sugieren los nombres y de lo que `docs/modulos/inventario.md` afirmó hasta ahora. Lo fija `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La app las tuvo al derecho y la consecuencia era muda: lo contado desde el teléfono no entraba en el ajuste de stock. Corregido con test; ver el hallazgo #60 de [`docs/TODO_TECNICO.md`](docs/TODO_TECNICO.md).
 

@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import {
@@ -21,6 +29,7 @@ import {
   PedidoRecepcionProductoDto,
   RecepcionMercaderia,
 } from 'src/app/domains/pedidos/recepcion.model';
+import { Lote, loteRequiereAtencion, normalizarNumeroLote } from 'src/app/domains/operaciones/lote.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
@@ -35,6 +44,13 @@ import {
   validarCarga,
   validarLinea,
 } from './recepcion-cantidades';
+import {
+  detalleDeLote,
+  fechaDeLote,
+  indexarLotes,
+  sugerenciasDeLote,
+  validarLoteDeVerificacion,
+} from './recepcion-lote';
 import { RecepcionService } from './recepcion.service';
 import {
   SeleccionarNotaRechazoData,
@@ -168,6 +184,73 @@ interface Linea {
           }
         </ul>
       }
+      @if (muestraTrazabilidad) {
+        <section class="trazabilidad">
+          <h3 class="titulo">Trazabilidad</h3>
+
+          @if (requiereLote) {
+            <mat-form-field appearance="outline" class="campo">
+              <mat-label>Número de lote</mat-label>
+              <input
+                matInput
+                autocapitalize="characters"
+                autocomplete="off"
+                [ngModel]="lote()"
+                (ngModelChange)="escribirLote($event)"
+              />
+              <mat-hint>Obligatorio: este producto se mueve por lote.</mat-hint>
+            </mat-form-field>
+
+            @if (avisoLote(); as aviso) {
+              <p class="aviso" [class.atencion]="aviso.requiereAtencion">{{ aviso.texto }}</p>
+            }
+
+            @if (sugerencias().length > 0) {
+              <ul class="sugerencias">
+                @for (s of sugerencias(); track s.numeroLote) {
+                  <li>
+                    <button
+                      type="button"
+                      class="sugerencia"
+                      [class.atencion]="s.requiereAtencion"
+                      (click)="elegirLote(s.numeroLote)"
+                    >
+                      <span class="numero">{{ s.numeroLote }}</span>
+                      <span class="detalle">{{ s.detalle }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          }
+
+          <mat-form-field appearance="outline" class="campo">
+            <mat-label>Vencimiento</mat-label>
+            <input
+              matInput
+              type="date"
+              [disabled]="vencimientoBloqueado()"
+              [ngModel]="vencimiento()"
+              (ngModelChange)="vencimiento.set($event)"
+            />
+          </mat-form-field>
+
+          @if (requiereLote) {
+            <mat-form-field appearance="outline" class="campo">
+              <mat-label>Fecha de retiro</mat-label>
+              <input
+                matInput
+                type="date"
+                [disabled]="retiroBloqueado()"
+                [ngModel]="fechaRetiro()"
+                (ngModelChange)="fechaRetiro.set($event)"
+              />
+              <mat-hint>{{ ayudaRetiro() }}</mat-hint>
+            </mat-form-field>
+          }
+        </section>
+      }
+
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
@@ -201,6 +284,40 @@ interface Linea {
     .campo { width: 100%; }
     .toggle { align-self: flex-start; }
     .agregar { align-self: flex-start; }
+    .trazabilidad {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+      padding: var(--sp-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .titulo {
+      margin: 0;
+      font-size: var(--fs-label);
+      font-weight: var(--fw-medium);
+      color: var(--text-soft);
+    }
+    .aviso { margin: 0; font-size: var(--fs-caption); color: var(--text-soft); }
+    .aviso.atencion { color: var(--danger); }
+    .sugerencias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+    .sugerencia {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--sp-1);
+      padding: var(--sp-2);
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .sugerencia.atencion { border-color: var(--danger); }
+    .numero { font-weight: var(--fw-medium); }
+    .detalle { font-size: var(--fs-caption); color: var(--text-mute); }
     .lineas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
     .linea {
       display: flex;
@@ -277,6 +394,71 @@ export class VerificacionDialogComponent {
     resumirVerificacion(this.data.item, this.escala(), this.carga()),
   );
 
+  // ────────────────────────────────────────────────────── Trazabilidad ──
+
+  /**
+   * El producto se mueve por lote. Lo decide el producto, no la pantalla: el
+   * central rechaza la verificación si falta el número.
+   */
+  readonly requiereLote = this.data.item.producto?.lote === true;
+  /** El producto maneja vencimiento. Independiente del lote. */
+  readonly requiereVencimiento = this.data.item.producto?.vencimiento === true;
+  /**
+   * El vencimiento también se pide para un producto con lote aunque no esté
+   * marcado con vencimiento: es la fecha con la que se crea el lote en el
+   * maestro y sin ella FEFO no puede ordenar nada.
+   */
+  readonly muestraTrazabilidad = this.requiereLote || this.requiereVencimiento;
+
+  readonly lote = signal('');
+  /** `yyyy-MM-dd`, el formato que espera y devuelve `input type=date`. */
+  readonly vencimiento = signal('');
+  readonly fechaRetiro = signal('');
+
+  private readonly lotesDelProducto = signal<Lote[]>([]);
+
+  private readonly lotesPorNumero = computed(() => indexarLotes(this.lotesDelProducto()));
+
+  /** El lote registrado que coincide con lo tipeado, si lo hay. */
+  readonly loteExistente = computed<Lote | null>(() => {
+    const clave = normalizarNumeroLote(this.lote());
+    return clave ? (this.lotesPorNumero().get(clave) ?? null) : null;
+  });
+
+  /**
+   * Las fechas de un lote ya registrado no se editan desde acá.
+   *
+   * No es una restricción de la pantalla: `LoteService.obtenerOCrear` **nunca
+   * pisa** una fecha ya cargada. Dejar el campo editable mostraría una fecha
+   * distinta a la que se va a guardar. Las que el lote no tiene sí se cargan:
+   * ésas el central las completa.
+   */
+  readonly vencimientoBloqueado = computed(() => !!fechaDeLote(this.loteExistente()?.fechaVencimiento));
+  readonly retiroBloqueado = computed(() => !!fechaDeLote(this.loteExistente()?.fechaRetiro));
+
+  readonly avisoLote = computed(() => {
+    const lote = this.loteExistente();
+    if (!lote) {
+      return null;
+    }
+    return {
+      texto: 'Lote ya registrado — ' + detalleDeLote(lote) + '.',
+      requiereAtencion: loteRequiereAtencion(lote),
+    };
+  });
+
+  readonly ayudaRetiro = computed(() =>
+    this.retiroBloqueado()
+      ? 'La define el lote ya registrado.'
+      : 'Opcional: sin ella la calcula el central.',
+  );
+
+  /** Filtra sobre la lista ya cargada: no hay una consulta por tecla. */
+  readonly sugerencias = computed(() => sugerenciasDeLote(this.lotesDelProducto(), this.lote()));
+
+  /** Fechas que escribió el reconocimiento de lote, para poder deshacerlas. */
+  private autocompletado = { vencimiento: '', fechaRetiro: '' };
+
   constructor() {
     if (!this.enUnidadBase) {
       const sugerida =
@@ -293,6 +475,61 @@ export class VerificacionDialogComponent {
     if (inicial != null && inicial > 0) {
       this.cantidad.set(inicial);
     }
+
+    if (this.requiereLote) {
+      this.cargarLotes();
+      // Depende SOLO del lote reconocido: mientras el número siga apuntando al
+      // mismo lote no se reescribe nada, y editar una fecha a mano no vuelve a
+      // disparar el autocompletado —que la pisaría de nuevo—.
+      effect(() => {
+        const lote = this.loteExistente();
+        untracked(() => this.aplicarFechasDelLote(lote));
+      });
+    }
+  }
+
+  private cargarLotes(): void {
+    const productoId = this.data.item.producto?.id;
+    if (productoId == null) {
+      return;
+    }
+    this.servicio.lotesDeProducto(productoId).subscribe({
+      next: (lotes) => this.lotesDelProducto.set(lotes),
+      // Un fallo acá no puede frenar la recepción: se sigue pudiendo tipear el
+      // número a mano, que es lo que el central necesita.
+      error: () => this.lotesDelProducto.set([]),
+    });
+  }
+
+  /**
+   * Trae las fechas del lote reconocido, o deshace las que había traído el
+   * anterior. Una fecha que el operador editó a mano después gana: solo se
+   * borra lo que sigue siendo idéntico a lo autocompletado.
+   */
+  private aplicarFechasDelLote(lote: Lote | null): void {
+    const vencimiento = fechaDeLote(lote?.fechaVencimiento);
+    const retiro = fechaDeLote(lote?.fechaRetiro);
+
+    // La fecha del lote registrado gana siempre: es la que el central va a
+    // guardar, y mostrar otra sería mentirle al operador. Cuando el lote no la
+    // tiene, se conserva lo que el operador haya escrito y solo se deshace lo
+    // que había traído el lote anterior.
+    if (vencimiento || this.vencimiento() === this.autocompletado.vencimiento) {
+      this.vencimiento.set(vencimiento);
+    }
+    if (retiro || this.fechaRetiro() === this.autocompletado.fechaRetiro) {
+      this.fechaRetiro.set(retiro);
+    }
+    this.autocompletado = { vencimiento, fechaRetiro: retiro };
+  }
+
+  /** El número se guarda y se manda en mayúsculas, igual que lo normaliza el central. */
+  escribirLote(valor: string): void {
+    this.lote.set((valor ?? '').toUpperCase());
+  }
+
+  elegirLote(numero: string): void {
+    this.lote.set(numero);
   }
 
   unidad(): string {
@@ -360,6 +597,13 @@ export class VerificacionDialogComponent {
       return;
     }
 
+    const numeroLote = normalizarNumeroLote(this.lote());
+    const faltaLote = validarLoteDeVerificacion(this.requiereLote, carga.recibida, numeroLote);
+    if (faltaLote) {
+      this.notificacion.warn(faltaLote);
+      return;
+    }
+
     let notaItemId: number | null = null;
     let motivo: string | null = null;
 
@@ -382,6 +626,12 @@ export class VerificacionDialogComponent {
         notaRecepcionItemIdParaRechazo: notaItemId,
         motivoRechazo: motivo,
         metodoVerificacion: this.data.metodo ?? MetodoVerificacion.MANUAL,
+        // Trazabilidad de lo que entra. El central crea o reutiliza el lote del
+        // maestro al finalizar la recepción, y de ahí sale el desglose de stock
+        // por lote: sin esto la mercadería entra sin trazabilidad.
+        lote: numeroLote || null,
+        vencimientoRecibido: this.vencimiento() || null,
+        fechaRetiro: this.fechaRetiro() || null,
         // Quien verifica es el que está operando ahora, no el que inició la
         // recepción: pueden ser personas distintas en el mismo camión.
         usuarioId,

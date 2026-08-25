@@ -1381,6 +1381,94 @@ mano) y la barra de arriba cambia a *Escanear* / *Finalizar*.
 > Deshacer no es solo borrar un número: mueve stock. Si el aviso se quedó en
 > «se borran las cantidades», el operador está aceptando algo que no leyó.
 
+### 20.22 · Un producto con lote pide el número *(el que importa)*
+
+> Hace falta una nota que traiga un producto marcado con **control de lote**
+> (`Producto → lote` en el desktop). Sin ese producto este caso no se puede
+> correr, y no correrlo es dejar la trazabilidad sin probar.
+
+1. Tocar ese producto en la lista
+
+**Esperado:** debajo de las líneas cargadas aparece el bloque **Trazabilidad**
+con *Número de lote*, *Vencimiento* y *Fecha de retiro*. El número dice que es
+obligatorio.
+
+2. Cargar la cantidad, *Agregar*, y **Guardar sin escribir el lote**
+
+**Esperado:** avisa que el producto se mueve por lote y **no guarda**. El
+diálogo queda abierto con la carga intacta.
+
+3. Escribir un número nuevo —por ejemplo `L-PRUEBA-1`— en minúsculas
+
+**Esperado:** el campo lo pasa a **mayúsculas** solo.
+
+4. *Guardar*
+
+**Esperado:** guarda, el producto queda verificado y la lista se recarga.
+
+### 20.23 · Un producto sin lote no lo pide
+1. Tocar un producto **sin** control de lote ni vencimiento
+
+**Esperado:** **no aparece** el bloque Trazabilidad. La verificación funciona
+igual que antes.
+
+> Un producto marcado solo con **vencimiento** sí muestra el bloque, pero con
+> el campo de vencimiento nada más: sin lote no hay fecha de retiro que cargar.
+
+### 20.24 · Un lote ya registrado se reconoce y trae sus fechas
+1. Verificar un producto con lote usando un número **nuevo**, con vencimiento
+   y fecha de retiro cargados a mano
+2. **Finalizar** la recepción (así el central crea el lote en el maestro)
+3. En **otra** recepción del mismo producto, empezar a tipear ese número
+
+**Esperado:** mientras se tipea aparecen los lotes del producto como opciones
+tocables, con su vencimiento y retiro. Al completar el número, un aviso dice
+**«Lote ya registrado»** con sus fechas, ésas se cargan solas y **los campos de
+fecha quedan deshabilitados**.
+
+4. Cambiar el número por uno que no exista
+
+**Esperado:** el aviso desaparece, los campos se **habilitan** y las fechas que
+había traído el lote se borran.
+
+> Las fechas se deshabilitan porque el central **nunca pisa** la fecha de un
+> lote que ya existe (`LoteService.obtenerOCrear`). Dejarlas editables mostraría
+> una fecha distinta de la que se va a guardar.
+
+### 20.25 · Un lote bloqueado se avisa, no se esconde
+1. Desde el desktop, poner un lote del producto en **BLOQUEADO** o **CUARENTENA**
+2. Tipear ese número al verificar
+
+**Esperado:** el aviso sale **en rojo** y dice el estado. **No** impide guardar:
+la decisión es del operador, el sistema avisa.
+
+### 20.26 · Dos lotes del mismo producto en la misma recepción
+1. Verificar **parte** de la cantidad de un producto con lote `A`
+2. Volver a entrar al mismo producto y verificar el resto con lote `B`
+3. Finalizar la recepción
+4. Desde el desktop, mirar el **stock por lotes** de ese producto en la sucursal
+
+**Esperado:** aparecen **los dos lotes**, cada uno con su cantidad. No puede
+pasar que todo el stock quede en el último número tipeado.
+
+> Es el caso que obliga a guardar el lote por pasada y no solo en el ítem.
+> Necesita el central con la migración **`V202.5`** para que la fecha de retiro
+> de la segunda pasada no se pierda.
+
+### 20.27 · Un rechazo total no pide lote
+1. En un producto con lote, cargar **toda** la cantidad como rechazo con motivo
+2. *Guardar*
+
+**Esperado:** guarda sin pedir el número de lote. No hay mercadería que trazar.
+
+### 20.28 · La fecha de retiro es opcional
+1. Verificar un producto con lote **sin** cargar fecha de retiro
+2. Finalizar y mirar el lote desde el desktop
+
+**Esperado:** guarda igual. El lote queda con la fecha de retiro que **calcula
+el central** a partir de los días de vencimiento del producto (o vacía si el
+producto no los tiene configurados).
+
 ---
 
 ## Bloque 21 — Solicitud de pago a proveedor *(nuevo)*
@@ -2359,6 +2447,7 @@ Para que no se reporte como falla:
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: zonas y sectores | No portado. La carga del conteo ya está (bloque 29); agregar un producto que la toma no incluye necesita `saveInventarioProducto`, que tampoco |
+| Recepción: ver el lote de un producto ya verificado | El número se guarda y viaja al maestro de lotes, pero `PedidoRecepcionProductoDto` no lo devuelve: la lista de productos de la recepción no lo muestra |
 | Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
 | Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
@@ -2705,7 +2794,7 @@ no va a preguntar.
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |
-| 20 · Recepción de mercadería | 21 | | | |
+| 20 · Recepción de mercadería | 28 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
 | 22 · Crédito en Inicio | 6 | | | |
 | 23 · Escáner universal | 9 | 3 | | |
@@ -2724,7 +2813,7 @@ no va a preguntar.
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
 | 38 · Notificaciones push | 9 | 6 | | |
-| **Total** | **284** | | | |
+| **Total** | **291** | | | |
 
 ### Los cinco que más importan
 

@@ -7,8 +7,14 @@ Guía para trabajar en este repositorio.
 **PWA que reemplaza a `frc-mobile`** (la app Android empaquetada con Capacitor). Cliente web del ERP **Franco Systems**, marca comercial **Bodega Franco**.
 
 - **Repo:** `GabFrank/frc-mobile-pwa` — **privado**
-- **Reemplaza a:** `GabFrank/frc-mobile` (público, en modo mantenimiento durante la transición)
+- **Reemplaza a:** `GabFrank/frc-mobile` (público) — **`frc-mobile` es legacy**
 - **Backend:** `frc-comercial/central` vía GraphQL. **Nunca `frc-efact`.**
+
+> **Este es el único repo mobile en desarrollo.** `frc-mobile` no recibe más
+> funcionalidad ni correcciones: un bug reportado «en el mobile» se arregla acá.
+> Aquel repo se sigue **leyendo** —es la fuente de verdad del comportamiento
+> heredado, ver la regla 5.1— pero no se toca. Su `CLAUDE.md` lo dice desde la
+> primera pantalla.
 
 ## Stack
 
@@ -124,6 +130,8 @@ Si lo usa, se crea un método paralelo con sufijo `Mobile`. El desktop es produc
 ### 5.1 · Antes de portar una pantalla, leé cómo la hace `frc-mobile`
 
 Los documentos de `docs/modulos/` son buenos pero **no cubren todo**. Si algo del repo viejo parece un error, verificalo antes de «corregirlo»: suele codificar una regla del negocio que no está escrita en ningún lado.
+
+**Leerlo, no editarlo.** `frc-mobile` es legacy: la corrección va acá, siempre.
 
 Dos cosas que costó aprender así:
 

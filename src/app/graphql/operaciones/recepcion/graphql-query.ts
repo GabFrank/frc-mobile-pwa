@@ -95,6 +95,9 @@ export const productosPorRecepcionQuery = gql`
         producto {
           id
           descripcion
+          lote
+          vencimiento
+          diasVencimiento
           presentaciones {
             id
             cantidad
@@ -128,6 +131,9 @@ export const productoPorRecepcionYProductoQuery = gql`
       producto {
         id
         descripcion
+        lote
+        vencimiento
+        diasVencimiento
         presentaciones {
           id
           cantidad
@@ -270,6 +276,9 @@ export const verificarProductoMutation = gql`
     $notaRecepcionItemIdParaRechazo: ID
     $motivoRechazo: String
     $metodoVerificacion: String
+    $lote: String
+    $vencimientoRecibido: String
+    $fechaRetiro: String
     $usuarioId: ID!
   ) {
     data: verificarProductoMobile(
@@ -280,6 +289,9 @@ export const verificarProductoMutation = gql`
       notaRecepcionItemIdParaRechazo: $notaRecepcionItemIdParaRechazo
       motivoRechazo: $motivoRechazo
       metodoVerificacion: $metodoVerificacion
+      lote: $lote
+      vencimientoRecibido: $vencimientoRecibido
+      fechaRetiro: $fechaRetiro
       usuarioId: $usuarioId
     )
   }

@@ -272,6 +272,75 @@ no la consigue **corta la operación** en vez de mandar algo que se va a
 perder. El diálogo además muestra cuánto queda pendiente en cada nota, porque
 el backend rechaza la operación entera si la nota elegida no alcanza.
 
+## Un producto con lote no se recibe sin el número
+
+Lo decide el **producto**: `producto.lote === true` hace que el diálogo de
+verificación abra el bloque «Trazabilidad» con número de lote, vencimiento y
+fecha de retiro, y que el número sea obligatorio para lo que se recibe. Una
+verificación que es **toda rechazo** no lo pide: no hay mercadería que trazar.
+
+La regla no vive solo en la pantalla. El central la aplica en
+`RecepcionMercaderiaItemService.validarLoteObligatorio`, igual que el desktop
+en su verificación detallada: mobile, el desktop y una llamada directa al
+GraphQL son tres puertas independientes, y sin lote la finalización de la
+recepción entra la mercadería **sin trazabilidad y sin un solo error**.
+
+### Qué hace el central con esas tres fechas
+
+Al finalizar la recepción, `MovimientoStockLoteService.registrarEntradaCompra`
+llama a `LoteService.obtenerOCrear`, que **crea o reutiliza** la fila de
+`operaciones.lote` para ese (producto, número). De ahí sale el desglose de
+stock por lote que alimenta FEFO y el recall.
+
+Dos reglas del central que la pantalla refleja y no reimplementa:
+
+- **Nunca se pisa una fecha ya cargada** de un lote existente. Por eso, cuando
+  lo tipeado coincide con un lote registrado, la pantalla trae sus fechas y
+  **deshabilita** las que el lote ya tiene: dejarlas editables mostraría una
+  fecha distinta de la que se va a guardar. Las que le faltan sí se cargan —
+  ésas el central las completa.
+- **La fecha de retiro es opcional.** Sin ella se deriva de
+  `vencimiento − producto.diasVencimiento`, que es el comportamiento
+  histórico. Cargarla a mano la pisa.
+
+### Por qué el lote se guarda como variación y no solo en el ítem
+
+`recepcion_mercaderia_item` tiene **un solo** campo `lote`, y en mobile el
+mismo producto se puede verificar en varias pasadas: dos cajas del lote A
+ahora y cinco unidades del lote B después. La segunda pasada pisaría a la
+primera y todo el stock quedaría atribuido al último número tipeado.
+
+Por eso `verificarProductoMobile` deja **una variación por pasada** con su
+cantidad, su lote y sus fechas. `registrarEntradaCompra` prefiere las
+variaciones sobre el ítem justamente para este caso, y el campo del ítem se
+escribe solo la primera vez, para que la constancia y el detalle tengan algo
+que mostrar.
+
+> La fecha de retiro de la variación necesita la migración **`V202.5`** del
+> central. Sin ella el número de lote y el vencimiento se guardan igual, pero
+> el retiro cargado a mano se pierde entre la verificación y la finalización.
+
+### Sugerencias mientras se tipea
+
+El diálogo trae los lotes ya registrados del producto con `lotesPorProducto`
+—la misma operación de solo lectura que usa el desktop, sin método paralelo
+`Mobile`— y filtra en memoria: no hay una consulta por tecla. Incluye
+**bloqueados y en cuarentena a propósito**: si el operador está por recibir
+uno de ésos hay que avisarle, no esconderlo.
+
+**Con el campo vacío no se sugiere nada.** Un producto de rotación alta junta
+un lote por compra, y a los pocos meses son cientos: volcarlos al abrir el
+diálogo empujaba el vencimiento y el retiro fuera de la pantalla, que es
+justamente lo que hay que cargar. El reconocimiento arranca con la primera
+tecla —`MIN_CARACTERES_LOTE`—, corta en seis opciones y **dice cuántas
+coincidencias quedaron afuera**: un corte silencioso se lee como «no hay más»
+y el operador termina creando un lote nuevo teniendo el suyo registrado.
+Cuando ninguna coincide, el texto avisa que ese número va a crear un lote
+nuevo; cuando coincide entero, lo dice el aviso de «lote ya registrado».
+
+Las reglas puras están en `recepcion-lote.ts`, con tests en
+`pruebas/recepcion-lote.spec.ts`.
+
 ## La cotización ya no cae en 1.0 en silencio
 
 `frc-mobile` iniciaba la recepción con la primera moneda de la lista y
@@ -310,6 +379,7 @@ nada. Escanear el QR de una virtual también se rechaza, con el motivo.
 | Editar una línea cargada | modo edición con índices | quitar y volver a cargar |
 | Varias notas con el mismo número | diálogo de selección | se avisa y se pide resolver desde el desktop |
 | Constancia PDF | diálogo con visor propio | `PdfService`, con el camino de iOS resuelto |
+| Número de lote | no se carga: la mercadería entra sin trazabilidad | obligatorio si el producto lo lleva, con sugerencias de los lotes ya registrados |
 
 ## Lo que falta
 
@@ -319,4 +389,5 @@ nada. Escanear el QR de una virtual también se rechaza, con el motivo.
 | Compartir la recepción por QR | el QR se genera con `codificarQr`; falta la pantalla que lo muestre |
 | Varias notas con el mismo número | hoy se avisa en vez de dejar elegir |
 | Cancelar una recepción | el backend lo soporta, no hay pantalla |
+| Ver el lote de un producto ya verificado | el número se guarda, pero `PedidoRecepcionProductoDto` no lo devuelve: la lista de productos no lo puede mostrar |
 | `NotaRecepcionAgrupada` | **no se porta a propósito** |

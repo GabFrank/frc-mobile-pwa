@@ -131,3 +131,39 @@ describe('Zonas concluidas', () => {
     expect(productosConcluidos([{ id: 1, concluido: true }, { id: 2 }, { id: 3, concluido: true }])).toBe(2);
   });
 });
+
+/**
+ * Los ítems que nadie contó.
+ *
+ * ⚠️ **Al finalizar, el central NO les toca el stock**: los saltea. Antes ni
+ * siquiera se podía finalizar —`cantidad` es nullable y multiplicarla reventaba
+ * con un NullPointerException—, así que ninguna toma con un ítem sin contar se
+ * podía cerrar. Ahora se saltean, y por eso la confirmación de *Finalizar*
+ * tiene que decir cuántos son: es la última oportunidad de volver a contarlos.
+ */
+describe('Ítems sin contar en el resumen', () => {
+  const item = (cantidad?: number) => ({ id: 1, cantidad, cantidadFisica: 10 });
+
+  it('los cuenta aparte de los contados', () => {
+    const r = resumirItems([item(7), item(), item()] as never);
+
+    expect(r.contados).toBe(1);
+    expect(r.sinContar).toBe(2);
+  });
+
+  it('contar cero es contar', () => {
+    // Cero dice «no hay nada en la góndola»; sin contar dice «nadie fue a
+    // mirar». Es la distinción de la que depende que el stock no se vaya a
+    // cero solo.
+    const r = resumirItems([item(0)] as never);
+
+    expect(r.contados).toBe(1);
+    expect(r.sinContar).toBe(0);
+    // Cero contra 10 del sistema sí es una diferencia.
+    expect(r.conDiferencia).toBe(1);
+  });
+
+  it('una zona vacía no tiene ítems sin contar', () => {
+    expect(resumirItems([]).sinContar).toBe(0);
+  });
+});

@@ -415,7 +415,13 @@ export class InventarioDetallePage {
       titulo: 'Finalizar inventario',
       mensaje: vieja
         ? `Esta toma lleva ${dias} días abierta. Finalizarla ajusta el stock de HOY con lo que se contó entonces. Si nadie la va a terminar, lo correcto es cancelarla.`
-        : `Se aplican las diferencias al stock. Hay ${r.conDiferencia} ítems con diferencia y ${this.diferenciaTotal()} de diferencia total.`,
+        : `Se aplican las diferencias al stock. Hay ${r.conDiferencia} ítems con diferencia y ${this.diferenciaTotal()} de diferencia total.` +
+          // ⚠️ Los ítems sin contar NO ajustan stock: el central los saltea.
+          // Decirlo acá es la última oportunidad de volver a contarlos, y
+          // evita que alguien lea el resultado como «se contó toda la zona».
+          (r.sinContar > 0
+            ? ` Quedan ${r.sinContar} ítems sin contar: a esos no se les toca el stock.`
+            : ''),
       confirmar: 'Finalizar',
       destructivo: vieja,
     });

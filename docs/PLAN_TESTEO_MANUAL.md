@@ -3082,9 +3082,13 @@ tenían diferencia — que son justo los que el supervisor busca.
 **Esperado:** ese ítem cuenta como **no contado** —no suma a «Ítems contados» ni
 a «Con diferencia»— y en revisión dice «sin contar», no «0».
 
-⚠️ **Al finalizar sí entra como diferencia contra el stock.** Eso es
-intencional y es lo que hace el central; por eso la confirmación de *Finalizar*
-dice cuántos ítems tienen diferencia.
+⚠️ **Al finalizar NO entra en el ajuste: el central lo saltea.** Este plan decía
+lo contrario y nunca fue cierto — el central reventaba con un
+`NullPointerException` y la toma no se podía finalizar. Tomarlo como cero le
+llevaría el stock a cero a un producto que nadie miró.
+
+La confirmación de *Finalizar* dice cuántos quedan sin contar. Verificalo:
+dejá un ítem sin contar y mirá que el diálogo lo mencione.
 
 ### 41.5 · Finalizar una toma vieja avisa lo que va a hacer
 

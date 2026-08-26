@@ -7,6 +7,14 @@ import {
 export interface ResumenConteo {
   /** Ítems con cantidad contada. */
   contados: number;
+  /**
+   * Ítems que nadie contó.
+   *
+   * ⚠️ **Al finalizar no se les toca el stock**, y por eso hay que decirlo
+   * antes: el central los saltea. Tomarlos como cero le llevaría el stock a
+   * cero a un producto que nadie miró.
+   */
+  sinContar: number;
   /** De esos, los que quedaron marcados como corregidos por un supervisor. */
   revisados: number;
   /** Suma de las diferencias contado − sistema. */
@@ -60,6 +68,7 @@ export function fueContadoEnEstaToma(item: InventarioProductoItem): boolean {
 export function resumirItems(items: InventarioProductoItem[]): ResumenConteo {
   const resumen: ResumenConteo = {
     contados: 0,
+    sinContar: 0,
     revisados: 0,
     diferencia: 0,
     conDiferencia: 0,
@@ -67,6 +76,7 @@ export function resumirItems(items: InventarioProductoItem[]): ResumenConteo {
 
   for (const item of items ?? []) {
     if (!fueContadoEnEstaToma(item)) {
+      resumen.sinContar += 1;
       continue;
     }
     resumen.contados += 1;

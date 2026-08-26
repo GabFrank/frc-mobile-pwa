@@ -790,6 +790,20 @@ Sobre eso, la carga del conteo usaba ese mismo reporte para proponer el vencimie
 
 **Compatibilidad:** el reporte del escritorio recibe **más** filas que antes, nunca menos.
 
+### 65. ✅ Ninguna toma con un ítem sin contar se podía finalizar
+
+**Dónde:** `central` — `InventarioGraphQL.finalizarInventarioEnSucursal()`, línea 220.
+
+`cantidad` —lo contado— es nullable, y un ítem que se sumó a la toma y que nadie fue a contar la tiene en `null`. Al finalizar se hacía `ipi.getCantidad() * ipi.getPresentacion().getCantidad()` sin mirar, así que reventaba con un `NullPointerException` al desempaquetar el `Double`.
+
+**Estado:** corregido. Los ítems sin contar se **saltean**, no se toman como cero: si se tomaran como cero y un producto tuviera todos sus ítems sin contar, el ajuste le llevaría el stock **a cero** sin que nadie hubiera contado nada. Es la misma distinción que ya hacía `fueContadoEnEstaToma()` en el cliente —cero cuenta, `null` no—.
+
+De paso, un inventario inexistente tiraba otro `NullPointerException` en la línea siguiente; ahora dice cuál es el id que no encontró.
+
+⚠️ **`PLAN_TESTEO_MANUAL.md` decía lo contrario** en el caso 41.4: «al finalizar sí entra como diferencia contra el stock, eso es intencional y es lo que hace el central». Nunca fue cierto — el central reventaba. Corregido.
+
+Del lado del cliente, la confirmación de *Finalizar* ahora dice cuántos ítems quedan sin contar y que a esos no se les toca el stock. Es la última oportunidad de volver a contarlos.
+
 ---
 
 ## Cómo usar este archivo
@@ -798,4 +812,4 @@ Al arrancar la fase de corrección: convertir cada ítem en un issue, empezando 
 
 Los ítems 34-36 son cosméticos **con riesgo de contrato**: antes de renombrar cualquier cosa que viaje al backend, verificá el schema del central.
 
-**Resumen:** 64 hallazgos — 6 🔴, 27 🟡, 28 🟢, 2 ✅. El #60 y el #62 son deuda **de este repo**; el #63 era del **central** y ya está corregido allá.
+**Resumen:** 65 hallazgos — 6 🔴, 27 🟡, 28 🟢, 3 ✅. El #60 y el #62 son deuda **de este repo**; el #63 era del **central** y ya está corregido allá.

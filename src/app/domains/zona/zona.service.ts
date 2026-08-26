@@ -7,7 +7,6 @@ import { DeleteZonaGQL } from './graphql/deleteZona';
 import { SaveZonaGQL } from './graphql/saveZona';
 import { ZonaByIdGQL } from './graphql/zonaById';
 import { ZonasGQL } from './graphql/zonasQuery';
-import { ZonasSearchGQL } from './graphql/zonasSearch';
 
 /** Zonas: la unidad de conteo asignable en un inventario. */
 @Injectable({ providedIn: 'root' })
@@ -17,7 +16,6 @@ export class ZonaService {
   private readonly porIdGQL = inject(ZonaByIdGQL);
   private readonly guardarGQL = inject(SaveZonaGQL);
   private readonly eliminarGQL = inject(DeleteZonaGQL);
-  private readonly buscarGQL = inject(ZonasSearchGQL);
 
   todas(): Observable<Zona[]> {
     return this.datos.consultar<Zona[]>(this.todasGQL);
@@ -27,11 +25,6 @@ export class ZonaService {
     return this.datos.porId<Zona>(this.porIdGQL, id);
   }
 
-  buscar(texto: string): Observable<Zona[]> {
-    return this.datos.porTexto<Zona[]>(this.buscarGQL, texto, undefined, {
-      mostrarCarga: false,
-    });
-  }
 
   /** Devuelve la zona guardada, con su id ya asignado si era nueva. */
   guardar(input: Record<string, unknown>): Observable<Zona> {

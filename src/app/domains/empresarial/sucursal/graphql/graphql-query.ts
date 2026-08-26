@@ -24,21 +24,27 @@ export const sucursalesQuery = gql
     }
   }`;
 
+/**
+ * ⚠️ **Devuelve un `SucursalPage`, no una lista.** Las sucursales viven en
+ * `getContent`; `SucursalService.buscar()` lo desenvuelve.
+ */
 export const sucursalesSearch = gql
   `query($texto: String){
     data : sucursalesSearch(texto: $texto){
-      id
-      nombre
-      localizacion
-      ciudad{
+      getContent{
         id
+        nombre
+        localizacion
+        ciudad{
+          id
+        }
+        creadoEn
+        usuario{
+          id
+        }
+        ip
+        puerto
       }
-      creadoEn
-      usuario{
-        id
-      }
-      ip
-      puerto
     }
   }`
 

@@ -1080,6 +1080,29 @@ envía». No están escondidas.
 **Esperado:** queda apagado. Si el servidor rechaza el cambio, el interruptor
 vuelve a su posición y avisa.
 
+### 16.8 · El orden no cambia entre entradas
+1. Anotar el orden de las filas
+2. Volver atrás y entrar de nuevo a **Preferencias**, tres o cuatro veces
+
+**Esperado:** **el mismo orden siempre**, alfabético por la etiqueta. El
+central devuelve esta lista sin ordenar —la arma recorriendo un `HashMap`—, y
+sin el orden del cliente los interruptores saltan de lugar entre una entrada y
+la siguiente. Es el caso que más importa del bloque: apagar el interruptor
+equivocado se hace justamente así.
+
+### 16.9 · Ninguna fila queda sin texto
+1. Recorrer toda la lista
+
+**Esperado:** **cada fila dice qué avisa**, en castellano y sin guiones bajos.
+No puede aparecer un `PRODUCTO_CREADO` crudo ni una fila vacía: cuando el
+central no manda `descripcion`, la app usa su propia tabla de tipos.
+
+> ⚠️ **Qué tipos aparecen lo decide el central, no la app.** La lista sale de
+> cruzar los roles del usuario contra `notificacion_tipo_role`. Si falta un
+> tipo que sí te llega como aviso —«producto creado», por ejemplo—, **no es un
+> fallo de esta pantalla**: es el mapa de roles del central, que se corrige por
+> migración. Reportarlo igual, indicando con qué usuario.
+
 ---
 
 ## Bloque 17 — Caja chica *(nuevo)*
@@ -2708,7 +2731,7 @@ no va a preguntar.
 | 13 · Devoluciones | 7 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
 | 15 · Marcación | 7 | | | |
-| 16 · Notificaciones | 7 | | | |
+| 16 · Notificaciones | 9 | | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |
@@ -2731,7 +2754,7 @@ no va a preguntar.
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
 | 38 · Notificaciones push | 9 | 6 | | |
-| **Total** | **284** | | | |
+| **Total** | **286** | | | |
 
 ### Los cinco que más importan
 

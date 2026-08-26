@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { Sucursal } from './sucursal.model';
@@ -34,9 +34,15 @@ export class SucursalService {
     });
   }
 
+  /**
+   * ⚠️ **El central devuelve una página, no una lista.** Se desenvuelve el
+   * `getContent` para que el llamador reciba un `Sucursal[]` plano.
+   */
   buscar(texto: string): Observable<Sucursal[]> {
-    return this.datos.porTexto<Sucursal[]>(this.buscarGQL, texto, undefined, {
-      mostrarCarga: false,
-    });
+    return this.datos
+      .porTexto<{ getContent?: Sucursal[] }>(this.buscarGQL, texto, undefined, {
+        mostrarCarga: false,
+      })
+      .pipe(map((pagina) => pagina?.getContent ?? []));
   }
 }

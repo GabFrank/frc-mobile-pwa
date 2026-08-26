@@ -71,28 +71,39 @@ export const transferenciasConFiltrosQuery = gql`
   }
 `;
 
+/**
+ * ⚠️ **Devuelve un `TransferenciaItemPage`, no una lista.** Los campos del
+ * ítem viven dentro de `getContent`; pedirlos directamente sobre la página
+ * hace que el central rechace la query entera con un `FieldUndefined` por
+ * cada campo. `TransferenciaService.items()` desenvuelve el `getContent`.
+ *
+ * ⚠️ **`TransferenciaItem` no tiene `producto`.** El producto cuelga de la
+ * presentación (`presentacionPreTransferencia.producto`); el servicio lo copia
+ * a `item.producto` para que la vista lo siga leyendo de ahí.
+ */
 export const itemsPorTransferenciaQuery = gql`
   query ($id: ID!, $page: Int, $size: Int) {
     data: transferenciaItensPorTransferenciaId(id: $id, page: $page, size: $size) {
-      id
-      producto { id descripcion }
-      cantidadPreTransferencia
-      presentacionPreTransferencia { id cantidad }
-      vencimientoPreTransferencia
-      observacionPreTransferencia
-      motivoRechazoPreTransferencia
-      cantidadPreparacion
-      presentacionPreparacion { id cantidad }
-      observacionPreparacion
-      motivoRechazoPreparacion
-      cantidadTransporte
-      presentacionTransporte { id cantidad }
-      observacionTransporte
-      motivoRechazoTransporte
-      cantidadRecepcion
-      presentacionRecepcion { id cantidad }
-      observacionRecepcion
-      motivoRechazoRecepcion
+      getContent {
+        id
+        cantidadPreTransferencia
+        presentacionPreTransferencia { id cantidad producto { id descripcion } }
+        vencimientoPreTransferencia
+        observacionPreTransferencia
+        motivoRechazoPreTransferencia
+        cantidadPreparacion
+        presentacionPreparacion { id cantidad }
+        observacionPreparacion
+        motivoRechazoPreparacion
+        cantidadTransporte
+        presentacionTransporte { id cantidad }
+        observacionTransporte
+        motivoRechazoTransporte
+        cantidadRecepcion
+        presentacionRecepcion { id cantidad }
+        observacionRecepcion
+        motivoRechazoRecepcion
+      }
     }
   }
 `;

@@ -1023,10 +1023,40 @@ bloquea. Al confirmar, queda registrado con esos datos.
 **Esperado:** **no** aparece la sucursal del usuario anterior.
 
 ### 15.7 · Salida de almuerzo
-1. Con la jornada abierta, marcar la salida de almuerzo y después el retorno
+1. Con la jornada abierta, tocar **«Salir a almorzar»** y después el retorno
 
 **Esperado:** la jornada **no se cierra** con la salida de almuerzo; las
 horas trabajadas siguen contando bien al volver.
+
+### 15.9 · El almuerzo es opcional *(el que importa de esta tanda)*
+1. Marcar entrada
+2. Sin salir a almorzar, mirar la barra de abajo
+3. Tocar **«Marcar salida»** (el rojo, no el de contorno)
+
+**Esperado:** con la jornada abierta y el almuerzo sin marcar aparecen **dos
+botones**: «Salir a almorzar» (contorno) y «Marcar salida» (relleno). Al tocar
+el segundo la jornada **cierra**, y al volver a la pantalla ofrece «Marcar
+entrada» — **no** «Volver del almuerzo».
+
+El estado de arriba dice **«En jornada»** a secas mientras haya dos opciones,
+no «falta marcar salida».
+
+> Antes de este cambio la primera salida del día se registraba siempre como
+> salida de almuerzo, así que el retorno era obligatorio. Si volvés a ver
+> «Volver del almuerzo» sin haber tocado «Salir a almorzar», es la regresión.
+
+### 15.8 · Marcar con el GPS activo *(la regresión del tipo `Int`)*
+1. Con permiso de ubicación **concedido**, esperar a que el panel muestre una
+   distancia distinta de cero —alcanza con estar a unos metros— y marcar
+2. Si aparece el aviso de «Estás lejos de la sucursal», confirmar
+
+**Esperado:** la marcación **se registra**. No puede aparecer
+`Variable 'entity' has an invalid value: Expected type 'Int' but was 'Double'`,
+que es lo que salía cuando la distancia calculada viajaba con decimales.
+
+> El caso solo se reproduce con GPS: negando el permiso la distancia no se
+> manda y el error no aparece nunca. Por eso hay que **conceder** el permiso y
+> esperar a ver los metros en pantalla antes de tocar el botón.
 
 ---
 
@@ -2852,8 +2882,8 @@ no va a preguntar.
 | 12 · Buscar producto | 9 | | | |
 | 13 · Devoluciones | 7 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
-| 15 · Marcación | 7 | | | |
-| 16 · Notificaciones | 9 | | | |
+| 15 · Marcación | 9 | | | |
+| 16 · Notificaciones | 7 | | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |

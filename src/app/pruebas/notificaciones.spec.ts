@@ -169,6 +169,25 @@ describe('Preferencias de notificación', () => {
     );
   });
 
+  it('la lista se ordena por su etiqueta', () => {
+    // El central la arma desde un HashMap: sin ordenar, los interruptores
+    // saltan de lugar entre una entrada y la siguiente.
+    servicio.configuraciones.mockReturnValue(of([OPCIONAL, OBLIGATORIA]));
+    const f = montar();
+
+    expect(f.componentInstance.configuraciones().map((c) => c.tipo)).toEqual([
+      'DIFERENCIA_MALETIN',
+      'RETIRO',
+    ]);
+  });
+
+  it('sin descripcion del central, la fila usa la del tipo', () => {
+    servicio.configuraciones.mockReturnValue(of([{ ...OPCIONAL, descripcion: undefined }]));
+    const f = montar();
+
+    expect(f.nativeElement.textContent).toContain(DESCRIPCION_POR_TIPO['RETIRO']);
+  });
+
   it('si el backend rechaza, el interruptor vuelve', () => {
     servicio.cambiarPreferencia.mockReturnValue(throwError(() => new Error('no')));
     const f = montar();

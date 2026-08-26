@@ -7,7 +7,6 @@ import { DeleteSectorGQL } from './graphql/deleteSector';
 import { SaveSectorGQL } from './graphql/saveSector';
 import { SectorByIdGQL } from './graphql/sectorById';
 import { SectoresGQL } from './graphql/sectoresQuery';
-import { SectoresSearchGQL } from './graphql/sectoresSearch';
 
 /** Sectores: agrupan zonas dentro de una sucursal. Ver docs/modulos/inventario.md. */
 @Injectable({ providedIn: 'root' })
@@ -17,7 +16,6 @@ export class SectorService {
   private readonly porIdGQL = inject(SectorByIdGQL);
   private readonly guardarGQL = inject(SaveSectorGQL);
   private readonly eliminarGQL = inject(DeleteSectorGQL);
-  private readonly buscarGQL = inject(SectoresSearchGQL);
 
   /**
    * Los sectores de **una sucursal**.
@@ -35,11 +33,6 @@ export class SectorService {
     return this.datos.porId<Sector>(this.porIdGQL, id);
   }
 
-  buscar(texto: string): Observable<Sector[]> {
-    return this.datos.porTexto<Sector[]>(this.buscarGQL, texto, undefined, {
-      mostrarCarga: false,
-    });
-  }
 
   /** Devuelve el sector guardado, con su id ya asignado si era nuevo. */
   guardar(input: Record<string, unknown>): Observable<Sector> {

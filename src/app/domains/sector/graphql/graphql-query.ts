@@ -23,28 +23,6 @@ export const sectoresQuery = gql`
   }
 `;
 
-export const sectoresSearch = gql`
-  query ($texto: String) {
-    data: sectoresSearch(texto: $texto) {
-      id
-      sucursal {
-        id
-        nombre
-      }
-      descripcion
-      activo
-      creadoEn
-      usuario {
-        id
-      }
-      zonaList {
-        id
-        descripcion
-        activo
-      }
-    }
-  }
-`;
 
 export const sectorQuery = gql`
   query ($id: ID!) {

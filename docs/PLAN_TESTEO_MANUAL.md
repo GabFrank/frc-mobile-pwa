@@ -1937,9 +1937,16 @@ siguen pegados a cajas viejas.
 movimientos.
 
 > ⚠️ **Si dice *No se pudo consultar*, el central no tiene
-> `stockPorSucursales`.** Es una consulta nueva; contra una instancia vieja
-> —alpha, hoy— es lo esperado. Lo que **no** puede pasar es que muestre todas
-> las sucursales en cero: eso afirmaría que no hay mercadería.
+> `stockPorSucursales`.** Contra **alpha eso ya no debería pasar**: la consulta
+> está desde `4.7.0-alpha.40` (verificado 2026-08-15), así que acá la existencia
+> se prueba de verdad y un «No se pudo consultar» **es un hallazgo**.
+>
+> Contra **beta o producción sí es lo esperado** por ahora —farmacia corre
+> `4.7.0-beta.2` y bodega `4.8.0`, sin la consulta— hasta que el central se
+> promueva.
+>
+> Lo que **no** puede pasar en ningún caso es que muestre todas las sucursales
+> en cero: eso afirmaría que no hay mercadería.
 
 ---
 

@@ -186,9 +186,9 @@ La lista operativa de esto, escrita para que nadie lo reporte como falla durante
 
 **Falta el test manual de apertura y cierre de caja** — bloque 7 del plan. Es lo único implementado de la primera tanda que no se ejecutó contra el central real, porque la apertura se proxea a la filial.
 
-⚠️ **La ficha de producto necesita un central con `stockPorSucursales`.** Es una consulta nueva y la instancia **alpha todavía no la tiene**: ahí la sección de existencia dice «No se pudo consultar», que es lo esperado. Lo que no puede pasar es que muestre las sucursales en cero.
+⚠️ **La ficha de producto necesita un central con `stockPorSucursales`.** Verificado el 2026-08-15: **alpha ya la tiene** desde `4.7.0-alpha.40`, así que ahí la existencia se puede probar de verdad. **Beta y producción todavía no** —farmacia corre `4.7.0-beta.2` y bodega `4.8.0`, y la consulta solo está en `develop` del central—, así que ahí la sección dice «No se pudo consultar» hasta que el central se promueva. Lo que no puede pasar en ningún caso es que muestre las sucursales en cero: eso afirmaría que no hay mercadería.
 
-⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
+✅ **La solicitud de pago ya no está bloqueada.** Exigía la migración `V194.5` del central, y **está en los tres canales** —`develop`, `release/beta` y `master`— verificado el 2026-08-15. El aviso anterior era cierto cuando se escribió: contra un central sin esa migración, el paso `PENDIENTE → SOLICITADO` falla y la solicitud queda como borrador, que es justamente el documento que nadie ve.
 
 Verificación: **536 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 

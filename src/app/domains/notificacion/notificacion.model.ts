@@ -81,11 +81,24 @@ export interface FiltrosNotificacion {
  * y de ahí que el módulo tenga hilo de comentarios.
  */
 export const DESCRIPCION_POR_TIPO: Readonly<Record<string, string>> = {
-  RETIRO: 'Retiro realizado en sucursal',
-  VENTA_TRANSFERENCIA: 'Venta con pago por transferencia',
-  VENTA_STOCK_CRITICO: 'Venta con producto en stock cero o negativo',
-  VENTA_CREDITO_CLIENTE: 'Compra a crédito propia',
+  AJUSTE_COSTO: 'Ajuste de costo de un producto',
+  AJUSTE_STOCK: 'Ajuste manual de stock',
+  CAMBIO_SUCURSAL_PRE_TRANSFERENCIA: 'Cambio de sucursal en una transferencia',
+  COTIZACION_ACTUALIZADA: 'Cambio en la cotización de una moneda',
   DIFERENCIA_MALETIN: 'Diferencia detectada en maletín',
+  FACTURA_ALTO_VALOR: 'Factura por un monto alto',
+  GASTO: 'Gasto realizado en sucursal',
+  INVENTARIO_INICIADO: 'Inicio de un inventario',
+  NUEVO_DISPOSITIVO: 'Ingreso desde un dispositivo nuevo',
+  PRECIO_ACTUALIZADO: 'Precio de venta actualizado',
+  PRODUCTO_CREADO: 'Producto nuevo creado',
+  RETIRO: 'Retiro realizado en sucursal',
+  RRHH_ALERTA: 'Alerta del módulo de RRHH',
+  RRHH_SOLICITUD: 'Solicitud de vale o vacación por aprobar',
+  TRANSFERENCIA_INICIADA: 'Transferencia entre sucursales',
+  VENTA_CREDITO_CLIENTE: 'Compra a crédito propia',
+  VENTA_STOCK_CRITICO: 'Venta con producto en stock cero o negativo',
+  VENTA_TRANSFERENCIA: 'Venta con pago por transferencia',
 };
 
 export function descripcionDeTipo(tipo: string | null | undefined): string {

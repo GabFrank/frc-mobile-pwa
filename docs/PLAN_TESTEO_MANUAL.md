@@ -1080,6 +1080,29 @@ envía». No están escondidas.
 **Esperado:** queda apagado. Si el servidor rechaza el cambio, el interruptor
 vuelve a su posición y avisa.
 
+### 16.8 · El orden no cambia entre entradas
+1. Anotar el orden de las filas
+2. Volver atrás y entrar de nuevo a **Preferencias**, tres o cuatro veces
+
+**Esperado:** **el mismo orden siempre**, alfabético por la etiqueta. El
+central devuelve esta lista sin ordenar —la arma recorriendo un `HashMap`—, y
+sin el orden del cliente los interruptores saltan de lugar entre una entrada y
+la siguiente. Es el caso que más importa del bloque: apagar el interruptor
+equivocado se hace justamente así.
+
+### 16.9 · Ninguna fila queda sin texto
+1. Recorrer toda la lista
+
+**Esperado:** **cada fila dice qué avisa**, en castellano y sin guiones bajos.
+No puede aparecer un `PRODUCTO_CREADO` crudo ni una fila vacía: cuando el
+central no manda `descripcion`, la app usa su propia tabla de tipos.
+
+> ⚠️ **Qué tipos aparecen lo decide el central, no la app.** La lista sale de
+> cruzar los roles del usuario contra `notificacion_tipo_role`. Si falta un
+> tipo que sí te llega como aviso —«producto creado», por ejemplo—, **no es un
+> fallo de esta pantalla**: es el mapa de roles del central, que se corrige por
+> migración. Reportarlo igual, indicando con qué usuario.
+
 ---
 
 ## Bloque 17 — Caja chica *(nuevo)*
@@ -2005,9 +2028,16 @@ siguen pegados a cajas viejas.
 movimientos.
 
 > ⚠️ **Si dice *No se pudo consultar*, el central no tiene
-> `stockPorSucursales`.** Es una consulta nueva; contra una instancia vieja
-> —alpha, hoy— es lo esperado. Lo que **no** puede pasar es que muestre todas
-> las sucursales en cero: eso afirmaría que no hay mercadería.
+> `stockPorSucursales`.** Contra **alpha eso ya no debería pasar**: la consulta
+> está desde `4.7.0-alpha.40` (verificado 2026-08-15), así que acá la existencia
+> se prueba de verdad y un «No se pudo consultar» **es un hallazgo**.
+>
+> Contra **beta o producción sí es lo esperado** por ahora —farmacia corre
+> `4.7.0-beta.2` y bodega `4.8.0`, sin la consulta— hasta que el central se
+> promueva.
+>
+> Lo que **no** puede pasar en ningún caso es que muestre todas las sucursales
+> en cero: eso afirmaría que no hay mercadería.
 
 ---
 
@@ -2823,7 +2853,7 @@ no va a preguntar.
 | 13 · Devoluciones | 7 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
 | 15 · Marcación | 7 | | | |
-| 16 · Notificaciones | 7 | | | |
+| 16 · Notificaciones | 9 | | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |

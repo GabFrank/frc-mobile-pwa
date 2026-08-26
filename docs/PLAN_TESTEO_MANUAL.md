@@ -3201,14 +3201,14 @@ botón **usar**. Tocarlo copia esa fecha al campo.
 **Esperado:** en la cabecera colapsada aparece el ícono de vencido, en rojo,
 al lado del nombre del producto.
 
-### 44.10 · Dos renglones de la misma presentación reciben lotes distintos
+### 44.10 · Dos renglones de la misma presentación ofrecen lotes distintos
 
 1. En una zona con **dos renglones de la misma presentación** —dos lotes—,
    abrí los dos y mirá el campo *Vencimiento*.
 
-**Esperado:** las fechas sugeridas son **distintas**. Si el central conoce dos
-lotes, cada renglón se lleva uno; si conoce uno solo, el segundo queda
-**vacío** en vez de repetir el del primero.
+**Esperado:** las fechas **ofrecidas** debajo de cada campo son **distintas**.
+Si el central conoce dos lotes, cada renglón ofrece uno; si conoce uno solo, el
+segundo no ofrece nada. Los dos campos arrancan vacíos.
 
 ⚠️ Es el defecto que reportó el operador: la sugerencia se pedía solo por
 presentación, así que los dos renglones recibían la misma fecha y al guardar
@@ -3327,7 +3327,7 @@ al de 45.5, porque el problema es otro.
 
 ---
 
-## Bloque 46 — Vencimiento sugerido de verdad, y quitar un producto *(nuevo)*
+## Bloque 46 — El vencimiento que el central conoce, y quitar un producto *(nuevo)*
 
 **Por qué está acá:** el campo *Vencimiento* llegaba siempre vacío. No era que
 faltaran datos: la consulta los descartaba. Se anclaba al último inventario de
@@ -3342,16 +3342,30 @@ comprado alguna vez con vencimiento. El teléfono real.
 ⚠️ **El punto 46.3 conviene mirarlo también desde el escritorio**: el arreglo
 del ancla es del central y le llega a los dos frentes.
 
-### 46.1 · El campo llega con una fecha propuesta
+### 46.1 · El campo arranca vacío y la fecha conocida se ofrece abajo
 
 1. Abrí una zona y desplegá un producto que se compre con vencimiento.
 
-**Esperado:** el campo *Vencimiento* trae una fecha, y debajo dice de dónde
-salió: «Sugerido de Nota de compra #…», «de una transferencia», «de el último
-inventario». Antes llegaba vacío siempre.
+**Esperado:** el campo *Vencimiento* está **vacío**, y debajo dice «Anterior
+dd/mm/aaaa» con su origen —«Nota de compra #…», «una transferencia», «el último
+inventario»— y un botón **usar**.
 
-⚠️ Si la fecha propuesta ya venció, lo dice y se ve en rojo. Eso es correcto:
-puede haber mercadería caduca en la góndola.
+⚠️ Si esa fecha ya venció, la línea se ve en rojo y lo aclara. Pero el **campo
+sigue vacío** y la cabecera del renglón **no** se marca como vencida: nadie
+cargó nada todavía.
+
+### 46.1b · «usar» adopta la fecha, y recién ahí se guarda
+
+1. Tocá *usar*. Escribí una cantidad y guardá.
+2. Volvé a entrar a la zona.
+
+**Esperado:** al tocar *usar* la fecha pasa al campo y el botón desaparece —la
+línea queda como constancia—. Después de guardar, la fecha sigue ahí.
+
+⚠️ Ahora probá lo contrario: contá un producto **sin tocar** el vencimiento y
+guardá. Al volver, el campo tiene que seguir **vacío**. Antes se guardaba la
+fecha ofrecida sin que nadie la hubiera mirado, y el conteo afirmaba un
+vencimiento que nadie confirmó.
 
 ### 46.2 · Un producto que el central no conoce no inventa nada
 
@@ -3458,8 +3472,8 @@ la pantalla algo que el central no borró.
 | 43 · Vencimiento sugerido y transferencias | 9 | | | |
 | 44 · Lista del conteo y campo de fecha | 15 | | | |
 | 45 · Renglones repetidos en el conteo | 6 | | | |
-| 46 · Vencimiento sugerido y quitar producto | 8 | | | |
-| **Total** | **357** | | | |
+| 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
+| **Total** | **358** | | | |
 
 ### Los cinco que más importan
 

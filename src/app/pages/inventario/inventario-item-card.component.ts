@@ -8,11 +8,7 @@ import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CampoFechaComponent } from 'src/app/shared/campos/campo-fecha.component';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
-import {
-  origenDeSugerencia,
-  textoDeSugerencia,
-  type SugerenciaVencimiento,
-} from './vencimiento-sugerido';
+import { origenDeSugerencia, type SugerenciaVencimiento } from './vencimiento-sugerido';
 
 /** Un renglón del conteo, ya resuelto por la pantalla. */
 export interface FilaConteo {
@@ -32,8 +28,6 @@ export interface FilaConteo {
    * cargada en el ítem. Es lo que deja comparar contra lo que dice el envase.
    */
   conocido: SugerenciaVencimiento | null;
-  /** El conocido, pero solo cuando es lo que hoy tiene el campo. */
-  sugerencia: SugerenciaVencimiento | null;
   /** La fecha que está en el campo ya pasó. */
   vencido: boolean;
   estado: unknown;
@@ -149,17 +143,12 @@ export interface FilaConteo {
             (valorChange)="vencimiento.emit($event ?? '')"
           />
 
-          @if (fila().sugerencia; as s) {
+          @if (fila().conocido; as c) {
             <!--
-              De dónde salió la fecha que está en el campo. Sin el origen,
-              «sugerido» a secas no deja decidir si creerle.
-            -->
-            <p class="pista" [class.alerta]="s.vencido">{{ pista(s) }}</p>
-          } @else if (fila().conocido; as c) {
-            <!--
-              Lo que el central sabía, cuando NO es lo que hay en el campo.
-              Antes esto se escondía justo en ese caso —el único en que sirve—
-              y quien contaba no tenía contra qué comparar el envase.
+              Lo que el central sabe, ofrecido y no impuesto. El campo queda
+              vacío hasta que alguien decide: una fecha puesta por el sistema
+              se lee como cargada por una persona, y si ya venció el renglón
+              aparece en rojo sin que nadie haya mirado el envase.
             -->
             <div class="anterior" [class.alerta]="c.vencido">
               <frc-icono nombre="reloj" [tamano]="16" />
@@ -167,7 +156,9 @@ export interface FilaConteo {
                 <span class="anterior-fecha">Anterior {{ legible(c.fecha) }}</span>
                 <span class="anterior-fuente">{{ origen(c) }}</span>
               </span>
-              <button type="button" class="usar" (click)="usarConocido.emit(c.fecha)">usar</button>
+              @if (fila().vencimiento !== c.fecha) {
+                <button type="button" class="usar" (click)="usarConocido.emit(c.fecha)">usar</button>
+              }
             </div>
           }
 
@@ -301,9 +292,6 @@ export interface FilaConteo {
       font-family: var(--font-num);
       font-variant-numeric: tabular-nums;
     }
-    .pista { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
-    .pista.alerta { color: var(--danger); }
-
     .anterior {
       display: flex;
       align-items: center;
@@ -379,10 +367,6 @@ export class InventarioItemCardComponent {
     }
     return dif > 0 ? '+' + dif : String(dif);
   });
-
-  pista(sugerencia: SugerenciaVencimiento): string {
-    return textoDeSugerencia(sugerencia);
-  }
 
   legible(fecha: string): string {
     return fechaLegible(fecha, { conHora: false }) ?? fecha;

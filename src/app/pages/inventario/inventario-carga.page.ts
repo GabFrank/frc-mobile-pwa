@@ -325,10 +325,15 @@ export class InventarioCargaPage {
         ajenas,
       );
 
-      const vencimiento = editado !== undefined ? editado : propia || conocido?.fecha || '';
-      // La sugerencia que se prellena queda tomada, para que el próximo
-      // renglón de esta presentación caiga en otro lote y no en el mismo.
-      reservar(presentacionId, vencimiento);
+      // ⚠️ **El campo NO se prellena con lo que el central conoce.** Una
+      // fecha puesta por el sistema se lee como una fecha cargada por alguien,
+      // y si encima ya venció el renglón aparece en rojo sin que nadie haya
+      // mirado el envase. Lo conocido se ofrece abajo, con un botón para
+      // adoptarlo: la decisión es del operador.
+      const vencimiento = editado !== undefined ? editado : propia;
+      // Lo que este renglón se lleve —lo propio o lo que adopte— queda tomado,
+      // para que el próximo de esta presentación proponga otro lote.
+      reservar(presentacionId, vencimiento || conocido?.fecha || '');
 
       return {
         itemId,
@@ -343,11 +348,6 @@ export class InventarioCargaPage {
         diferencia: contado == null ? null : contado - sistema,
         vencimiento,
         conocido,
-        // ⚠️ Se rotula como sugerido solo mientras el campo muestra **esa**
-        // fecha. Antes se decidía por «el ítem no traía fecha», y entonces
-        // borrar el campo dejaba en pantalla un «Sugerido de una compra» que
-        // no correspondía a nada de lo que se veía.
-        sugerencia: conocido && vencimiento === conocido.fecha ? conocido : null,
         vencido: vencimiento !== '' && vencimiento < this.hoyIso,
         estado: cambio?.estado ?? item.estado ?? InventarioProductoEstado.BUENO,
         original: item,

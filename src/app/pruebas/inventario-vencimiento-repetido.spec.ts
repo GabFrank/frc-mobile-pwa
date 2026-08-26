@@ -17,10 +17,14 @@ import { ProductoService } from '../pages/producto/producto.service';
  * Dos renglones de la misma presentación son **dos lotes**, y dos lotes no
  * pueden tener la misma fecha.
  *
- * ⚠️ **La sugerencia se pedía por presentación y nada más**, así que todos los
- * renglones de una presentación recibían la misma fecha: cargarle el
- * vencimiento a uno terminaba escribiendo el mismo en el otro al guardar. El
- * operador lo ve como «le puse la fecha a uno y me la puso en los dos».
+ * ⚠️ **Lo conocido se pedía por presentación y nada más**, así que todos los
+ * renglones de una presentación recibían la misma fecha. Tocar «usar» en los
+ * dos dejaba dos renglones idénticos, que el central rechaza — y cuando la
+ * fecha además se prellenaba, el operador lo veía como «le puse la fecha a uno
+ * y me la puso en los dos».
+ *
+ * El campo ya no se prellena, así que lo que se reparte es **lo que se
+ * ofrece**: cada renglón propone un lote distinto.
  */
 describe('Vencimiento repetido entre renglones de la misma presentación', () => {
   let servicio: { porId: ReturnType<typeof vi.fn>; guardarItem: ReturnType<typeof vi.fn> };
@@ -81,40 +85,51 @@ describe('Vencimiento repetido entre renglones de la misma presentación', () =>
     return f;
   };
 
-  it('dos renglones sin fecha reciben lotes distintos, no el mismo dos veces', () => {
+  it('dos renglones sin fecha se ofrecen lotes distintos, no el mismo dos veces', () => {
     const f = montar();
     const [uno, dos] = f.componentInstance.items();
 
-    expect(uno.vencimiento).toBe('2026-11-20');
-    // El segundo renglón es otro lote: darle la misma fecha lo convierte en el
-    // mismo renglón dos veces, y el central lo rechaza al guardar.
-    expect(dos.vencimiento).toBe('2027-01-05');
+    // Los dos campos arrancan vacíos: nada se prellena.
+    expect(uno.vencimiento).toBe('');
+    expect(dos.vencimiento).toBe('');
+
+    expect(uno.conocido?.fecha).toBe('2026-11-20');
+    // El segundo renglón es otro lote: ofrecerle la misma fecha lo convierte
+    // en el mismo renglón dos veces, y el central lo rechaza al guardar.
+    expect(dos.conocido?.fecha).toBe('2027-01-05');
   });
 
-  it('no pisa con la sugerencia una fecha que otro renglón ya tiene cargada', () => {
-    // Es el caso que reportó el operador: uno ya tenía fecha, el otro se
-    // prellenaba con la misma y al guardar quedaban los dos iguales.
+  it('no ofrece una fecha que otro renglón ya tiene cargada', () => {
+    // Es el caso que reportó el operador: uno ya tenía fecha y al otro se le
+    // ofrecía la misma, así que adoptarla dejaba los dos iguales.
     servicio.porId = vi.fn(() => of(inventario([item(1, '2026-11-20'), item(2)])));
     const f = montar();
     const [uno, dos] = f.componentInstance.items();
 
     expect(uno.vencimiento).toBe('2026-11-20');
-    expect(dos.vencimiento).not.toBe('2026-11-20');
+    expect(dos.conocido?.fecha).not.toBe('2026-11-20');
+    expect(dos.conocido?.fecha).toBe('2027-01-05');
   });
 
-  it('sin otro lote conocido, el segundo renglón queda vacío en vez de repetir', () => {
-    // Prellenar la única fecha conocida en los dos sería inventar que ese lote
-    // está dos veces. Vacío obliga a mirar el envase, que es lo correcto.
+  it('sin otro lote conocido, al segundo renglón no se le ofrece nada', () => {
+    // Ofrecer la única fecha conocida a los dos sería proponer que ese lote
+    // está dos veces. Sin nada que ofrecer, hay que mirar el envase — que es
+    // lo correcto.
     productos.vencimientosConocidos = vi.fn(() => of(conocidos('2026-11-20')));
     const f = montar();
     const [uno, dos] = f.componentInstance.items();
 
-    expect(uno.vencimiento).toBe('2026-11-20');
-    expect(dos.vencimiento).toBe('');
+    expect(uno.conocido?.fecha).toBe('2026-11-20');
+    expect(dos.conocido).toBeNull();
   });
 
-  it('guardar no manda la misma fecha en los dos renglones', () => {
+  it('adoptar el lote ofrecido en los dos renglones no manda la misma fecha', () => {
     const f = montar();
+    const [uno, dos] = f.componentInstance.items();
+
+    // El operador toca «usar» en los dos, que es el camino natural.
+    f.componentInstance.cambiarVencimiento(1, uno.conocido!.fecha);
+    f.componentInstance.cambiarVencimiento(2, dos.conocido!.fecha);
     f.componentInstance.cambiarContado(1, { target: { value: '10' } } as unknown as Event);
     f.componentInstance.cambiarContado(2, { target: { value: '4' } } as unknown as Event);
     f.componentInstance.guardar();
@@ -153,7 +168,7 @@ describe('Vencimiento repetido entre renglones de la misma presentación', () =>
     const [uno, dos] = f.componentInstance.items();
 
     // Misma fecha, pero son presentaciones distintas: no es el mismo renglón.
-    expect(uno.vencimiento).toBe('2026-11-20');
-    expect(dos.vencimiento).toBe('2026-11-20');
+    expect(uno.conocido?.fecha).toBe('2026-11-20');
+    expect(dos.conocido?.fecha).toBe('2026-11-20');
   });
 });

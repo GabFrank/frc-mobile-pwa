@@ -327,11 +327,22 @@ mientras se cuenta, que es exactamente cuando se lo mira.
 > `presentacion.producto`. Titularlo con `InventarioProducto.producto` era
 > imposible: ese campo no existe en el central.
 
-## El vencimiento viene sugerido
+## El vencimiento se ofrece, no se impone
 
-El campo llega prellenado con el vencimiento que el central conoce de esa
-presentación en esa sucursal, y debajo dice **de dónde salió**: «Sugerido de
-Nota de compra #123», «Sugerido de el último inventario».
+El campo **arranca vacío**. Debajo, cuando el central conoce una fecha para esa
+presentación en esa sucursal, aparece «Anterior 25/08/2026 · Nota de compra
+#1025» con un botón **usar** que la copia al campo. El botón desaparece una vez
+adoptada; la línea queda como constancia de de dónde salió.
+
+> ⚠️ **El campo NO se prellena, y es una decisión.** Se prellenaba, y una fecha
+> puesta por el sistema se lee como una fecha que alguien cargó mirando el
+> envase. Cuando además la fecha conocida ya venció —que es lo normal si el
+> último dato del central es viejo— el renglón aparecía en rojo y con «ya
+> vencido» sin que nadie hubiera contado nada.
+>
+> La consecuencia peor era muda: al guardar se escribía esa fecha en el ítem,
+> así que el conteo terminaba afirmando un vencimiento que el operador nunca
+> confirmó. Ahora, sin tocar el campo, no se guarda ninguna fecha.
 
 > ⚠️ **La consulta es `vencimientosConocidos`, NO `productosVencidos`.**
 >

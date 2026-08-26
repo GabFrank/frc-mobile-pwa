@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ProductoVencido } from '../domains/productos/producto-vencido.model';
 import {
-  textoDeSugerencia,
+  origenDeSugerencia,
   vencimientoSugerido,
 } from '../pages/inventario/vencimiento-sugerido';
 
@@ -109,9 +109,9 @@ describe('Vencimiento sugerido para una presentación', () => {
   });
 });
 
-describe('De dónde salió la sugerencia', () => {
+describe('De dónde salió la fecha que se ofrece', () => {
   it('usa el detalle que arma el central', () => {
-    const texto = textoDeSugerencia({
+    const texto = origenDeSugerencia({
       fecha: '2026-11-20',
       vencido: false,
       fuente: 'COMPRA',
@@ -121,21 +121,15 @@ describe('De dónde salió la sugerencia', () => {
   });
 
   it('sin detalle nombra la fuente, que es lo mínimo que hay que saber', () => {
-    // Decir «sugerido» a secas no deja decidir si creerle.
-    const texto = textoDeSugerencia({
-      fecha: '2026-11-20',
-      vencido: false,
-      fuente: 'TRANSFERENCIA',
-    });
-    expect(texto).toContain('transferencia');
+    // Una fecha suelta no deja decidir si creerle.
+    expect(
+      origenDeSugerencia({ fecha: '2026-11-20', vencido: false, fuente: 'TRANSFERENCIA' }),
+    ).toContain('transferencia');
   });
 
-  it('avisa cuando la fecha ya pasó', () => {
-    const texto = textoDeSugerencia({
-      fecha: '2025-06-10',
-      vencido: true,
-      fuente: 'INVENTARIO',
-    });
-    expect(texto.toLowerCase()).toContain('vencido');
+  it('sin fuente tampoco afirma de dónde salió', () => {
+    expect(origenDeSugerencia({ fecha: '2026-11-20', vencido: false })).toBe(
+      'un registro anterior',
+    );
   });
 });

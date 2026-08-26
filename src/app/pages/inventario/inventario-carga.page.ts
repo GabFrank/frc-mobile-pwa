@@ -34,7 +34,7 @@ import { BuscadorProductoDialogComponent } from 'src/app/shared/producto/buscado
 import type { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/buscador.types';
 import { ProductoService } from 'src/app/pages/producto/producto.service';
 import type { ProductoVencido } from 'src/app/domains/productos/producto-vencido.model';
-import { nuevoItemInput, presentacionYaEnLaZona } from './inventario-alta';
+import { mensajeDeErrorAlAgregar, nuevoItemInput, rechazoAlAgregar } from './inventario-alta';
 import { InventarioItemCardComponent, type FilaConteo } from './inventario-item-card.component';
 import { vencimientoSugerido } from './vencimiento-sugerido';
 import { diferenciaDe } from './inventario-conteo';
@@ -500,9 +500,17 @@ export class InventarioCargaPage {
       return;
     }
 
-    if (presentacionYaEnLaZona(this.producto()?.inventarioProductoItemList, presentacionId)) {
-      // Dos renglones de la misma presentación se suman los dos al finalizar.
-      this.notificacion.warn('Esa presentación ya está en esta zona.');
+    // ⚠️ Se miran **todas** las zonas de la toma, no la actual: la unicidad
+    // que aplica el central es (inventario, producto, vencimiento). Ver
+    // `rechazoAlAgregar`.
+    const rechazo = rechazoAlAgregar({
+      zonas: this.inventario()?.inventarioProductoList,
+      inventarioProductoId,
+      productoId,
+      presentacionId,
+    });
+    if (rechazo) {
+      this.notificacion.warn(rechazo.mensaje);
       return;
     }
 
@@ -526,7 +534,7 @@ export class InventarioCargaPage {
             },
             error: (err: Error) => {
               this.agregando.set(false);
-              this.notificacion.danger(err.message);
+              this.notificacion.danger(mensajeDeErrorAlAgregar(err.message));
             },
           });
       },

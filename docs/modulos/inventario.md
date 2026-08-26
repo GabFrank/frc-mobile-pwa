@@ -386,6 +386,36 @@ abrir un acordeón y copiar el ítem a mano.
 
 ## Agregar un producto a la zona
 
+> ⚠️ **La unicidad que aplica el central es `(inventario, producto,
+> vencimiento)`**, no `(zona, presentación)` como este documento decía.
+> `InventarioProductoItemService.save()` busca con
+> `findByInventarioIdAndProductoId` —que une hasta `inventario`, **sin mirar
+> la zona**— y compara con `Objects.equals(item.getVencimiento(), ...)`.
+>
+> Tres consecuencias, y las tres se sintieron:
+>
+> 1. **El alcance es toda la toma.** Un producto contado en «gondola 1»
+>    bloquea agregarlo en «gondola 2».
+> 2. **La clave es el producto, no la presentación.** «Unidad» y «caja x12»
+>    son el mismo producto para esta regla.
+> 3. **Dos vencimientos nulos son iguales.** Y `nuevoItemInput()` no manda
+>    vencimiento, así que todo ítem recién agregado nace en colisión con
+>    cualquier otro ítem de su producto que tampoco tenga fecha.
+>
+> La regla la agregó el central el 2025-10-16 (`f6296856`, «evitar productos
+> duplicados en inventario»). La app no la conocía: el alta llegaba al
+> servidor y volvía como un `IllegalStateException` crudo, con el texto de
+> Java en pantalla y sin decir en qué zona estaba el producto que chocaba.
+>
+> Ahora la chequea antes `rechazoAlAgregar()`, con sus pruebas. Lo que **no**
+> hace es bloquear cuando el ítem que ya está tiene fecha: ahí las dos no son
+> iguales y el central lo acepta. Inventar la restricción de más dejaría sin
+> poder cargar «caja x12» de un producto ya contado, que es legítimo.
+>
+> Y si el central rechaza igual —otro teléfono lo agregó entre la consulta y
+> el guardado—, `mensajeDeErrorAlAgregar()` traduce el texto de la excepción
+> por uno que dice qué hacer.
+
 *Agregar producto* abre `frc-buscador-producto-dialog`, el mismo buscador de
 la pestaña Buscar: descripción, código, cámara y códigos de balanza. Recibe la
 sucursal de la toma, así que muestra el stock de cada producto antes de

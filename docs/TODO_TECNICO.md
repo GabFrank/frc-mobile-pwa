@@ -764,10 +764,22 @@ El campo de fecha del sistema de diseño se creó al rediseñar la carga del con
 
 ---
 
+### 63. 🔴 El central rechaza dos ítems del mismo producto sin vencimiento, y contradice el modelo de la app
+
+**Dónde:** `central` — `InventarioProductoItemService.save()`, línea 265; y este repo — `pages/inventario/inventario-alta.ts`.
+
+La unicidad que aplica el central es `(inventario, producto, vencimiento)`, con `Objects.equals`, así que **dos vencimientos nulos cuentan como iguales**. Como `nuevoItemInput()` no manda vencimiento, sumar a la toma un producto que ya tiene otro ítem sin fecha —en cualquier zona, en cualquier presentación— muere con `IllegalStateException`.
+
+**Por qué importa más allá del error:** esa regla contradice el modelo que este repo documenta y que el negocio usa. «Unidad» y «caja x12» son dos ítems legítimos del mismo producto, y con la regla actual **no pueden convivir en una toma** salvo que cada uno lleve un vencimiento distinto. Un producto sin fecha de vencimiento —que es la mayoría del salón— solo puede contarse una vez por toma.
+
+**Estado:** mitigado en el cliente. `rechazoAlAgregar()` chequea la regla antes de mandar y explica en qué zona está el ítem que choca; `mensajeDeErrorAlAgregar()` traduce el rechazo del central si igual ocurre. **La contradicción de fondo sigue en el central** y se decidió no tocarlo: `saveInventarioProductoItem` lo usa también el escritorio, así que cambiar la unicidad a `(inventario, presentacion, vencimiento)` exige la regla 5 —método paralelo o relevamiento de quién más lo llama—.
+
+---
+
 ## Cómo usar este archivo
 
 Al arrancar la fase de corrección: convertir cada ítem en un issue, empezando por los 🔴. Los ítems 16-19, 46-48 y 50-51 son borrado o movimiento puro y pueden agruparse en un solo PR de limpieza — pero el 17 toca `capacitor.config.ts` y por lo tanto exige release nativo, y el 47 requiere actualizar un import.
 
 Los ítems 34-36 son cosméticos **con riesgo de contrato**: antes de renombrar cualquier cosa que viaje al backend, verificá el schema del central.
 
-**Resumen:** 62 hallazgos — 7 🔴, 27 🟡, 28 🟢. El #60 y el #62 son deuda **de este repo**, no de `frc-mobile`.
+**Resumen:** 63 hallazgos — 8 🔴, 27 🟡, 28 🟢. El #60 y el #62 son deuda **de este repo**; el #63 es del **central**, y es el único que ninguna de las dos puntas resuelve sola.

@@ -3230,6 +3230,69 @@ la barra de avance se distinguen del fondo.
 
 ---
 
+## Bloque 45 — Agregar un producto que ya está en la toma *(nuevo)*
+
+**Por qué está acá:** el central no acepta dos ítems del mismo producto en una
+toma con el mismo vencimiento, y cuenta dos fechas vacías como iguales. La app
+no lo sabía: el alta llegaba al servidor y volvía con el texto de una excepción
+de Java en pantalla. Ahora lo chequea antes, pero el chequeo se apoya en lo que
+la consulta trajo — hay que probarlo con una toma de varias zonas de verdad.
+
+**Necesita:** una toma **abierta** con **dos zonas o más**, y un producto ya
+cargado en una de ellas **sin vencimiento**.
+
+### 45.1 · El mismo producto en otra zona se frena, y dice en cuál
+
+1. Entrá a contar la zona B.
+2. Tocá *Agregar producto* y elegí un producto que ya esté en la zona A sin
+   vencimiento.
+
+**Esperado:** un aviso que nombra **la zona A** —«ya está en esta toma, en
+"gondola 2"»— y sugiere contarlo ahí. No se agrega nada y no aparece ningún
+texto en inglés ni nombres de clases de Java.
+
+### 45.2 · Otra presentación del mismo producto, sin fecha, también se frena
+
+1. En una zona con «unidad» de un producto **sin vencimiento**, agregá la
+   presentación «caja x12» del mismo producto.
+
+**Esperado:** se frena, explicando que hay que cargarle la fecha primero.
+
+⚠️ Es una limitación del central, no de la app: la unicidad de allá es por
+producto y no por presentación. Está anotado como #63 en `TODO_TECNICO.md`.
+
+### 45.3 · Con la fecha cargada, la segunda presentación entra
+
+1. Cargá el vencimiento del ítem «unidad», **guardá el conteo**.
+2. Ahora sí agregá «caja x12».
+
+**Esperado:** se agrega. Es el caso que no hay que bloquear de más.
+
+### 45.4 · La misma presentación repetida en la zona sigue frenada
+
+1. Agregá una presentación que ya está en **esta** zona.
+
+**Esperado:** el aviso habla de la **presentación**, no del producto. Son dos
+motivos distintos y el operador tiene que poder distinguirlos.
+
+### 45.5 · Un producto nuevo se agrega sin fricción
+
+1. Agregá un producto que la toma no tiene en ninguna zona.
+
+**Esperado:** entra, con el stock del sistema cargado y el conteo vacío. El
+chequeo nuevo no puede estorbar el camino normal.
+
+### 45.6 · Si el central rechaza igual, el mensaje se entiende
+
+1. Difícil de forzar a mano: hace falta que **otro teléfono** agregue el mismo
+   producto entre que abrís el buscador y elegís. Si aparece, mirá el texto.
+
+**Esperado:** dice que ese producto ya está en la toma y que lo busques en las
+zonas — nunca «El producto ya fue registrado en este inventario con el mismo
+vencimiento» tal cual.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -3278,7 +3341,8 @@ la barra de avance se distinguen del fondo.
 | 42 · Agregar un producto al conteo | 9 | | | |
 | 43 · Vencimiento sugerido y transferencias | 9 | | | |
 | 44 · Lista del conteo y campo de fecha | 12 | | | |
-| **Total** | **340** | | | |
+| 45 · Agregar un producto ya presente en la toma | 6 | | | |
+| **Total** | **346** | | | |
 
 ### Los cinco que más importan
 

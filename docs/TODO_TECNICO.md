@@ -730,10 +730,86 @@ Afirma que el `postinstall` de mobile parchea el Gradle de `phonegap-plugin-barc
 
 ---
 
+### 60. 🔴 La documentación del inventario tenía `cantidad` y `cantidadFisica` al revés
+
+**Dónde:** este mismo repo — `docs/modulos/inventario.md`, `domains/inventario/inventario.model.ts`, `pages/inventario/inventario-conteo.ts`, `inventario-carga.page.ts`.
+
+Lo contado va en **`cantidad`** y el stock del sistema en **`cantidadFisica`**, al revés de lo que sugieren los nombres y de lo que este repo documentaba. Lo fija el central: `InventarioGraphQL.finalizarInventarioEnSucursal()` suma `ipi.getCantidad() * ipi.getPresentacion().getCantidad()` y le resta el saldo de `movimiento_stock`.
+
+**Por qué no se veía:** la PWA escribía el conteo en `cantidadFisica` y devolvía `cantidad` intacta, así que finalizar ajustaba el stock contra un número que nadie había contado. Hasta que la PWA no pudo **abrir** una toma, el circuito no se cerraba dentro de la app y ninguna prueba manual podía llegar al síntoma.
+
+**Estado:** corregido, con `inventario-conteo.spec.ts` citando el cálculo del central. Queda como recordatorio de que **un documento portado puede estar equivocado sobre el sistema que describe**: la regla se verificó contra el java del central y contra el diálogo de conteo de `frc-mobile`, no contra el nombre del campo.
+
+---
+
+### 61. 🟡 `frc-mobile` muta el array del servicio al filtrar zonas
+
+**Dónde:** `frc-mobile` — `edit-inventario.component.ts`, `onAddZona()`.
+
+Descuenta las zonas ya usadas con `s.zonaList = s.zonaList.filter(...)` sobre los sectores que devolvió el servicio, así que el segundo intento en la misma pantalla arranca con la lista ya recortada.
+
+**Estado:** no se porta. `zonasDisponibles()` devuelve una lista nueva y no toca la entrada.
+
+---
+
+### 62. 🟢 Quedan cuatro `<input type="date">` sin migrar a `<frc-campo-fecha>`
+
+**Dónde:** este mismo repo — `mi-trabajo/solicitud-dialog.component.ts` (dos), `operaciones/solicitud-pago/solicitud-pago-nueva.page.ts`, `operaciones/devolucion/devolucion-item-dialog.component.ts`.
+
+El campo de fecha del sistema de diseño se creó al rediseñar la carga del conteo, y ahí es el único lugar donde se usa. Los otros cuatro siguen con el input nativo: en Chrome de escritorio muestran un `dd/mm/aaaa` gris que se lee como un campo roto, en Android abren el diálogo del sistema y en Safari de iOS una ruedita — tres controles distintos para el mismo campo.
+
+**Por qué no se hizo de una:** migrarlos estaba fuera de lo pedido, y dos de ellos —`desde`/`hasta` de una solicitud— tienen validación cruzada de rango que hay que probar aparte, no arrastrar en un cambio de otra pantalla.
+
+**Estado:** pendiente. `<frc-campo-fecha>` ya acepta `[minimo]` y `[maximo]` en el mismo `yyyy-MM-dd` que el valor, que es lo que ese par necesita.
+
+---
+
+### 63. ✅ El central rechazaba dos ítems del mismo producto sin vencimiento
+
+**Dónde:** `central` — `InventarioProductoItemService.save()`.
+
+La unicidad era `(inventario, producto, vencimiento)` con `Objects.equals`, así que dos vencimientos nulos contaban como iguales. Rechazaba tres cosas legítimas: el mismo producto contado en dos zonas —el caso normal de un inventario por zona—, «unidad» y «caja x12» del mismo producto, y cualquier segundo renglón sin fecha. Y no solo al agregar: el chequeo corre en cada `save`, así que también hacía fallar **Guardar conteo** en cuanto el vencimiento sugerido ponía la misma fecha en dos zonas.
+
+**Estado:** corregido en el central. La clave pasó a `(inventario_producto, presentacion, vencimiento)` —la zona, no el inventario— con siete tests en `InventarioProductoItemServiceDuplicadoTest`.
+
+**Se tocó el método único, no un `saveMobile()` paralelo, y es una decisión.** El escritorio usa el mismo camino y estaba **igual de roto**: su vencimiento también es opcional (`add-producto-dialog.component.ts:47`), así que hoy tampoco podía agregar dos productos sin fecha a una toma. Además el cambio es una **relajación demostrable**: todo lo que la clave nueva rechaza ya lo rechazaba la anterior —una zona está dentro de su inventario, una presentación pertenece a su producto—, así que ningún flujo que funcionaba dejó de funcionar. Un método paralelo habría dejado al escritorio con el bug para siempre y dos caminos de guardado para desincronizar.
+
+**Lo que se sacó del cliente:** `presentacionYaEnLaZona()` y `rechazoAlAgregar()`. La regla vive en un solo lado.
+
+---
+
+### 64. ✅ El reporte de vencidos se anclaba a una toma abierta, y por eso no sugería nada al contar
+
+**Dónde:** `central` — `ProductosVencidosService.construirSqlBase()`.
+
+El CTE `ultimo_inv` usaba `MAX(inv.id)` **sin mirar el estado**, así que una toma `ABIERTO` o `CANCELADO` se tomaba como si fuera un inventario hecho. Como las cinco fuentes se anclan ahí, abrir una toma dejaba el reporte de esa sucursal en blanco. En `bodega3` pasaba en **5 de 26 sucursales** (3 abiertas, 2 canceladas).
+
+Sobre eso, la carga del conteo usaba ese mismo reporte para proponer el vencimiento — y ahí el ancla es fatal por diseño, porque **la toma que se está contando es el último inventario**. COCA COLA 500ML tiene 81 vencimientos conocidos de su caja x 6 y devolvía cero.
+
+**Estado:** corregido. `ultimo_inv` solo cuenta inventarios `CONCLUIDO`, con `COALESCE` a 1900 para que ninguna sucursal desaparezca del reporte por no tener ninguno. Y se agregó `vencimientosConocidos`, una consulta **sin ancla** para la carga del conteo, con su recorte por presentación. `productosVencidos` conserva su ancla: sigue siendo «qué entró desde el último inventario», que es lo que ese reporte tiene que responder.
+
+**Compatibilidad:** el reporte del escritorio recibe **más** filas que antes, nunca menos.
+
+### 65. ✅ Ninguna toma con un ítem sin contar se podía finalizar
+
+**Dónde:** `central` — `InventarioGraphQL.finalizarInventarioEnSucursal()`, línea 220.
+
+`cantidad` —lo contado— es nullable, y un ítem que se sumó a la toma y que nadie fue a contar la tiene en `null`. Al finalizar se hacía `ipi.getCantidad() * ipi.getPresentacion().getCantidad()` sin mirar, así que reventaba con un `NullPointerException` al desempaquetar el `Double`.
+
+**Estado:** corregido. Los ítems sin contar se **saltean**, no se toman como cero: si se tomaran como cero y un producto tuviera todos sus ítems sin contar, el ajuste le llevaría el stock **a cero** sin que nadie hubiera contado nada. Es la misma distinción que ya hacía `fueContadoEnEstaToma()` en el cliente —cero cuenta, `null` no—.
+
+De paso, un inventario inexistente tiraba otro `NullPointerException` en la línea siguiente; ahora dice cuál es el id que no encontró.
+
+⚠️ **`PLAN_TESTEO_MANUAL.md` decía lo contrario** en el caso 41.4: «al finalizar sí entra como diferencia contra el stock, eso es intencional y es lo que hace el central». Nunca fue cierto — el central reventaba. Corregido.
+
+Del lado del cliente, la confirmación de *Finalizar* ahora dice cuántos ítems quedan sin contar y que a esos no se les toca el stock. Es la última oportunidad de volver a contarlos.
+
+---
+
 ## Cómo usar este archivo
 
 Al arrancar la fase de corrección: convertir cada ítem en un issue, empezando por los 🔴. Los ítems 16-19, 46-48 y 50-51 son borrado o movimiento puro y pueden agruparse en un solo PR de limpieza — pero el 17 toca `capacitor.config.ts` y por lo tanto exige release nativo, y el 47 requiere actualizar un import.
 
 Los ítems 34-36 son cosméticos **con riesgo de contrato**: antes de renombrar cualquier cosa que viaje al backend, verificá el schema del central.
 
-**Resumen:** 59 hallazgos — 6 🔴, 26 🟡, 27 🟢.
+**Resumen:** 65 hallazgos — 6 🔴, 27 🟡, 28 🟢, 3 ✅. El #60 y el #62 son deuda **de este repo**; el #63 era del **central** y ya está corregido allá.

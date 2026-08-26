@@ -1,9 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { Inventario } from 'src/app/domains/inventario/inventario.model';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
+import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
@@ -31,6 +33,16 @@ const TAMANO = 10;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Inventarios" [conVolver]="true">
+      <!--
+        Abrir una toma pide su propio rol: ver un conteo no es definir el
+        alcance de uno nuevo, que al finalizarse ajusta el stock.
+      -->
+      @if (puedeCrear()) {
+        <div acciones>
+          <button matButton="filled" (click)="nuevo()">Nuevo inventario</button>
+        </div>
+      }
+
       @if (cargando()) {
         <frc-skeleton [cantidad]="4" [conMiniatura]="true" />
       } @else if (error()) {
@@ -68,7 +80,12 @@ const TAMANO = 10;
 export class InventarioListaPage {
   private readonly servicio = inject(InventarioService);
   private readonly auth = inject(AuthService);
+  private readonly roles = inject(RoleService);
   private readonly router = inject(Router);
+
+  readonly puedeCrear = computed(() =>
+    this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.inventarioAlta),
+  );
 
   readonly filas = signal<Inventario[]>([]);
   readonly cargando = signal(true);
@@ -133,5 +150,9 @@ export class InventarioListaPage {
 
   abrir(i: Inventario): void {
     void this.router.navigate(['/inventario', i.id]);
+  }
+
+  nuevo(): void {
+    void this.router.navigate(['/inventario/nuevo']);
   }
 }

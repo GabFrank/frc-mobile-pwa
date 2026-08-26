@@ -39,6 +39,7 @@ export const transferenciasConFiltrosQuery = gql`
     $sucursalOrigenId: Int
     $sucursalDestinoId: Int
     $estado: TransferenciaEstado
+    $estados: [TransferenciaEstado]
     $tipo: TipoTransferencia
     $etapa: EtapaTransferencia
     $isOrigen: Boolean
@@ -52,6 +53,7 @@ export const transferenciasConFiltrosQuery = gql`
       sucursalOrigenId: $sucursalOrigenId
       sucursalDestinoId: $sucursalDestinoId
       estado: $estado
+      estados: $estados
       tipo: $tipo
       etapa: $etapa
       isOrigen: $isOrigen

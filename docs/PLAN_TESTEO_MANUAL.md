@@ -62,7 +62,8 @@ Dos pasadas. La **primera automatizada**, sin navegador. La **segunda con la ext
 10. **Texto blanco sobre los tonos en tema oscuro.** 1,94:1 sobre `--warn` — un aviso prácticamente invisible sobre su propio fondo. Nuevo token `--on-tono`, que cambia con el tema, y el caso "tono como relleno" incorporado a la suite de contraste.
 11. **El chip de estado de la lista mostraba un guión en cada fila.** La query no pedía `estado`, y en las cajas replicadas viejas viene null igual. Donde no hay estado, la card muestra la fecha de apertura.
 12. **El buscador abría sin foco en el campo.** En el teléfono eso significa que no aparece el teclado, en un componente cuyo único propósito es escribir.
-13. **Bugs latentes en abrir/cerrar caja** (todavía sin pantalla): se mandaba `cajaInput` donde la mutation declara `$input`; el cierre omitía `$input` y mandaba un `sucursalId` no declarado; el resultado es un objeto `{ exito, cajaId }`, así que el aviso de éxito salía también con `exito: false`. Más un `$susId` inexistente en `cajasPorFecha` y un `imprimirBalance` sin alias `data:`.
+13. **El detalle de inventario no abría contra el central real.** La consulta pedía tres campos que el central no expone —`producto` y `creadoEn` sobre `InventarioProducto`, `copiedFromItemId` sobre el ítem— y con uno solo que sobre, rechaza la consulta **entera**: la pantalla mostraba «No se pudieron cargar los datos» con el `FieldUndefined` crudo. `InventarioProducto` es **una zona**, no un producto: el central le sacó `producto_id` a esa tabla (migración `V61.1`) y el producto sale de `presentacion.producto`. `copiedFromItemId` nunca existió del lado del servidor: en `frc-mobile` es una marca de memoria del diálogo de edición que `toInput()` no manda.
+14. **Bugs latentes en abrir/cerrar caja** (todavía sin pantalla): se mandaba `cajaInput` donde la mutation declara `$input`; el cierre omitía `$input` y mandaba un `sucursalId` no declarado; el resultado es un objeto `{ exito, cajaId }`, así que el aviso de éxito salía también con `exito: false`. Más un `$susId` inexistente en `cajasPorFecha` y un `imprimirBalance` sin alias `data:`.
 
 ### Lo que queda para vos
 
@@ -1226,26 +1227,30 @@ sucursal.
 
 **Esperado:** tus inventarios, del más reciente al más viejo, con su estado.
 
-### 19.2 · Resumen del conteo
-1. Abrir uno con productos contados
+### 19.2 · El detalle abre *(el que importa)*
+1. Abrir cualquier inventario de la lista
 
-**Esperado:** productos, concluidos, ítems contados, revisados, con
-diferencia y **diferencia total con signo** — `+` sobrante, `−` faltante.
+**Esperado:** carga el resumen. **No** aparece «No se pudieron cargar los
+datos» con un texto de `Validation error of type FieldUndefined`.
 
-### 19.3 · Lo arrastrado se muestra aparte *(el que importa)*
-1. Abrir un inventario donde se hayan copiado conteos de una toma anterior
+> Es la regresión de esta corrección: la consulta pedía `producto` y
+> `creadoEn` sobre `InventarioProducto` y `copiedFromItemId` sobre el ítem,
+> tres campos que el central no tiene. Con uno solo que sobre, el central
+> rechaza la consulta **entera** y la pantalla no muestra nada.
 
-**Esperado:** aparece una línea **«Arrastrados»** separada de «Ítems
-contados», y esos ítems **no** suman a la diferencia.
+### 19.3 · Resumen del conteo
+1. Abrir uno con ítems contados
 
-> Si los arrastrados aparecen como contados, la cobertura del conteo miente:
-> diría que se recorrió mercadería que nadie tocó.
+**Esperado:** zonas, concluidas, ítems contados, revisados, con diferencia y
+**diferencia total con signo** — `+` sobrante, `−` faltante. Ya no hay línea
+«Arrastrados»: el central no guarda de dónde se copió un ítem.
 
-### 19.4 · Diferencia por producto
-1. Mirar la lista de productos
+### 19.4 · Una card por zona
+1. Mirar la lista de abajo
 
-**Esperado:** cada uno con su diferencia al costado, en rojo si es negativa,
-y abajo cuántos ítems se contaron.
+**Esperado:** el título de cada card es la **zona** y abajo el sector — no un
+nombre de producto ni la palabra «Producto» repetida. Cada una con su
+diferencia al costado, en rojo si es negativa, y al pie `N de M contados`.
 
 ### 19.5 · Finalizar
 1. En un inventario **Abierto**, *Finalizar inventario*
@@ -2142,14 +2147,20 @@ aparece en la lista con su monto.
 ### 29.1 · El botón solo en inventarios abiertos
 1. Abrir un inventario abierto y uno concluido.
 
-**Esperado:** en el abierto cada producto tiene *Contar*. En el concluido, no:
+**Esperado:** en el abierto cada zona tiene *Contar*. En el concluido, no:
 escribir encima cambiaría el resultado de una toma cerrada.
 
-### 29.2 · Un renglón por presentación
-1. Entrar a contar un producto con unidad y caja.
+### 29.2 · Un renglón por presentación, con su producto
+1. Entrar a contar una zona que tenga varios productos, alguno con unidad y
+   caja.
 
-**Esperado:** un bloque por presentación, cada uno con lo que dice el sistema,
-el campo *Contado*, vencimiento y estado.
+**Esperado:** el título de la pantalla es la **zona**. Un bloque por
+presentación, titulado con la **descripción del producto**, y adentro
+`Cantidad: N · Sistema: …`, el campo *Contado*, vencimiento y estado.
+
+> Si todos los bloques se llaman igual —«Producto», o solo `Cantidad: 1`— no
+> se sabe qué se está contando: el producto se lee de `presentacion.producto`,
+> no de `InventarioProducto`.
 
 ### 29.3 · La diferencia se calcula mientras escribís
 1. Escribir una cantidad distinta a la del sistema.
@@ -2164,18 +2175,13 @@ si sobra— y cambia con cada tecla.
 se cargó. **La diferencia entre los dos es el resultado del inventario**: si
 al volver son iguales, se perdió.
 
-### 29.5 · Lo arrastrado se avisa
-1. Buscar un ítem copiado de una toma anterior.
-
-**Esperado:** dice *Arrastrado de una toma anterior. Todavía no se contó.*
-
-### 29.6 · Guarda solo lo tocado
+### 29.5 · Guarda solo lo tocado
 1. Editar dos presentaciones de cinco y guardar.
 
 **Esperado:** el botón dice *Guardar conteo (2)* y al terminar avisa. Si
 alguna falla, lo dice y recarga igual para que se vea lo que sí entró.
 
-### 29.7 · Estado de la mercadería
+### 29.6 · Estado de la mercadería
 1. Marcar una presentación como *Averiado* y guardar.
 
 **Esperado:** queda guardado. Averiados y vencidos alimentan devoluciones.
@@ -2539,8 +2545,7 @@ Para que no se reporte como falla:
 | Operaciones | De caja chica, **el alta** de la solicitud. La rendición ya está (bloque 28) |
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
-| Inventario: zonas y sectores | No portado. La carga del conteo ya está (bloque 29); agregar un producto que la toma no incluye necesita `saveInventarioProducto`, que tampoco |
-| Recepción: ver el lote de un producto ya verificado | El número se guarda y viaja al maestro de lotes, pero `PedidoRecepcionProductoDto` no lo devuelve: la lista de productos de la recepción no lo muestra |
+| Inventario: agregar un producto que la toma no incluye | No portado. Abrir la toma (bloque 39), agregarle zonas (bloque 40), contar (bloque 29), revisar (35) y finalizar sí. Sumar a una zona una presentación que no está necesita el buscador paginado y el alta de ítem |
 | Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
 | Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
@@ -2864,6 +2869,1035 @@ no va a preguntar.
 
 ---
 
+## Bloque 39 — Abrir una toma de inventario *(nuevo)*
+
+**Necesita:** un usuario con rol `CREAR INVENTARIO` (o `ADMIN`) y **una sucursal
+sin ninguna toma abierta**. Si todas las que ves tienen una abierta, finalizá o
+cancelá esa primero desde el escritorio.
+
+### 39.1 · El botón aparece solo con el rol
+
+1. Entrá con un usuario **sin** `CREAR INVENTARIO` pero **con** `VER INVENTARIO`.
+2. Andá a Inicio → Inventario.
+3. Escribí a mano `/inventario/nuevo` en la barra del navegador.
+
+**Esperado:** en el paso 2 **no** hay botón *Nuevo inventario*. En el paso 3 la
+app avisa «No tenés permiso para entrar a esa sección» y vuelve a Inicio. Que el
+botón no esté no alcanza: la URL escrita a mano tiene que rebotar igual.
+
+### 39.2 · Con el rol, el botón lleva al alta
+
+1. Entrá con un usuario **con** `CREAR INVENTARIO`.
+2. Inicio → Inventario → *Nuevo inventario*.
+
+**Esperado:** pantalla «Nuevo inventario» con el selector de sucursal ya puesto
+en **tu** sucursal, tu nombre en *Responsable*, tipo *Por zona*, y el aviso
+sobre sectores y zonas.
+
+### 39.3 · Solo sucursales que pueden contar
+
+1. Abrí el selector de sucursal.
+
+**Esperado:** **no** están `SERVIDOR` ni `COMPRAS`. Son sucursales sin depósito:
+no mueven stock, así que no hay nada que inventariar. Tampoco están las
+inactivas.
+
+### 39.4 · Las tomas abiertas se listan todas
+
+1. Elegí una sucursal que ya tenga inventarios abiertos — `SUC. CENTRAL` tiene
+   **24** en la base de bodega.
+
+**Esperado:** «Tomas abiertas en esta sucursal (N)» con **todas**, cada una con
+su número, quién la abrió y **hace cuántos días está abierta**. Arriba, una
+línea que dice cuántas son y cuál es la más vieja. **El botón *Iniciar
+inventario* sigue disponible.**
+
+⚠️ Lo que no puede pasar es que muestre una sola: con 24 abiertas, ver una hace
+pensar «la cierro y sigo».
+
+### 39.4b · Cancelar una toma abandonada
+
+1. En una toma vieja de la lista, tocá **Cancelar** y confirmá.
+2. Verificá que desaparece de la lista.
+3. Consultá el stock de algún producto que esa toma tuviera contado.
+
+**Esperado:** desaparece de las abiertas y **el stock no se movió**. Cancelar
+pone la toma en `CANCELADO` y desactiva sus ajustes; no aplica nada.
+
+⚠️ Tocar *Cancelar* **no** tiene que abrir el detalle de la toma: la card
+entera navega, y el botón tiene que frenar ese click.
+
+### 39.4c · Iniciar igual, avisado
+
+1. Con tomas abiertas en la lista, tocá *Iniciar inventario*.
+
+**Esperado:** la confirmación **dice cuántas tomas abiertas hay** y cuál es la
+más vieja, antes de preguntar. Confirmando, la toma nueva se crea igual.
+
+### 39.5 · Cancelar la confirmación no crea nada
+
+1. Elegí una sucursal libre y tocá *Iniciar inventario*.
+2. En el diálogo, tocá **Cancelar**.
+3. Volvé a la lista de inventarios y refrescá.
+
+**Esperado:** no se creó ninguna toma. En `frc-mobile` sí se crea — su
+confirmación compara mal y siempre sigue de largo.
+
+### 39.6 · Iniciar de verdad
+
+1. Elegí una sucursal libre, tocá *Iniciar inventario* y confirmá.
+
+**Esperado:** aparece el detalle del inventario recién creado, con estado
+**ABIERTO**, tu nombre, tipo `ZONA`, y **«Sin zonas»** con el texto «Agregá la
+primera para empezar». El botón *Volver* no debería regresar al formulario de
+alta.
+
+### 39.7 · El aviso push le llega a los demás
+
+1. Con otro dispositivo o usuario que tenga rol de inventario y las
+   notificaciones activadas, mirá si llega el aviso de «inventario iniciado».
+
+**Esperado:** llega. Lo manda el central al detectar que es un alta. Si no
+llega, revisá primero las notificaciones push (bloque 38) antes de culpar a esta
+pantalla.
+
+### 39.8 · Sin conexión al central, no deja crear a ciegas
+
+1. Elegí una sucursal y, antes de que responda, cortá la conexión (modo avión o
+   apagando el túnel al central).
+2. Cambiá de sucursal en el selector.
+
+**Esperado:** un aviso de que **no se pudo verificar** si hay tomas abiertas.
+La lista queda vacía pero **sin decir que no hay ninguna**: eso sería afirmar
+algo que nadie comprobó.
+
+---
+
+## Bloque 40 — Zonas de la toma *(nuevo)*
+
+**Necesita:** el inventario abierto del bloque 39 y una sucursal con sectores y
+zonas cargadas (si no hay, creálas en Lugares del depósito — bloque 36).
+
+### 40.1 · Agregar la primera zona
+
+1. En el detalle del inventario abierto, tocá *Agregar zona*.
+2. Elegí una zona de la lista.
+
+**Esperado:** el diálogo lista las zonas con su sector abajo y tiene un campo
+para buscar por nombre. Al elegir una, el detalle recarga y muestra una card de
+esa zona, con «0 de 0 contados».
+
+### 40.2 · Una zona ya agregada no se vuelve a ofrecer
+
+1. Tocá *Agregar zona* de nuevo.
+
+**Esperado:** la zona del paso anterior **no está** en la lista. Si apareciera y
+la eligieras, el central rechazaría el duplicado con un error.
+
+### 40.3 · Las zonas inactivas tampoco
+
+1. Desactivá una zona desde Lugares del depósito (bloque 36).
+2. Volvé al inventario y tocá *Agregar zona*.
+
+**Esperado:** esa zona no aparece. Desactivar es exactamente eso: sacarla de las
+tomas nuevas sin tocar el histórico de las viejas.
+
+### 40.4 · Buscar por nombre
+
+1. Con varias zonas disponibles, escribí parte del nombre de una en el campo de
+   búsqueda.
+
+**Esperado:** la lista se recorta. Buscando por el nombre del **sector** también
+filtra. Con un texto que no coincide con nada, dice «Ninguna zona coincide con
+eso» en vez de quedar en blanco.
+
+### 40.5 · Sin zonas para agregar
+
+1. Agregá **todas** las zonas de la sucursal a la toma y tocá *Agregar zona*.
+
+**Esperado:** el diálogo explica que no quedan zonas y ofrece **Crear una
+zona**. No un diálogo vacío.
+
+### 40.5b · Crear la zona que falta, en un sector que ya existe
+
+1. En *Agregar zona*, tocá **No está la zona**.
+2. Elegí un sector, escribí el nombre de la zona y tocá **Crear**.
+
+**Esperado:** la zona se crea y **queda agregada a la toma en un solo paso**,
+sin volver a la lista a elegirla. Aparece su card en el detalle.
+
+**Verificá también** que en Lugares del depósito la zona nueva figura dentro
+del sector elegido, **en mayúsculas** en la base y mostrada con inicial
+mayúscula en pantalla.
+
+### 40.5c · Crear también el sector
+
+1. En el formulario de zona nueva, tocá **El sector tampoco está**.
+2. Escribí el nombre del sector y el de la zona, y tocá **Crear**.
+
+**Esperado:** se crean los dos y la zona entra a la toma. En Lugares del
+depósito aparece el sector nuevo con esa única zona.
+
+### 40.5d · Si la zona falla, el sector no se pierde
+
+1. Repetí 40.5b usando el nombre de una zona **que ya exista en ese sector**.
+
+**Esperado:** avisa el error del central. Al volver a abrir *Agregar zona* →
+*No está la zona*, el sector que hayas creado **sigue estando en el selector**:
+no hay que crearlo de nuevo.
+
+### 40.6 · Concluir una zona
+
+1. En la card de una zona, tocá *Concluir* y confirmá.
+
+**Esperado:** la card queda marcada «Concluido» y el botón pasa a *Reabrir*. El
+contador «Concluidas» del resumen sube en uno.
+
+### 40.7 · Una sola zona abierta a la vez
+
+1. Con una zona **sin concluir**, tocá *Reabrir* en otra que sí está concluida.
+
+**Esperado:** avisa «Ya tenés otra zona abierta. Concluila antes de reabrir
+esta» y **no** la reabre. Concluí la abierta y repetí: ahora sí reabre.
+
+### 40.8 · Con la toma cerrada no se tocan las zonas
+
+1. Finalizá el inventario y volvé al detalle.
+
+**Esperado:** desaparecen *Agregar zona*, *Concluir*, *Reabrir* y *Contar*. Solo
+queda *Revisar*: un conteo cerrado es un hecho histórico.
+
+---
+
+## Bloque 42 — Agregar un producto al conteo *(nuevo)*
+
+**Necesita:** una toma abierta con al menos una zona, y productos con código de
+barras a mano.
+
+### 42.1 · El botón está incluso con la zona vacía
+
+1. Agregá una zona nueva a la toma y tocá *Contar*.
+
+**Esperado:** la pantalla dice que la zona todavía no tiene productos e invita
+a agregar el primero. El botón **Agregar producto** está en la barra de abajo.
+
+### 42.2 · Buscar por descripción
+
+1. Tocá *Agregar producto* y escribí parte del nombre de un producto.
+2. Elegí una presentación.
+
+**Esperado:** el ítem aparece en la lista con **Sistema** ya cargado con el
+stock de esa sucursal y el campo **Contado en blanco**. Escribí una cantidad y
+guardá.
+
+### 42.3 · Buscar por código de barras
+
+1. Tocá *Agregar producto* y escribí el código de barras completo.
+
+**Esperado:** encuentra el producto igual que por descripción.
+
+### 42.4 · Escanear con la cámara
+
+1. Tocá *Agregar producto* y después el ícono de la cámara.
+2. Escaneá un producto de la góndola.
+
+**Esperado:** lo encuentra y lo suma al conteo. **Probalo en el teléfono
+real**, no solo en Chrome.
+
+### 42.5 · Un código de balanza trae el peso como conteo
+
+1. Pesá un producto en la balanza, y escaneá la etiqueta que imprime.
+
+**Esperado:** el ítem entra con **Contado ya cargado con los kilos** del
+código, y *Sistema* con el stock. La diferencia se ve enseguida.
+
+### 42.6 · No se duplica una presentación
+
+1. Agregá un producto y, sin salir, volvé a *Agregar producto* y elegí **la
+   misma presentación**.
+
+**Esperado:** avisa que ya está en esta zona y **no la agrega de nuevo**. Dos
+renglones de lo mismo se suman los dos al finalizar.
+
+### 42.7 · Otra presentación del mismo producto sí entra
+
+1. Con un producto que tenga «unidad» y «caja», agregá las dos.
+
+**Esperado:** entran las dos como ítems separados. Es correcto: el conteo es
+por presentación.
+
+### 42.8 · Con la toma cerrada no aparece
+
+1. Finalizá o cancelá la toma y entrá a una zona.
+
+**Esperado:** no está el botón *Agregar producto*. El alcance de una toma
+cerrada ya es un hecho histórico.
+
+### 42.9 · Sin conexión no agrega con un cero inventado
+
+1. Cortá la conexión y tocá *Agregar producto*, eligiendo algo.
+
+**Esperado:** avisa el error y **no crea el ítem**. Lo que no puede pasar es
+que lo agregue con Sistema en 0: eso afirmaría que no hay stock de ese
+producto.
+
+---
+
+## Bloque 43 — Vencimiento sugerido y transferencias pendientes *(nuevo)*
+
+### 43.1 · El vencimiento viene cargado
+
+1. Entrá a contar una zona con productos que hayan entrado por compra o
+   transferencia.
+
+**Esperado:** el campo *Vencimiento* llega **con fecha**, y debajo dice de
+dónde salió: «Sugerido de Nota de compra #…», «Sugerido de el último
+inventario», «Sugerido de una transferencia».
+
+### 43.2 · Es el más próximo a vencer
+
+1. Buscá un producto que tenga **dos lotes** con vencimientos distintos
+   (mirá Control de inventario → productos vencidos para encontrar uno).
+
+**Esperado:** el campo trae **el que vence primero**, no el más lejano ni el
+último que entró.
+
+### 43.3 · Una fecha ya vencida se avisa
+
+1. Buscá una presentación cuyo único vencimiento conocido ya pasó.
+
+**Esperado:** trae esa fecha igual, pero la pista dice **«ya vencido»** y se ve
+en rojo. Lo que no puede pasar es que aparezca una fecha pasada sin ninguna
+señal.
+
+### 43.4 · Lo cargado a mano no se pisa
+
+1. Contá un ítem, escribile un vencimiento y guardá.
+2. Salí de la pantalla y volvé a entrar.
+
+**Esperado:** conserva **tu** fecha, sin la pista de «sugerido». Una sugerencia
+no corrige lo que alguien escribió mirando el envase.
+
+### 43.5 · La sugerencia se guarda con el conteo
+
+1. En un ítem con fecha sugerida, escribí solo la cantidad y guardá.
+2. Volvé a entrar.
+
+**Esperado:** el vencimiento quedó guardado junto con el conteo.
+
+### 43.6 · Si no se puede consultar, lo dice
+
+1. Cortá la conexión y entrá a contar una zona.
+
+**Esperado:** los campos quedan vacíos **y aparece el aviso** de que no se
+pudieron traer los vencimientos. Un campo vacío en silencio diría que no hay
+vencimiento conocido, que es otra cosa.
+
+### 43.7 · Aviso de transferencias sin recibir
+
+1. Dejá una transferencia en camino a la sucursal de la toma, sin recibir.
+2. Abrí el detalle del inventario.
+
+**Esperado:** franja de aviso arriba con cuántas hay y por qué importa. Tocarla
+lleva a transferencias.
+
+### 43.8 · También ve las que ya llegaron
+
+1. Avanzá esa transferencia hasta que esté **en destino**, sin recibirla.
+
+**Esperado:** el aviso **sigue apareciendo**. ⚠️ Es el caso que `frc-mobile` no
+cubre: filtra solo `TRANSPORTE_EN_CAMINO` y no ve las que están en destino
+esperando recepción.
+
+### 43.9 · Con la toma cerrada no aparece
+
+1. Finalizá o cancelá la toma y volvé al detalle.
+
+**Esperado:** sin aviso. El conteo ya ocurrió; avisarlo ahora no sirve de nada.
+
+---
+
+## Bloque 41 — Lo contado llega al stock *(nuevo, crítico)*
+
+**Por qué está acá:** la app escribía el conteo en un campo que el central
+**no mira** al finalizar el inventario, así que el ajuste de stock salía de un
+número que nadie había contado. Es un defecto que no se puede ver mirando la
+pantalla — hay que mirar el stock después de finalizar.
+
+**Necesita:** un producto de prueba con stock conocido y permiso para consultar
+el stock desde el escritorio o la ficha de producto.
+
+### 41.1 · La diferencia en pantalla tiene el signo correcto
+
+1. Abrí una toma, agregá una zona con productos y entrá a *Contar*.
+2. En un ítem que el sistema dice **10**, escribí **7**.
+
+**Esperado:** la diferencia se muestra **−3** (faltante) mientras escribís, no
++3. Con **12** tiene que decir **+3**.
+
+### 41.2 · El stock queda como lo contado
+
+1. Anotá el stock del sistema de un producto antes de empezar: **S**.
+2. Contá ese producto con un número distinto: **C**.
+3. Guardá el conteo, concluí la zona y **finalizá** el inventario.
+4. Consultá el stock de ese producto.
+
+**Esperado:** el stock pasa a ser **C**, lo contado. Si quedó en **S** —sin
+moverse— el conteo no llegó al cálculo, que es exactamente el bug que este
+bloque cuida.
+
+### 41.3 · Lo que coincide queda «cantidad exacta»; lo que no, «modificado»
+
+1. En una zona, contá un ítem **igual** al sistema y otro **distinto**.
+2. Guardá y andá a *Revisar*.
+
+**Esperado:** el que coincidió aparece con el chip **Cantidad exacta**; el que
+no, con **Modificado**. Antes todos salían «Cantidad exacta», incluidos los que
+tenían diferencia — que son justo los que el supervisor busca.
+
+### 41.4 · Sin contar no es contado en cero
+
+1. Dejá un ítem de la zona **sin escribir nada**.
+2. Mirá el resumen del detalle y la pantalla de revisión.
+
+**Esperado:** ese ítem cuenta como **no contado** —no suma a «Ítems contados» ni
+a «Con diferencia»— y en revisión dice «sin contar», no «0».
+
+⚠️ **Al finalizar NO entra en el ajuste: el central lo saltea.** Este plan decía
+lo contrario y nunca fue cierto — el central reventaba con un
+`NullPointerException` y la toma no se podía finalizar. Tomarlo como cero le
+llevaría el stock a cero a un producto que nadie miró.
+
+La confirmación de *Finalizar* dice cuántos quedan sin contar. Verificalo:
+dejá un ítem sin contar y mirá que el diálogo lo mencione.
+
+### 41.5 · Finalizar una toma vieja avisa lo que va a hacer
+
+1. Abrí una toma con más de 180 días (las de 2023 de `SUC. CENTRAL` sirven) y
+   tocá *Finalizar*.
+
+**Esperado:** la confirmación dice **cuántos días lleva abierta** y que va a
+ajustar el stock de **hoy** con lo que se contó entonces, y sugiere cancelarla.
+El botón de confirmar se ve como destructivo.
+
+⚠️ **No la finalices en producción para probar esto** — mirá el diálogo y
+cancelá. Si la toma tiene ítems contados, finalizarla mueve stock de verdad.
+
+### 41.6 · Cancelar desde el detalle
+
+1. En una toma abierta, tocá *Cancelar toma* y confirmá.
+
+**Esperado:** el estado pasa a **CANCELADO**, desaparece de las tomas abiertas
+de la sucursal, y el stock queda igual.
+
+---
+
+## Bloque 44 — La lista del conteo y el campo de fecha *(nuevo)*
+
+**Por qué está acá:** la pantalla de conteo pasó de tener los tres campos de
+cada ítem siempre abiertos a una lista desplegable, y el vencimiento pasó de un
+`<input type="date">` a un calendario propio. Lo que hay que probar es
+justamente lo que un test no alcanza: que en el teléfono, de pie frente a la
+góndola, no se pierda nada al colapsar y que el calendario se pueda usar con
+el pulgar.
+
+**Necesita:** una toma **abierta** con una zona de al menos **cinco** ítems, y
+uno de ellos con vencimiento ya cargado de una compra o transferencia. El
+teléfono real: en el escritorio el calendario se toca con el mouse y eso no
+prueba nada del tamaño de los objetivos.
+
+### 44.1 · La zona entra colapsada y se lee entera
+
+1. Entrá a *Contar* en una zona con cinco o más ítems.
+
+**Esperado:** los cinco productos se ven **sin scrollear** o casi, cada uno en
+un renglón con su presentación, el stock del sistema y la diferencia. Ningún
+campo de texto abierto. Arriba, la barra de avance con «0 de 5 contados».
+
+### 44.2 · Se despliega uno a la vez
+
+1. Tocá el primer renglón. Tocá el tercero.
+
+**Esperado:** al abrir el tercero, el primero **se cierra solo**. Nunca hay dos
+formularios abiertos.
+
+### 44.3 · Lo escrito sobrevive al colapso
+
+1. Abrí un ítem, escribí una cantidad y elegí un estado.
+2. **Cerralo** tocando su cabecera. Abrí otro. Volvé al primero.
+
+**Esperado:** la cantidad y el estado siguen ahí. El botón *Guardar conteo (n)*
+sigue contando ese ítem.
+
+⚠️ Es el caso que más importa del bloque: si esto falla, se pierde trabajo ya
+hecho en medio de un pasillo y sin ningún aviso.
+
+### 44.4 · La cabecera dice si vale la pena abrir
+
+1. Contá un ítem con un número **mayor** al del sistema y otro **menor**.
+   Dejá un tercero sin tocar.
+
+**Esperado:** en las cabeceras colapsadas, el primero muestra la diferencia en
+**+** (naranja), el segundo en **−** (rojo) y el tercero un **guion**. Los dos
+contados muestran el **tilde** en la miniatura; el tercero, el ícono de
+producto.
+
+### 44.5 · El avance se mueve mientras se cuenta
+
+1. Con la zona a medio contar, mirá la barra de arriba.
+
+**Esperado:** dice cuántos de cuántos van y cuántos tienen diferencia, y cambia
+**al escribir**, sin necesidad de guardar.
+
+### 44.6 · El calendario se abre y se usa con el pulgar
+
+1. Abrí un ítem y tocá el ícono de almanaque del campo *Vencimiento*.
+
+**Esperado:** se abre el calendario de la app —**no** el selector del sistema
+operativo—, los días son objetivos cómodos de tocar, y elegir uno lo escribe en
+el campo como `dd/mm/aaaa`. El formulario **queda abierto** después de cerrar
+el calendario.
+
+### 44.7 · La fecha se puede escribir a mano
+
+1. En el campo *Vencimiento*, escribí `15/03/2027` con el teclado.
+2. Sacá el foco del campo y guardá.
+
+**Esperado:** lo toma. Guardado y recargada la pantalla, sigue diciendo
+`15/03/2027`.
+
+⚠️ Escribí también algo que no es una fecha (`aaa`, `31/02/2027`) y salí del
+campo: tiene que quedar **vacío**, no con la fecha anterior.
+
+### 44.8 · El vencimiento anterior se ve y se puede copiar
+
+1. Abrí el ítem que ya tenía vencimiento cargado.
+
+**Esperado:** debajo del campo dice **«Anterior dd/mm/aaaa»** con la fuente
+—«Nota de compra #123», «una transferencia», «el último inventario»— y un
+botón **usar**. Tocarlo copia esa fecha al campo.
+
+⚠️ Si el anterior **ya venció**, la línea se ve en rojo y aclara «ya vencido».
+
+### 44.9 · Un vencimiento vencido se marca en la cabecera
+
+1. Cargá en un ítem una fecha anterior a hoy y cerrá la tarjeta.
+
+**Esperado:** en la cabecera colapsada aparece el ícono de vencido, en rojo,
+al lado del nombre del producto.
+
+### 44.10 · Dos renglones de la misma presentación ofrecen lotes distintos
+
+1. En una zona con **dos renglones de la misma presentación** —dos lotes—,
+   abrí los dos y mirá el campo *Vencimiento*.
+
+**Esperado:** las fechas **ofrecidas** debajo de cada campo son **distintas**.
+Si el central conoce dos lotes, cada renglón ofrece uno; si conoce uno solo, el
+segundo no ofrece nada. Los dos campos arrancan vacíos.
+
+⚠️ Es el defecto que reportó el operador: la sugerencia se pedía solo por
+presentación, así que los dos renglones recibían la misma fecha y al guardar
+quedaba escrita en los dos — «le puse la fecha a uno y me la puso en los dos».
+
+### 44.11 · Cargarle la fecha a un renglón no toca la del otro
+
+1. Con dos renglones de la misma presentación, escribí una fecha en uno.
+2. Guardá y volvé a entrar.
+
+**Esperado:** solo ese renglón cambió. El otro conserva la suya, y el central
+no rechaza el guardado por renglón duplicado.
+
+### 44.12 · Borrar la fecha la deja borrada
+
+1. Borrá el contenido del campo *Vencimiento* de un renglón.
+
+**Esperado:** queda **vacío**. No se vuelve a prellenar solo con la sugerencia
+— borrar es una decisión, no un campo sin tocar.
+
+### 44.13 · Guardar sigue guardando lo mismo
+
+1. Contá tres ítems, guardá.
+2. Volvé a entrar a la zona.
+
+**Esperado:** los tres conservan cantidad, vencimiento y estado, y el toast dice
+«Conteo guardado». La diferencia de cada uno coincide con la que se veía antes
+de guardar.
+
+### 44.14 · Zona vacía y sin conexión
+
+1. Entrá a una zona **sin ítems**.
+2. Con la zona cargada, cortá la conexión y tocá *Reintentar* del estado de
+   error (o entrá con el central caído).
+
+**Esperado:** la zona vacía invita a agregar el primer producto; el error dice
+qué pasó y ofrece reintentar. En ninguno de los dos casos aparece una lista a
+medio dibujar.
+
+### 44.15 · Tema oscuro y tema claro
+
+1. Cambiá el tema en *Mi cuenta → Aplicación* y volvé a la pantalla.
+
+**Esperado:** en los dos temas se leen el título del producto, el stock del
+sistema, la línea de «Anterior» y el calendario abierto. El tilde de contado y
+la barra de avance se distinguen del fondo.
+
+---
+
+## Bloque 45 — Renglones repetidos en el conteo *(nuevo)*
+
+**Por qué está acá:** la regla de qué es un renglón duplicado cambió **en el
+central**, y pasó de `(inventario, producto, vencimiento)` a
+`(zona, presentación, vencimiento)`. Es una relajación —nada que funcionaba
+dejó de funcionar—, pero cuatro casos que antes fallaban ahora tienen que
+entrar, y uno solo tiene que seguir fallando. La app ya no chequea nada de
+esto: muestra lo que el central conteste.
+
+**Necesita:** una toma **abierta** con **dos zonas**, y un producto con al
+menos dos presentaciones («unidad» y «caja x12» o equivalente).
+
+⚠️ **Probalo también desde el escritorio.** El cambio es del central y le llega
+a los dos frentes; el escritorio estaba igual de roto y tiene que haber
+mejorado igual.
+
+### 45.1 · El mismo producto en dos zonas — antes fallaba
+
+1. Contá un producto en la zona A y guardá.
+2. Entrá a la zona B, *Agregar producto*, elegí **el mismo producto**.
+
+**Esperado:** se agrega. Es el caso normal de un inventario por zona: hay stock
+en góndola y en depósito, y los conteos se suman.
+
+### 45.2 · Unidad y caja x12 del mismo producto — antes fallaba
+
+1. En una zona, agregá «unidad» de un producto **sin cargarle vencimiento**.
+2. Agregá «caja x12» del mismo producto.
+
+**Esperado:** entran las dos. Son dos presentaciones y dos renglones.
+
+### 45.3 · Guardar el mismo producto contado en dos zonas — antes fallaba
+
+1. Contá el mismo producto en la zona A y en la zona B, dejando en las dos el
+   **vencimiento sugerido** (que es la misma fecha, porque sale del mismo lote).
+2. Guardá el conteo de las dos.
+
+**Esperado:** guardan las dos. Antes el segundo fallaba, y era el caso más
+probable de todos porque la sugerencia propone siempre la misma fecha.
+
+### 45.4 · Dos lotes de la misma presentación — antes fallaba
+
+1. En una zona, agregá «unidad» con vencimiento 20/11/2026.
+2. Agregá «unidad» otra vez, con vencimiento 05/01/2027.
+
+**Esperado:** entran las dos. Son dos lotes.
+
+### 45.5 · El mismo renglón repetido — tiene que seguir fallando
+
+1. En una zona, agregá «unidad» de un producto y **no le cargues vencimiento**.
+2. Agregá «unidad» del mismo producto otra vez, también sin fecha.
+
+**Esperado:** se rechaza, y el mensaje **nombra la zona** y dice que le cargues
+la fecha a la que ya está o que las cuentes juntas en ese renglón. Nunca un
+texto en inglés ni nombres de clases de Java.
+
+⚠️ Es el único caso que produce un dato sin sentido: el central suma los dos
+renglones al finalizar y el conteo sale doble.
+
+### 45.6 · El mismo renglón con la misma fecha — también sigue fallando
+
+1. Repetí 45.5 pero con la **misma fecha** cargada en los dos.
+
+**Esperado:** se rechaza, y el mensaje dice que un lote distinto va con otra
+fecha y que el mismo lote se cuenta en un solo renglón. Es un texto distinto
+al de 45.5, porque el problema es otro.
+
+---
+
+## Bloque 46 — El vencimiento que el central conoce, y quitar un producto *(nuevo)*
+
+**Por qué está acá:** el campo *Vencimiento* llegaba siempre vacío. No era que
+faltaran datos: la consulta los descartaba. Se anclaba al último inventario de
+la sucursal, y la toma que se está contando **es** el último inventario. Ahora
+hay una consulta aparte, sin ancla. Y se agregó poder sacar un renglón del
+conteo.
+
+**Necesita:** una toma **abierta** en una sucursal con historial —compras o
+transferencias recibidas de meses anteriores— y un producto que se haya
+comprado alguna vez con vencimiento. El teléfono real.
+
+⚠️ **El punto 46.3 conviene mirarlo también desde el escritorio**: el arreglo
+del ancla es del central y le llega a los dos frentes.
+
+### 46.1 · El campo arranca vacío y la fecha conocida se ofrece abajo
+
+1. Abrí una zona y desplegá un producto que se compre con vencimiento.
+
+**Esperado:** el campo *Vencimiento* está **vacío**, y debajo dice «Anterior
+dd/mm/aaaa» con su origen —«Nota de compra #…», «una transferencia», «el último
+inventario»— y un botón **usar**.
+
+⚠️ Si esa fecha ya venció, la línea se ve en rojo y lo aclara. Pero el **campo
+sigue vacío** y la cabecera del renglón **no** se marca como vencida: nadie
+cargó nada todavía.
+
+### 46.1b · «usar» adopta la fecha, y recién ahí se guarda
+
+1. Tocá *usar*. Escribí una cantidad y guardá.
+2. Volvé a entrar a la zona.
+
+**Esperado:** al tocar *usar* la fecha pasa al campo y el botón desaparece —la
+línea queda como constancia—. Después de guardar, la fecha sigue ahí.
+
+⚠️ Ahora probá lo contrario: contá un producto **sin tocar** el vencimiento y
+guardá. Al volver, el campo tiene que seguir **vacío**. Antes se guardaba la
+fecha ofrecida sin que nadie la hubiera mirado, y el conteo afirmaba un
+vencimiento que nadie confirmó.
+
+### 46.2 · Un producto que el central no conoce no inventa nada
+
+1. Desplegá un producto sin historial de compras con vencimiento.
+
+**Esperado:** el campo queda **vacío**, sin cartel de «Sugerido de…». Vacío es
+«no hay dato», y es distinto de una fecha inventada.
+
+### 46.3 · El reporte de productos vencidos con una toma abierta
+
+1. En una sucursal que tenga una toma **abierta**, entrá a *Productos vencidos*.
+
+**Esperado:** muestra filas. Antes quedaba en blanco mientras hubiera una toma
+abierta o cancelada como última de esa sucursal.
+
+### 46.4 · Quitar un producto agregado por error
+
+1. Agregá un producto a la zona. Tocá el menú `⋮` de su renglón.
+2. Elegí *Quitar del conteo* y confirmá.
+
+**Esperado:** el aviso nombra el producto **y su presentación** —«unidad»,
+«caja x 6»—, porque dos renglones pueden ser del mismo producto. Al confirmar,
+el renglón desaparece y el avance de arriba se recalcula.
+
+### 46.5 · Cancelar no borra
+
+1. Repetí 46.4 pero tocá *Cancelar*.
+
+**Esperado:** no pasa nada. El renglón sigue con su cantidad y su fecha.
+
+### 46.6 · Quitar un renglón con conteo escrito y sin guardar
+
+1. Escribí una cantidad en un renglón, **sin guardar**.
+2. Quitá ese mismo renglón.
+
+**Esperado:** desaparece, y el contador de *Guardar conteo (n)* **baja**. Si
+quedara contándolo, guardar fallaría contra un renglón que ya no existe.
+
+⚠️ Lo contado en ese renglón se pierde: el borrado es de verdad. Por eso
+confirma.
+
+### 46.7 · Con la toma cerrada no se puede quitar
+
+1. Entrá a contar una zona de una toma **concluida** o **cancelada**.
+
+**Esperado:** el menú `⋮` **no aparece** en ningún renglón, igual que no
+aparece *Agregar producto*.
+
+### 46.8 · Sin conexión al quitar
+
+1. Cortá la conexión y quitá un renglón.
+
+**Esperado:** dice qué pasó y el renglón **sigue ahí**. No puede desaparecer de
+la pantalla algo que el central no borró.
+
+---
+
+## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)*
+
+**Por qué está acá:** un producto con control de lote entra al conteo **como
+cualquier otro** —un renglón—, pero **no se puede contar hasta que tenga lote**:
+el campo *Contado* queda bloqueado. El lote se elige, o se crea, desde el menú
+**⋮**. Y las dos fechas del lote —vencimiento y retiro— viven en el maestro, que
+es **uno solo en toda la red**: corregirlas reordena el FEFO en todas las
+sucursales.
+
+**Necesita:**
+- Un central con la migración **`V203.5`** (`inventario_producto_item.lote_id`).
+  Sin ella falla al guardar el renglón.
+- Un producto con **`lote = true`**. En `bodega3` hay **3**; el flag se marca
+  desde el ABM de producto del escritorio.
+- Una toma **abierta** en una sucursal con depósito. El teléfono real.
+
+⚠️ **Los puntos 47.11, 47.12 y 47.13 tocan datos que ve todo el mundo.** El lote
+que se cree y la fecha que se corrija valen para todas las sucursales: usar un
+producto de prueba, no uno que esté vendiéndose.
+
+### 47.1 · Un producto con lote entra como cualquier otro
+
+1. Entrá a la zona, tocá **Agregar producto** y elegí el producto con lote.
+
+**Esperado:** aparece **un solo renglón**, no uno por lote. La cabecera dice
+**«Sin lote»** en ámbar antes de la presentación, y *Sistema* muestra la
+existencia del producto.
+
+### 47.2 · Sin lote no se puede contar
+
+1. Desplegá ese renglón.
+
+**Esperado:** el campo *Contado* está **deshabilitado**. Debajo hay un recuadro
+punteado que explica por qué, con dos botones: **Buscar lote** y **Crear lote**.
+
+### 47.3 · Elegir un lote existente completa el renglón
+
+1. Menú **⋮ → Agregar lote** (o el botón *Buscar lote*).
+2. Elegí uno de la lista.
+
+**Esperado:** el renglón **sigue siendo uno** —no se agrega otro—, la cabecera
+pasa a decir `Lote <número>` y el campo *Contado* se habilita.
+
+### 47.4 · El «Sistema» pasa a ser el del lote
+
+1. Mirá el número de *Sistema* antes y después de asignar el lote.
+
+**Esperado:** cambia de la existencia del producto al **saldo de ese lote**. Si
+sigue mostrando el total del producto, anotalo: el renglón mostraría un faltante
+que no existe.
+
+### 47.5 · Buscar por parte del número, en minúsculas
+
+1. En el buscador de lotes escribí `l-20` (o el fragmento que corresponda).
+
+**Esperado:** encuentra el lote aunque esté guardado en mayúsculas — la
+normalización la hace el central. Los lotes que **ya están en la zona** salen en
+gris diciendo «ya está», no desaparecen de la lista.
+
+### 47.6 · Un segundo lote abre un renglón nuevo
+
+1. En un renglón que **ya tiene** lote, menú **⋮ → Agregar otro lote**.
+2. Elegí un lote distinto.
+
+**Esperado:** se agrega un **renglón nuevo** con ese lote, y el primero **queda
+intacto con lo que ya se contó**. Es cómo se cuentan dos lotes del mismo
+producto en la misma zona.
+
+### 47.7 · El menú no aparece en productos sin lote
+
+1. Abrí el menú ⋮ de un producto común.
+
+**Esperado:** solo **Quitar del conteo**. Nada de lotes. **Es la regresión que
+más importa**: son casi todos los productos.
+
+### 47.8 · Un producto sin lote no cambia en nada
+
+1. Agregá y contá un producto común.
+
+**Esperado:** el campo *Contado* está habilitado desde el principio, no hay
+*Fecha de retiro*, y la caja **«Anterior … usar»** sigue apareciendo como
+siempre.
+
+### 47.9 · Con lote no se sugiere ningún vencimiento
+
+1. Desplegá un renglón con lote de un producto con compras viejas.
+
+**Esperado:** **no** aparece la caja «Anterior … usar». El campo *Vencimiento del
+lote* trae la fecha del lote, no viene vacío.
+
+### 47.10 · El lote bloqueado se cuenta igual
+
+1. Desde el escritorio, poné un lote en **CUARENTENA** o **BLOQUEADO** y
+   asignalo a un renglón.
+
+**Esperado:** se puede contar normalmente, y abajo aclara que no se vende.
+Bloquear saca del mostrador, no de la góndola.
+
+### 47.11 · Crear un lote que el sistema no tenía
+
+1. Menú **⋮ → Crear nuevo lote**.
+2. Cargá el número y el vencimiento del envase. Dejá la fecha de retiro **vacía**.
+
+**Esperado:** el diálogo **no pide cantidad** —el lote nace en cero y la cantidad
+la pone el conteo— y avisa que sin cargar el retiro se calcula N días antes del
+vencimiento. Al crear, el renglón queda con ese lote, `Sistema: 0` y el conteo
+habilitado. Verificá en *Stock por lotes* del escritorio que el lote existe con
+saldo cero.
+
+### 47.12 · Crear un lote con un número que ya existe
+
+1. Repetí 47.11 con el número de un lote que ya está.
+
+**Esperado:** **no falla**: el central devuelve ese mismo lote y el renglón queda
+atado a él, con su saldo real. La unicidad es (producto, número) y ese lote es el
+que está en la mano.
+
+### 47.13 · Cargar y corregir la fecha de retiro
+
+1. En un renglón con lote, cargá o cambiá la **Fecha de retiro** y tocá
+   **Guardar conteo**. Volvé a entrar a la zona.
+
+**Esperado:** la fecha quedó. Debajo de los campos avisa que las dos fechas son
+del lote y valen para todas las sucursales. Confirmá desde el escritorio.
+
+### 47.14 · Corregir la fecha sin contar nada
+
+1. Cambiá **solo** la fecha de retiro, sin escribir cantidad, y guardá.
+
+**Esperado:** guarda. **No** dice «Escribí al menos una cantidad contada».
+
+### 47.15 · Retiro posterior al vencimiento
+
+1. Poné una fecha de retiro **posterior** al vencimiento y guardá.
+
+**Esperado:** el central lo rechaza con «La fecha de retiro no puede ser
+posterior al vencimiento del lote.» y ese texto se ve tal cual. El valor **queda
+en el campo** para corregirlo.
+
+### 47.16 · El mismo lote dos veces en la zona
+
+1. Intentá agregar un lote que la zona ya tiene, entrando por **Agregar
+   producto** en vez de por el menú ⋮.
+
+**Esperado:** el central lo rechaza nombrando el lote: «El lote L-… de esa
+presentación ya está en la zona …».
+
+### 47.17 · Dos lotes distintos con el mismo vencimiento
+
+1. Contá dos lotes del mismo producto que venzan el mismo día.
+
+**Esperado:** conviven y se guardan los dos. Antes de este cambio la clave de
+duplicado no miraba el lote y el segundo fallaba.
+
+### 47.18 · Finalizar con un lote sin contar
+
+1. Contá **solo uno** de los dos lotes con saldo del producto.
+2. Finalizá la toma. Mirá el stock del producto antes y después.
+
+**Esperado:** el stock de ese producto **no cambió**. Un lote sin contar no es un
+lote en cero, y tomarlo como cero borraría mercadería que nadie miró. Los demás
+productos sí se ajustan.
+
+⚠️ **Esto pasa en silencio, a propósito.** Había un aviso previo en el detalle de
+la toma y se sacó por pedido. La regla la sigue aplicando el central: si un
+producto no se ajustó, la razón está acá.
+
+### 47.19 · Finalizar con todos los lotes contados
+
+1. Contá **todos** los lotes con saldo del producto y finalizá.
+2. Abrí *Stock por lotes* del producto en esa sucursal, desde el escritorio.
+
+**Esperado:** el saldo de cada lote es lo que se contó y el renglón **SIN LOTE**
+quedó en cero o desapareció. Es lo que el cambio viene a lograr.
+
+### 47.20 · Un renglón que quedó sin lote al finalizar
+
+1. Dejá un renglón sin lote asignado (sin contar, porque no se puede) y
+   finalizá.
+
+**Esperado:** no rompe nada. Ese renglón se saltea igual que cualquier ítem sin
+contar.
+
+### 47.21 · Re-finalizar la toma
+
+1. Reabrí, cambiá un conteo y volvé a finalizar.
+
+**Esperado:** el desglose por lote **no se duplica**. Si en *Stock por lotes* los
+movimientos aparecen dos veces, anotalo.
+
+### 47.22 · Sin conexión
+
+1. Cortá la conexión y probá: asignar un lote, crear un lote y guardar una
+   fecha.
+
+**Esperado:** en los tres casos dice qué pasó, y **nada se muestra como hecho**:
+el renglón sigue sin lote y la fecha sigue escrita en el campo.
+
+### 47.24 · No se concluye una zona con un renglón sin contar
+
+1. En una zona, dejá un producto **sin cantidad** y contá el resto.
+2. Volvé al detalle de la toma y tocá **Concluir** en esa zona.
+
+**Esperado:** **no concluye**. Avisa cuántos productos quedan sin contar y
+nombra unos pocos, y termina diciendo «Si no hay nada en la góndola, cargá 0».
+
+**Por qué importa:** al finalizar, el central **saltea** los ítems sin cantidad,
+así que ese producto no se ajusta. Concluir la zona igual firmaba un conteo que
+no ocurrió.
+
+### 47.25 · Contar cero sí deja concluir
+
+1. Cargá **0** en el renglón que faltaba y concluí.
+
+**Esperado:** concluye. El cero dice «no hay nada en la góndola» y **sí** ajusta
+el stock; el vacío dice «nadie fue a mirar».
+
+### 47.26 · El renglón sin lote lo dice distinto
+
+1. Dejá un renglón de un producto con lote **sin lote asignado** —su campo
+   *Contado* está bloqueado— e intentá concluir.
+
+**Esperado:** el aviso dice que **falta elegir el lote**, no que falta contarlo.
+Mandarlo a escribir una cantidad que la pantalla no le deja escribir lo dejaría
+sin salida. Las dos salidas reales son asignarle el lote o sacar el renglón con
+*Quitar del conteo*.
+
+### 47.27 · Reabrir no exige nada
+
+1. Reabrí una zona concluida que tenga renglones sin contar.
+
+**Esperado:** reabre sin reclamar. Se reabre justamente para completarla.
+
+### 47.28 · No se finaliza la toma con una zona sin concluir
+
+1. Con al menos una zona **sin concluir**, tocá **Finalizar inventario**.
+
+**Esperado:** **no finaliza**, y **ni siquiera abre el diálogo de confirmación**.
+Avisa qué zonas faltan: «Falta concluir 1 zona: gondola 3. Finalizar ajusta el
+stock y no se puede deshacer.»
+
+**Por qué importa:** finalizar **escribe** los ajustes de stock, y reabrir la
+toma después **no los deshace**. Con una zona abierta se ajusta contra un conteo
+a medio hacer, sin vuelta atrás.
+
+### 47.29 · Con todas concluidas finaliza como siempre
+
+1. Concluí todas las zonas y finalizá.
+
+**Esperado:** abre la confirmación de siempre —con las diferencias y el aviso de
+ítems sin contar— y finaliza. La cadena queda cerrada: no se concluye una zona
+sin contar todo, y no se finaliza sin concluir las zonas.
+
+### 47.30 · «Agregar zona» al final de la lista
+
+1. Abrí el detalle de una toma **abierta**. Bajá hasta el final de las zonas.
+
+**Esperado:** **Agregar zona** aparece **debajo de la última zona**, centrado y
+con el mismo aspecto que el botón *Cargar más* de *Revisar* y *Control de
+inventario*. Abre el mismo diálogo de siempre, y **ya no está en el menú ⋮**.
+
+⚠️ **En la barra fija de abajo tiene que haber UN solo botón: «Finalizar
+inventario».** Si «Agregar zona» aparece apilado ahí arriba, está en el lugar
+equivocado: le roba peso al único botón que cierra la toma.
+
+### 47.30b · También con la toma sin zonas
+
+1. Creá una toma nueva y entrá al detalle, sin agregarle nada.
+
+**Esperado:** debajo del estado vacío está **Agregar zona**. Antes la única
+forma de arrancar estaba escondida detrás de los tres puntitos y la pantalla no
+ofrecía nada visible que tocar.
+
+### 47.31 · Con la toma cerrada no se puede agregar zona
+
+1. Abrí el detalle de una toma **concluida** o **cancelada**.
+
+**Esperado:** no aparece **Agregar zona** ni **Finalizar**. El alcance de una
+toma cerrada ya es un hecho histórico.
+
+### 47.32 · Tema oscuro y tema claro
+
+1. Mirá un renglón sin lote y uno con lote en los dos temas.
+
+**Esperado:** el «Sin lote» en ámbar, el recuadro punteado, el aviso de «valen
+para todas las sucursales» y los dos diálogos se leen en los dos. Nada en gris
+sobre gris.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -2896,7 +3930,7 @@ no va a preguntar.
 | 26 · Modo kiosco | 8 | 3 | | |
 | 27 · Ficha de producto | 5 | 2 | | |
 | 28 · Rendición de caja chica | 9 | | | |
-| 29 · Carga del conteo | 7 | | | |
+| 29 · Carga del conteo | 6 | | | |
 | 30 · Permisos por rol | 6 | | | |
 | 31 · Rostro: registro y marcación | 11 | | | |
 | 32 · Compartir por QR | 4 | 2 | | |
@@ -2906,7 +3940,16 @@ no va a preguntar.
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
 | 38 · Notificaciones push | 9 | 6 | | |
-| **Total** | **292** | | | |
+| 39 · Abrir una toma de inventario | 10 | | | |
+| 40 · Zonas de la toma | 11 | | | |
+| 41 · Lo contado llega al stock | 6 | | | |
+| 42 · Agregar un producto al conteo | 9 | | | |
+| 43 · Vencimiento sugerido y transferencias | 9 | | | |
+| 44 · Lista del conteo y campo de fecha | 15 | | | |
+| 45 · Renglones repetidos en el conteo | 6 | | | |
+| 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
+| 47 · Contar por lote y la fecha de retiro | 32 | | | |
+| **Total** | **390** | | | |
 
 ### Los cinco que más importan
 

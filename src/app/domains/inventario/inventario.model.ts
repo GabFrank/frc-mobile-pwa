@@ -1,7 +1,7 @@
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
+import type { Lote } from 'src/app/domains/lote/lote.model';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
-import { Producto } from 'src/app/domains/productos/producto.model';
 import { Zona } from 'src/app/domains/zona/zona.model';
 
 export enum InventarioEstado {
@@ -34,39 +34,64 @@ export enum TipoInventario {
 /**
  * El conteo concreto de una presentación.
  *
- * ⚠️ **Tres cantidades, tres propósitos.** `cantidad` es lo que dice el
- * sistema y `cantidadFisica` lo que se contó: **la diferencia entre las dos
- * es el resultado del inventario**. `cantidadAnterior` permite ver la
- * evolución entre tomas. Sobrescribir `cantidad` con `cantidadFisica` borra
- * justamente el resultado.
+ * ⚠️ **Los nombres están al revés de lo que dicen.** `cantidad` es **lo que
+ * se contó** y `cantidadFisica` **lo que dice el sistema**. No es una
+ * interpretación: `InventarioGraphQL.finalizarInventarioEnSucursal()` suma
+ * `ipi.getCantidad() * presentacion.getCantidad()` y le resta el saldo de
+ * `movimiento_stock`, así que `cantidad` es el conteo para el central.
+ * `frc-mobile` coincide: su diálogo de conteo escribe `cantidad` y llena
+ * `cantidadFisica`/`cantidadAnterior` con el stock del momento.
  *
- * ⚠️ **`verificado` y `revisado` son etapas distintas.** Primero alguien
- * cuenta, después un supervisor valida.
+ * La diferencia entre las dos **es el resultado del inventario**;
+ * sobrescribir una con la otra lo borra.
+ *
+ * Esta app las tuvo al derecho por un tiempo, y la consecuencia era muda:
+ * lo contado desde el teléfono viajaba en `cantidadFisica`, que el central
+ * no mira al finalizar, así que el ajuste de stock salía de un número que
+ * nadie había contado.
+ *
+ * ⚠️ **`verificado` y `revisado` no son dos etapas sino dos resultados del
+ * mismo paso.** Los escribe quien cuenta: coincide con el sistema →
+ * `verificado`; hubo que corregir → `revisado`. Nunca las dos.
  */
 export interface InventarioProductoItem {
   id?: number;
-  /** Lo que dice el sistema. */
-  cantidad?: number;
   /** Lo que se contó realmente. */
+  cantidad?: number;
+  /** Lo que dice el sistema. */
   cantidadFisica?: number;
-  /** Lo que había en el inventario previo. */
+  /** El stock del sistema al momento de sumar el ítem a la toma. */
   cantidadAnterior?: number;
   presentacion?: Presentacion;
   verificado?: boolean;
   revisado?: boolean;
   vencimiento?: string;
-  estado?: InventarioProductoEstado;
   /**
-   * ⚠️ **Un ítem con esto no se contó en esta toma**: se arrastró de una
-   * anterior. Hay que filtrarlo antes de calcular la cobertura del conteo.
+   * El lote que se está contando.
+   *
+   * ⚠️ **Con lote, `cantidadFisica` es el saldo DE ESE LOTE**, no la existencia
+   * del producto: la diferencia del renglón se mide contra el lote. Nulo en los
+   * productos sin control de lote —la enorme mayoría— y también en la
+   * mercadería que todavía no se atribuyó a ninguno.
    */
-  copiedFromItemId?: number;
+  lote?: Lote;
+  estado?: InventarioProductoEstado;
   inventarioProducto?: { id?: number };
   creadoEn?: string;
+  // ⚠️ **No hay `copiedFromItemId`.** En `frc-mobile` es una marca de memoria
+  // del diálogo de edición —se pone al copiar el conteo de una toma anterior
+  // y `toInput()` nunca la manda—, así que el central no tiene ni columna ni
+  // campo: pedirlo hace que rechace la consulta entera por validación. Si
+  // alguna vez hace falta distinguir lo arrastrado, primero se persiste allá.
 }
 
 /**
- * Un producto dentro de una **zona**.
+ * Lo que se cuenta en **una zona**.
+ *
+ * ⚠️ **El nombre engaña: no es un producto.** El central le sacó
+ * `producto_id` a la tabla (migración `V61.1`) y la unicidad quedó en
+ * `(inventario_id, zona_id)`: un renglón es una zona con todos sus ítems
+ * adentro. El producto de cada ítem sale de `presentacion.producto`.
  *
  * ⚠️ **El conteo es por presentación, no por producto.** Un producto con
  * «unidad» y «caja x12» genera ítems separados; sumarlos sin convertir da un
@@ -74,11 +99,9 @@ export interface InventarioProductoItem {
  */
 export interface InventarioProducto {
   id?: number;
-  producto?: Producto;
   zona?: Zona;
   concluido?: boolean;
   usuario?: Usuario;
-  creadoEn?: string;
   inventarioProductoItemList?: InventarioProductoItem[];
 }
 
@@ -101,6 +124,42 @@ export interface Inventario {
   inventarioProductoList?: InventarioProducto[];
 }
 
+/**
+ * El alta o la edición de una cabecera.
+ *
+ * ⚠️ **`fechaInicio` y `fechaFin` van como texto**, no como `Date`: el
+ * `InventarioInput` del central las declara `String` y las parsea con
+ * `stringToDate`. Al abrir una toma no se mandan — la pone el central.
+ */
+export interface InventarioInput {
+  id?: number;
+  sucursalId?: number;
+  fechaInicio?: string;
+  fechaFin?: string;
+  abierto?: boolean;
+  tipo?: TipoInventario;
+  estado?: InventarioEstado;
+  observacion?: string;
+  usuarioId?: number;
+}
+
+/**
+ * Una zona dentro de una toma.
+ *
+ * ⚠️ **No lleva `productoId` ni `creadoEn`.** El `toInput()` de `frc-mobile`
+ * los manda y el `InventarioProductoInput` del central no los tiene: la
+ * validación de GraphQL rechaza la mutation entera antes de llegar al
+ * resolver. Es el mismo campo fantasma que ya tumbó consultas en este módulo
+ * — el central le sacó `producto_id` a la tabla en la migración `V61.1`.
+ */
+export interface InventarioProductoInput {
+  id?: number;
+  inventarioId?: number;
+  zonaId?: number;
+  concluido?: boolean;
+  usuarioId?: number;
+}
+
 export interface InventarioProductoItemInput {
   id?: number;
   inventarioProductoId?: number;
@@ -114,4 +173,11 @@ export interface InventarioProductoItemInput {
   verificado?: boolean;
   revisado?: boolean;
   usuarioId?: number;
+  /**
+   * Lote del renglón.
+   *
+   * ⚠️ **No mandarlo no lo borra: lo deja como está.** El central solo lo pisa
+   * si viene, igual que hace el escritorio, que nunca lo manda.
+   */
+  loteId?: number;
 }

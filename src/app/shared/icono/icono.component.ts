@@ -55,6 +55,7 @@ const TRAZOS: Record<string, string> = {
   persona: 'M12 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6',
   documento: 'M6 3h8l4 4v14H6z M14 3v4h4 M9 12h6M9 16h4',
   dinero: 'M3 6h18v12H3z M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
+  calendario: 'M4 5h16v15H4z M8 3v4M16 3v4M4 10h16',
   vencido: 'M4 5h16v15H4z M8 3v4M16 3v4M4 10h16 M10 14l4 4M14 14l-4 4',
   entrada: 'M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4 M10 16l4-4-4-4 M14 12H3',
   salida: 'M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4 M17 16l4-4-4-4 M21 12H9',

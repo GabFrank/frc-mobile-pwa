@@ -22,5 +22,7 @@ export * from './layout/seccion.component';
 export * from './layout/dato.component';
 export * from './selector/selector.component';
 export * from './campos/campo-importe.component';
+export * from './campos/campo-fecha.component';
+export * from './campos/fecha-py';
 export * from './paginacion/paginacion.component';
 export * from './buscador/buscador.component';

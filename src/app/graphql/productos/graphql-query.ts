@@ -21,6 +21,7 @@ export const productoPorCodigoQuery = gql`
       balanza
       vencimiento
       diasVencimiento
+      lote
       cambiable
       imagenPrincipal
       isEnvase
@@ -70,6 +71,7 @@ export const productoSearchQuery = gql`
       descripcion
       balanza
       vencimiento
+      lote
       cambiable
       imagenPrincipal
       codigoPrincipal
@@ -87,6 +89,7 @@ export const productoPorIdQuery = gql`
       balanza
       vencimiento
       diasVencimiento
+      lote
       cambiable
       imagenPrincipal
       isEnvase
@@ -250,6 +253,38 @@ export const productosVencidosQuery = gql`
         diasVencimientoTexto
         diasVencimientoClase
       }
+    }
+  }
+`;
+
+/**
+ * Los vencimientos que el central conoce de unas presentaciones.
+ *
+ * ⚠️ **No es `productosVencidos`, y la diferencia es el motivo de un bug.**
+ * Ese reporte ancla las cinco fuentes al **último inventario** de la sucursal,
+ * y la toma que se está contando **es** el último inventario: mientras se
+ * cuenta devuelve cero, así que ningún renglón recibía sugerencia. Verificado
+ * contra `bodega3`: COCA COLA 500ML tiene 81 fechas conocidas de su caja x 6 y
+ * el reporte devolvía ninguna.
+ *
+ * Ésta no lleva ancla y ya viene recortada por el central: todas las vigentes
+ * más las `maxVencidas` vencidas más recientes, por presentación.
+ */
+export const vencimientosConocidosQuery = gql`
+  query ($sucursalId: ID!, $productoIdList: [ID], $maxVencidas: Int) {
+    data: vencimientosConocidos(
+      sucursalId: $sucursalId
+      productoIdList: $productoIdList
+      maxVencidas: $maxVencidas
+    ) {
+      id
+      presentacionId
+      productoId
+      vencimiento
+      fuenteVerdad
+      detalleFuente
+      diasVencimientoTexto
+      diasVencimientoClase
     }
   }
 `;

@@ -12,6 +12,14 @@ const cabecera = `
   usuario { id persona { nombre } }
 `;
 
+/**
+ * ⚠️ **`InventarioProducto` agrupa por zona, no por producto.** El central
+ * dejó de tener `producto_id` en esa tabla (migración `V61.1`) y la unicidad
+ * quedó en `(inventario_id, zona_id)`. El producto de cada renglón sale de
+ * `presentacion.producto`, que es de donde lo lee también `frc-mobile`.
+ * Pedirlo sobre `InventarioProducto` hace que el central rechace la consulta
+ * entera por validación y la pantalla no cargue.
+ */
 export const inventarioPorIdQuery = gql`
   query ($id: ID!) {
     data: inventario(id: $id) {
@@ -19,10 +27,8 @@ export const inventarioPorIdQuery = gql`
       inventarioProductoList {
         id
         concluido
-        creadoEn
         usuario { id persona { nombre } }
         zona { id descripcion sector { id descripcion } }
-        producto { id descripcion }
         inventarioProductoItemList {
           id
           cantidad
@@ -32,8 +38,10 @@ export const inventarioPorIdQuery = gql`
           revisado
           vencimiento
           estado
-          copiedFromItemId
-          presentacion { id cantidad }
+          # El lote del renglón. Con control de lote, cantidadFisica es el saldo
+          # DE ESE LOTE, así que sin esto la diferencia se mide contra otra cosa.
+          lote { id numeroLote fechaVencimiento fechaRetiro estado }
+          presentacion { id cantidad producto { id descripcion lote diasVencimiento } }
         }
       }
     }
@@ -97,6 +105,37 @@ export const reabrirInventarioMutation = gql`
   }
 `;
 
+/**
+ * Abre una toma.
+ *
+ * ⚠️ **Sin `id` en el input, el central la trata como alta** y recién ahí
+ * dispara el aviso push de «inventario iniciado» a los roles de inventario.
+ */
+export const saveInventarioMutation = gql`
+  mutation saveInventario($entity: InventarioInput!) {
+    data: saveInventario(inventario: $entity) {
+      ${cabecera}
+    }
+  }
+`;
+
+/**
+ * Suma una zona a la toma, o la marca concluida.
+ *
+ * ⚠️ **El input no acepta `productoId` ni `creadoEn`.** El `toInput()` de
+ * `frc-mobile` los manda igual; acá no, porque el `InventarioProductoInput`
+ * del central no los declara y la validación rechaza la mutation entera.
+ */
+export const saveInventarioProductoMutation = gql`
+  mutation saveInventarioProducto($entity: InventarioProductoInput!) {
+    data: saveInventarioProducto(inventarioProducto: $entity) {
+      id
+      concluido
+      zona { id descripcion sector { id descripcion } }
+    }
+  }
+`;
+
 export const saveInventarioProductoItemMutation = gql`
   mutation saveInventarioProductoItem($entity: InventarioProductoItemInput!) {
     data: saveInventarioProductoItem(inventarioProductoItem: $entity) {
@@ -105,7 +144,21 @@ export const saveInventarioProductoItemMutation = gql`
       cantidadFisica
       verificado
       revisado
+      lote { id numeroLote }
     }
+  }
+`;
+
+/**
+ * Saca un renglón del conteo.
+ *
+ * ⚠️ **Borra, no marca de baja.** El central hace `deleteById`, así que lo
+ * contado en ese renglón se pierde. Es lo correcto para un renglón agregado
+ * por error —que es el caso— pero exige confirmar antes.
+ */
+export const deleteInventarioProductoItemMutation = gql`
+  mutation deleteInventarioProductoItem($id: ID!) {
+    data: deleteInventarioProductoItem(id: $id)
   }
 `;
 

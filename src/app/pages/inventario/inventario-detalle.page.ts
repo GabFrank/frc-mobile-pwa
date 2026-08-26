@@ -8,7 +8,10 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { of } from 'rxjs';
+import { map, switchMap } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
@@ -31,7 +34,19 @@ import { DatosQr, QrDialogComponent } from 'src/app/shared/qr/qr-dialog.componen
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { productosConcluidos, resumirInventario, resumirItems } from './inventario-conteo';
+import { antiguedadEnDias, hayZonaSinConcluir, zonasDisponibles } from './inventario-alta';
+import {
+  motivoNoConcluir,
+  motivoNoFinalizar,
+  productosConcluidos,
+  resumirInventario,
+  resumirItems,
+} from './inventario-conteo';
+import { DatosZona, ResultadoZona, ZonaDialogComponent } from './zona-dialog.component';
+import { SectorService } from 'src/app/domains/sector/sector.service';
+import { ZonaService } from 'src/app/domains/zona/zona.service';
+import { TransferenciaEstado } from 'src/app/domains/transferencia/transferencia.model';
+import { TransferenciaService } from 'src/app/pages/transferencias/transferencia.service';
 import { InventarioService } from './inventario.service';
 
 /**
@@ -39,11 +54,11 @@ import { InventarioService } from './inventario.service';
  *
  * ⚠️ **La diferencia es el resultado del inventario**, no un error a
  * corregir: es lo contado menos lo que dice el sistema. Por eso se muestra
- * por producto y en total.
+ * por zona y en total.
  *
- * ⚠️ **Lo arrastrado de tomas anteriores se cuenta aparte.** Un ítem con
- * `copiedFromItemId` no se contó ahora; sumarlo a la cobertura haría creer
- * que se recorrió mercadería que nadie tocó.
+ * ⚠️ **Cada renglón de `inventarioProductoList` es una zona, no un
+ * producto.** El central le sacó `producto_id` a esa tabla; el producto vive
+ * en cada ítem, colgando de `presentacion`.
  */
 @Component({
   selector: 'frc-inventario-detalle',
@@ -59,26 +74,66 @@ import { InventarioService } from './inventario.service';
     EstadoVacioComponent,
     EstadoErrorComponent,
     MatButtonModule,
+    MatMenuModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Inventario" [conVolver]="true">
-      <button accionBarra type="button" class="icono-compartir" aria-label="Compartir por QR" (click)="compartir()">
-        <frc-icono nombre="codigo" [tamano]="22" />
-      </button>
+      <!--
+        Todo lo secundario va al menú y abajo queda solo la acción principal.
+        Con cuatro botones apilados, la barra fija se comía media pantalla del
+        teléfono — y lo que hay que ver es el conteo, no los botones.
+
+        ⚠️ El botón va solo dentro del @if y el menú queda AFUERA: un bloque de
+        control de flujo con más de un nodo raíz no proyecta al slot (NG8011),
+        y el disparador terminaba suelto en el cuerpo de la página en vez de la
+        barra superior. Sale como aviso, así que el build pasa igual.
+      -->
       @if (inventario()) {
+        <button
+          accionBarra
+          type="button"
+          class="icono-barra"
+          [matMenuTriggerFor]="menu"
+          aria-label="Más opciones"
+        >
+          <frc-icono nombre="masOpciones" [tamano]="22" />
+        </button>
+      }
+
+      <mat-menu #menu="matMenu">
+        <!--
+          Revisar sigue disponible con el inventario cerrado: es la lectura
+          de lo que quedó, y esa pregunta no caduca al finalizarlo.
+        -->
+        <button mat-menu-item (click)="revisar()">Revisar</button>
+        @if (abierto()) {
+          <!-- «Agregar zona» vive en la barra de abajo, no acá. -->
+          <button mat-menu-item [disabled]="operando()" (click)="cancelar()">
+            Cancelar toma
+          </button>
+        }
+        <button mat-menu-item (click)="compartir()">Compartir por QR</button>
+      </mat-menu>
+
+      @if (puedeFinalizar()) {
         <div acciones>
-          <!--
-            Revisar sigue disponible con el inventario cerrado: es la lectura
-            de lo que quedó, y esa pregunta no caduca al finalizarlo.
-          -->
-          <button matButton (click)="revisar()">Revisar</button>
-          @if (puedeFinalizar()) {
-            <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
-              {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
-            </button>
-          }
+          <button matButton="filled" [disabled]="operando()" (click)="finalizar()">
+            {{ operando() ? 'Finalizando…' : 'Finalizar inventario' }}
+          </button>
         </div>
+      }
+
+      @if (transferenciasPendientes() > 0) {
+        <!--
+          Fijo mientras el problema exista, no un toast de seis segundos como
+          en el repo anterior: contar una sucursal con mercadería sin recibir
+          da diferencias que no son diferencias.
+        -->
+        <button type="button" class="aviso" (click)="verTransferencias()">
+          <frc-icono nombre="camion" [tamano]="20" />
+          <span>{{ textoTransferencias() }}</span>
+        </button>
       }
 
       @if (cargando()) {
@@ -102,34 +157,31 @@ import { InventarioService } from './inventario.service';
         </frc-seccion>
 
         <frc-seccion titulo="Conteo" [panel]="true">
-          <frc-dato etiqueta="Productos" [valor]="productos().length" />
-          <frc-dato etiqueta="Concluidos" [valor]="concluidos()" />
+          <frc-dato etiqueta="Zonas" [valor]="productos().length" />
+          <frc-dato etiqueta="Concluidas" [valor]="concluidos()" />
           <frc-dato etiqueta="Ítems contados" [valor]="resumen().contados" />
           <frc-dato etiqueta="Revisados" [valor]="resumen().revisados" />
-          @if (resumen().arrastrados > 0) {
-            <!--
-              Se muestran aparte porque no se contaron en esta toma: sumarlos
-              a los contados diría que se recorrió algo que nadie tocó.
-            -->
-            <frc-dato etiqueta="Arrastrados" [valor]="resumen().arrastrados" />
-          }
           <frc-dato etiqueta="Con diferencia" [valor]="resumen().conDiferencia" />
           <frc-dato etiqueta="Diferencia total" [valor]="diferenciaTotal()" />
         </frc-seccion>
 
         @if (productos().length === 0) {
           <frc-estado-vacio
-            titulo="Sin productos"
-            detalle="Todavía no se cargó ningún producto en esta toma."
+            titulo="Sin zonas"
+            [detalle]="
+              abierto()
+                ? 'Una toma se cuenta zona por zona. Agregá la primera para empezar.'
+                : 'Esta toma se cerró sin ninguna zona cargada.'
+            "
             icono="inventario"
           />
         } @else {
-          <frc-seccion [titulo]="'Productos (' + productos().length + ')'">
+          <frc-seccion [titulo]="'Zonas (' + productos().length + ')'">
             @for (p of productos(); track p.id) {
               <frc-card
-                [titulo]="p.producto?.descripcion ?? 'Producto'"
-                [subtitulo]="zonaDe(p)"
-                icono="producto"
+                [titulo]="zonaDe(p)"
+                [subtitulo]="sectorDe(p)"
+                icono="inventario"
               >
                 <span aparte class="dif" [class.negativa]="diferenciaDe(p) < 0">
                   {{ diferenciaLegible(p) }}
@@ -138,12 +190,44 @@ import { InventarioService } from './inventario.service';
                 @if (p.concluido) {
                   <span pie class="concluido">Concluido</span>
                 }
-                @if (abierto()) {
+                <!--
+                  Un bloque por botón, y no uno solo con los dos adentro: un
+                  control de flujo con más de un nodo raíz no proyecta al
+                  slot (NG8011) y los botones caen fuera del pie de la card.
+                  Sale como aviso, no como error, así que el build pasa igual.
+                -->
+              @if (abierto()) {
                   <button pie matButton (click)="contar(p)">Contar</button>
+                }
+                @if (abierto() && p.concluido) {
+                  <button pie matButton [disabled]="operando()" (click)="marcarZona(p, false)">
+                    Reabrir
+                  </button>
+                }
+                @if (abierto() && !p.concluido) {
+                  <button pie matButton [disabled]="operando()" (click)="marcarZona(p, true)">
+                    Concluir
+                  </button>
                 }
               </frc-card>
             }
           </frc-seccion>
+        }
+
+        <!--
+          ⚠️ **Al final de la lista, no en la barra fija.** Es el mismo lugar y
+          el mismo aspecto que el «Cargar más» del resto del módulo: una acción
+          que continúa la lista, no una que compite con la principal. En la barra
+          quedaba apilada arriba de «Finalizar inventario» —dos botones a lo
+          ancho de la pantalla— y le robaba peso al único que cierra la toma.
+
+          Va fuera del @else para que también esté con la zona vacía, que es
+          justo cuando más hace falta.
+        -->
+        @if (abierto()) {
+          <button matButton class="mas" [disabled]="operando()" (click)="agregarZona()">
+            Agregar zona
+          </button>
         }
       }
     </frc-pagina>
@@ -160,11 +244,46 @@ import { InventarioService } from './inventario.service';
       color: var(--text-mute);
     }
     .concluido { color: var(--ok); }
+    /* Mismo tratamiento que el «Cargar más» de revisar y control. */
+    .mas { align-self: center; margin-top: var(--sp-3); }
+    /*
+      Mismo aspecto que el botón de volver de la barra: es contenido
+      proyectado, así que hereda la encapsulación de esta pantalla y no puede
+      usar la clase que define frc-pagina.
+    */
+    .icono-barra {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: var(--sp-1);
+      border-radius: var(--radius-sm);
+      line-height: 0;
+    }
+    .icono-barra:hover { background: rgb(255 255 255 / 0.16); }
+    .aviso {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      width: 100%;
+      padding: var(--sp-3);
+      border: 1px solid var(--warn);
+      border-radius: var(--radius-md);
+      background: var(--warn-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: var(--fs-label);
+      text-align: left;
+      cursor: pointer;
+    }
   `,
 })
 export class InventarioDetallePage {
   private readonly router = inject(Router);
   private readonly servicio = inject(InventarioService);
+  private readonly sectores = inject(SectorService);
+  private readonly zonas = inject(ZonaService);
+  private readonly transferencias = inject(TransferenciaService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
 
@@ -184,6 +303,24 @@ export class InventarioDetallePage {
     () => this.inventario()?.estado === InventarioEstado.ABIERTO,
   );
   readonly diferenciaTotal = computed(() => this.conSigno(this.resumen().diferencia));
+
+  /**
+   * Transferencias en camino a esta sucursal que todavía nadie recibió.
+   *
+   * ⚠️ **Se filtra por estado, no por etapa.** Una transferencia en tránsito
+   * puede estar en la etapa `TRANSPORTE_EN_CAMINO` o en
+   * `TRANSPORTE_EN_DESTINO`; `frc-mobile` filtra solo la primera, así que no
+   * ve las que **ya llegaron y esperan recepción** — que son justamente las
+   * que más ensucian un conteo.
+   */
+  readonly transferenciasPendientes = signal(0);
+
+
+  readonly textoTransferencias = computed(() => {
+    const n = this.transferenciasPendientes();
+    const cuantas = n === 1 ? '1 transferencia' : `${n} transferencias`;
+    return `${cuantas} sin recibir en esta sucursal. Contar antes de recibirlas da diferencias que no son diferencias.`;
+  });
 
   constructor() {
     effect(() => {
@@ -207,6 +344,7 @@ export class InventarioDetallePage {
       next: (inv) => {
         this.inventario.set(inv ?? null);
         this.cargando.set(false);
+        this.contarTransferenciasPendientes();
       },
       error: (err: Error) => {
         this.error.set(err.message);
@@ -215,15 +353,50 @@ export class InventarioDetallePage {
     });
   }
 
+  /**
+   * Consulta de fondo: nadie la pidió, así que no aporta a la barra de carga
+   * ni tira un toast si falla. Sin ella el detalle sirve igual.
+   */
+  private contarTransferenciasPendientes(): void {
+    this.transferenciasPendientes.set(0);
+    const sucursalId = Number(this.inventario()?.sucursal?.id);
+    // Con la toma cerrada el aviso no sirve para nada: el conteo ya ocurrió.
+    if (!this.abierto() || !Number.isFinite(sucursalId) || sucursalId <= 0) {
+      return;
+    }
+
+    this.transferencias
+      .conFiltros({
+        sucursalDestinoId: sucursalId,
+        estados: [TransferenciaEstado.EN_TRANSITO, TransferenciaEstado.EN_DESTINO],
+        page: 0,
+        // Solo hace falta el total; el contenido no se usa.
+        size: 1,
+      })
+      .subscribe({
+        next: (pagina) => this.transferenciasPendientes.set(pagina?.getTotalElements ?? 0),
+        error: () => this.transferenciasPendientes.set(0),
+      });
+  }
+
+  verTransferencias(): void {
+    const sucursalId = this.inventario()?.sucursal?.id;
+    void this.router.navigate(['/transferencias'], {
+      queryParams: sucursalId != null ? { sucursalId } : undefined,
+    });
+  }
+
   fecha(valor: string | undefined): string {
     return fechaLegible(valor) ?? '—';
   }
 
+  // Zona y sector se llaman `descripcion`, no `nombre`.
   zonaDe(p: InventarioProducto): string {
-    // Zona y sector se llaman `descripcion`, no `nombre`.
-    const zona = p.zona?.descripcion;
-    const sector = p.zona?.sector?.descripcion;
-    return [sector, zona].filter(Boolean).join(' · ') || 'Sin zona';
+    return p.zona?.descripcion || 'Sin zona';
+  }
+
+  sectorDe(p: InventarioProducto): string {
+    return p.zona?.sector?.descripcion || 'Sin sector';
   }
 
   diferenciaDe(p: InventarioProducto): number {
@@ -235,12 +408,9 @@ export class InventarioDetallePage {
   }
 
   conteoDe(p: InventarioProducto): string {
-    const r = resumirItems(p.inventarioProductoItemList ?? []);
-    const partes = [`${r.contados} contados`];
-    if (r.arrastrados > 0) {
-      partes.push(`${r.arrastrados} arrastrados`);
-    }
-    return partes.join(' · ');
+    const items = p.inventarioProductoItemList ?? [];
+    const r = resumirItems(items);
+    return `${r.contados} de ${items.length} contados`;
   }
 
   /** El signo importa: `+` es sobrante y `−` faltante. */
@@ -257,13 +427,42 @@ export class InventarioDetallePage {
     if (inv?.id == null) {
       return;
     }
+    /*
+     * ⚠️ **No se finaliza con una zona sin concluir.**
+     *
+     * Finalizar ESCRIBE los ajustes de stock, y reabrir la toma después no los
+     * deshace. Con una zona todavía abierta se estaría ajustando contra un
+     * conteo a medio hacer, sin vuelta atrás.
+     *
+     * Frena, no pregunta: la salida es concluir la zona, que ya exige tener
+     * todo contado.
+     */
+    const zonaAbierta = motivoNoFinalizar(this.productos());
+    if (zonaAbierta) {
+      this.notificacion.warn(zonaAbierta);
+      return;
+    }
+
     const r = this.resumen();
+    // Finalizar no es cerrar: el central crea movimientos de ajuste que
+    // llevan el stock **de hoy** al conteo de esta toma. En una toma vieja
+    // eso es un descuadre, no un cierre, así que la confirmación lo dice y
+    // pasa a ser destructiva.
+    const dias = antiguedadEnDias(this.inventario()?.fechaInicio, new Date());
+    const vieja = dias != null && dias >= 180;
     const ok = await this.dialogo.confirmar({
       titulo: 'Finalizar inventario',
-      // Finalizar no es cerrar: aplica las diferencias contra el stock. Lo
-      // que quedó sin contar entra como diferencia.
-      mensaje: `Se aplican las diferencias al stock. Hay ${r.conDiferencia} ítems con diferencia y ${this.diferenciaTotal()} de diferencia total.`,
+      mensaje: vieja
+        ? `Esta toma lleva ${dias} días abierta. Finalizarla ajusta el stock de HOY con lo que se contó entonces. Si nadie la va a terminar, lo correcto es cancelarla.`
+        : `Se aplican las diferencias al stock. Hay ${r.conDiferencia} ítems con diferencia y ${this.diferenciaTotal()} de diferencia total.` +
+          // ⚠️ Los ítems sin contar NO ajustan stock: el central los saltea.
+          // Decirlo acá es la última oportunidad de volver a contarlos, y
+          // evita que alguien lea el resultado como «se contó toda la zona».
+          (r.sinContar > 0
+            ? ` Quedan ${r.sinContar} ítems sin contar: a esos no se les toca el stock.`
+            : ''),
       confirmar: 'Finalizar',
+      destructivo: vieja,
     });
     if (!ok) {
       return;
@@ -292,6 +491,225 @@ export class InventarioDetallePage {
   readonly abierto = computed(
     () => String(this.inventario()?.estado ?? '').toUpperCase() === 'ABIERTO',
   );
+
+  /**
+   * Cancelar la toma.
+   *
+   * ⚠️ **No es finalizar.** Cancelar pone `CANCELADO` y **desactiva** los
+   * ajustes que la toma hubiera generado; finalizar **crea** ajustes contra
+   * el stock de hoy. Para una toma que nadie va a terminar, cancelar es la
+   * salida correcta — y hasta ahora la pantalla no la ofrecía, aunque el
+   * servicio la tuviera.
+   */
+  async cancelar(): Promise<void> {
+    const inv = this.inventario();
+    if (inv?.id == null) {
+      return;
+    }
+    const ok = await this.dialogo.confirmar({
+      titulo: 'Cancelar inventario',
+      mensaje: 'La toma queda cancelada y deja de bloquear la sucursal. El stock no se toca: lo contado acá no se aplica.',
+      confirmar: 'Cancelar la toma',
+      destructivo: true,
+    });
+    if (!ok) {
+      return;
+    }
+
+    this.operando.set(true);
+    this.servicio.cancelar(inv.id).subscribe({
+      next: () => {
+        this.operando.set(false);
+        this.notificacion.ok('Inventario cancelado.');
+        this.cargar();
+      },
+      error: (err: Error) => {
+        this.operando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  /**
+   * Sumar una zona a la toma.
+   *
+   * Los sectores se piden en el momento y no al cargar la pantalla: es una
+   * consulta que solo necesita quien va a agregar, y la mayoría entra acá a
+   * mirar cómo va el conteo.
+   */
+  async agregarZona(): Promise<void> {
+    const inv = this.inventario();
+    const sucursalId = Number(inv?.sucursal?.id);
+    if (inv?.id == null || !Number.isFinite(sucursalId) || sucursalId <= 0) {
+      this.notificacion.warn('La toma no tiene sucursal: no se puede saber qué zonas ofrecer.');
+      return;
+    }
+
+    this.operando.set(true);
+    this.sectores.deSucursal(sucursalId).subscribe({
+      next: async (sectores) => {
+        this.operando.set(false);
+        const disponibles = zonasDisponibles(sectores ?? [], this.productos());
+
+        const res = await this.dialogo.abrir<ZonaDialogComponent, DatosZona, ResultadoZona>(
+          ZonaDialogComponent,
+          { disponibles, sectores: sectores ?? [], contexto: inv.sucursal?.nombre },
+        );
+        if (res == null) {
+          return;
+        }
+
+        if (res.accion === 'elegir') {
+          this.sumarZonaALaToma(inv.id as number, res.zonaId);
+          return;
+        }
+        this.crearZonaYSumarla(inv.id as number, sucursalId, res);
+      },
+      error: (err: Error) => {
+        this.operando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  private sumarZonaALaToma(inventarioId: number, zonaId: number): void {
+    this.operando.set(true);
+    this.servicio.guardarZona({ inventarioId, zonaId, concluido: false }).subscribe({
+      next: () => {
+        this.operando.set(false);
+        this.cargar();
+      },
+      error: (err: Error) => {
+        this.operando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  /**
+   * Crear la zona que falta —y su sector si tampoco está— y sumarla a la toma.
+   *
+   * ⚠️ **Tres escrituras encadenadas y ninguna transacción.** Si falla la
+   * zona, el sector ya quedó creado; se avisa qué se pudo hacer en vez de
+   * decir «no se pudo» sobre algo que sí ocurrió, porque el sector huérfano
+   * está ahí y el siguiente intento tiene que poder elegirlo.
+   */
+  private crearZonaYSumarla(
+    inventarioId: number,
+    sucursalId: number,
+    pedido: Extract<ResultadoZona, { accion: 'crear' }>,
+  ): void {
+    this.operando.set(true);
+
+    const sector$ = pedido.sectorNuevo
+      ? this.sectores
+          .guardar({ sucursalId, descripcion: pedido.sectorNuevo, activo: true })
+          .pipe(map((s) => Number(s?.id)))
+      : of(pedido.sectorId as number);
+
+    sector$
+      .pipe(
+        switchMap((sectorId) => {
+          if (!Number.isFinite(sectorId) || sectorId <= 0) {
+            throw new Error('El central no devolvió el sector creado.');
+          }
+          return this.zonas.guardar({
+            sectorId,
+            descripcion: pedido.descripcion,
+            activo: true,
+          });
+        }),
+      )
+      .subscribe({
+        next: (zona) => {
+          this.operando.set(false);
+          const zonaId = Number(zona?.id);
+          if (!Number.isFinite(zonaId) || zonaId <= 0) {
+            this.notificacion.danger('El central no devolvió la zona creada.');
+            return;
+          }
+          this.sumarZonaALaToma(inventarioId, zonaId);
+        },
+        error: (err: Error) => {
+          this.operando.set(false);
+          this.notificacion.danger(err.message);
+          // Puede haber quedado un sector nuevo: recargar deja la próxima
+          // apertura del diálogo viéndolo.
+          this.cargar();
+        },
+      });
+  }
+
+  /**
+   * Concluir una zona, o volver a abrirla.
+   *
+   * ⚠️ **Una sola zona abierta a la vez.** Es la regla de `frc-mobile`
+   * (`verificarAbiertos`): con dos zonas en curso, quien cuenta pierde de
+   * vista en cuál está y los conteos se mezclan. Por eso reabrir exige que
+   * las demás estén concluidas.
+   */
+  async marcarZona(p: InventarioProducto, concluido: boolean): Promise<void> {
+    const inv = this.inventario();
+    if (inv?.id == null || p.id == null) {
+      return;
+    }
+
+    const otras = this.productos().filter((z) => z.id !== p.id);
+    if (!concluido && hayZonaSinConcluir(otras)) {
+      this.notificacion.warn(
+        'Ya tenés otra zona abierta. Concluila antes de reabrir esta.',
+      );
+      return;
+    }
+
+    /*
+     * ⚠️ **No se concluye una zona con renglones sin contar.**
+     *
+     * «Concluida» afirma que ahí ya se contó todo, y la afirmación tiene
+     * consecuencia: al finalizar, el central SALTEA los ítems sin cantidad, así
+     * que esos productos no se ajustan y nadie se entera. Antes se podía marcar
+     * la zona igual y el conteo quedaba firmado a medias.
+     *
+     * Frena, no pregunta: las dos salidas son escribir 0 —que es un conteo
+     * válido y ajusta— o sacar el renglón con «Quitar del conteo». Ofrecer
+     * «concluir igual» sería devolver el agujero por la puerta de atrás.
+     */
+    if (concluido) {
+      const motivo = motivoNoConcluir(p.inventarioProductoItemList);
+      if (motivo) {
+        this.notificacion.warn(motivo);
+        return;
+      }
+    }
+
+    const zona = this.zonaDe(p);
+    const ok = await this.dialogo.confirmar({
+      titulo: concluido ? 'Concluir zona' : 'Reabrir zona',
+      mensaje: concluido
+        ? `Se marca ${zona} como contada. Vas a poder reabrirla si hace falta.`
+        : `Se vuelve a abrir ${zona} para seguir contándola.`,
+      confirmar: concluido ? 'Concluir' : 'Reabrir',
+    });
+    if (!ok) {
+      return;
+    }
+
+    this.operando.set(true);
+    // Va el `id` del renglón: la misma mutation da de alta sin él y
+    // actualiza con él.
+    this.servicio
+      .guardarZona({ id: p.id, inventarioId: inv.id, zonaId: p.zona?.id, concluido })
+      .subscribe({
+        next: () => {
+          this.operando.set(false);
+          this.cargar();
+        },
+        error: (err: Error) => {
+          this.operando.set(false);
+          this.notificacion.danger(err.message);
+        },
+      });
+  }
 
   revisar(): void {
     const id = this.inventario()?.id;

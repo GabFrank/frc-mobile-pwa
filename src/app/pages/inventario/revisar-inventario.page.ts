@@ -222,9 +222,13 @@ export class RevisarInventarioPage {
     return TONOS[estadoDeRevision(item)];
   }
 
+  /**
+   * ⚠️ Lo contado es `cantidad` y el stock del sistema `cantidadFisica`, al
+   * revés de lo que sugieren los nombres. Ver {@link diferenciaDe}.
+   */
   conteo(item: InventarioProductoItem): string {
-    const contado = item.cantidadFisica;
-    const sistema = this.cantidad(item.cantidad);
+    const contado = item.cantidad;
+    const sistema = this.cantidad(item.cantidadFisica);
     return contado == null
       ? `Sistema ${sistema} · sin contar`
       : `Sistema ${sistema} · contado ${this.cantidad(contado)}`;

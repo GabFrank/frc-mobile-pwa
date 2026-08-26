@@ -19,6 +19,12 @@ export class Producto {
   promocion?: boolean;
   vencimiento?: boolean;
   diasVencimiento?: number;
+  /**
+   * El producto se recibe y se mueve por número de lote. Cuando es `true` el
+   * central **exige** el número al recepcionar: sin él, la mercadería entra
+   * sin trazabilidad y no hay recall posible.
+   */
+  lote?: boolean;
   cambiable?: boolean;
   usuario?: Usuario;
   imagenPrincipal?: string;

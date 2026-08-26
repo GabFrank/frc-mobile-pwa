@@ -4,6 +4,7 @@ import { map, switchMap } from 'rxjs/operators';
 
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { Moneda } from 'src/app/domains/moneda/moneda.model';
+import { Lote } from 'src/app/domains/operaciones/lote.model';
 import type { PageInfo } from 'src/app/domains/page-info.model';
 import {
   ConstanciaRecepcionPdf,
@@ -29,6 +30,7 @@ import { RecepcionActivaPorNotaYSucursalGQL } from 'src/app/graphql/operaciones/
 import { RecepcionPorIdGQL } from 'src/app/graphql/operaciones/recepcion/recepcionPorId';
 import { RecepcionesConFiltrosGQL } from 'src/app/graphql/operaciones/recepcion/recepcionesConFiltros';
 import { VerificarProductoGQL } from 'src/app/graphql/operaciones/recepcion/verificarProducto';
+import { LotesPorProductoGQL } from 'src/app/graphql/operaciones/lote/lotesPorProducto';
 import { ProveedoresPorTextoGQL } from 'src/app/graphql/personas/proveedor/proveedoresPorTexto';
 
 /** Lo que se manda al verificar un producto. */
@@ -41,6 +43,18 @@ export interface VerificacionProducto {
   notaRecepcionItemIdParaRechazo?: number | null;
   motivoRechazo?: string | null;
   metodoVerificacion: MetodoVerificacion;
+  /**
+   * Número de lote de lo recibido. **Obligatorio si el producto lleva control
+   * de lote**: sin él el central rechaza la verificación.
+   */
+  lote?: string | null;
+  /** `yyyy-MM-dd`. */
+  vencimientoRecibido?: string | null;
+  /**
+   * `yyyy-MM-dd`. Opcional: sin ella el central deriva el retiro de los días
+   * de vencimiento del producto, que es el comportamiento histórico.
+   */
+  fechaRetiro?: string | null;
   usuarioId: number;
 }
 
@@ -64,6 +78,7 @@ export class RecepcionService {
   private readonly activaGQL = inject(RecepcionActivaPorNotaYSucursalGQL);
   private readonly iniciarGQL = inject(IniciarRecepcionGQL);
   private readonly verificarGQL = inject(VerificarProductoGQL);
+  private readonly lotesGQL = inject(LotesPorProductoGQL);
   private readonly deshacerGQL = inject(DeshacerVerificacionGQL);
   private readonly finalizarGQL = inject(FinalizarRecepcionGQL);
   private readonly reabrirGQL = inject(ReabrirRecepcionGQL);
@@ -223,8 +238,25 @@ export class RecepcionService {
       notaRecepcionItemIdParaRechazo: v.notaRecepcionItemIdParaRechazo ?? null,
       motivoRechazo: v.motivoRechazo ?? null,
       metodoVerificacion: v.metodoVerificacion,
+      lote: v.lote ?? null,
+      vencimientoRecibido: v.vencimientoRecibido ?? null,
+      fechaRetiro: v.fechaRetiro ?? null,
       usuarioId: v.usuarioId,
     });
+  }
+
+  /**
+   * Lotes ya registrados del producto, en orden FEFO.
+   *
+   * Se usa para sugerir mientras se tipea: recibir de nuevo un lote que ya
+   * está en el maestro tiene que reutilizar su fila, no crear una segunda por
+   * una diferencia de tipeo. Incluye bloqueados y en cuarentena a propósito —
+   * si es uno de esos, hay que avisarle al operador.
+   */
+  lotesDeProducto(productoId: number): Observable<Lote[]> {
+    return this.datos
+      .consultar<Lote[]>(this.lotesGQL, { productoId }, { mostrarCarga: false })
+      .pipe(map((lotes) => lotes ?? []));
   }
 
   /**

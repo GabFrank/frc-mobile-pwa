@@ -108,9 +108,7 @@ import { InventarioService } from './inventario.service';
         -->
         <button mat-menu-item (click)="revisar()">Revisar</button>
         @if (abierto()) {
-          <button mat-menu-item [disabled]="operando()" (click)="agregarZona()">
-            Agregar zona
-          </button>
+          <!-- «Agregar zona» vive en la barra de abajo, no acá. -->
           <button mat-menu-item [disabled]="operando()" (click)="cancelar()">
             Cancelar toma
           </button>
@@ -215,6 +213,22 @@ import { InventarioService } from './inventario.service';
             }
           </frc-seccion>
         }
+
+        <!--
+          ⚠️ **Al final de la lista, no en la barra fija.** Es el mismo lugar y
+          el mismo aspecto que el «Cargar más» del resto del módulo: una acción
+          que continúa la lista, no una que compite con la principal. En la barra
+          quedaba apilada arriba de «Finalizar inventario» —dos botones a lo
+          ancho de la pantalla— y le robaba peso al único que cierra la toma.
+
+          Va fuera del @else para que también esté con la zona vacía, que es
+          justo cuando más hace falta.
+        -->
+        @if (abierto()) {
+          <button matButton class="mas" [disabled]="operando()" (click)="agregarZona()">
+            Agregar zona
+          </button>
+        }
       }
     </frc-pagina>
   `,
@@ -230,6 +244,8 @@ import { InventarioService } from './inventario.service';
       color: var(--text-mute);
     }
     .concluido { color: var(--ok); }
+    /* Mismo tratamiento que el «Cargar más» de revisar y control. */
+    .mas { align-self: center; margin-top: var(--sp-3); }
     /*
       Mismo aspecto que el botón de volver de la barra: es contenido
       proyectado, así que hereda la encapsulación de esta pantalla y no puede

@@ -3680,7 +3680,34 @@ a medio hacer, sin vuelta atrás.
 ítems sin contar— y finaliza. La cadena queda cerrada: no se concluye una zona
 sin contar todo, y no se finaliza sin concluir las zonas.
 
-### 47.30 · Tema oscuro y tema claro
+### 47.30 · «Agregar zona» al final de la lista
+
+1. Abrí el detalle de una toma **abierta**. Bajá hasta el final de las zonas.
+
+**Esperado:** **Agregar zona** aparece **debajo de la última zona**, centrado y
+con el mismo aspecto que el botón *Cargar más* de *Revisar* y *Control de
+inventario*. Abre el mismo diálogo de siempre, y **ya no está en el menú ⋮**.
+
+⚠️ **En la barra fija de abajo tiene que haber UN solo botón: «Finalizar
+inventario».** Si «Agregar zona» aparece apilado ahí arriba, está en el lugar
+equivocado: le roba peso al único botón que cierra la toma.
+
+### 47.30b · También con la toma sin zonas
+
+1. Creá una toma nueva y entrá al detalle, sin agregarle nada.
+
+**Esperado:** debajo del estado vacío está **Agregar zona**. Antes la única
+forma de arrancar estaba escondida detrás de los tres puntitos y la pantalla no
+ofrecía nada visible que tocar.
+
+### 47.31 · Con la toma cerrada no se puede agregar zona
+
+1. Abrí el detalle de una toma **concluida** o **cancelada**.
+
+**Esperado:** no aparece **Agregar zona** ni **Finalizar**. El alcance de una
+toma cerrada ya es un hecho histórico.
+
+### 47.32 · Tema oscuro y tema claro
 
 1. Mirá un renglón sin lote y uno con lote en los dos temas.
 
@@ -3740,8 +3767,8 @@ sobre gris.
 | 44 · Lista del conteo y campo de fecha | 15 | | | |
 | 45 · Renglones repetidos en el conteo | 6 | | | |
 | 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
-| 47 · Contar por lote y la fecha de retiro | 30 | | | |
-| **Total** | **388** | | | |
+| 47 · Contar por lote y la fecha de retiro | 32 | | | |
+| **Total** | **390** | | | |
 
 ### Los cinco que más importan
 

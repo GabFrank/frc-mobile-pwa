@@ -101,6 +101,48 @@ describe('Zonas de la toma', () => {
     expect(textos).toContain('Concluir');
   });
 
+  /** El botón «Agregar zona» del cuerpo, con el mismo trato que un «Cargar más». */
+  const botonAgregarZona = (f: { nativeElement: HTMLElement }) =>
+    f.nativeElement.querySelector('button.mas') as HTMLButtonElement | null;
+
+  it('«Agregar zona» va al final de la lista, no en la barra fija', () => {
+    // Estaba solo en el menú ⋮ de la barra superior, que es donde nadie lo
+    // busca: agregar una zona es la acción con la que ARRANCA una toma. En la
+    // barra fija quedaba apilada arriba de «Finalizar inventario» y le robaba
+    // peso al único botón que cierra la toma.
+    const f = montar();
+
+    expect(botonAgregarZona(f)?.textContent?.trim()).toBe('Agregar zona');
+
+    const pie = f.nativeElement.querySelector('footer.acciones') as HTMLElement;
+    const enLaBarra = [...pie.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(enLaBarra).not.toContain('Agregar zona');
+  });
+
+  it('está también con la toma sin zonas, que es cuando más hace falta', () => {
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [])));
+    const f = montar();
+
+    expect(botonAgregarZona(f)).not.toBeNull();
+  });
+
+  it('el botón abre el diálogo de zona', async () => {
+    const f = montar();
+
+    botonAgregarZona(f)!.click();
+    await f.whenStable();
+
+    expect(dialogo.abrir).toHaveBeenCalled();
+  });
+
+  it('con la toma cerrada no aparece «Agregar zona»', () => {
+    // El alcance de una toma cerrada ya es un hecho histórico.
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO, [ZONA_CONCLUIDA])));
+    const f = montar();
+
+    expect(botonAgregarZona(f)).toBeNull();
+  });
+
   it('una zona concluida ofrece reabrir en vez de concluir', () => {
     servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [ZONA_CONCLUIDA])));
     const f = montar();
@@ -385,8 +427,10 @@ describe('Zonas de la toma', () => {
     });
 
     it('la barra de abajo queda solo con la acción principal', () => {
-      // Con los cuatro botones apilados, la barra fija se comía media
-      // pantalla y tapaba justo lo que hay que mirar: el conteo.
+      // ⚠️ Este assert es exacto a propósito. Con los cuatro botones apilados la
+      // barra fija se comía media pantalla y tapaba justo lo que hay que mirar:
+      // el conteo. «Agregar zona» tampoco entra: vive al final de la lista, con
+      // el mismo trato que un «Cargar más».
       const f = montar();
       const pie = f.nativeElement.querySelector('footer.acciones') as HTMLElement;
       const textos = [...pie.querySelectorAll('button')].map((b) => b.textContent?.trim());
@@ -399,9 +443,16 @@ describe('Zonas de la toma', () => {
       const items = abrirMenu(f);
 
       expect(items).toContain('Revisar');
-      expect(items).toContain('Agregar zona');
       expect(items).toContain('Cancelar toma');
       expect(items).toContain('Compartir por QR');
+    });
+
+    it('«Agregar zona» no queda duplicada en el menú', () => {
+      // La misma acción en dos lugares de una pantalla de teléfono es ruido, y
+      // deja dudando cuál de las dos hace algo distinto.
+      const f = montar();
+
+      expect(abrirMenu(f)).not.toContain('Agregar zona');
     });
 
     it('con la toma cerrada el menú no ofrece escribir', () => {

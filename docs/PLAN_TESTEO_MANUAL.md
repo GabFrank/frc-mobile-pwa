@@ -1024,10 +1024,40 @@ bloquea. Al confirmar, queda registrado con esos datos.
 **Esperado:** **no** aparece la sucursal del usuario anterior.
 
 ### 15.7 · Salida de almuerzo
-1. Con la jornada abierta, marcar la salida de almuerzo y después el retorno
+1. Con la jornada abierta, tocar **«Salir a almorzar»** y después el retorno
 
 **Esperado:** la jornada **no se cierra** con la salida de almuerzo; las
 horas trabajadas siguen contando bien al volver.
+
+### 15.9 · El almuerzo es opcional *(el que importa de esta tanda)*
+1. Marcar entrada
+2. Sin salir a almorzar, mirar la barra de abajo
+3. Tocar **«Marcar salida»** (el rojo, no el de contorno)
+
+**Esperado:** con la jornada abierta y el almuerzo sin marcar aparecen **dos
+botones**: «Salir a almorzar» (contorno) y «Marcar salida» (relleno). Al tocar
+el segundo la jornada **cierra**, y al volver a la pantalla ofrece «Marcar
+entrada» — **no** «Volver del almuerzo».
+
+El estado de arriba dice **«En jornada»** a secas mientras haya dos opciones,
+no «falta marcar salida».
+
+> Antes de este cambio la primera salida del día se registraba siempre como
+> salida de almuerzo, así que el retorno era obligatorio. Si volvés a ver
+> «Volver del almuerzo» sin haber tocado «Salir a almorzar», es la regresión.
+
+### 15.8 · Marcar con el GPS activo *(la regresión del tipo `Int`)*
+1. Con permiso de ubicación **concedido**, esperar a que el panel muestre una
+   distancia distinta de cero —alcanza con estar a unos metros— y marcar
+2. Si aparece el aviso de «Estás lejos de la sucursal», confirmar
+
+**Esperado:** la marcación **se registra**. No puede aparecer
+`Variable 'entity' has an invalid value: Expected type 'Int' but was 'Double'`,
+que es lo que salía cuando la distancia calculada viajaba con decimales.
+
+> El caso solo se reproduce con GPS: negando el permiso la distancia no se
+> manda y el error no aparece nunca. Por eso hay que **conceder** el permiso y
+> esperar a ver los metros en pantalla antes de tocar el botón.
 
 ---
 
@@ -1080,6 +1110,29 @@ envía». No están escondidas.
 
 **Esperado:** queda apagado. Si el servidor rechaza el cambio, el interruptor
 vuelve a su posición y avisa.
+
+### 16.8 · El orden no cambia entre entradas
+1. Anotar el orden de las filas
+2. Volver atrás y entrar de nuevo a **Preferencias**, tres o cuatro veces
+
+**Esperado:** **el mismo orden siempre**, alfabético por la etiqueta. El
+central devuelve esta lista sin ordenar —la arma recorriendo un `HashMap`—, y
+sin el orden del cliente los interruptores saltan de lugar entre una entrada y
+la siguiente. Es el caso que más importa del bloque: apagar el interruptor
+equivocado se hace justamente así.
+
+### 16.9 · Ninguna fila queda sin texto
+1. Recorrer toda la lista
+
+**Esperado:** **cada fila dice qué avisa**, en castellano y sin guiones bajos.
+No puede aparecer un `PRODUCTO_CREADO` crudo ni una fila vacía: cuando el
+central no manda `descripcion`, la app usa su propia tabla de tipos.
+
+> ⚠️ **Qué tipos aparecen lo decide el central, no la app.** La lista sale de
+> cruzar los roles del usuario contra `notificacion_tipo_role`. Si falta un
+> tipo que sí te llega como aviso —«producto creado», por ejemplo—, **no es un
+> fallo de esta pantalla**: es el mapa de roles del central, que se corrige por
+> migración. Reportarlo igual, indicando con qué usuario.
 
 ---
 
@@ -1385,6 +1438,127 @@ mano) y la barra de arriba cambia a *Escanear* / *Finalizar*.
 
 > Deshacer no es solo borrar un número: mueve stock. Si el aviso se quedó en
 > «se borran las cantidades», el operador está aceptando algo que no leyó.
+
+### 20.22 · Un producto con lote pide el número *(el que importa)*
+
+> Hace falta una nota que traiga un producto marcado con **control de lote**
+> (`Producto → lote` en el desktop). Sin ese producto este caso no se puede
+> correr, y no correrlo es dejar la trazabilidad sin probar.
+
+1. Tocar ese producto en la lista
+
+**Esperado:** debajo de las líneas cargadas aparece el bloque **Trazabilidad**
+con *Número de lote*, *Vencimiento* y *Fecha de retiro*. El número dice que es
+obligatorio.
+
+2. Cargar la cantidad, *Agregar*, y **Guardar sin escribir el lote**
+
+**Esperado:** avisa que el producto se mueve por lote y **no guarda**. El
+diálogo queda abierto con la carga intacta.
+
+3. Escribir un número nuevo —por ejemplo `L-PRUEBA-1`— en minúsculas
+
+**Esperado:** el campo lo pasa a **mayúsculas** solo.
+
+4. *Guardar*
+
+**Esperado:** guarda, el producto queda verificado y la lista se recarga.
+
+### 20.23 · Un producto sin lote no lo pide
+1. Tocar un producto **sin** control de lote ni vencimiento
+
+**Esperado:** **no aparece** el bloque Trazabilidad. La verificación funciona
+igual que antes.
+
+> Un producto marcado solo con **vencimiento** sí muestra el bloque, pero con
+> el campo de vencimiento nada más: sin lote no hay fecha de retiro que cargar.
+
+### 20.24 · Un lote ya registrado se reconoce y trae sus fechas
+1. Verificar un producto con lote usando un número **nuevo**, con vencimiento
+   y fecha de retiro cargados a mano
+2. **Finalizar** la recepción (así el central crea el lote en el maestro)
+3. En **otra** recepción del mismo producto, empezar a tipear ese número
+
+**Esperado:** mientras se tipea aparecen los lotes del producto como opciones
+tocables, con su vencimiento y retiro. Al completar el número, un aviso dice
+**«Lote ya registrado»** con sus fechas, ésas se cargan solas y **los campos de
+fecha quedan deshabilitados**.
+
+4. Cambiar el número por uno que no exista
+
+**Esperado:** el aviso desaparece, los campos se **habilitan** y las fechas que
+había traído el lote se borran.
+
+> Las fechas se deshabilitan porque el central **nunca pisa** la fecha de un
+> lote que ya existe (`LoteService.obtenerOCrear`). Dejarlas editables mostraría
+> una fecha distinta de la que se va a guardar.
+
+### 20.25 · Un lote bloqueado se avisa, no se esconde
+1. Desde el desktop, poner un lote del producto en **BLOQUEADO** o **CUARENTENA**
+2. Tipear ese número al verificar
+
+**Esperado:** el aviso sale **en rojo** y dice el estado. **No** impide guardar:
+la decisión es del operador, el sistema avisa.
+
+### 20.26 · Dos lotes del mismo producto en la misma recepción
+1. Verificar **parte** de la cantidad de un producto con lote `A`
+2. Volver a entrar al mismo producto y verificar el resto con lote `B`
+3. Finalizar la recepción
+4. Desde el desktop, mirar el **stock por lotes** de ese producto en la sucursal
+
+**Esperado:** aparecen **los dos lotes**, cada uno con su cantidad. No puede
+pasar que todo el stock quede en el último número tipeado.
+
+> Es el caso que obliga a guardar el lote por pasada y no solo en el ítem.
+> Necesita el central con la migración **`V202.5`** para que la fecha de retiro
+> de la segunda pasada no se pierda.
+
+### 20.27 · Un rechazo total no pide lote
+1. En un producto con lote, cargar **toda** la cantidad como rechazo con motivo
+2. *Guardar*
+
+**Esperado:** guarda sin pedir el número de lote. No hay mercadería que trazar.
+
+### 20.28 · La fecha de retiro es opcional
+1. Verificar un producto con lote **sin** cargar fecha de retiro
+2. Finalizar y mirar el lote desde el desktop
+
+**Esperado:** guarda igual. El lote queda con la fecha de retiro que **calcula
+el central** a partir de los días de vencimiento del producto (o vacía si el
+producto no los tiene configurados).
+
+### 20.29 · Los lotes aparecen mientras se tipea, no antes *(el que importa)*
+
+> Hace falta un producto con **varios lotes ya registrados** — cuantos más,
+> mejor: el caso existe justamente para los productos que juntan cientos.
+
+1. Abrir la verificación de ese producto
+
+**Esperado:** debajo de *Número de lote* **no hay ninguna lista**. La ayuda
+del campo dice que al escribir el número aparecen los lotes registrados, y
+enseguida están *Vencimiento* y *Fecha de retiro*, **a la vista sin
+scrollear**.
+
+2. Escribir el **primer carácter** del número
+
+**Esperado:** aparecen las opciones que coinciden, como máximo **seis**, con
+su vencimiento, su retiro y su estado. Tocar una completa el campo.
+
+3. Seguir escribiendo hasta que ninguna coincida
+
+**Esperado:** la lista desaparece y avisa que **ningún lote registrado
+coincide: se va a crear uno nuevo** con ese número. No es un error — se puede
+guardar igual.
+
+4. Borrar todo el campo
+
+**Esperado:** vuelve al estado del paso 1. La lista no reaparece.
+
+5. Con un producto que tenga **más de seis** lotes, escribir un carácter que
+   coincida con muchos
+
+**Esperado:** debajo de las seis opciones dice **cuántas quedaron afuera** y
+que hay que seguir escribiendo. Nunca corta en silencio.
 
 ---
 
@@ -1889,9 +2063,16 @@ siguen pegados a cajas viejas.
 movimientos.
 
 > ⚠️ **Si dice *No se pudo consultar*, el central no tiene
-> `stockPorSucursales`.** Es una consulta nueva; contra una instancia vieja
-> —alpha, hoy— es lo esperado. Lo que **no** puede pasar es que muestre todas
-> las sucursales en cero: eso afirmaría que no hay mercadería.
+> `stockPorSucursales`.** Contra **alpha eso ya no debería pasar**: la consulta
+> está desde `4.7.0-alpha.40` (verificado 2026-08-15), así que acá la existencia
+> se prueba de verdad y un «No se pudo consultar» **es un hallazgo**.
+>
+> Contra **beta o producción sí es lo esperado** por ahora —farmacia corre
+> `4.7.0-beta.2` y bodega `4.8.0`, sin la consulta— hasta que el central se
+> promueva.
+>
+> Lo que **no** puede pasar en ningún caso es que muestre todas las sucursales
+> en cero: eso afirmaría que no hay mercadería.
 
 ---
 
@@ -3735,12 +3916,12 @@ sobre gris.
 | 12 · Buscar producto | 9 | | | |
 | 13 · Devoluciones | 7 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
-| 15 · Marcación | 7 | | | |
+| 15 · Marcación | 9 | | | |
 | 16 · Notificaciones | 7 | | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
 | 19 · Inventario | 5 | | | |
-| 20 · Recepción de mercadería | 21 | | | |
+| 20 · Recepción de mercadería | 29 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
 | 22 · Crédito en Inicio | 6 | | | |
 | 23 · Escáner universal | 9 | 3 | | |

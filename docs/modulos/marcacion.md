@@ -44,6 +44,12 @@ Es el módulo con más integración de hardware del repo: cámara, GPS y motor d
 
 > **Regla clave — se guarda la evidencia, no solo el veredicto.** `latitud`, `longitud`, `precisionGps` y `distanciaSucursalMetros` quedan registrados en cada marcación. Permite auditar después: una marcación a 300 m con precisión de 500 m es distinta de una a 300 m con precisión de 5 m. **No descartes estos campos al guardar.**
 
+> ⚠️ **Gotcha — `distanciaSucursalMetros` es `Int` en el esquema del central**, y `precisionGps` es `Float`. La distancia sale de un cálculo de Haversine, que da decimales: mandarla cruda hace que graphql-java rechace la mutation entera con «Variable 'entity' has an invalid value: Expected type 'Int' but was 'Double'» y **la marcación no se registra**. `frc-mobile` nunca lo vio porque mandaba `distanciaSucursalMetros: 0` fijo — no calculaba la distancia. En la PWA el redondeo vive en `MarcacionService.guardar()`, que es el único punto por el que pasan todas las marcaciones.
+
+> ⚠️ **Gotcha — `accionPendiente` es ambigua a propósito, y el cliente la desambigua.** Con la entrada marcada y el almuerzo sin marcar, `JornadaMarcacionRules.construirEstado()` devuelve `accionPendiente = SALIDA` y habilita **`puedeMarcarSalida` y `puedeMarcarSalidaAlmuerzo` al mismo tiempo**: el central acepta las dos y espera que el funcionario elija con `esSalidaAlmuerzo`. `AlmuerzoProcessor.handleSalida()` es donde pesa — `true` la manda a `marcacionSalidaAlmuerzo`, `false` a `marcacionSalida` y cierra la jornada (`EstadoJornada.NORMAL`). **Deducir el flag de `accionPendiente` es un bug**: en ese estado la acción siempre vale `SALIDA`, así que toda primera salida del día quedaba como almuerzo y el retorno pasaba a ser obligatorio. Hay que leer los dos flags.
+
+> **En una entrada el flag no se usa.** `AlmuerzoProcessor.handleEntrada()` lo ignora y decide por posición: si ya hay entrada y hay salida de almuerzo sin retorno, esa entrada **es** el retorno. `frc-mobile` mandaba `esSalidaAlmuerzo: true` en «Entrada Almuerzo», y era inocuo pero no significaba nada.
+
 > **Regla clave — `esSalidaAlmuerzo` cambia el cálculo de horas.** Una salida de almuerzo no cierra la jornada. Tratarla como salida normal parte la jornada en dos y descuadra las horas trabajadas.
 
 > ⚠️ **Gotcha — `sucursalId`, `sucursalEntrada` y `sucursalSalida` coexisten.** Entrada y salida pueden ser en sucursales distintas (un funcionario que se traslada). `sucursalId` es la de la marcación puntual.

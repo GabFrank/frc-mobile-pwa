@@ -375,6 +375,22 @@ se decide por lo que el campo **muestra**.
 `<frc-campo-fecha>` del sistema de diseño: mismo control en Chrome, Android y
 Safari. Ver `docs/design-system.md`.
 
+**Cada renglón se lleva un lote distinto.** Dos renglones de la misma
+presentación **son** dos lotes, así que la sugerencia se reparte: se reservan
+primero las fechas que cada renglón ya tiene —propias o escritas—, y las que
+sobran se asignan una por renglón. Si el central conoce un solo lote y hay dos
+renglones, el segundo queda **vacío**: prellenar la misma fecha sería afirmar
+que ese lote está dos veces.
+
+⚠️ `vencimientoSugerido()` mira solo el `presentacionId`, así que sin ese
+reparto todos los renglones recibían **la misma** fecha. Cargarle el
+vencimiento a uno terminaba escribiendo el mismo en el otro al guardar —el
+operador lo ve como «le puse la fecha a uno y me la puso en los dos»— y el
+central lo rechazaba como renglón duplicado.
+
+⚠️ **Borrar el campo es una decisión, no un campo sin tocar.** Un vencimiento
+borrado a mano queda vacío y no se vuelve a prellenar solo.
+
 **Es una consulta secundaria**: `mostrarCarga: false` y `notificarError: false`,
 la pantalla cuenta igual sin ella. Si falla, lo dice — un campo vacío afirmaría
 «no hay vencimiento conocido», que es una respuesta distinta de «no pude
@@ -386,35 +402,36 @@ abrir un acordeón y copiar el ítem a mano.
 
 ## Agregar un producto a la zona
 
-> ⚠️ **La unicidad que aplica el central es `(inventario, producto,
-> vencimiento)`**, no `(zona, presentación)` como este documento decía.
-> `InventarioProductoItemService.save()` busca con
-> `findByInventarioIdAndProductoId` —que une hasta `inventario`, **sin mirar
-> la zona**— y compara con `Objects.equals(item.getVencimiento(), ...)`.
+> ⚠️ **Qué es un renglón duplicado lo decide el central, no la app.**
+> `InventarioProductoItemService.save()` rechaza **el mismo renglón dos veces
+> en la misma zona**: misma zona, misma presentación y mismo vencimiento —con
+> dos nulos contando como iguales—. Es el único caso que produce un dato sin
+> sentido, porque `finalizarInventarioEnSucursal()` suma los dos renglones y
+> el conteo sale doble.
 >
-> Tres consecuencias, y las tres se sintieron:
+> Lo que **sí** se puede, y antes no:
 >
-> 1. **El alcance es toda la toma.** Un producto contado en «gondola 1»
->    bloquea agregarlo en «gondola 2».
-> 2. **La clave es el producto, no la presentación.** «Unidad» y «caja x12»
->    son el mismo producto para esta regla.
-> 3. **Dos vencimientos nulos son iguales.** Y `nuevoItemInput()` no manda
->    vencimiento, así que todo ítem recién agregado nace en colisión con
->    cualquier otro ítem de su producto que tampoco tenga fecha.
+> | Caso | Por qué es legítimo |
+> |---|---|
+> | El mismo producto contado en dos zonas | Hay stock en góndola y en depósito; los conteos se suman |
+> | «Unidad» y «caja x12» del mismo producto | Son dos presentaciones y dos renglones |
+> | Dos renglones sin vencimiento, de presentaciones distintas | El vencimiento es opcional en los dos frentes |
+> | La misma presentación con dos fechas | Son dos lotes |
 >
-> La regla la agregó el central el 2025-10-16 (`f6296856`, «evitar productos
-> duplicados en inventario»). La app no la conocía: el alta llegaba al
-> servidor y volvía como un `IllegalStateException` crudo, con el texto de
-> Java en pantalla y sin decir en qué zona estaba el producto que chocaba.
+> **La app no tiene su copia de esta regla, y es una decisión.** La tuvo
+> —`presentacionYaEnLaZona()`— y el resultado fue exactamente el defecto que
+> una copia existe para evitar: el cliente se cuidaba por `(zona,
+> presentación)` mientras el central validaba por `(inventario, producto,
+> vencimiento)`, así que agregar un producto que ya estaba en **otra zona**
+> pasaba el chequeo local y moría en el servidor con un `IllegalStateException`
+> en pantalla. Ahora la pantalla manda y muestra lo que el central conteste;
+> el mensaje viene armado allá, con la zona adentro. Es el patrón del punto 11
+> de [`../PATRONES.md`](../PATRONES.md).
 >
-> Ahora la chequea antes `rechazoAlAgregar()`, con sus pruebas. Lo que **no**
-> hace es bloquear cuando el ítem que ya está tiene fecha: ahí las dos no son
-> iguales y el central lo acepta. Inventar la restricción de más dejaría sin
-> poder cargar «caja x12» de un producto ya contado, que es legítimo.
->
-> Y si el central rechaza igual —otro teléfono lo agregó entre la consulta y
-> el guardado—, `mensajeDeErrorAlAgregar()` traduce el texto de la excepción
-> por uno que dice qué hacer.
+> La clave anterior —`(inventario, producto, vencimiento)`, del `f6296856` del
+> 2025-10-16— rompía además **Guardar conteo**: el vencimiento sugerido propone
+> la misma fecha para la misma presentación en todas las zonas, así que contar
+> un producto en dos zonas y guardar hacía fallar el segundo.
 
 *Agregar producto* abre `frc-buscador-producto-dialog`, el mismo buscador de
 la pestaña Buscar: descripción, código, cámara y códigos de balanza. Recibe la

@@ -3201,7 +3201,35 @@ botón **usar**. Tocarlo copia esa fecha al campo.
 **Esperado:** en la cabecera colapsada aparece el ícono de vencido, en rojo,
 al lado del nombre del producto.
 
-### 44.10 · Guardar sigue guardando lo mismo
+### 44.10 · Dos renglones de la misma presentación reciben lotes distintos
+
+1. En una zona con **dos renglones de la misma presentación** —dos lotes—,
+   abrí los dos y mirá el campo *Vencimiento*.
+
+**Esperado:** las fechas sugeridas son **distintas**. Si el central conoce dos
+lotes, cada renglón se lleva uno; si conoce uno solo, el segundo queda
+**vacío** en vez de repetir el del primero.
+
+⚠️ Es el defecto que reportó el operador: la sugerencia se pedía solo por
+presentación, así que los dos renglones recibían la misma fecha y al guardar
+quedaba escrita en los dos — «le puse la fecha a uno y me la puso en los dos».
+
+### 44.11 · Cargarle la fecha a un renglón no toca la del otro
+
+1. Con dos renglones de la misma presentación, escribí una fecha en uno.
+2. Guardá y volvé a entrar.
+
+**Esperado:** solo ese renglón cambió. El otro conserva la suya, y el central
+no rechaza el guardado por renglón duplicado.
+
+### 44.12 · Borrar la fecha la deja borrada
+
+1. Borrá el contenido del campo *Vencimiento* de un renglón.
+
+**Esperado:** queda **vacío**. No se vuelve a prellenar solo con la sugerencia
+— borrar es una decisión, no un campo sin tocar.
+
+### 44.13 · Guardar sigue guardando lo mismo
 
 1. Contá tres ítems, guardá.
 2. Volvé a entrar a la zona.
@@ -3210,7 +3238,7 @@ al lado del nombre del producto.
 «Conteo guardado». La diferencia de cada uno coincide con la que se veía antes
 de guardar.
 
-### 44.11 · Zona vacía y sin conexión
+### 44.14 · Zona vacía y sin conexión
 
 1. Entrá a una zona **sin ítems**.
 2. Con la zona cargada, cortá la conexión y tocá *Reintentar* del estado de
@@ -3220,7 +3248,7 @@ de guardar.
 qué pasó y ofrece reintentar. En ninguno de los dos casos aparece una lista a
 medio dibujar.
 
-### 44.12 · Tema oscuro y tema claro
+### 44.15 · Tema oscuro y tema claro
 
 1. Cambiá el tema en *Mi cuenta → Aplicación* y volvé a la pantalla.
 
@@ -3230,66 +3258,72 @@ la barra de avance se distinguen del fondo.
 
 ---
 
-## Bloque 45 — Agregar un producto que ya está en la toma *(nuevo)*
+## Bloque 45 — Renglones repetidos en el conteo *(nuevo)*
 
-**Por qué está acá:** el central no acepta dos ítems del mismo producto en una
-toma con el mismo vencimiento, y cuenta dos fechas vacías como iguales. La app
-no lo sabía: el alta llegaba al servidor y volvía con el texto de una excepción
-de Java en pantalla. Ahora lo chequea antes, pero el chequeo se apoya en lo que
-la consulta trajo — hay que probarlo con una toma de varias zonas de verdad.
+**Por qué está acá:** la regla de qué es un renglón duplicado cambió **en el
+central**, y pasó de `(inventario, producto, vencimiento)` a
+`(zona, presentación, vencimiento)`. Es una relajación —nada que funcionaba
+dejó de funcionar—, pero cuatro casos que antes fallaban ahora tienen que
+entrar, y uno solo tiene que seguir fallando. La app ya no chequea nada de
+esto: muestra lo que el central conteste.
 
-**Necesita:** una toma **abierta** con **dos zonas o más**, y un producto ya
-cargado en una de ellas **sin vencimiento**.
+**Necesita:** una toma **abierta** con **dos zonas**, y un producto con al
+menos dos presentaciones («unidad» y «caja x12» o equivalente).
 
-### 45.1 · El mismo producto en otra zona se frena, y dice en cuál
+⚠️ **Probalo también desde el escritorio.** El cambio es del central y le llega
+a los dos frentes; el escritorio estaba igual de roto y tiene que haber
+mejorado igual.
 
-1. Entrá a contar la zona B.
-2. Tocá *Agregar producto* y elegí un producto que ya esté en la zona A sin
-   vencimiento.
+### 45.1 · El mismo producto en dos zonas — antes fallaba
 
-**Esperado:** un aviso que nombra **la zona A** —«ya está en esta toma, en
-"gondola 2"»— y sugiere contarlo ahí. No se agrega nada y no aparece ningún
+1. Contá un producto en la zona A y guardá.
+2. Entrá a la zona B, *Agregar producto*, elegí **el mismo producto**.
+
+**Esperado:** se agrega. Es el caso normal de un inventario por zona: hay stock
+en góndola y en depósito, y los conteos se suman.
+
+### 45.2 · Unidad y caja x12 del mismo producto — antes fallaba
+
+1. En una zona, agregá «unidad» de un producto **sin cargarle vencimiento**.
+2. Agregá «caja x12» del mismo producto.
+
+**Esperado:** entran las dos. Son dos presentaciones y dos renglones.
+
+### 45.3 · Guardar el mismo producto contado en dos zonas — antes fallaba
+
+1. Contá el mismo producto en la zona A y en la zona B, dejando en las dos el
+   **vencimiento sugerido** (que es la misma fecha, porque sale del mismo lote).
+2. Guardá el conteo de las dos.
+
+**Esperado:** guardan las dos. Antes el segundo fallaba, y era el caso más
+probable de todos porque la sugerencia propone siempre la misma fecha.
+
+### 45.4 · Dos lotes de la misma presentación — antes fallaba
+
+1. En una zona, agregá «unidad» con vencimiento 20/11/2026.
+2. Agregá «unidad» otra vez, con vencimiento 05/01/2027.
+
+**Esperado:** entran las dos. Son dos lotes.
+
+### 45.5 · El mismo renglón repetido — tiene que seguir fallando
+
+1. En una zona, agregá «unidad» de un producto y **no le cargues vencimiento**.
+2. Agregá «unidad» del mismo producto otra vez, también sin fecha.
+
+**Esperado:** se rechaza, y el mensaje **nombra la zona** y dice que le cargues
+la fecha a la que ya está o que las cuentes juntas en ese renglón. Nunca un
 texto en inglés ni nombres de clases de Java.
 
-### 45.2 · Otra presentación del mismo producto, sin fecha, también se frena
+⚠️ Es el único caso que produce un dato sin sentido: el central suma los dos
+renglones al finalizar y el conteo sale doble.
 
-1. En una zona con «unidad» de un producto **sin vencimiento**, agregá la
-   presentación «caja x12» del mismo producto.
+### 45.6 · El mismo renglón con la misma fecha — también sigue fallando
 
-**Esperado:** se frena, explicando que hay que cargarle la fecha primero.
+1. Repetí 45.5 pero con la **misma fecha** cargada en los dos.
 
-⚠️ Es una limitación del central, no de la app: la unicidad de allá es por
-producto y no por presentación. Está anotado como #63 en `TODO_TECNICO.md`.
-
-### 45.3 · Con la fecha cargada, la segunda presentación entra
-
-1. Cargá el vencimiento del ítem «unidad», **guardá el conteo**.
-2. Ahora sí agregá «caja x12».
-
-**Esperado:** se agrega. Es el caso que no hay que bloquear de más.
-
-### 45.4 · La misma presentación repetida en la zona sigue frenada
-
-1. Agregá una presentación que ya está en **esta** zona.
-
-**Esperado:** el aviso habla de la **presentación**, no del producto. Son dos
-motivos distintos y el operador tiene que poder distinguirlos.
-
-### 45.5 · Un producto nuevo se agrega sin fricción
-
-1. Agregá un producto que la toma no tiene en ninguna zona.
-
-**Esperado:** entra, con el stock del sistema cargado y el conteo vacío. El
-chequeo nuevo no puede estorbar el camino normal.
-
-### 45.6 · Si el central rechaza igual, el mensaje se entiende
-
-1. Difícil de forzar a mano: hace falta que **otro teléfono** agregue el mismo
-   producto entre que abrís el buscador y elegís. Si aparece, mirá el texto.
-
-**Esperado:** dice que ese producto ya está en la toma y que lo busques en las
-zonas — nunca «El producto ya fue registrado en este inventario con el mismo
-vencimiento» tal cual.
+**Esperado:** se rechaza, y el mensaje dice que un lote distinto va con otra
+fecha y que el mismo lote se cuenta en un solo renglón. Es un texto distinto
+al de 45.5, porque el problema es otro.
 
 ---
 
@@ -3340,9 +3374,9 @@ vencimiento» tal cual.
 | 41 · Lo contado llega al stock | 6 | | | |
 | 42 · Agregar un producto al conteo | 9 | | | |
 | 43 · Vencimiento sugerido y transferencias | 9 | | | |
-| 44 · Lista del conteo y campo de fecha | 12 | | | |
-| 45 · Agregar un producto ya presente en la toma | 6 | | | |
-| **Total** | **346** | | | |
+| 44 · Lista del conteo y campo de fecha | 15 | | | |
+| 45 · Renglones repetidos en el conteo | 6 | | | |
+| **Total** | **349** | | | |
 
 ### Los cinco que más importan
 

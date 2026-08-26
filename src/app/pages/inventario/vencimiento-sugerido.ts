@@ -48,11 +48,23 @@ export function vencimientoSugerido(
   filas: ProductoVencido[] | undefined | null,
   presentacionId: number,
   hoy: Date,
+  /**
+   * Fechas que **otro renglón de la misma presentación** ya se llevó.
+   *
+   * ⚠️ Dos renglones de una presentación son **dos lotes**, y dos lotes no
+   * comparten fecha. Sin esto, todos los renglones recibían la misma
+   * sugerencia —la función mira solo el `presentacionId`—, así que cargarle
+   * el vencimiento a uno terminaba escribiendo el mismo en el otro al
+   * guardar. El operador lo ve como «le puse la fecha a uno y me la puso en
+   * los dos», y el central lo rechaza por renglón duplicado.
+   */
+  excluir?: ReadonlySet<string>,
 ): SugerenciaVencimiento | null {
   const candidatas = (filas ?? [])
     .filter((f) => String(f.presentacionId ?? '') === String(presentacionId))
     .map((f) => ({ fila: f, fecha: soloFecha(f.vencimiento) }))
     .filter((c): c is { fila: ProductoVencido; fecha: string } => c.fecha !== null)
+    .filter((c) => !excluir?.has(c.fecha))
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   if (candidatas.length === 0) {

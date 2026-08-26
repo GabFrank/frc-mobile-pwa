@@ -764,15 +764,17 @@ El campo de fecha del sistema de diseño se creó al rediseñar la carga del con
 
 ---
 
-### 63. 🔴 El central rechaza dos ítems del mismo producto sin vencimiento, y contradice el modelo de la app
+### 63. ✅ El central rechazaba dos ítems del mismo producto sin vencimiento
 
-**Dónde:** `central` — `InventarioProductoItemService.save()`, línea 265; y este repo — `pages/inventario/inventario-alta.ts`.
+**Dónde:** `central` — `InventarioProductoItemService.save()`.
 
-La unicidad que aplica el central es `(inventario, producto, vencimiento)`, con `Objects.equals`, así que **dos vencimientos nulos cuentan como iguales**. Como `nuevoItemInput()` no manda vencimiento, sumar a la toma un producto que ya tiene otro ítem sin fecha —en cualquier zona, en cualquier presentación— muere con `IllegalStateException`.
+La unicidad era `(inventario, producto, vencimiento)` con `Objects.equals`, así que dos vencimientos nulos contaban como iguales. Rechazaba tres cosas legítimas: el mismo producto contado en dos zonas —el caso normal de un inventario por zona—, «unidad» y «caja x12» del mismo producto, y cualquier segundo renglón sin fecha. Y no solo al agregar: el chequeo corre en cada `save`, así que también hacía fallar **Guardar conteo** en cuanto el vencimiento sugerido ponía la misma fecha en dos zonas.
 
-**Por qué importa más allá del error:** esa regla contradice el modelo que este repo documenta y que el negocio usa. «Unidad» y «caja x12» son dos ítems legítimos del mismo producto, y con la regla actual **no pueden convivir en una toma** salvo que cada uno lleve un vencimiento distinto. Un producto sin fecha de vencimiento —que es la mayoría del salón— solo puede contarse una vez por toma.
+**Estado:** corregido en el central. La clave pasó a `(inventario_producto, presentacion, vencimiento)` —la zona, no el inventario— con siete tests en `InventarioProductoItemServiceDuplicadoTest`.
 
-**Estado:** mitigado en el cliente. `rechazoAlAgregar()` chequea la regla antes de mandar y explica en qué zona está el ítem que choca; `mensajeDeErrorAlAgregar()` traduce el rechazo del central si igual ocurre. **La contradicción de fondo sigue en el central** y se decidió no tocarlo: `saveInventarioProductoItem` lo usa también el escritorio, así que cambiar la unicidad a `(inventario, presentacion, vencimiento)` exige la regla 5 —método paralelo o relevamiento de quién más lo llama—.
+**Se tocó el método único, no un `saveMobile()` paralelo, y es una decisión.** El escritorio usa el mismo camino y estaba **igual de roto**: su vencimiento también es opcional (`add-producto-dialog.component.ts:47`), así que hoy tampoco podía agregar dos productos sin fecha a una toma. Además el cambio es una **relajación demostrable**: todo lo que la clave nueva rechaza ya lo rechazaba la anterior —una zona está dentro de su inventario, una presentación pertenece a su producto—, así que ningún flujo que funcionaba dejó de funcionar. Un método paralelo habría dejado al escritorio con el bug para siempre y dos caminos de guardado para desincronizar.
+
+**Lo que se sacó del cliente:** `presentacionYaEnLaZona()` y `rechazoAlAgregar()`. La regla vive en un solo lado.
 
 ---
 
@@ -782,4 +784,4 @@ Al arrancar la fase de corrección: convertir cada ítem en un issue, empezando 
 
 Los ítems 34-36 son cosméticos **con riesgo de contrato**: antes de renombrar cualquier cosa que viaje al backend, verificá el schema del central.
 
-**Resumen:** 63 hallazgos — 8 🔴, 27 🟡, 28 🟢. El #60 y el #62 son deuda **de este repo**; el #63 es del **central**, y es el único que ninguna de las dos puntas resuelve sola.
+**Resumen:** 63 hallazgos — 7 🔴, 27 🟡, 28 🟢, 1 ✅. El #60 y el #62 son deuda **de este repo**; el #63 era del **central** y ya está corregido allá.

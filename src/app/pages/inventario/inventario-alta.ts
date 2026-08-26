@@ -168,117 +168,20 @@ function sufijoAntiguedad(inventario: Inventario, ahora: Date): string {
 }
 
 /**
- * Si esa presentación ya está contada en la zona.
+ * ⚠️ **La regla del renglón duplicado NO vive acá.**
  *
- * ⚠️ **La clave real es `(inventario_producto, presentacion)`**, no el
- * producto: «unidad» y «caja x12» son dos ítems legítimos del mismo
- * producto. Pero dos renglones de la **misma** presentación dan un conteo
- * sumado que no corresponde a nada — el central los suma a los dos al
- * finalizar.
+ * La aplica el central en `InventarioProductoItemService.save()`: un duplicado
+ * es la misma zona, la misma presentación y el mismo vencimiento. Este archivo
+ * tuvo su propia copia —`presentacionYaEnLaZona()`— y el resultado fue el
+ * defecto que la copia existe para evitar: la app se cuidaba por
+ * `(zona, presentación)` mientras el central validaba por
+ * `(inventario, producto, vencimiento)`, así que agregar un producto que ya
+ * estaba en **otra zona** pasaba el chequeo local y moría en el servidor con
+ * un `IllegalStateException` en pantalla.
  *
- * Los ids se comparan como texto porque GraphQL los devuelve a veces como
- * número y a veces como string.
+ * El cliente muestra el mensaje que manda el central, que ya viene escrito
+ * para el operador. Es el patrón del punto 11 de `PATRONES.md`.
  */
-export function presentacionYaEnLaZona(
-  items: InventarioProductoItem[] | undefined | null,
-  presentacionId: number,
-): boolean {
-  return (items ?? []).some(
-    (item) => String(item.presentacion?.id ?? '') === String(presentacionId),
-  );
-}
-
-/** Por qué no se puede sumar esta presentación a la toma. */
-export interface RechazoAlta {
-  /** Para el test: asegura que se rechazó **por la razón correcta**. */
-  motivo: 'presentacion-repetida' | 'producto-sin-vencimiento';
-  /** Para la pantalla. */
-  mensaje: string;
-}
-
-/**
- * Un ítem sin fecha de vencimiento.
- *
- * La época Unix cuenta como ausente: el central serializa un `Date` nulo
- * como `1970-01-01 00:00`, así que en la base ese ítem **no tiene** fecha y
- * va a chocar igual que uno en blanco.
- */
-function sinVencimiento(item: InventarioProductoItem): boolean {
-  const texto = String(item.vencimiento ?? '').trim();
-  return texto === '' || texto.startsWith('1970-01-01');
-}
-
-/**
- * Si el alta va a ser rechazada, y por qué.
- *
- * ⚠️ **La unicidad que aplica el central es `(inventario, producto,
- * vencimiento)`**, no `(zona, presentación)` como este archivo asumía.
- * `InventarioProductoItemService.save()` busca por
- * `findByInventarioIdAndProductoId` —que une hasta `inventario`, sin mirar la
- * zona— y compara con `Objects.equals(item.getVencimiento(), ...)`.
- *
- * De ahí salen las tres diferencias que costaron el bug:
- *
- * 1. **El alcance es toda la toma.** Un producto contado en «gondola 1»
- *    bloquea agregarlo en «gondola 2».
- * 2. **La clave es el producto**, no la presentación. «Unidad» y «caja x12»
- *    son el mismo producto para esta regla.
- * 3. **Dos nulos son iguales.** Y `nuevoItemInput()` no manda vencimiento, así
- *    que todo ítem recién agregado nace en colisión con cualquier otro ítem
- *    de su producto que tampoco tenga fecha.
- *
- * Lo que **no** se hace es bloquear cuando el que ya está tiene fecha: ahí las
- * dos no son iguales y el central lo acepta. Inventar la restricción de más
- * dejaría sin poder cargar «caja x12» de un producto ya contado, que es un
- * caso legítimo.
- *
- * Regresión: sin esta función el alta llegaba al central y volvía como un
- * `IllegalStateException` crudo, con el texto de Java en pantalla y sin
- * decirle al operador en qué zona estaba el producto que chocaba.
- */
-export function rechazoAlAgregar(datos: {
-  /** Todas las zonas de la toma, no solo la que se está contando. */
-  zonas: InventarioProducto[] | undefined | null;
-  /** El `InventarioProducto` de la zona actual. */
-  inventarioProductoId: number;
-  productoId: number;
-  presentacionId: number;
-}): RechazoAlta | null {
-  const zonas = datos.zonas ?? [];
-  const esLaZonaActual = (z: InventarioProducto) =>
-    String(z.id ?? '') === String(datos.inventarioProductoId);
-
-  const enLaZona = zonas.find(esLaZonaActual)?.inventarioProductoItemList ?? [];
-  if (presentacionYaEnLaZona(enLaZona, datos.presentacionId)) {
-    // Regla de la app, no del central: dos renglones de la misma presentación
-    // se suman los dos al finalizar y el conteo sale doble.
-    return {
-      motivo: 'presentacion-repetida',
-      mensaje: 'Esa presentación ya está en esta zona.',
-    };
-  }
-
-  for (const zona of zonas) {
-    for (const item of zona.inventarioProductoItemList ?? []) {
-      // Los ids se comparan como texto porque GraphQL los devuelve a veces
-      // como número y a veces como string.
-      const mismoProducto =
-        String(item.presentacion?.producto?.id ?? '') === String(datos.productoId);
-      if (!mismoProducto || !sinVencimiento(item)) {
-        continue;
-      }
-      const donde = zona.zona?.descripcion?.trim();
-      return {
-        motivo: 'producto-sin-vencimiento',
-        mensaje: esLaZonaActual(zona)
-          ? 'Ese producto ya está en esta zona sin vencimiento cargado. Cargale la fecha antes de sumar otra presentación.'
-          : `Ese producto ya está en esta toma, en «${donde || 'otra zona'}», sin vencimiento cargado. Contalo ahí, o cargale la fecha antes de agregarlo de nuevo.`,
-      };
-    }
-  }
-
-  return null;
-}
 
 /**
  * El ítem que se crea al sumar un producto a la zona.
@@ -315,18 +218,4 @@ export function nuevoItemInput(datos: {
     return base;
   }
   return { ...base, cantidad: datos.peso, ...marcasDeConteo(datos.peso, sistema) };
-}
-
-/**
- * Qué mostrar si el central rechaza el alta igual.
- *
- * `rechazoAlAgregar()` cubre lo que la app puede ver, pero no todo: otro
- * teléfono puede haber agregado el producto entre la consulta y el guardado.
- * Cuando eso pasa, lo que llegaba a pantalla era el texto de un
- * `IllegalStateException` — correcto para un log, inútil frente a la góndola.
- */
-export function mensajeDeErrorAlAgregar(error: string): string {
-  return (error ?? '').includes('ya fue registrado en este inventario')
-    ? 'Ese producto ya está en esta toma con el mismo vencimiento. Buscalo en las zonas de la toma y contalo ahí.'
-    : error;
 }

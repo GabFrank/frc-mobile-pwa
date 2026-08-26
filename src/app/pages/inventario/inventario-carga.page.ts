@@ -34,7 +34,7 @@ import { BuscadorProductoDialogComponent } from 'src/app/shared/producto/buscado
 import type { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/buscador.types';
 import { ProductoService } from 'src/app/pages/producto/producto.service';
 import type { ProductoVencido } from 'src/app/domains/productos/producto-vencido.model';
-import { mensajeDeErrorAlAgregar, nuevoItemInput, rechazoAlAgregar } from './inventario-alta';
+import { nuevoItemInput } from './inventario-alta';
 import { InventarioItemCardComponent, type FilaConteo } from './inventario-item-card.component';
 import { vencimientoSugerido } from './vencimiento-sugerido';
 import { diferenciaDe } from './inventario-conteo';
@@ -260,13 +260,59 @@ export class InventarioCargaPage {
 
   readonly items = computed<FilaConteo[]>(() => {
     const cambios = this.edicion();
-    return (this.producto()?.inventarioProductoItemList ?? []).map((item) => {
+    const filas = this.producto()?.inventarioProductoItemList ?? [];
+
+    /**
+     * ⚠️ **Dos renglones de la misma presentación son dos lotes, y dos lotes
+     * no comparten fecha.**
+     *
+     * `vencimientoSugerido()` mira solo el `presentacionId`, así que sin esto
+     * todos los renglones de una presentación recibían **la misma** fecha
+     * sugerida. Cargarle el vencimiento a uno terminaba escribiendo el mismo
+     * en el otro al guardar —el operador lo ve como «le puse la fecha a uno y
+     * me la puso en los dos»— y el central lo rechaza como renglón duplicado.
+     *
+     * Se reservan primero las fechas que cada renglón **ya tiene**, propias o
+     * escritas, y recién después se reparten las sugerencias, sacando cada una
+     * del reparto para que la siguiente caiga en otro lote.
+     */
+    const tomadas = new Map<string, Set<string>>();
+    const propiaDe = (item: InventarioProductoItem) => {
+      const cambio = cambios.get(Number(item.id));
+      return cambio?.vencimiento ?? (item.vencimiento ? item.vencimiento.slice(0, 10) : '');
+    };
+    const reservar = (presentacionId: string, fecha: string) => {
+      if (!fecha) {
+        return;
+      }
+      const yaHay = tomadas.get(presentacionId) ?? new Set<string>();
+      yaHay.add(fecha);
+      tomadas.set(presentacionId, yaHay);
+    };
+
+    for (const item of filas) {
+      reservar(String(item.presentacion?.id ?? ''), propiaDe(item));
+    }
+
+    return filas.map((item) => {
       const itemId = Number(item.id);
       const cambio = cambios.get(itemId);
       // Lo contado es `cantidad` y el stock del sistema `cantidadFisica`:
       // los nombres engañan, pero es el par que usa el central al finalizar.
       const contado = cambio?.contado !== undefined ? cambio.contado : item.cantidad ?? null;
       const sistema = item.cantidadFisica ?? 0;
+
+      const presentacionId = String(item.presentacion?.id ?? '');
+      // ⚠️ `undefined` es «nadie lo tocó»; la cadena vacía es «lo borró a
+      // propósito». Colapsarlos con `||` hacía que borrar el campo se
+      // volviera a prellenar solo con la sugerencia.
+      const editado = cambio?.vencimiento;
+      const propia = propiaDe(item);
+      // Lo que se llevaron los **otros** renglones. La fecha propia no se
+      // excluye: es la que este renglón tiene derecho a mostrar como conocida.
+      const ajenas = new Set(tomadas.get(presentacionId) ?? []);
+      ajenas.delete(propia);
+
       // Lo que el central sabe de esta presentación. Se calcula SIEMPRE,
       // tenga el ítem su propia fecha o no: es justo cuando la tiene que hace
       // falta poder comparar contra lo que dice el envase.
@@ -274,10 +320,14 @@ export class InventarioCargaPage {
         this.conocidos(),
         Number(item.presentacion?.id),
         this.hoy,
+        ajenas,
       );
-      const vencimiento =
-        cambio?.vencimiento ??
-        (item.vencimiento ? item.vencimiento.slice(0, 10) : conocido?.fecha ?? '');
+
+      const vencimiento = editado !== undefined ? editado : propia || conocido?.fecha || '';
+      // La sugerencia que se prellena queda tomada, para que el próximo
+      // renglón de esta presentación caiga en otro lote y no en el mismo.
+      reservar(presentacionId, vencimiento);
+
       return {
         itemId,
         // El producto cuelga de la presentación: `InventarioProducto` es la
@@ -468,6 +518,12 @@ export class InventarioCargaPage {
    * conteo, y la lista se recarga: así hay una sola fuente de verdad —lo que
    * dice el central— y no un renglón a medio existir que se pierde si alguien
    * sale de la pantalla antes de guardar.
+   *
+   * ⚠️ **No hay chequeo de duplicado acá.** Qué es un renglón repetido lo
+   * decide el central, y su mensaje ya viene escrito para el operador: la
+   * pantalla lo muestra y nada más. Tener la regla en los dos lados es lo que
+   * produjo el defecto — la copia local decía `(zona, presentación)` y el
+   * central `(inventario, producto, vencimiento)`.
    */
   async agregarProducto(): Promise<void> {
     const inventarioProductoId = Number(this.producto()?.id);
@@ -500,20 +556,6 @@ export class InventarioCargaPage {
       return;
     }
 
-    // ⚠️ Se miran **todas** las zonas de la toma, no la actual: la unicidad
-    // que aplica el central es (inventario, producto, vencimiento). Ver
-    // `rechazoAlAgregar`.
-    const rechazo = rechazoAlAgregar({
-      zonas: this.inventario()?.inventarioProductoList,
-      inventarioProductoId,
-      productoId,
-      presentacionId,
-    });
-    if (rechazo) {
-      this.notificacion.warn(rechazo.mensaje);
-      return;
-    }
-
     this.agregando.set(true);
     this.stockDe(productoId, sucursalId).subscribe({
       next: (stock) => {
@@ -534,7 +576,7 @@ export class InventarioCargaPage {
             },
             error: (err: Error) => {
               this.agregando.set(false);
-              this.notificacion.danger(mensajeDeErrorAlAgregar(err.message));
+              this.notificacion.danger(err.message);
             },
           });
       },

@@ -129,41 +129,27 @@ describe('Agregar un producto al conteo', () => {
     expect(input.cantidadFisica).toBe(42);
   });
 
-  it('una presentación que ya está en la zona no se duplica', async () => {
-    // El central suma los dos renglones al finalizar: el conteo saldría doble.
-    servicio.porId = vi.fn(() =>
-      of(
-        inventario(InventarioEstado.ABIERTO, [
-          { id: 1, vencimiento: '2026-11-20', presentacion: { id: 9, producto: { id: 200 } } },
-        ]),
-      ),
-    );
+  it('el renglón duplicado lo rechaza el central, y la pantalla muestra su mensaje', async () => {
+    // ⚠️ **La regla no vive en el cliente.** Qué es un renglón repetido —misma
+    // zona, misma presentación, mismo vencimiento— lo decide
+    // `InventarioProductoItemService.save()`. Tener una copia acá es lo que
+    // produjo el defecto que este test cuida: la copia local decía
+    // (zona, presentación) y el central (inventario, producto, vencimiento),
+    // así que agregar un producto que ya estaba en OTRA zona pasaba el chequeo
+    // del cliente y moría en el servidor con un texto de Java en pantalla.
+    const delCentral = 'Esa presentacion ya esta en la zona estante alto con el mismo vencimiento.';
+    servicio.guardarItem = vi.fn(() => throwError(() => new Error(delCentral)));
     const f = montar();
     await f.componentInstance.agregarProducto();
 
-    expect(notificacion.warn).toHaveBeenCalled();
-    expect(servicio.guardarItem).not.toHaveBeenCalled();
+    // Tal cual como vino: el central lo manda escrito para el operador, y
+    // reescribirlo acá sería volver a tener la regla en dos lados.
+    expect(notificacion.danger).toHaveBeenCalledWith(delCentral);
   });
 
-  it('otra presentación del mismo producto entra si la que ya está tiene fecha', async () => {
-    // «Unidad» y «caja x12» son dos ítems legítimos del producto. El central
-    // los acepta mientras los vencimientos NO sean iguales.
-    servicio.porId = vi.fn(() =>
-      of(
-        inventario(InventarioEstado.ABIERTO, [
-          { id: 1, vencimiento: '2026-11-20', presentacion: { id: 8, producto: { id: 200 } } },
-        ]),
-      ),
-    );
-    const f = montar();
-    await f.componentInstance.agregarProducto();
-
-    expect(servicio.guardarItem).toHaveBeenCalled();
-  });
-
-  it('otra presentación del mismo producto SIN fecha se frena antes de mandarla', async () => {
-    // El central compara por producto y toma dos vencimientos nulos por
-    // iguales, así que esto volvía como excepción de Java en pantalla.
+  it('otra presentación del mismo producto se manda, sin frenarla', async () => {
+    // «Unidad» y «caja x12» son dos renglones legítimos y el central los
+    // acepta. Frenarlo en el cliente sería reponer la regla que se sacó.
     servicio.porId = vi.fn(() =>
       of(
         inventario(InventarioEstado.ABIERTO, [
@@ -174,49 +160,23 @@ describe('Agregar un producto al conteo', () => {
     const f = montar();
     await f.componentInstance.agregarProducto();
 
-    expect(servicio.guardarItem).not.toHaveBeenCalled();
-    expect(notificacion.warn).toHaveBeenCalled();
+    expect(servicio.guardarItem).toHaveBeenCalled();
   });
 
-  it('el mismo producto en otra zona de la toma se frena, diciendo en cuál', async () => {
-    // El error reportado: la guarda vieja solo miraba la zona actual.
+  it('la misma presentación que ya está en la zona también se manda', async () => {
+    // Puede ser un lote nuevo con otra fecha, que es legítimo. Decidirlo es
+    // del central; el cliente ya no adivina.
     servicio.porId = vi.fn(() =>
-      of({
-        id: 5,
-        estado: InventarioEstado.ABIERTO,
-        sucursal: { id: 3, nombre: 'SUC. ROTONDA' },
-        inventarioProductoList: [
-          { id: 91, concluido: false, zona: { id: 11, descripcion: 'estante alto' }, inventarioProductoItemList: [] },
-          {
-            id: 92,
-            concluido: false,
-            zona: { id: 12, descripcion: 'gondola 2' },
-            inventarioProductoItemList: [{ id: 7, presentacion: { id: 9, producto: { id: 200 } } }],
-          },
-        ],
-      }),
-    );
-    const f = montar();
-    await f.componentInstance.agregarProducto();
-
-    expect(servicio.guardarItem).not.toHaveBeenCalled();
-    // Sin decir dónde está, el aviso no le sirve de nada al operador.
-    expect(notificacion.warn.mock.calls[0][0]).toContain('gondola 2');
-  });
-
-  it('si el central rechaza igual, no se muestra el texto de la excepción', async () => {
-    // Otro teléfono puede agregarlo entre la consulta y el guardado.
-    servicio.guardarItem = vi.fn(() =>
-      throwError(
-        () => new Error('El producto ya fue registrado en este inventario con el mismo vencimiento'),
+      of(
+        inventario(InventarioEstado.ABIERTO, [
+          { id: 1, vencimiento: '2026-11-20', presentacion: { id: 9, producto: { id: 200 } } },
+        ]),
       ),
     );
     const f = montar();
     await f.componentInstance.agregarProducto();
 
-    const mensaje = notificacion.danger.mock.calls[0][0] as string;
-    expect(mensaje).not.toContain('ya fue registrado en este inventario');
-    expect(mensaje).toContain('Buscalo en las zonas de la toma');
+    expect(servicio.guardarItem).toHaveBeenCalled();
   });
 
   it('cerrar el buscador sin elegir no guarda nada', async () => {

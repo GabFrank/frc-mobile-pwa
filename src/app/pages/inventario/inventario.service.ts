@@ -21,6 +21,7 @@ import { ItemsParaRevisarGQL } from 'src/app/graphql/inventario/itemsParaRevisar
 import { ReabrirInventarioGQL } from 'src/app/graphql/inventario/reabrirInventario';
 import { SaveInventarioGQL } from 'src/app/graphql/inventario/saveInventario';
 import { SaveInventarioProductoGQL } from 'src/app/graphql/inventario/saveInventarioProducto';
+import { DeleteInventarioProductoItemGQL } from 'src/app/graphql/inventario/deleteInventarioProductoItem';
 import { SaveInventarioProductoItemGQL } from 'src/app/graphql/inventario/saveInventarioProductoItem';
 import type { OrdenRevision } from './revision-item';
 
@@ -42,6 +43,7 @@ export class InventarioService {
   private readonly guardarGQL = inject(SaveInventarioGQL);
   private readonly guardarProductoGQL = inject(SaveInventarioProductoGQL);
   private readonly guardarItemGQL = inject(SaveInventarioProductoItemGQL);
+  private readonly borrarItemGQL = inject(DeleteInventarioProductoItemGQL);
   private readonly paraRevisarGQL = inject(ItemsParaRevisarGQL);
 
   porId(id: number): Observable<Inventario> {
@@ -144,5 +146,16 @@ export class InventarioService {
    */
   guardarItem(input: InventarioProductoItemInput): Observable<InventarioProductoItem> {
     return this.datos.mutar<InventarioProductoItem>(this.guardarItemGQL, { entity: input });
+  }
+
+  /**
+   * Saca un renglón del conteo.
+   *
+   * ⚠️ **Borra de verdad**: el central hace `deleteById`, así que lo contado
+   * en ese renglón se pierde. Es lo que corresponde a un renglón agregado por
+   * error, que es el caso de uso, pero la pantalla confirma antes.
+   */
+  borrarItem(id: number): Observable<boolean> {
+    return this.datos.mutar<boolean>(this.borrarItemGQL, { id });
   }
 }

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatInputModule } from '@angular/material/input';
 
 import { InventarioProductoItem } from 'src/app/domains/inventario/inventario.model';
@@ -64,6 +65,7 @@ export interface FilaConteo {
   imports: [
     MatFormFieldModule,
     MatInputModule,
+    MatMenuModule,
     IconoComponent,
     SelectorComponent,
     CampoFechaComponent,
@@ -71,6 +73,7 @@ export interface FilaConteo {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <article class="card" [class.abierta]="abierta()">
+     <div class="fila">
       <button
         type="button"
         class="cabecera"
@@ -100,6 +103,31 @@ export interface FilaConteo {
           <frc-icono nombre="chevronAbajo" [tamano]="20" />
         </span>
       </button>
+
+      <!--
+        ⚠️ Hermano del botón de la cabecera, no anidado: un botón dentro de
+        otro es HTML inválido, y el clic del menú burbujearía al cuerpo
+        desplegando la tarjeta cada vez que se abre el menú. Es la misma
+        razón por la que frc-producto-card los tiene separados.
+      -->
+      @if (puedeQuitar()) {
+        <button
+          type="button"
+          class="menu-btn"
+          [matMenuTriggerFor]="menu"
+          aria-label="Más opciones"
+        >
+          <frc-icono nombre="masOpciones" [tamano]="20" />
+        </button>
+
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="quitar.emit()">
+            <frc-icono nombre="tirar" [tamano]="18" />
+            <span class="etiqueta-menu">Quitar del conteo</span>
+          </button>
+        </mat-menu>
+      }
+     </div>
 
       @if (abierta()) {
         <div class="cuerpo">
@@ -164,8 +192,13 @@ export interface FilaConteo {
       border-color: var(--border);
       box-shadow: var(--elev-1);
     }
+    .fila {
+      display: flex;
+      align-items: stretch;
+    }
     .cabecera {
-      width: 100%;
+      flex: 1;
+      min-width: 0;
       display: flex;
       align-items: center;
       gap: var(--sp-3);
@@ -243,6 +276,18 @@ export interface FilaConteo {
       transition: transform 120ms ease;
     }
     .chevron.girado { transform: rotate(180deg); }
+    .menu-btn {
+      flex-shrink: 0;
+      padding: 0 var(--sp-3);
+      background: none;
+      border: none;
+      border-left: 1px solid var(--border-light);
+      color: var(--text-mute);
+      cursor: pointer;
+      line-height: 0;
+    }
+    .menu-btn:hover { background: var(--surface-sunken); color: var(--brand-text); }
+    .etiqueta-menu { margin-left: var(--sp-2); }
 
     .cuerpo {
       display: flex;
@@ -305,6 +350,11 @@ export class InventarioItemCardComponent {
   readonly fila = input.required<FilaConteo>();
   readonly abierta = input(false);
   readonly estados = input<OpcionSeleccion[]>([]);
+  /**
+   * El menú aparece solo si se puede sacar el renglón — es decir, con la toma
+   * abierta. Cerrada, el alcance del conteo ya es un hecho histórico.
+   */
+  readonly puedeQuitar = input(false);
 
   readonly alternar = output<void>();
   readonly contado = output<Event>();
@@ -313,6 +363,7 @@ export class InventarioItemCardComponent {
   readonly estado = output<unknown>();
   /** La fecha del «Anterior», para copiarla al campo. */
   readonly usarConocido = output<string>();
+  readonly quitar = output<void>();
 
   readonly esFalta = computed(() => (this.fila().diferencia ?? 0) < 0);
   readonly esSobra = computed(() => (this.fila().diferencia ?? 0) > 0);

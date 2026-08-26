@@ -22,7 +22,7 @@ import { ProductoService } from '../pages/producto/producto.service';
  */
 describe('Vencimiento sugerido al contar', () => {
   let servicio: { porId: ReturnType<typeof vi.fn>; guardarItem: ReturnType<typeof vi.fn> };
-  let productos: { vencidos: ReturnType<typeof vi.fn> };
+  let productos: { vencimientosConocidos: ReturnType<typeof vi.fn> };
 
   const item = (id: number, presentacionId: number, vencimiento?: string) => ({
     id,
@@ -45,7 +45,7 @@ describe('Vencimiento sugerido al contar', () => {
       porId: vi.fn(() => of(inventario([item(1, 9)]))),
       guardarItem: vi.fn(() => of({ id: 1 })),
     };
-    productos = { vencidos: vi.fn(() => of({ getContent: [] })) };
+    productos = { vencimientosConocidos: vi.fn(() => of([])) };
 
     TestBed.configureTestingModule({
       providers: [
@@ -71,29 +71,33 @@ describe('Vencimiento sugerido al contar', () => {
     return f;
   };
 
-  it('pide todos los vencimientos de la zona en una sola consulta', () => {
+  /*
+   * ⚠️ El doble expone `vencimientosConocidos` y NO `vencidos`: si la pantalla
+   * volviera al reporte de productos vencidos, estos tests explotarían. Es a
+   * propósito. Ese reporte ancla sus cinco fuentes al último inventario de la
+   * sucursal, y la toma que se está contando ES el último inventario, así que
+   * mientras se cuenta devuelve cero. En bodega3, COCA COLA 500ML tiene 81
+   * fechas conocidas de su caja x 6 y no devolvía ninguna, diera igual la
+   * fuente.
+   */
+  it('pide los vencimientos de toda la zona en una sola consulta', () => {
     servicio.porId = vi.fn(() => of(inventario([item(1, 9), item(2, 8)])));
     montar();
 
-    expect(productos.vencidos).toHaveBeenCalledTimes(1);
-    const [filtros, opciones] = productos.vencidos.mock.calls[0];
-    expect(filtros.sucursalIds).toEqual([3]);
-    // Sin filtro de fechas y sin `soloVencidos`: si no, el central devuelve
-    // solo lo caduco y la mayoría de los campos quedarían vacíos.
-    expect(filtros.soloVencidos).toBe(false);
-    expect(filtros.desde).toBeUndefined();
+    expect(productos.vencimientosConocidos).toHaveBeenCalledTimes(1);
+    const [sucursalId, productoIds, opciones] = productos.vencimientosConocidos.mock.calls[0];
+    expect(sucursalId).toBe(3);
+    expect(productoIds).toEqual([200]);
     // Secundaria: no aporta a la barra de carga ni tira un toast.
     expect(opciones).toEqual({ mostrarCarga: false, notificarError: false });
   });
 
   it('prellena el campo con el más próximo a vencer', () => {
-    productos.vencidos = vi.fn(() =>
-      of({
-        getContent: [
+    productos.vencimientosConocidos = vi.fn(() =>
+      of([
           { presentacionId: 9, vencimiento: '2027-05-10', fuenteVerdad: 'COMPRA', detalleFuente: 'Nota #7' },
           { presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'INVENTARIO' },
-        ],
-      }),
+        ]),
     );
     const f = montar();
 
@@ -101,12 +105,10 @@ describe('Vencimiento sugerido al contar', () => {
   });
 
   it('dice de dónde salió la fecha', () => {
-    productos.vencidos = vi.fn(() =>
-      of({
-        getContent: [
+    productos.vencimientosConocidos = vi.fn(() =>
+      of([
           { presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA', detalleFuente: 'Nota de compra #123' },
-        ],
-      }),
+        ]),
     );
     const f = montar();
     // La zona arranca colapsada: el origen se lee al desplegar el ítem.
@@ -121,8 +123,8 @@ describe('Vencimiento sugerido al contar', () => {
     // Lo que alguien escribió mirando el envase gana sobre cualquier
     // sugerencia: la sugerencia es un dato de sistema, no una corrección.
     servicio.porId = vi.fn(() => of(inventario([item(1, 9, '2026-01-15')])));
-    productos.vencidos = vi.fn(() =>
-      of({ getContent: [{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }] }),
+    productos.vencimientosConocidos = vi.fn(() =>
+      of([{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }]),
     );
     const f = montar();
 
@@ -134,17 +136,15 @@ describe('Vencimiento sugerido al contar', () => {
     // Es el caso donde más sirve y era el único donde se escondía: con una
     // fecha ya cargada, quien cuenta no tenía contra qué comparar el envase.
     servicio.porId = vi.fn(() => of(inventario([item(1, 9, '2026-01-15')])));
-    productos.vencidos = vi.fn(() =>
-      of({
-        getContent: [
+    productos.vencimientosConocidos = vi.fn(() =>
+      of([
           {
             presentacionId: 9,
             vencimiento: '2026-11-20',
             fuenteVerdad: 'COMPRA',
             detalleFuente: 'Nota de compra #123',
           },
-        ],
-      }),
+        ]),
     );
     const f = montar();
     f.componentInstance.alternar(1);
@@ -158,8 +158,8 @@ describe('Vencimiento sugerido al contar', () => {
 
   it('«usar» copia el vencimiento anterior al campo', () => {
     servicio.porId = vi.fn(() => of(inventario([item(1, 9, '2026-01-15')])));
-    productos.vencidos = vi.fn(() =>
-      of({ getContent: [{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }] }),
+    productos.vencimientosConocidos = vi.fn(() =>
+      of([{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }]),
     );
     const f = montar();
 
@@ -173,8 +173,8 @@ describe('Vencimiento sugerido al contar', () => {
   it('borrar la fecha no deja en pantalla un «sugerido» que no se ve', () => {
     // La sugerencia se rotula por lo que muestra el campo, no por lo que
     // traía el ítem: si no, vaciarlo dejaba el cartel colgado sin fecha.
-    productos.vencidos = vi.fn(() =>
-      of({ getContent: [{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }] }),
+    productos.vencimientosConocidos = vi.fn(() =>
+      of([{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }]),
     );
     const f = montar();
     expect(f.componentInstance.items()[0].sugerencia).not.toBeNull();
@@ -186,8 +186,8 @@ describe('Vencimiento sugerido al contar', () => {
   });
 
   it('la sugerencia se guarda junto con el conteo', () => {
-    productos.vencidos = vi.fn(() =>
-      of({ getContent: [{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }] }),
+    productos.vencimientosConocidos = vi.fn(() =>
+      of([{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }]),
     );
     const f = montar();
 
@@ -200,7 +200,7 @@ describe('Vencimiento sugerido al contar', () => {
   it('si la consulta falla lo dice, en vez de dejar los campos vacíos y callar', () => {
     // Un campo vacío afirmaría «no hay vencimiento conocido», que es una
     // respuesta distinta de «no pude preguntar».
-    productos.vencidos = vi.fn(() => throwError(() => new Error('sin conexión')));
+    productos.vencimientosConocidos = vi.fn(() => throwError(() => new Error('sin conexión')));
     const f = montar();
     f.detectChanges();
 

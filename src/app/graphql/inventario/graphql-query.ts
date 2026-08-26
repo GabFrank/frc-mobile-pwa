@@ -146,6 +146,19 @@ export const saveInventarioProductoItemMutation = gql`
 `;
 
 /**
+ * Saca un renglón del conteo.
+ *
+ * ⚠️ **Borra, no marca de baja.** El central hace `deleteById`, así que lo
+ * contado en ese renglón se pierde. Es lo correcto para un renglón agregado
+ * por error —que es el caso— pero exige confirmar antes.
+ */
+export const deleteInventarioProductoItemMutation = gql`
+  mutation deleteInventarioProductoItem($id: ID!) {
+    data: deleteInventarioProductoItem(id: $id)
+  }
+`;
+
+/**
  * Control de inventario: los tres reportes de saldo.
  *
  * ⚠️ **`productosFaltantes` exige sucursal y rango de fechas**; los otros dos

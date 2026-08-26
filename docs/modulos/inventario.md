@@ -333,47 +333,31 @@ El campo llega prellenado con el vencimiento que el central conoce de esa
 presentación en esa sucursal, y debajo dice **de dónde salió**: «Sugerido de
 Nota de compra #123», «Sugerido de el último inventario».
 
-⚠️ **La elección de la fuente la hace el central, no la app.**
-`productosVencidos` unifica **inventario, compra** (nota y recepción) **y
-transferencia** (salida e ingreso) y rankea así:
-
-```sql
-CASE WHEN fuente_verdad <> 'INVENTARIO' AND fecha_fuente > ultimo_inventario
-     THEN 0 ELSE 1 END, fecha_fuente DESC
-```
-
-Gana una compra o transferencia **posterior** al último inventario; si no, la
-fuente más reciente. Repetir ese criterio en el cliente sería tenerlo escrito
-en dos lugares que se van a desincronizar.
-
-Lo único que decide la app —en `vencimiento-sugerido.ts`, con tests— es **cuál
-de las fechas que sobrevivieron** va al campo: la **más próxima a vencer que
-todavía no venció**, que es la que le importa a quien está frente a la
-góndola. Si todas ya vencieron, la más próxima igual, **rotulada «ya
-vencido»**: hay mercadería caduca y el conteo tiene que registrarla, pero no se
-prellena una fecha pasada en silencio.
-
-**Una sola consulta para toda la zona**, con todos sus productos a la vez: una
-por ítem serían treinta viajes para llenar treinta campos. Va sin filtro de
-fechas y con `soloRealmenteVencidos` en falso — con el filtro puesto, el
-central devuelve solo lo caduco y la mayoría de los campos quedarían vacíos.
-
-**Un vencimiento ya cargado nunca se pisa.** Lo que alguien escribió mirando el
-envase gana sobre cualquier sugerencia.
-
-**Pero el anterior se muestra igual.** Cuando lo que el central conoce **no**
-es lo que hay en el campo, debajo aparece «Anterior 20/11/2026 · Nota de
-compra #123», en rojo si esa fecha ya pasó, con un botón *usar* que la copia.
-
-⚠️ Antes esto se escondía justo cuando el ítem traía fecha propia —el único
-caso en que sirve—, y quien contaba no tenía contra qué comparar el envase.
-Y el rótulo «Sugerido de…» se decidía por «el ítem no traía fecha», así que
-borrar el campo dejaba el cartel colgado sin ninguna fecha a la vista; ahora
-se decide por lo que el campo **muestra**.
-
-**El campo es un calendario, no un `<input type="date">`.** Es
-`<frc-campo-fecha>` del sistema de diseño: mismo control en Chrome, Android y
-Safari. Ver `docs/design-system.md`.
+> ⚠️ **La consulta es `vencimientosConocidos`, NO `productosVencidos`.**
+>
+> Se usó `productosVencidos` y no servía. Ese reporte responde «qué entró
+> **desde el último inventario**»: arranca con un CTE `ultimo_inv` y ancla ahí
+> sus cinco fuentes —la de inventario con `ui.inventario_id = inv.id`, y
+> compras, recepciones y las dos de transferencia con `> ui.fecha_inicio`—.
+> Por construcción olvida todo lo anterior, que es correcto para un reporte de
+> vencidos.
+>
+> Pero **la toma que se está contando ES el último inventario**. Mientras se
+> cuenta, la fuente INVENTARIO mira los ítems de esa misma toma —todavía sin
+> fecha— y compras y transferencias exigen ser posteriores a hoy. Resultado:
+> cero sugerencias, diera igual la fuente.
+>
+> Verificado contra `bodega3`: COCA COLA 500ML (producto 802, sucursal 1)
+> tiene **81 vencimientos conocidos** de su caja x 6 —6 de compras de junio de
+> 2026— y el reporte devolvía **ninguno**, porque el ancla era la toma 7539
+> abierta el día anterior. Las 8 compras fallaban el filtro por una diferencia
+> de dos meses.
+>
+> `vencimientosConocidos` no lleva ancla, y **el recorte lo hace el central**:
+> todas las vigentes más las tres vencidas más recientes, **por presentación**.
+> El recorte es por presentación y no sobre el total porque una con muchos
+> lotes se comería el cupo de las demás — en el caso real, la caja x 6 tiene 81
+> fechas y la unidad 21.
 
 **Cada renglón se lleva un lote distinto.** Dos renglones de la misma
 presentación **son** dos lotes, así que la sugerencia se reparte: se reservan
@@ -399,6 +383,24 @@ preguntar».
 ⚠️ **`frc-mobile` no tiene nada de esto.** Su único camino es
 `inventarioItemsDeInventariosAnteriores`, que mira **solo inventarios** y exige
 abrir un acordeón y copiar el ítem a mano.
+
+## Quitar un producto del conteo
+
+El menú `⋮` de cada renglón, con la toma **abierta**. Confirma antes, nombrando
+el producto **y su presentación** — dos renglones pueden ser del mismo producto
+y sin eso no se sabe cuál se va.
+
+> ⚠️ **Borra de verdad.** El central hace `deleteById`, así que lo contado en
+> ese renglón se pierde. El caso de uso es el renglón agregado por error —el
+> producto que no era, la presentación equivocada—, no deshacer un conteo.
+
+> ⚠️ **Lo editado de ese renglón se saca del mapa de edición.** Si quedara,
+> «Guardar conteo (n)» lo seguiría contando y el guardado fallaría contra un id
+> que el central ya no tiene.
+
+Con la toma cerrada el menú no aparece: el alcance ya es un hecho histórico y
+sacarle un renglón cambiaría qué se contó en una toma que ya ajustó stock. Es
+la misma condición que habilita *Agregar producto*.
 
 ## Agregar un producto a la zona
 

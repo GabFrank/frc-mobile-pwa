@@ -3327,6 +3327,88 @@ al de 45.5, porque el problema es otro.
 
 ---
 
+## Bloque 46 — Vencimiento sugerido de verdad, y quitar un producto *(nuevo)*
+
+**Por qué está acá:** el campo *Vencimiento* llegaba siempre vacío. No era que
+faltaran datos: la consulta los descartaba. Se anclaba al último inventario de
+la sucursal, y la toma que se está contando **es** el último inventario. Ahora
+hay una consulta aparte, sin ancla. Y se agregó poder sacar un renglón del
+conteo.
+
+**Necesita:** una toma **abierta** en una sucursal con historial —compras o
+transferencias recibidas de meses anteriores— y un producto que se haya
+comprado alguna vez con vencimiento. El teléfono real.
+
+⚠️ **El punto 46.3 conviene mirarlo también desde el escritorio**: el arreglo
+del ancla es del central y le llega a los dos frentes.
+
+### 46.1 · El campo llega con una fecha propuesta
+
+1. Abrí una zona y desplegá un producto que se compre con vencimiento.
+
+**Esperado:** el campo *Vencimiento* trae una fecha, y debajo dice de dónde
+salió: «Sugerido de Nota de compra #…», «de una transferencia», «de el último
+inventario». Antes llegaba vacío siempre.
+
+⚠️ Si la fecha propuesta ya venció, lo dice y se ve en rojo. Eso es correcto:
+puede haber mercadería caduca en la góndola.
+
+### 46.2 · Un producto que el central no conoce no inventa nada
+
+1. Desplegá un producto sin historial de compras con vencimiento.
+
+**Esperado:** el campo queda **vacío**, sin cartel de «Sugerido de…». Vacío es
+«no hay dato», y es distinto de una fecha inventada.
+
+### 46.3 · El reporte de productos vencidos con una toma abierta
+
+1. En una sucursal que tenga una toma **abierta**, entrá a *Productos vencidos*.
+
+**Esperado:** muestra filas. Antes quedaba en blanco mientras hubiera una toma
+abierta o cancelada como última de esa sucursal.
+
+### 46.4 · Quitar un producto agregado por error
+
+1. Agregá un producto a la zona. Tocá el menú `⋮` de su renglón.
+2. Elegí *Quitar del conteo* y confirmá.
+
+**Esperado:** el aviso nombra el producto **y su presentación** —«unidad»,
+«caja x 6»—, porque dos renglones pueden ser del mismo producto. Al confirmar,
+el renglón desaparece y el avance de arriba se recalcula.
+
+### 46.5 · Cancelar no borra
+
+1. Repetí 46.4 pero tocá *Cancelar*.
+
+**Esperado:** no pasa nada. El renglón sigue con su cantidad y su fecha.
+
+### 46.6 · Quitar un renglón con conteo escrito y sin guardar
+
+1. Escribí una cantidad en un renglón, **sin guardar**.
+2. Quitá ese mismo renglón.
+
+**Esperado:** desaparece, y el contador de *Guardar conteo (n)* **baja**. Si
+quedara contándolo, guardar fallaría contra un renglón que ya no existe.
+
+⚠️ Lo contado en ese renglón se pierde: el borrado es de verdad. Por eso
+confirma.
+
+### 46.7 · Con la toma cerrada no se puede quitar
+
+1. Entrá a contar una zona de una toma **concluida** o **cancelada**.
+
+**Esperado:** el menú `⋮` **no aparece** en ningún renglón, igual que no
+aparece *Agregar producto*.
+
+### 46.8 · Sin conexión al quitar
+
+1. Cortá la conexión y quitá un renglón.
+
+**Esperado:** dice qué pasó y el renglón **sigue ahí**. No puede desaparecer de
+la pantalla algo que el central no borró.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -3376,7 +3458,8 @@ al de 45.5, porque el problema es otro.
 | 43 · Vencimiento sugerido y transferencias | 9 | | | |
 | 44 · Lista del conteo y campo de fecha | 15 | | | |
 | 45 · Renglones repetidos en el conteo | 6 | | | |
-| **Total** | **349** | | | |
+| 46 · Vencimiento sugerido y quitar producto | 8 | | | |
+| **Total** | **357** | | | |
 
 ### Los cinco que más importan
 

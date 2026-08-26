@@ -778,10 +778,24 @@ La unicidad era `(inventario, producto, vencimiento)` con `Objects.equals`, así
 
 ---
 
+### 64. ✅ El reporte de vencidos se anclaba a una toma abierta, y por eso no sugería nada al contar
+
+**Dónde:** `central` — `ProductosVencidosService.construirSqlBase()`.
+
+El CTE `ultimo_inv` usaba `MAX(inv.id)` **sin mirar el estado**, así que una toma `ABIERTO` o `CANCELADO` se tomaba como si fuera un inventario hecho. Como las cinco fuentes se anclan ahí, abrir una toma dejaba el reporte de esa sucursal en blanco. En `bodega3` pasaba en **5 de 26 sucursales** (3 abiertas, 2 canceladas).
+
+Sobre eso, la carga del conteo usaba ese mismo reporte para proponer el vencimiento — y ahí el ancla es fatal por diseño, porque **la toma que se está contando es el último inventario**. COCA COLA 500ML tiene 81 vencimientos conocidos de su caja x 6 y devolvía cero.
+
+**Estado:** corregido. `ultimo_inv` solo cuenta inventarios `CONCLUIDO`, con `COALESCE` a 1900 para que ninguna sucursal desaparezca del reporte por no tener ninguno. Y se agregó `vencimientosConocidos`, una consulta **sin ancla** para la carga del conteo, con su recorte por presentación. `productosVencidos` conserva su ancla: sigue siendo «qué entró desde el último inventario», que es lo que ese reporte tiene que responder.
+
+**Compatibilidad:** el reporte del escritorio recibe **más** filas que antes, nunca menos.
+
+---
+
 ## Cómo usar este archivo
 
 Al arrancar la fase de corrección: convertir cada ítem en un issue, empezando por los 🔴. Los ítems 16-19, 46-48 y 50-51 son borrado o movimiento puro y pueden agruparse en un solo PR de limpieza — pero el 17 toca `capacitor.config.ts` y por lo tanto exige release nativo, y el 47 requiere actualizar un import.
 
 Los ítems 34-36 son cosméticos **con riesgo de contrato**: antes de renombrar cualquier cosa que viaje al backend, verificá el schema del central.
 
-**Resumen:** 63 hallazgos — 7 🔴, 27 🟡, 28 🟢, 1 ✅. El #60 y el #62 son deuda **de este repo**; el #63 era del **central** y ya está corregido allá.
+**Resumen:** 64 hallazgos — 6 🔴, 27 🟡, 28 🟢, 2 ✅. El #60 y el #62 son deuda **de este repo**; el #63 era del **central** y ya está corregido allá.

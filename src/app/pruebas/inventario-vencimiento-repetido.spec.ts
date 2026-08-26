@@ -24,7 +24,7 @@ import { ProductoService } from '../pages/producto/producto.service';
  */
 describe('Vencimiento repetido entre renglones de la misma presentación', () => {
   let servicio: { porId: ReturnType<typeof vi.fn>; guardarItem: ReturnType<typeof vi.fn> };
-  let productos: { vencidos: ReturnType<typeof vi.fn> };
+  let productos: { vencimientosConocidos: ReturnType<typeof vi.fn> };
 
   const item = (id: number, vencimiento?: string) => ({
     id,
@@ -42,21 +42,20 @@ describe('Vencimiento repetido entre renglones de la misma presentación', () =>
     ],
   });
 
-  const conocidos = (...fechas: string[]) => ({
-    getContent: fechas.map((vencimiento) => ({
+  const conocidos = (...fechas: string[]) =>
+    fechas.map((vencimiento) => ({
       presentacionId: 9,
       vencimiento,
       fuenteVerdad: 'COMPRA',
       detalleFuente: `Nota ${vencimiento}`,
-    })),
-  });
+    }));
 
   beforeEach(() => {
     servicio = {
       porId: vi.fn(() => of(inventario([item(1), item(2)]))),
       guardarItem: vi.fn(() => of({ id: 1 })),
     };
-    productos = { vencidos: vi.fn(() => of(conocidos('2026-11-20', '2027-01-05'))) };
+    productos = { vencimientosConocidos: vi.fn(() => of(conocidos('2026-11-20', '2027-01-05'))) };
 
     TestBed.configureTestingModule({
       providers: [
@@ -106,7 +105,7 @@ describe('Vencimiento repetido entre renglones de la misma presentación', () =>
   it('sin otro lote conocido, el segundo renglón queda vacío en vez de repetir', () => {
     // Prellenar la única fecha conocida en los dos sería inventar que ese lote
     // está dos veces. Vacío obliga a mirar el envase, que es lo correcto.
-    productos.vencidos = vi.fn(() => of(conocidos('2026-11-20')));
+    productos.vencimientosConocidos = vi.fn(() => of(conocidos('2026-11-20')));
     const f = montar();
     const [uno, dos] = f.componentInstance.items();
 
@@ -144,13 +143,11 @@ describe('Vencimiento repetido entre renglones de la misma presentación', () =>
         ]),
       ),
     );
-    productos.vencidos = vi.fn(() =>
-      of({
-        getContent: [
+    productos.vencimientosConocidos = vi.fn(() =>
+      of([
           { presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' },
           { presentacionId: 8, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' },
-        ],
-      }),
+        ]),
     );
     const f = montar();
     const [uno, dos] = f.componentInstance.items();

@@ -7,6 +7,7 @@ import type {
   FuenteVerdadVencimiento,
   ProductoVencido,
 } from 'src/app/domains/productos/producto-vencido.model';
+import { VencimientosConocidosGQL } from 'src/app/graphql/productos/vencimientosConocidos';
 import { ProductosVencidosGQL } from 'src/app/graphql/productos/productosVencidos';
 
 /** Filas por página. Entra una pantalla y media en un teléfono. */
@@ -36,6 +37,7 @@ export interface FiltrosVencidos {
 export class ProductoService {
   private readonly datos = inject(DatosService);
   private readonly vencidosGQL = inject(ProductosVencidosGQL);
+  private readonly conocidosGQL = inject(VencimientosConocidosGQL);
 
   /**
    * `opciones` existe para el uso **secundario** de esta consulta: el
@@ -60,6 +62,36 @@ export class ProductoService {
         soloRealmenteVencidos: filtros.soloVencidos ?? false,
         page: filtros.page ?? 0,
         size: filtros.size ?? TAMANO_PAGINA_VENCIDOS,
+      },
+      opciones,
+    );
+  }
+
+  /**
+   * Los vencimientos que el central conoce de unos productos en una sucursal.
+   *
+   * ⚠️ **No es `vencidos()`, y confundirlos costó un bug.** Ese reporte
+   * responde «qué entró desde el último inventario» y ancla sus cinco fuentes
+   * a ese inventario. Pero **la toma que se está contando es el último
+   * inventario**, así que mientras se cuenta devuelve cero y ningún renglón
+   * recibía sugerencia — daba igual la fuente, compra, transferencia o
+   * inventario.
+   *
+   * Ésta no lleva ancla. El recorte lo hace el central: todas las vigentes más
+   * las más recientes ya vencidas, por presentación.
+   */
+  vencimientosConocidos(
+    sucursalId: number,
+    productoIds: number[],
+    opciones?: OpcionesOperacion,
+  ): Observable<ProductoVencido[]> {
+    return this.datos.consultar<ProductoVencido[]>(
+      this.conocidosGQL,
+      {
+        sucursalId,
+        // El central distingue «sin filtro» de una lista vacía.
+        productoIdList: productoIds.length ? productoIds : null,
+        maxVencidas: null,
       },
       opciones,
     );

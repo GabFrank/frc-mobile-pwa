@@ -142,7 +142,9 @@ const ESTADOS: OpcionSeleccion[] = [
               [fila]="fila"
               [abierta]="abiertoId() === fila.itemId"
               [estados]="estados"
+              [puedeQuitar]="puedeAgregar()"
               (alternar)="alternar(fila.itemId)"
+              (quitar)="quitarItem(fila)"
               (contado)="cambiarContado(fila.itemId, $event)"
               (vencimiento)="cambiarVencimiento(fila.itemId, $event)"
               (estado)="cambiarEstado(fila.itemId, $event)"
@@ -411,10 +413,15 @@ export class InventarioCargaPage {
    * ⚠️ **Una sola consulta para toda la zona**, con todos los productos a la
    * vez: una por ítem serían treinta viajes para llenar treinta campos.
    *
-   * El central ya unifica las tres fuentes —inventario, compra y
-   * transferencia— y elige cuál manda. Acá solo se le pide sin filtro de
-   * fechas y con `soloVencidos` en falso, que es lo que hace que devuelva
-   * **todos** los vencimientos y no solo los caducos.
+   * ⚠️ **Es `vencimientosConocidos`, no `productosVencidos`.** Ese reporte
+   * ancla sus cinco fuentes al **último inventario** de la sucursal, y la toma
+   * que se está contando **es** el último inventario: mientras se cuenta
+   * devolvía cero y ningún renglón recibía sugerencia, diera igual la fuente.
+   * Verificado contra `bodega3`: COCA COLA 500ML tiene 81 fechas conocidas de
+   * su caja x 6 y el reporte no devolvía ninguna.
+   *
+   * El recorte —vigentes más las últimas vencidas, por presentación— lo hace
+   * el central. Acá no se decide nada de eso.
    */
   private cargarVencimientosConocidos(): void {
     const sucursalId = Number(this.inventario()?.sucursal?.id);
@@ -433,19 +440,15 @@ export class InventarioCargaPage {
     }
 
     this.productos
-      .vencidos(
-        {
-          sucursalIds: [sucursalId],
-          productoIds,
-          soloVencidos: false,
-          size: TAMANO_SUGERENCIAS,
-        },
+      .vencimientosConocidos(
+        sucursalId,
+        productoIds,
         // Secundaria: la pantalla cuenta igual sin sugerencias, así que no
         // aporta a la barra de carga ni tira un toast si falla.
         { mostrarCarga: false, notificarError: false },
       )
       .subscribe({
-        next: (pagina) => this.conocidos.set(pagina?.getContent ?? []),
+        next: (filas) => this.conocidos.set(filas ?? []),
         // Un campo vacío diría «no hay vencimiento conocido», que es una
         // afirmación que nadie hizo.
         error: () => this.sugerenciasFallaron.set(true),
@@ -579,6 +582,54 @@ export class InventarioCargaPage {
               this.notificacion.danger(err.message);
             },
           });
+      },
+      error: (err: Error) => {
+        this.agregando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  /**
+   * Saca un renglón del conteo.
+   *
+   * ⚠️ **Borra de verdad**, y por eso confirma antes: el central hace
+   * `deleteById`, así que lo contado en ese renglón se pierde. El caso de uso
+   * es el renglón agregado por error —el producto que no era, o la
+   * presentación equivocada—, no deshacer un conteo.
+   *
+   * Solo con la toma abierta: cerrada, el alcance ya es un hecho histórico y
+   * sacarle un renglón cambiaría qué se contó en una toma que ya ajustó
+   * stock. Es la misma condición que habilita *Agregar producto*.
+   */
+  async quitarItem(fila: FilaConteo): Promise<void> {
+    if (!this.puedeAgregar()) {
+      return;
+    }
+    const confirmado = await this.dialogo.confirmarEliminacion(
+      `«${fila.etiqueta}» (${fila.presentacion}) de esta zona`,
+    );
+    if (!confirmado) {
+      return;
+    }
+
+    this.agregando.set(true);
+    this.servicio.borrarItem(fila.itemId).subscribe({
+      next: () => {
+        this.agregando.set(false);
+        // Lo editado de ese renglón deja de existir: si quedara en el mapa,
+        // «Guardar conteo (n)» seguiría contándolo y el guardado fallaría
+        // contra un id que el central ya no tiene.
+        this.edicion.update((mapa) => {
+          const copia = new Map(mapa);
+          copia.delete(fila.itemId);
+          return copia;
+        });
+        if (this.abiertoId() === fila.itemId) {
+          this.abiertoId.set(null);
+        }
+        this.notificacion.ok('Producto quitado del conteo.');
+        this.cargar();
       },
       error: (err: Error) => {
         this.agregando.set(false);

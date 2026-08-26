@@ -57,7 +57,7 @@ describe('Conteo por zona, colapsado', () => {
       providers: [
         provideRouter([]),
         { provide: InventarioService, useValue: servicio },
-        { provide: ProductoService, useValue: { vencidos: vi.fn(() => of({ getContent: [] })) } },
+        { provide: ProductoService, useValue: { vencimientosConocidos: vi.fn(() => of([])) } },
         { provide: ProductoBusquedaService, useValue: { stock: vi.fn(() => of(0)) } },
         { provide: DialogoService, useValue: { abrir: vi.fn() } },
         { provide: NotificacionService, useValue: { warn: vi.fn(), danger: vi.fn(), ok: vi.fn() } },

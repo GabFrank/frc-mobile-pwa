@@ -64,6 +64,92 @@ export function fueContadoEnEstaToma(item: InventarioProductoItem): boolean {
   return item.cantidad != null;
 }
 
+/** Cuántos renglones sin contar se nombran antes de resumir el resto. */
+const NOMBRES_EN_EL_AVISO = 3;
+
+/**
+ * Por qué **no** se puede dar la zona por contada. `null` si se puede.
+ *
+ * Una zona concluida afirma «acá ya se contó todo», y esa afirmación tiene
+ * consecuencia real: al finalizar, el central **saltea** los ítems sin contar,
+ * así que ese producto no se ajusta y nadie se entera. Concluir con un renglón
+ * vacío es firmar un conteo que no ocurrió.
+ *
+ * ⚠️ **Contar cero SÍ deja concluir.** El cero dice «no hay nada en la góndola»
+ * y ajusta el stock; el vacío dice «nadie fue a mirar». Es la misma distinción
+ * que hace {@link fueContadoEnEstaToma} y la que aplica el central.
+ *
+ * ⚠️ **El renglón sin lote se nombra aparte.** Su campo *Contado* está
+ * bloqueado —no se puede contar sin lote— así que decirle al operador que
+ * escriba una cantidad lo manda a hacer algo que la pantalla no le permite. Lo
+ * que le falta es elegir el lote, y eso es lo que hay que decirle.
+ *
+ * El texto sale armado para mostrarse tal cual: la pantalla no interpreta.
+ */
+export function motivoNoConcluir(items: InventarioProductoItem[] | undefined | null): string | null {
+  const sinContar = (items ?? []).filter((item) => !fueContadoEnEstaToma(item));
+  if (sinContar.length === 0) {
+    return null;
+  }
+
+  const sinLote = sinContar.filter(
+    (item) => item.presentacion?.producto?.lote === true && item.lote?.id == null,
+  );
+  // Si TODOS los que faltan son por falta de lote, el reclamo es ese y no
+  // «contalos»: son dos acciones distintas.
+  const porLote = sinLote.length === sinContar.length;
+
+  const nombres = sinContar
+    .slice(0, NOMBRES_EN_EL_AVISO)
+    .map((item) => item.presentacion?.producto?.descripcion ?? 'un producto')
+    .join(', ');
+  const resto = sinContar.length - Math.min(sinContar.length, NOMBRES_EN_EL_AVISO);
+  const lista = resto > 0 ? `${nombres} y ${resto} más` : nombres;
+
+  const cuantos = sinContar.length === 1 ? '1 producto' : `${sinContar.length} productos`;
+
+  if (porLote) {
+    return sinContar.length === 1
+      ? `Falta elegir el lote de ${lista}. Sin lote no se puede contar.`
+      : `Faltan ${cuantos} sin lote: ${lista}. Sin lote no se pueden contar.`;
+  }
+
+  return sinContar.length === 1
+    ? `Queda ${cuantos} sin contar: ${lista}. Si no hay nada en la góndola, cargá 0.`
+    : `Quedan ${cuantos} sin contar: ${lista}. Si no hay nada en la góndola, cargá 0.`;
+}
+
+/**
+ * Por qué **no** se puede finalizar la toma. `null` si se puede.
+ *
+ * Finalizar **ajusta el stock**: el central escribe los movimientos que llevan
+ * la existencia de hoy a lo contado. Con una zona todavía abierta eso es
+ * ajustar contra un conteo a medio hacer, y **no hay vuelta atrás** — reabrir
+ * la toma no deshace los ajustes ya escritos.
+ *
+ * ⚠️ **Una toma sin zonas no se traba.** No hay ninguna zona abierta que
+ * concluir; frenarla la dejaría sin forma de cerrarse desde el teléfono.
+ *
+ * El texto sale armado para mostrarse tal cual.
+ */
+export function motivoNoFinalizar(zonas: InventarioProducto[] | undefined | null): string | null {
+  const abiertas = (zonas ?? []).filter((z) => z.concluido !== true);
+  if (abiertas.length === 0) {
+    return null;
+  }
+
+  const nombres = abiertas
+    .slice(0, NOMBRES_EN_EL_AVISO)
+    .map((z) => z.zona?.descripcion ?? 'una zona')
+    .join(', ');
+  const resto = abiertas.length - Math.min(abiertas.length, NOMBRES_EN_EL_AVISO);
+  const lista = resto > 0 ? `${nombres} y ${resto} más` : nombres;
+
+  return abiertas.length === 1
+    ? `Falta concluir 1 zona: ${lista}. Finalizar ajusta el stock y no se puede deshacer.`
+    : `Faltan concluir ${abiertas.length} zonas: ${lista}. Finalizar ajusta el stock y no se puede deshacer.`;
+}
+
 /** Resume una lista de ítems. */
 export function resumirItems(items: InventarioProductoItem[]): ResumenConteo {
   const resumen: ResumenConteo = {

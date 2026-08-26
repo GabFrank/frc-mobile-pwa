@@ -1,4 +1,5 @@
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
+import type { Lote } from 'src/app/domains/lote/lote.model';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Zona } from 'src/app/domains/zona/zona.model';
@@ -65,6 +66,15 @@ export interface InventarioProductoItem {
   verificado?: boolean;
   revisado?: boolean;
   vencimiento?: string;
+  /**
+   * El lote que se está contando.
+   *
+   * ⚠️ **Con lote, `cantidadFisica` es el saldo DE ESE LOTE**, no la existencia
+   * del producto: la diferencia del renglón se mide contra el lote. Nulo en los
+   * productos sin control de lote —la enorme mayoría— y también en la
+   * mercadería que todavía no se atribuyó a ninguno.
+   */
+  lote?: Lote;
   estado?: InventarioProductoEstado;
   inventarioProducto?: { id?: number };
   creadoEn?: string;
@@ -163,4 +173,11 @@ export interface InventarioProductoItemInput {
   verificado?: boolean;
   revisado?: boolean;
   usuarioId?: number;
+  /**
+   * Lote del renglón.
+   *
+   * ⚠️ **No mandarlo no lo borra: lo deja como está.** El central solo lo pisa
+   * si viene, igual que hace el escritorio, que nunca lo manda.
+   */
+  loteId?: number;
 }

@@ -195,6 +195,12 @@ function sufijoAntiguedad(inventario: Inventario, ahora: Date): string {
  * no contó nadie. La excepción es el peso de un código de balanza, que **es**
  * el conteo — pesar, escanear la etiqueta y que la cantidad salga del código
  * es el flujo real de la balanza.
+ *
+ * ⚠️ **Con `loteId`, `stock` es el saldo DE ESE LOTE**, no la existencia del
+ * producto. Es lo que hace que la diferencia del renglón se mida contra el
+ * lote y no contra un total que incluye a los otros lotes. Pasarle la
+ * existencia del producto a cada renglón de lote haría que todos mostraran la
+ * misma diferencia y que el ajuste saliera multiplicado.
  */
 export function nuevoItemInput(datos: {
   inventarioProductoId: number;
@@ -202,6 +208,9 @@ export function nuevoItemInput(datos: {
   stock: number | null | undefined;
   usuarioId: number;
   peso?: number;
+  loteId?: number;
+  /** `yyyy-MM-dd`. Con lote se copia del maestro: la fecha es del lote. */
+  vencimiento?: string;
 }): InventarioProductoItemInput {
   const sistema = datos.stock ?? 0;
   const base: InventarioProductoItemInput = {
@@ -212,6 +221,8 @@ export function nuevoItemInput(datos: {
     usuarioId: datos.usuarioId,
     verificado: false,
     revisado: false,
+    ...(datos.loteId != null ? { loteId: datos.loteId } : {}),
+    ...(datos.vencimiento ? { vencimiento: datos.vencimiento } : {}),
   };
 
   if (datos.peso == null) {

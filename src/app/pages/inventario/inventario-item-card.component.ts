@@ -4,11 +4,21 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatInputModule } from '@angular/material/input';
 
 import { InventarioProductoItem } from 'src/app/domains/inventario/inventario.model';
+import { ESTADO_LOTE_TEXTO, EstadoLote } from 'src/app/domains/lote/lote.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CampoFechaComponent } from 'src/app/shared/campos/campo-fecha.component';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
 import { origenDeSugerencia, type SugerenciaVencimiento } from './vencimiento-sugerido';
+
+/** El lote de un renglón, ya resuelto por la pantalla. */
+export interface FilaLote {
+  id: number;
+  numeroLote: string;
+  estado?: EstadoLote;
+  /** El lote no está liberado: se cuenta igual, pero no se vende. */
+  bloqueado: boolean;
+}
 
 /** Un renglón del conteo, ya resuelto por la pantalla. */
 export interface FilaConteo {
@@ -23,6 +33,18 @@ export interface FilaConteo {
   diferencia: number | null;
   /** `yyyy-MM-dd`, o vacío. */
   vencimiento: string;
+  /**
+   * El lote de este renglón, ya resuelto. `null` en los productos sin control
+   * de lote y en la mercadería que todavía no se atribuyó a ninguno.
+   *
+   * ⚠️ Con lote, `sistema` es el saldo DE ESE LOTE: la diferencia del renglón
+   * se mide contra el lote, no contra la existencia del producto.
+   */
+  lote: FilaLote | null;
+  /** El producto lleva control de lote. Sin lote asignado, no se puede contar. */
+  productoConLote: boolean;
+  /** `yyyy-MM-dd`, o vacío. Solo tiene sentido con lote. */
+  fechaRetiro: string;
   /**
    * Lo que el central sabe de esta presentación, **exista o no** una fecha
    * cargada en el ítem. Es lo que deja comparar contra lo que dice el envase.
@@ -86,7 +108,14 @@ export interface FilaConteo {
             }
           </span>
           <span class="fila-2">
-            <span class="sistema">{{ fila().presentacion }} · Sistema: {{ fila().sistema }}</span>
+            <span class="sistema">
+              @if (fila().lote; as l) {
+                Lote {{ l.numeroLote }} ·
+              } @else if (fila().productoConLote) {
+                <span class="falta-lote">Sin lote</span> ·
+              }
+              {{ fila().presentacion }} · Sistema: {{ fila().sistema }}
+            </span>
             <span class="dif" [class.falta]="esFalta()" [class.sobra]="esSobra()">
               {{ textoDiferencia() }}
             </span>
@@ -115,6 +144,23 @@ export interface FilaConteo {
         </button>
 
         <mat-menu #menu="matMenu">
+          @if (fila().productoConLote) {
+            <!--
+              Sin lote asignado, «Agregar lote» completa ESTE renglón. Con uno
+              ya asignado abre otro: es cómo se cuentan dos lotes del mismo
+              producto en la misma zona sin volver a «Agregar producto».
+            -->
+            <button mat-menu-item (click)="agregarLote.emit()">
+              <frc-icono nombre="buscar" [tamano]="18" />
+              <span class="etiqueta-menu">
+                {{ fila().lote ? 'Agregar otro lote' : 'Agregar lote' }}
+              </span>
+            </button>
+            <button mat-menu-item (click)="crearLote.emit()">
+              <frc-icono nombre="producto" [tamano]="18" />
+              <span class="etiqueta-menu">Crear nuevo lote</span>
+            </button>
+          }
           <button mat-menu-item (click)="quitar.emit()">
             <frc-icono nombre="tirar" [tamano]="18" />
             <span class="etiqueta-menu">Quitar del conteo</span>
@@ -125,6 +171,12 @@ export interface FilaConteo {
 
       @if (abierta()) {
         <div class="cuerpo">
+          <!--
+            ⚠️ **Sin lote, el conteo queda bloqueado.** Un número contado contra
+            un producto con control de lote pero sin lote asignado no se puede
+            atribuir a nada: iría entero al bucket «SIN LOTE» y el conteo, que
+            es justo lo que viene a arreglar la trazabilidad, la empeoraría.
+          -->
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Contado</mat-label>
             <input
@@ -133,17 +185,65 @@ export interface FilaConteo {
               type="number"
               inputmode="decimal"
               [value]="fila().contado ?? ''"
+              [disabled]="!puedeContar()"
               (input)="contado.emit($event)"
             />
           </mat-form-field>
 
+          @if (!puedeContar()) {
+            <div class="sin-lote">
+              <span>
+                Este producto lleva control de lote. Elegí o creá el lote para
+                poder contarlo.
+              </span>
+              <span class="sin-lote-acciones">
+                <button type="button" class="usar" (click)="agregarLote.emit()">
+                  Buscar lote
+                </button>
+                <button type="button" class="usar" (click)="crearLote.emit()">
+                  Crear lote
+                </button>
+              </span>
+            </div>
+          }
+
           <frc-campo-fecha
-            etiqueta="Vencimiento"
+            [etiqueta]="fila().lote ? 'Vencimiento del lote' : 'Vencimiento'"
             [valor]="fila().vencimiento || null"
             (valorChange)="vencimiento.emit($event ?? '')"
           />
 
-          @if (fila().conocido; as c) {
+          @if (fila().lote; as l) {
+            <!--
+              La fecha de retiro es la que ordena FEFO —no el vencimiento—, y
+              vive en el maestro del lote, que es uno solo en toda la red. Por
+              eso se avisa: quien la corrige acá cambia el orden de salida en
+              todas las sucursales, no solo en esta góndola.
+            -->
+            <frc-campo-fecha
+              etiqueta="Fecha de retiro"
+              [valor]="fila().fechaRetiro || null"
+              (valorChange)="fechaRetiro.emit($event ?? '')"
+            />
+            <p class="aviso-lote">
+              <frc-icono nombre="reloj" [tamano]="14" />
+              <span>
+                Las dos fechas son del lote {{ l.numeroLote }} y valen para todas
+                las sucursales.
+                @if (l.bloqueado) {
+                  Este lote está {{ textoEstado(l) }}: se cuenta igual, pero no se vende.
+                }
+              </span>
+            </p>
+          }
+
+          <!--
+            ⚠️ Sin lote no hay maestro que consultar, así que el vencimiento
+            conocido se ofrece como siempre. CON lote la caja desaparece: la
+            fecha del lote ES la verdad, y sugerir otra al lado sería
+            contradecirla en la misma pantalla.
+          -->
+          @if (!fila().lote && fila().conocido; as c) {
             <!--
               Lo que el central sabe, ofrecido y no impuesto. El campo queda
               vacío hasta que alguien decide: una fecha puesta por el sistema
@@ -332,6 +432,27 @@ export interface FilaConteo {
       cursor: pointer;
     }
     .usar:hover { background: var(--surface); }
+    .falta-lote { color: var(--warn); }
+    .sin-lote {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+      padding: var(--sp-3);
+      border: 1px dashed var(--warn);
+      border-radius: var(--radius-sm);
+      font-size: var(--fs-label);
+      color: var(--text-soft);
+    }
+    .sin-lote-acciones { display: flex; gap: var(--sp-2); }
+    .aviso-lote {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-2);
+      margin: 0;
+      font-size: var(--fs-caption);
+      color: var(--text-mute);
+    }
+    .aviso-lote frc-icono { flex-shrink: 0; line-height: 0; }
   `,
 })
 export class InventarioItemCardComponent {
@@ -351,6 +472,18 @@ export class InventarioItemCardComponent {
   readonly estado = output<unknown>();
   /** La fecha del «Anterior», para copiarla al campo. */
   readonly usarConocido = output<string>();
+  /** `yyyy-MM-dd`, o vacío al borrarla. Solo se emite en renglones con lote. */
+  readonly fechaRetiro = output<string>();
+  /** Elegir un lote existente: completa este renglón, o abre otro si ya tiene. */
+  readonly agregarLote = output<void>();
+  /** Registrar un lote que el sistema no tenía y usarlo en este renglón. */
+  readonly crearLote = output<void>();
+
+  /**
+   * ⚠️ **Un producto con control de lote no se cuenta hasta tener lote.**
+   * Los demás se cuentan siempre, como toda la vida.
+   */
+  readonly puedeContar = computed(() => !this.fila().productoConLote || this.fila().lote != null);
   readonly quitar = output<void>();
 
   readonly esFalta = computed(() => (this.fila().diferencia ?? 0) < 0);
@@ -370,6 +503,10 @@ export class InventarioItemCardComponent {
 
   legible(fecha: string): string {
     return fechaLegible(fecha, { conHora: false }) ?? fecha;
+  }
+
+  textoEstado(lote: FilaLote): string {
+    return lote.estado ? ESTADO_LOTE_TEXTO[lote.estado].toLowerCase() : 'no liberado';
   }
 
   origen(sugerencia: SugerenciaVencimiento): string {

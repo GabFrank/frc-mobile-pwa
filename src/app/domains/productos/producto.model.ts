@@ -19,6 +19,14 @@ export class Producto {
   promocion?: boolean;
   vencimiento?: boolean;
   diasVencimiento?: number;
+  /**
+   * El producto lleva control de lote.
+   *
+   * ⚠️ **Cambia qué es un renglón de conteo.** Con `lote = true` un renglón es
+   * un lote —y `cantidadFisica` es el saldo DE ESE LOTE, no la existencia del
+   * producto—; sin él, el renglón es la presentación y nada más.
+   */
+  lote?: boolean;
   cambiable?: boolean;
   usuario?: Usuario;
   imagenPrincipal?: string;

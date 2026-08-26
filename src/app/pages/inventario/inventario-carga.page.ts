@@ -33,6 +33,17 @@ import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busq
 import { BuscadorProductoDialogComponent } from 'src/app/shared/producto/buscador-producto-dialog.component';
 import type { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/buscador.types';
 import { ProductoService } from 'src/app/pages/producto/producto.service';
+import { LoteService } from 'src/app/domains/lote/lote.service';
+import { EstadoLote, type LoteDeProducto, type StockLote } from 'src/app/domains/lote/lote.model';
+import {
+  BuscadorLoteDialogComponent,
+  type DatosBuscadorLote,
+} from './buscador-lote-dialog.component';
+import {
+  CrearLoteDialogComponent,
+  type DatosCrearLote,
+  type ResultadoCrearLote,
+} from './crear-lote-dialog.component';
 import type { ProductoVencido } from 'src/app/domains/productos/producto-vencido.model';
 import { nuevoItemInput } from './inventario-alta';
 import { InventarioItemCardComponent, type FilaConteo } from './inventario-item-card.component';
@@ -149,6 +160,9 @@ const ESTADOS: OpcionSeleccion[] = [
               (vencimiento)="cambiarVencimiento(fila.itemId, $event)"
               (estado)="cambiarEstado(fila.itemId, $event)"
               (usarConocido)="cambiarVencimiento(fila.itemId, $event)"
+              (fechaRetiro)="cambiarFechaRetiro(fila.itemId, $event)"
+              (agregarLote)="agregarLote(fila)"
+              (crearLote)="crearLote(fila)"
             />
           }
         </div>
@@ -207,6 +221,7 @@ export class InventarioCargaPage {
   private readonly servicio = inject(InventarioService);
   private readonly busqueda = inject(ProductoBusquedaService);
   private readonly productos = inject(ProductoService);
+  private readonly lotes = inject(LoteService);
   private readonly dialogo = inject(DialogoService);
   private readonly auth = inject(AuthService);
   private readonly notificacion = inject(NotificacionService);
@@ -247,7 +262,16 @@ export class InventarioCargaPage {
 
   /** Lo editado, por id de ítem. Vacío hasta que alguien escribe. */
   private readonly edicion = signal<
-    Map<number, { contado?: number | null; vencimiento?: string; estado?: unknown }>
+    Map<
+      number,
+      {
+        contado?: number | null;
+        vencimiento?: string;
+        estado?: unknown;
+        /** Solo en renglones con lote: va al maestro, no al ítem. */
+        fechaRetiro?: string;
+      }
+    >
   >(new Map());
 
   readonly producto = computed<InventarioProducto | null>(() => {
@@ -279,9 +303,25 @@ export class InventarioCargaPage {
      * del reparto para que la siguiente caiga en otro lote.
      */
     const tomadas = new Map<string, Set<string>>();
+    /**
+     * ⚠️ **Con lote la fecha propia sale del MAESTRO, no del ítem.**
+     *
+     * El ítem guarda una copia de la fecha para que la clave de duplicado del
+     * central siga funcionando, pero la verdad es `lote.fechaVencimiento`: es
+     * una sola en toda la red y es la que se corrige. Leerla del ítem haría que
+     * una fecha corregida desde otra sucursal —o desde el escritorio— siguiera
+     * mostrándose vieja acá.
+     */
     const propiaDe = (item: InventarioProductoItem) => {
       const cambio = cambios.get(Number(item.id));
-      return cambio?.vencimiento ?? (item.vencimiento ? item.vencimiento.slice(0, 10) : '');
+      if (cambio?.vencimiento !== undefined) {
+        return cambio.vencimiento;
+      }
+      const delLote = item.lote?.fechaVencimiento;
+      if (item.lote) {
+        return delLote ? delLote.slice(0, 10) : '';
+      }
+      return item.vencimiento ? item.vencimiento.slice(0, 10) : '';
     };
     const reservar = (presentacionId: string, fecha: string) => {
       if (!fecha) {
@@ -318,12 +358,18 @@ export class InventarioCargaPage {
       // Lo que el central sabe de esta presentación. Se calcula SIEMPRE,
       // tenga el ítem su propia fecha o no: es justo cuando la tiene que hace
       // falta poder comparar contra lo que dice el envase.
-      const conocido = vencimientoSugerido(
-        this.conocidos(),
-        Number(item.presentacion?.id),
-        this.hoy,
-        ajenas,
-      );
+      //
+      // ⚠️ **Con lote no se sugiere nada.** El maestro del lote YA tiene la
+      // fecha, y es la única: ofrecer al lado otra sacada de una compra vieja
+      // sería contradecir en la misma pantalla el dato que se está editando.
+      const conocido = item.lote
+        ? null
+        : vencimientoSugerido(
+            this.conocidos(),
+            Number(item.presentacion?.id),
+            this.hoy,
+            ajenas,
+          );
 
       // ⚠️ **El campo NO se prellena con lo que el central conoce.** Una
       // fecha puesta por el sistema se lee como una fecha cargada por alguien,
@@ -349,6 +395,25 @@ export class InventarioCargaPage {
         vencimiento,
         conocido,
         vencido: vencimiento !== '' && vencimiento < this.hoyIso,
+        // El producto lleva control de lote: sin lote asignado el renglón no se
+        // puede contar todavía.
+        productoConLote: item.presentacion?.producto?.lote === true,
+        lote: item.lote?.id
+          ? {
+              id: Number(item.lote.id),
+              numeroLote: String(item.lote.numeroLote ?? ''),
+              estado: item.lote.estado,
+              // Se cuenta igual: bloquear un lote lo saca del mostrador, no de
+              // la góndola.
+              bloqueado: item.lote.estado != null && item.lote.estado !== EstadoLote.LIBERADO,
+            }
+          : null,
+        fechaRetiro:
+          cambio?.fechaRetiro !== undefined
+            ? cambio.fechaRetiro
+            : item.lote?.fechaRetiro
+              ? item.lote.fechaRetiro.slice(0, 10)
+              : '',
         estado: cambio?.estado ?? item.estado ?? InventarioProductoEstado.BUENO,
         original: item,
       };
@@ -497,6 +562,17 @@ export class InventarioCargaPage {
   }
 
   /**
+   * La fecha de retiro del lote. `yyyy-MM-dd`, o vacío.
+   *
+   * ⚠️ **No es un dato del renglón**: viaja al maestro del lote al guardar, con
+   * su propia mutation, porque vale para todas las sucursales.
+   */
+  cambiarFechaRetiro(itemId: number, valor: string): void {
+    this.editar(itemId, { fechaRetiro: valor });
+    this.abrir(itemId);
+  }
+
+  /**
    * Guarda solo lo que se tocó, un ítem por vez.
    *
    * No hay mutation de lote: `saveInventarioProductoItem` guarda de a uno.
@@ -560,6 +636,17 @@ export class InventarioCargaPage {
     }
 
     this.agregando.set(true);
+
+    /*
+     * ⚠️ **Un producto con lote entra igual que cualquier otro: un renglón, sin
+     * lote todavía.**
+     *
+     * La versión anterior abría un renglón por cada lote con saldo. Se cambió a
+     * pedido: el operador no siempre sabe de antemano qué lotes va a encontrar,
+     * y abrirle cinco renglones que quizás no están en la góndola le da cinco
+     * cosas para borrar. Ahora el renglón nace sin lote y con el conteo
+     * BLOQUEADO, y el lote se elige —o se crea— desde el menú ⋮.
+     */
     this.stockDe(productoId, sucursalId).subscribe({
       next: (stock) => {
         this.servicio
@@ -587,6 +674,193 @@ export class InventarioCargaPage {
         this.agregando.set(false);
         this.notificacion.danger(err.message);
       },
+    });
+  }
+
+  /**
+   * Elegir un lote existente para el renglón.
+   *
+   * ⚠️ **Hace dos cosas distintas según el renglón**, y es a propósito:
+   *
+   * - **Sin lote** —el estado en que nace un producto con control de lote— el
+   *   lote se asigna a ESE renglón y recién ahí se habilita el conteo.
+   * - **Con lote** se abre un renglón NUEVO. Es cómo se cuentan dos lotes del
+   *   mismo producto en la misma zona sin volver a *Agregar producto*.
+   *
+   * Reasignar un renglón que ya tiene lote sería la tercera opción y no está:
+   * el renglón equivocado se saca con *Quitar del conteo*, que ya existe y
+   * confirma antes de borrar lo contado.
+   */
+  async agregarLote(fila: FilaConteo): Promise<void> {
+    const contexto = this.contextoDeLote(fila);
+    if (!contexto) {
+      return;
+    }
+
+    const elegido = await this.elegirLote(contexto.productoId, fila.etiqueta, contexto.sucursalId);
+    if (!elegido?.loteId) {
+      return;
+    }
+
+    this.aplicarLote(fila, contexto, {
+      loteId: Number(elegido.loteId),
+      saldo: elegido.saldo ?? 0,
+      vencimiento: elegido.fechaVencimiento,
+    });
+  }
+
+  /**
+   * Registrar un lote que el sistema no tenía y usarlo en el renglón.
+   *
+   * ⚠️ **Crea solo el maestro, con saldo cero.** Cuánto hay es lo que el conteo
+   * viene a determinar: poner una cantidad al crearlo sería contarlo dos veces.
+   */
+  async crearLote(fila: FilaConteo): Promise<void> {
+    const contexto = this.contextoDeLote(fila);
+    if (!contexto) {
+      return;
+    }
+
+    const datos = await this.dialogo.abrir<
+      CrearLoteDialogComponent,
+      DatosCrearLote,
+      ResultadoCrearLote | undefined
+    >(CrearLoteDialogComponent, {
+      productoDescripcion: fila.etiqueta,
+      diasVencimiento: fila.original.presentacion?.producto?.diasVencimiento,
+    });
+    if (!datos?.numeroLote) {
+      return;
+    }
+
+    this.agregando.set(true);
+    this.lotes
+      .crear({
+        productoId: contexto.productoId,
+        numeroLote: datos.numeroLote,
+        fechaVencimiento: datos.fechaVencimiento || null,
+        fechaRetiro: datos.fechaRetiro || null,
+        usuarioId: contexto.usuarioId,
+      })
+      .subscribe({
+        next: (lote) => {
+          if (!lote?.id) {
+            this.agregando.set(false);
+            this.notificacion.danger('El central no devolvió el lote creado.');
+            return;
+          }
+          // Saldo cero: el lote acaba de nacer y no tiene movimientos. Si el
+          // central devolvió uno preexistente, el saldo real llega en la
+          // recarga.
+          this.aplicarLote(fila, contexto, {
+            loteId: Number(lote.id),
+            saldo: 0,
+            vencimiento: lote.fechaVencimiento,
+          });
+        },
+        error: (err: Error) => {
+          this.agregando.set(false);
+          this.notificacion.danger(err.message);
+        },
+      });
+  }
+
+  /**
+   * Lo que hace falta para trabajar con el lote de un renglón. `null` —y avisa—
+   * si falta algo.
+   */
+  private contextoDeLote(
+    fila: FilaConteo,
+  ): { productoId: number; presentacionId: number; inventarioProductoId: number; sucursalId: number; usuarioId: number } | null {
+    if (!this.puedeAgregar()) {
+      return null;
+    }
+    const productoId = Number(fila.original.presentacion?.producto?.id);
+    const usuarioId = this.auth.usuario()?.id;
+    if (!Number.isFinite(productoId) || usuarioId == null) {
+      this.notificacion.warn('No se pudo identificar el producto o el usuario.');
+      return null;
+    }
+    return {
+      productoId,
+      presentacionId: Number(fila.original.presentacion?.id),
+      inventarioProductoId: Number(this.producto()?.id),
+      sucursalId: Number(this.inventario()?.sucursal?.id),
+      usuarioId,
+    };
+  }
+
+  /**
+   * Asigna el lote al renglón, o abre uno nuevo si el renglón ya tenía uno.
+   *
+   * ⚠️ **`cantidadFisica` pasa a ser el saldo DEL LOTE.** Mientras el renglón no
+   * tiene lote, ahí está la existencia del producto; en cuanto se le asigna
+   * uno, la diferencia tiene que medirse contra ese lote y no contra el total,
+   * o el renglón muestra un faltante que no existe.
+   */
+  private aplicarLote(
+    fila: FilaConteo,
+    contexto: { presentacionId: number; inventarioProductoId: number; usuarioId: number },
+    lote: { loteId: number; saldo: number; vencimiento?: string },
+  ): void {
+    this.agregando.set(true);
+
+    const base = {
+      inventarioProductoId: contexto.inventarioProductoId,
+      presentacionId: contexto.presentacionId,
+      usuarioId: contexto.usuarioId,
+      loteId: lote.loteId,
+      cantidadFisica: lote.saldo,
+      cantidadAnterior: lote.saldo,
+      vencimiento: lote.vencimiento?.slice(0, 10),
+    };
+
+    // Con lote propio el renglón ya es de otro lote: este va a uno nuevo. Sin
+    // lote, se completa el que está —id incluido—, que es el renglón que el
+    // operador tiene abierto.
+    const input = fila.lote
+      ? { ...base, verificado: false, revisado: false }
+      : { ...base, id: fila.itemId, cantidad: fila.contado ?? undefined };
+
+    this.servicio.guardarItem(input).subscribe({
+      next: () => {
+        this.agregando.set(false);
+        // Lo editado de ese renglón ya viajó: dejarlo en el mapa haría que
+        // «Guardar conteo» lo contara de nuevo contra datos viejos.
+        this.edicion.update((mapa) => {
+          const copia = new Map(mapa);
+          copia.delete(fila.itemId);
+          return copia;
+        });
+        this.cargar();
+      },
+      error: (err: Error) => {
+        this.agregando.set(false);
+        this.notificacion.danger(err.message);
+      },
+    });
+  }
+
+  /** El buscador de lotes, con los que la zona ya tiene marcados. */
+  private elegirLote(
+    productoId: number,
+    productoDescripcion: string,
+    sucursalId: number,
+  ): Promise<LoteDeProducto | undefined> {
+    const yaEnLaZona = this.items()
+      .filter((f) => Number(f.original.presentacion?.producto?.id) === productoId)
+      .map((f) => f.lote?.id)
+      .filter((id): id is number => id != null);
+
+    return this.dialogo.abrir<
+      BuscadorLoteDialogComponent,
+      DatosBuscadorLote,
+      LoteDeProducto | undefined
+    >(BuscadorLoteDialogComponent, {
+      productoId,
+      productoDescripcion,
+      sucursalId: Number.isFinite(sucursalId) ? sucursalId : undefined,
+      yaEnLaZona,
     });
   }
 
@@ -652,9 +926,29 @@ export class InventarioCargaPage {
     return this.busqueda.stock(productoId, sucursalId);
   }
 
+  /**
+   * Los renglones con lote cuya fecha —vencimiento o retiro— cambió respecto
+   * del maestro.
+   *
+   * ⚠️ **Van por una mutation aparte y no por el ítem**, porque no son datos de
+   * este conteo: el maestro del lote es uno solo en toda la red y corregirlo
+   * reordena el FEFO en todas las sucursales. La tarjeta lo dice antes de que
+   * alguien escriba.
+   */
+  private readonly fechasDeLoteCambiadas = computed(() =>
+    this.cambiados().filter((fila) => {
+      if (!fila.lote) {
+        return false;
+      }
+      const cambio = this.edicion().get(fila.itemId);
+      return cambio?.vencimiento !== undefined || cambio?.fechaRetiro !== undefined;
+    }),
+  );
+
   guardar(): void {
     const filas = this.cambiados().filter((f) => f.contado != null);
-    if (filas.length === 0) {
+    const fechas = this.fechasDeLoteCambiadas();
+    if (filas.length === 0 && fechas.length === 0) {
       this.notificacion.warn('Escribí al menos una cantidad contada.');
       return;
     }
@@ -663,8 +957,28 @@ export class InventarioCargaPage {
     const inventarioProductoId = Number(this.producto()?.id);
     this.guardando.set(true);
 
-    let pendientes = filas.length;
+    let pendientes = filas.length + fechas.length;
     let fallaron = 0;
+
+    for (const fila of fechas) {
+      this.lotes
+        .actualizarFechas({
+          loteId: fila.lote!.id,
+          fechaVencimiento: fila.vencimiento || null,
+          fechaRetiro: fila.fechaRetiro || null,
+          usuarioId,
+        })
+        .subscribe({
+          next: () => this.terminar(--pendientes, fallaron),
+          error: (err: Error) => {
+            fallaron++;
+            // El central valida que el retiro no sea posterior al vencimiento y
+            // manda el texto listo: se muestra tal cual.
+            this.notificacion.danger(err.message);
+            this.terminar(--pendientes, fallaron);
+          },
+        });
+    }
 
     for (const fila of filas) {
       const item: InventarioProductoItem = fila.original;
@@ -679,7 +993,10 @@ export class InventarioCargaPage {
           cantidad: fila.contado ?? undefined,
           cantidadFisica: item.cantidadFisica,
           cantidadAnterior: item.cantidadAnterior,
+          // Con lote la fecha vive en el maestro; acá va la copia que sostiene
+          // la clave de duplicado del central.
           vencimiento: fila.vencimiento || undefined,
+          ...(fila.lote ? { loteId: fila.lote.id } : {}),
           estado: fila.estado as InventarioProductoEstado,
           ...marcasDeConteo(fila.contado ?? 0, item.cantidadFisica),
           usuarioId,

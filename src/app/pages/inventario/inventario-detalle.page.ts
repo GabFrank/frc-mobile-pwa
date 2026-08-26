@@ -35,7 +35,13 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { antiguedadEnDias, hayZonaSinConcluir, zonasDisponibles } from './inventario-alta';
-import { productosConcluidos, resumirInventario, resumirItems } from './inventario-conteo';
+import {
+  motivoNoConcluir,
+  motivoNoFinalizar,
+  productosConcluidos,
+  resumirInventario,
+  resumirItems,
+} from './inventario-conteo';
 import { DatosZona, ResultadoZona, ZonaDialogComponent } from './zona-dialog.component';
 import { SectorService } from 'src/app/domains/sector/sector.service';
 import { ZonaService } from 'src/app/domains/zona/zona.service';
@@ -293,6 +299,7 @@ export class InventarioDetallePage {
    */
   readonly transferenciasPendientes = signal(0);
 
+
   readonly textoTransferencias = computed(() => {
     const n = this.transferenciasPendientes();
     const cuantas = n === 1 ? '1 transferencia' : `${n} transferencias`;
@@ -404,6 +411,22 @@ export class InventarioDetallePage {
     if (inv?.id == null) {
       return;
     }
+    /*
+     * ⚠️ **No se finaliza con una zona sin concluir.**
+     *
+     * Finalizar ESCRIBE los ajustes de stock, y reabrir la toma después no los
+     * deshace. Con una zona todavía abierta se estaría ajustando contra un
+     * conteo a medio hacer, sin vuelta atrás.
+     *
+     * Frena, no pregunta: la salida es concluir la zona, que ya exige tener
+     * todo contado.
+     */
+    const zonaAbierta = motivoNoFinalizar(this.productos());
+    if (zonaAbierta) {
+      this.notificacion.warn(zonaAbierta);
+      return;
+    }
+
     const r = this.resumen();
     // Finalizar no es cerrar: el central crea movimientos de ajuste que
     // llevan el stock **de hoy** al conteo de esta toma. En una toma vieja
@@ -621,6 +644,26 @@ export class InventarioDetallePage {
         'Ya tenés otra zona abierta. Concluila antes de reabrir esta.',
       );
       return;
+    }
+
+    /*
+     * ⚠️ **No se concluye una zona con renglones sin contar.**
+     *
+     * «Concluida» afirma que ahí ya se contó todo, y la afirmación tiene
+     * consecuencia: al finalizar, el central SALTEA los ítems sin cantidad, así
+     * que esos productos no se ajustan y nadie se entera. Antes se podía marcar
+     * la zona igual y el conteo quedaba firmado a medias.
+     *
+     * Frena, no pregunta: las dos salidas son escribir 0 —que es un conteo
+     * válido y ajusta— o sacar el renglón con «Quitar del conteo». Ofrecer
+     * «concluir igual» sería devolver el agujero por la puerta de atrás.
+     */
+    if (concluido) {
+      const motivo = motivoNoConcluir(p.inventarioProductoItemList);
+      if (motivo) {
+        this.notificacion.warn(motivo);
+        return;
+      }
     }
 
     const zona = this.zonaDe(p);

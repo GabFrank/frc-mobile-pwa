@@ -21,6 +21,7 @@ export const productoPorCodigoQuery = gql`
       balanza
       vencimiento
       diasVencimiento
+      lote
       cambiable
       imagenPrincipal
       isEnvase
@@ -70,6 +71,7 @@ export const productoSearchQuery = gql`
       descripcion
       balanza
       vencimiento
+      lote
       cambiable
       imagenPrincipal
       codigoPrincipal
@@ -87,6 +89,7 @@ export const productoPorIdQuery = gql`
       balanza
       vencimiento
       diasVencimiento
+      lote
       cambiable
       imagenPrincipal
       isEnvase

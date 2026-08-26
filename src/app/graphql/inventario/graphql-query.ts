@@ -38,7 +38,10 @@ export const inventarioPorIdQuery = gql`
           revisado
           vencimiento
           estado
-          presentacion { id cantidad producto { id descripcion } }
+          # El lote del renglón. Con control de lote, cantidadFisica es el saldo
+          # DE ESE LOTE, así que sin esto la diferencia se mide contra otra cosa.
+          lote { id numeroLote fechaVencimiento fechaRetiro estado }
+          presentacion { id cantidad producto { id descripcion lote diasVencimiento } }
         }
       }
     }
@@ -141,6 +144,7 @@ export const saveInventarioProductoItemMutation = gql`
       cantidadFisica
       verificado
       revisado
+      lote { id numeroLote }
     }
   }
 `;

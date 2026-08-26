@@ -11,6 +11,7 @@ import { InventarioEstado } from '../domains/inventario/inventario.model';
 import { ProductoBusquedaService } from '../domains/productos/producto-busqueda.service';
 import { InventarioCargaPage } from '../pages/inventario/inventario-carga.page';
 import { InventarioService } from '../pages/inventario/inventario.service';
+import { LoteService } from '../domains/lote/lote.service';
 import { ProductoService } from '../pages/producto/producto.service';
 
 /**
@@ -64,6 +65,16 @@ describe('Vencimiento repetido entre renglones de la misma presentación', () =>
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
+        // La página lo inyecta siempre, pero solo lo usa con productos que
+        // llevan control de lote: en estos casos ninguno lo lleva.
+        {
+          provide: LoteService,
+          useValue: {
+            stockPorLote: vi.fn(() => of([])),
+            buscar: vi.fn(() => of({ getContent: [] })),
+            actualizarFechas: vi.fn(() => of({})),
+          },
+        },
         { provide: InventarioService, useValue: servicio },
         { provide: ProductoService, useValue: productos },
         { provide: ProductoBusquedaService, useValue: { stock: vi.fn(() => of(0)) } },

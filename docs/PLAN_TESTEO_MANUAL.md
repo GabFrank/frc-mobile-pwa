@@ -3427,6 +3427,269 @@ la pantalla algo que el central no borró.
 
 ---
 
+## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)*
+
+**Por qué está acá:** un producto con control de lote entra al conteo **como
+cualquier otro** —un renglón—, pero **no se puede contar hasta que tenga lote**:
+el campo *Contado* queda bloqueado. El lote se elige, o se crea, desde el menú
+**⋮**. Y las dos fechas del lote —vencimiento y retiro— viven en el maestro, que
+es **uno solo en toda la red**: corregirlas reordena el FEFO en todas las
+sucursales.
+
+**Necesita:**
+- Un central con la migración **`V203.5`** (`inventario_producto_item.lote_id`).
+  Sin ella falla al guardar el renglón.
+- Un producto con **`lote = true`**. En `bodega3` hay **3**; el flag se marca
+  desde el ABM de producto del escritorio.
+- Una toma **abierta** en una sucursal con depósito. El teléfono real.
+
+⚠️ **Los puntos 47.11, 47.12 y 47.13 tocan datos que ve todo el mundo.** El lote
+que se cree y la fecha que se corrija valen para todas las sucursales: usar un
+producto de prueba, no uno que esté vendiéndose.
+
+### 47.1 · Un producto con lote entra como cualquier otro
+
+1. Entrá a la zona, tocá **Agregar producto** y elegí el producto con lote.
+
+**Esperado:** aparece **un solo renglón**, no uno por lote. La cabecera dice
+**«Sin lote»** en ámbar antes de la presentación, y *Sistema* muestra la
+existencia del producto.
+
+### 47.2 · Sin lote no se puede contar
+
+1. Desplegá ese renglón.
+
+**Esperado:** el campo *Contado* está **deshabilitado**. Debajo hay un recuadro
+punteado que explica por qué, con dos botones: **Buscar lote** y **Crear lote**.
+
+### 47.3 · Elegir un lote existente completa el renglón
+
+1. Menú **⋮ → Agregar lote** (o el botón *Buscar lote*).
+2. Elegí uno de la lista.
+
+**Esperado:** el renglón **sigue siendo uno** —no se agrega otro—, la cabecera
+pasa a decir `Lote <número>` y el campo *Contado* se habilita.
+
+### 47.4 · El «Sistema» pasa a ser el del lote
+
+1. Mirá el número de *Sistema* antes y después de asignar el lote.
+
+**Esperado:** cambia de la existencia del producto al **saldo de ese lote**. Si
+sigue mostrando el total del producto, anotalo: el renglón mostraría un faltante
+que no existe.
+
+### 47.5 · Buscar por parte del número, en minúsculas
+
+1. En el buscador de lotes escribí `l-20` (o el fragmento que corresponda).
+
+**Esperado:** encuentra el lote aunque esté guardado en mayúsculas — la
+normalización la hace el central. Los lotes que **ya están en la zona** salen en
+gris diciendo «ya está», no desaparecen de la lista.
+
+### 47.6 · Un segundo lote abre un renglón nuevo
+
+1. En un renglón que **ya tiene** lote, menú **⋮ → Agregar otro lote**.
+2. Elegí un lote distinto.
+
+**Esperado:** se agrega un **renglón nuevo** con ese lote, y el primero **queda
+intacto con lo que ya se contó**. Es cómo se cuentan dos lotes del mismo
+producto en la misma zona.
+
+### 47.7 · El menú no aparece en productos sin lote
+
+1. Abrí el menú ⋮ de un producto común.
+
+**Esperado:** solo **Quitar del conteo**. Nada de lotes. **Es la regresión que
+más importa**: son casi todos los productos.
+
+### 47.8 · Un producto sin lote no cambia en nada
+
+1. Agregá y contá un producto común.
+
+**Esperado:** el campo *Contado* está habilitado desde el principio, no hay
+*Fecha de retiro*, y la caja **«Anterior … usar»** sigue apareciendo como
+siempre.
+
+### 47.9 · Con lote no se sugiere ningún vencimiento
+
+1. Desplegá un renglón con lote de un producto con compras viejas.
+
+**Esperado:** **no** aparece la caja «Anterior … usar». El campo *Vencimiento del
+lote* trae la fecha del lote, no viene vacío.
+
+### 47.10 · El lote bloqueado se cuenta igual
+
+1. Desde el escritorio, poné un lote en **CUARENTENA** o **BLOQUEADO** y
+   asignalo a un renglón.
+
+**Esperado:** se puede contar normalmente, y abajo aclara que no se vende.
+Bloquear saca del mostrador, no de la góndola.
+
+### 47.11 · Crear un lote que el sistema no tenía
+
+1. Menú **⋮ → Crear nuevo lote**.
+2. Cargá el número y el vencimiento del envase. Dejá la fecha de retiro **vacía**.
+
+**Esperado:** el diálogo **no pide cantidad** —el lote nace en cero y la cantidad
+la pone el conteo— y avisa que sin cargar el retiro se calcula N días antes del
+vencimiento. Al crear, el renglón queda con ese lote, `Sistema: 0` y el conteo
+habilitado. Verificá en *Stock por lotes* del escritorio que el lote existe con
+saldo cero.
+
+### 47.12 · Crear un lote con un número que ya existe
+
+1. Repetí 47.11 con el número de un lote que ya está.
+
+**Esperado:** **no falla**: el central devuelve ese mismo lote y el renglón queda
+atado a él, con su saldo real. La unicidad es (producto, número) y ese lote es el
+que está en la mano.
+
+### 47.13 · Cargar y corregir la fecha de retiro
+
+1. En un renglón con lote, cargá o cambiá la **Fecha de retiro** y tocá
+   **Guardar conteo**. Volvé a entrar a la zona.
+
+**Esperado:** la fecha quedó. Debajo de los campos avisa que las dos fechas son
+del lote y valen para todas las sucursales. Confirmá desde el escritorio.
+
+### 47.14 · Corregir la fecha sin contar nada
+
+1. Cambiá **solo** la fecha de retiro, sin escribir cantidad, y guardá.
+
+**Esperado:** guarda. **No** dice «Escribí al menos una cantidad contada».
+
+### 47.15 · Retiro posterior al vencimiento
+
+1. Poné una fecha de retiro **posterior** al vencimiento y guardá.
+
+**Esperado:** el central lo rechaza con «La fecha de retiro no puede ser
+posterior al vencimiento del lote.» y ese texto se ve tal cual. El valor **queda
+en el campo** para corregirlo.
+
+### 47.16 · El mismo lote dos veces en la zona
+
+1. Intentá agregar un lote que la zona ya tiene, entrando por **Agregar
+   producto** en vez de por el menú ⋮.
+
+**Esperado:** el central lo rechaza nombrando el lote: «El lote L-… de esa
+presentación ya está en la zona …».
+
+### 47.17 · Dos lotes distintos con el mismo vencimiento
+
+1. Contá dos lotes del mismo producto que venzan el mismo día.
+
+**Esperado:** conviven y se guardan los dos. Antes de este cambio la clave de
+duplicado no miraba el lote y el segundo fallaba.
+
+### 47.18 · Finalizar con un lote sin contar
+
+1. Contá **solo uno** de los dos lotes con saldo del producto.
+2. Finalizá la toma. Mirá el stock del producto antes y después.
+
+**Esperado:** el stock de ese producto **no cambió**. Un lote sin contar no es un
+lote en cero, y tomarlo como cero borraría mercadería que nadie miró. Los demás
+productos sí se ajustan.
+
+⚠️ **Esto pasa en silencio, a propósito.** Había un aviso previo en el detalle de
+la toma y se sacó por pedido. La regla la sigue aplicando el central: si un
+producto no se ajustó, la razón está acá.
+
+### 47.19 · Finalizar con todos los lotes contados
+
+1. Contá **todos** los lotes con saldo del producto y finalizá.
+2. Abrí *Stock por lotes* del producto en esa sucursal, desde el escritorio.
+
+**Esperado:** el saldo de cada lote es lo que se contó y el renglón **SIN LOTE**
+quedó en cero o desapareció. Es lo que el cambio viene a lograr.
+
+### 47.20 · Un renglón que quedó sin lote al finalizar
+
+1. Dejá un renglón sin lote asignado (sin contar, porque no se puede) y
+   finalizá.
+
+**Esperado:** no rompe nada. Ese renglón se saltea igual que cualquier ítem sin
+contar.
+
+### 47.21 · Re-finalizar la toma
+
+1. Reabrí, cambiá un conteo y volvé a finalizar.
+
+**Esperado:** el desglose por lote **no se duplica**. Si en *Stock por lotes* los
+movimientos aparecen dos veces, anotalo.
+
+### 47.22 · Sin conexión
+
+1. Cortá la conexión y probá: asignar un lote, crear un lote y guardar una
+   fecha.
+
+**Esperado:** en los tres casos dice qué pasó, y **nada se muestra como hecho**:
+el renglón sigue sin lote y la fecha sigue escrita en el campo.
+
+### 47.24 · No se concluye una zona con un renglón sin contar
+
+1. En una zona, dejá un producto **sin cantidad** y contá el resto.
+2. Volvé al detalle de la toma y tocá **Concluir** en esa zona.
+
+**Esperado:** **no concluye**. Avisa cuántos productos quedan sin contar y
+nombra unos pocos, y termina diciendo «Si no hay nada en la góndola, cargá 0».
+
+**Por qué importa:** al finalizar, el central **saltea** los ítems sin cantidad,
+así que ese producto no se ajusta. Concluir la zona igual firmaba un conteo que
+no ocurrió.
+
+### 47.25 · Contar cero sí deja concluir
+
+1. Cargá **0** en el renglón que faltaba y concluí.
+
+**Esperado:** concluye. El cero dice «no hay nada en la góndola» y **sí** ajusta
+el stock; el vacío dice «nadie fue a mirar».
+
+### 47.26 · El renglón sin lote lo dice distinto
+
+1. Dejá un renglón de un producto con lote **sin lote asignado** —su campo
+   *Contado* está bloqueado— e intentá concluir.
+
+**Esperado:** el aviso dice que **falta elegir el lote**, no que falta contarlo.
+Mandarlo a escribir una cantidad que la pantalla no le deja escribir lo dejaría
+sin salida. Las dos salidas reales son asignarle el lote o sacar el renglón con
+*Quitar del conteo*.
+
+### 47.27 · Reabrir no exige nada
+
+1. Reabrí una zona concluida que tenga renglones sin contar.
+
+**Esperado:** reabre sin reclamar. Se reabre justamente para completarla.
+
+### 47.28 · No se finaliza la toma con una zona sin concluir
+
+1. Con al menos una zona **sin concluir**, tocá **Finalizar inventario**.
+
+**Esperado:** **no finaliza**, y **ni siquiera abre el diálogo de confirmación**.
+Avisa qué zonas faltan: «Falta concluir 1 zona: gondola 3. Finalizar ajusta el
+stock y no se puede deshacer.»
+
+**Por qué importa:** finalizar **escribe** los ajustes de stock, y reabrir la
+toma después **no los deshace**. Con una zona abierta se ajusta contra un conteo
+a medio hacer, sin vuelta atrás.
+
+### 47.29 · Con todas concluidas finaliza como siempre
+
+1. Concluí todas las zonas y finalizá.
+
+**Esperado:** abre la confirmación de siempre —con las diferencias y el aviso de
+ítems sin contar— y finaliza. La cadena queda cerrada: no se concluye una zona
+sin contar todo, y no se finaliza sin concluir las zonas.
+
+### 47.30 · Tema oscuro y tema claro
+
+1. Mirá un renglón sin lote y uno con lote en los dos temas.
+
+**Esperado:** el «Sin lote» en ámbar, el recuadro punteado, el aviso de «valen
+para todas las sucursales» y los dos diálogos se leen en los dos. Nada en gris
+sobre gris.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -3477,7 +3740,8 @@ la pantalla algo que el central no borró.
 | 44 · Lista del conteo y campo de fecha | 15 | | | |
 | 45 · Renglones repetidos en el conteo | 6 | | | |
 | 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
-| **Total** | **358** | | | |
+| 47 · Contar por lote y la fecha de retiro | 30 | | | |
+| **Total** | **388** | | | |
 
 ### Los cinco que más importan
 

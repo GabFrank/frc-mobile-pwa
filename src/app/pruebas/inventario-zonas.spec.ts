@@ -147,6 +147,93 @@ describe('Zonas de la toma', () => {
     });
   });
 
+  it('no se finaliza la toma con una zona sin concluir', async () => {
+    // Finalizar ESCRIBE los ajustes de stock y reabrir la toma no los deshace:
+    // con una zona abierta se estaría ajustando contra un conteo a medio hacer.
+    const f = montar();
+
+    await f.componentInstance.finalizar();
+
+    expect(servicio.finalizar).not.toHaveBeenCalled();
+    expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('estante alto'));
+    // Ni siquiera se abre la confirmación: no hay nada que confirmar.
+    expect(dialogo.confirmar).not.toHaveBeenCalled();
+  });
+
+  it('con todas las zonas concluidas sí se finaliza', async () => {
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [ZONA_CONCLUIDA])));
+    const f = montar();
+
+    await f.componentInstance.finalizar();
+
+    expect(servicio.finalizar).toHaveBeenCalledWith(5);
+  });
+
+  it('no se concluye una zona con un renglón sin contar', async () => {
+    // «Concluida» afirma que ahí ya se contó todo. Con un renglón vacío la
+    // afirmación es falsa Y tiene consecuencia: el central saltea ese ítem al
+    // finalizar, así que su producto no se ajusta y nadie se entera.
+    const conVacio: InventarioProducto = {
+      ...ZONA_ABIERTA,
+      inventarioProductoItemList: [
+        {
+          id: 500,
+          cantidad: 6,
+          presentacion: { id: 9, cantidad: 1, producto: { id: 200, descripcion: 'COCA COLA 2L' } },
+        },
+        {
+          id: 501,
+          presentacion: { id: 8, cantidad: 1, producto: { id: 300, descripcion: 'DUCOCO AGUA' } },
+        },
+      ],
+    } as InventarioProducto;
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [conVacio])));
+    const f = montar();
+
+    await f.componentInstance.marcarZona(conVacio, true);
+
+    expect(servicio.guardarZona).not.toHaveBeenCalled();
+    expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('DUCOCO AGUA'));
+  });
+
+  it('con todo contado sí se concluye, y el cero cuenta', async () => {
+    // Cero es un conteo —«no hay nada en la góndola»— y ajusta el stock.
+    const contada: InventarioProducto = {
+      ...ZONA_ABIERTA,
+      inventarioProductoItemList: [
+        {
+          id: 500,
+          cantidad: 0,
+          presentacion: { id: 9, cantidad: 1, producto: { id: 200, descripcion: 'COCA COLA 2L' } },
+        },
+      ],
+    } as InventarioProducto;
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [contada])));
+    const f = montar();
+
+    await f.componentInstance.marcarZona(contada, true);
+
+    expect(servicio.guardarZona).toHaveBeenCalled();
+  });
+
+  it('reabrir una zona no exige nada: se reabre justamente para completarla', async () => {
+    const conVacio: InventarioProducto = {
+      ...ZONA_CONCLUIDA,
+      inventarioProductoItemList: [
+        {
+          id: 501,
+          presentacion: { id: 8, cantidad: 1, producto: { id: 300, descripcion: 'DUCOCO AGUA' } },
+        },
+      ],
+    } as InventarioProducto;
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [conVacio])));
+    const f = montar();
+
+    await f.componentInstance.marcarZona(conVacio, false);
+
+    expect(servicio.guardarZona).toHaveBeenCalled();
+  });
+
   it('agregar una zona la da de alta sin id', async () => {
     sectores.deSucursal = vi.fn(() =>
       of([

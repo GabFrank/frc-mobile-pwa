@@ -6,6 +6,7 @@ import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
 import {
   BuscadorComponent,
+  CampoFechaComponent,
   CampoImporteComponent,
   CardComponent,
   DatoComponent,
@@ -47,6 +48,7 @@ import type { ConfigBuscadorLocal } from '../shared/buscador/buscador.component'
     EstadoVacioComponent,
     EstadoErrorComponent,
     SelectorComponent,
+    CampoFechaComponent,
     CampoImporteComponent,
     PaginacionComponent,
     IconoComponent,
@@ -158,6 +160,12 @@ import type { ConfigBuscadorLocal } from '../shared/buscador/buscador.component'
           moneda="Guaraní"
           simbolo="₲"
           ayuda="El guaraní no lleva decimales: se redondea al salir del campo."
+        />
+        <frc-campo-fecha
+          etiqueta="Vencimiento"
+          [valor]="fechaElegida()"
+          (valorChange)="fechaElegida.set($event)"
+          ayuda="Entra y sale como texto yyyy-MM-dd; se escribe y se lee dd/MM/yyyy."
         />
       </frc-seccion>
 
@@ -292,6 +300,7 @@ export class GaleriaPage {
     { valor: 3, texto: 'Depósito central', detalle: 'Solo stock' },
   ];
   readonly sucursalElegida = signal<unknown>(1);
+  readonly fechaElegida = signal<string | null>('2026-11-20');
 
   readonly pagina = signal(0);
   readonly paginaDemo = { getTotalPages: 7, getTotalElements: 132 };

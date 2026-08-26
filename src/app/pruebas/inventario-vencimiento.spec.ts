@@ -109,6 +109,8 @@ describe('Vencimiento sugerido al contar', () => {
       }),
     );
     const f = montar();
+    // La zona arranca colapsada: el origen se lee al desplegar el ítem.
+    f.componentInstance.alternar(1);
     f.detectChanges();
 
     // Sin el origen, «sugerido» a secas no deja decidir si creerle.
@@ -126,6 +128,61 @@ describe('Vencimiento sugerido al contar', () => {
 
     expect(f.componentInstance.items()[0].vencimiento).toBe('2026-01-15');
     expect(f.componentInstance.items()[0].sugerencia).toBeNull();
+  });
+
+  it('muestra el vencimiento anterior aunque el ítem ya tenga fecha propia', () => {
+    // Es el caso donde más sirve y era el único donde se escondía: con una
+    // fecha ya cargada, quien cuenta no tenía contra qué comparar el envase.
+    servicio.porId = vi.fn(() => of(inventario([item(1, 9, '2026-01-15')])));
+    productos.vencidos = vi.fn(() =>
+      of({
+        getContent: [
+          {
+            presentacionId: 9,
+            vencimiento: '2026-11-20',
+            fuenteVerdad: 'COMPRA',
+            detalleFuente: 'Nota de compra #123',
+          },
+        ],
+      }),
+    );
+    const f = montar();
+    f.componentInstance.alternar(1);
+    f.detectChanges();
+
+    expect(f.componentInstance.items()[0].conocido?.fecha).toBe('2026-11-20');
+    const texto = f.nativeElement.textContent;
+    expect(texto).toContain('Anterior 20/11/2026');
+    expect(texto).toContain('Nota de compra #123');
+  });
+
+  it('«usar» copia el vencimiento anterior al campo', () => {
+    servicio.porId = vi.fn(() => of(inventario([item(1, 9, '2026-01-15')])));
+    productos.vencidos = vi.fn(() =>
+      of({ getContent: [{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }] }),
+    );
+    const f = montar();
+
+    f.componentInstance.cambiarVencimiento(1, '2026-11-20');
+
+    expect(f.componentInstance.items()[0].vencimiento).toBe('2026-11-20');
+    // Adoptado el conocido, la línea de «Anterior» ya no tiene qué decir.
+    expect(f.componentInstance.items()[0].sugerencia?.fecha).toBe('2026-11-20');
+  });
+
+  it('borrar la fecha no deja en pantalla un «sugerido» que no se ve', () => {
+    // La sugerencia se rotula por lo que muestra el campo, no por lo que
+    // traía el ítem: si no, vaciarlo dejaba el cartel colgado sin fecha.
+    productos.vencidos = vi.fn(() =>
+      of({ getContent: [{ presentacionId: 9, vencimiento: '2026-11-20', fuenteVerdad: 'COMPRA' }] }),
+    );
+    const f = montar();
+    expect(f.componentInstance.items()[0].sugerencia).not.toBeNull();
+
+    f.componentInstance.cambiarVencimiento(1, '');
+
+    expect(f.componentInstance.items()[0].sugerencia).toBeNull();
+    expect(f.componentInstance.items()[0].conocido?.fecha).toBe('2026-11-20');
   });
 
   it('la sugerencia se guarda junto con el conteo', () => {

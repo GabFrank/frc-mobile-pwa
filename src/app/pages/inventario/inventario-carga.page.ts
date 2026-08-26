@@ -10,8 +10,6 @@ import {
 import { of } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
@@ -27,8 +25,8 @@ import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.com
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
-import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
+import { aIso } from 'src/app/shared/campos/fecha-py';
+import { OpcionSeleccion } from 'src/app/shared/selector/selector.component';
 import { etiquetaPresentacion } from 'src/app/shared/producto/presentacion.util';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
@@ -37,11 +35,8 @@ import type { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/product
 import { ProductoService } from 'src/app/pages/producto/producto.service';
 import type { ProductoVencido } from 'src/app/domains/productos/producto-vencido.model';
 import { nuevoItemInput, presentacionYaEnLaZona } from './inventario-alta';
-import {
-  textoDeSugerencia,
-  vencimientoSugerido,
-  type SugerenciaVencimiento,
-} from './vencimiento-sugerido';
+import { InventarioItemCardComponent, type FilaConteo } from './inventario-item-card.component';
+import { vencimientoSugerido } from './vencimiento-sugerido';
 import { diferenciaDe } from './inventario-conteo';
 import { marcasDeConteo } from './revision-item';
 import { InventarioService } from './inventario.service';
@@ -91,14 +86,11 @@ const ESTADOS: OpcionSeleccion[] = [
   standalone: true,
   imports: [
     PaginaComponent,
-    SeccionComponent,
-    SelectorComponent,
+    InventarioItemCardComponent,
     SkeletonComponent,
     EstadoVacioComponent,
     EstadoErrorComponent,
     MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -118,6 +110,21 @@ const ESTADOS: OpcionSeleccion[] = [
           icono="inventario"
         />
       } @else {
+        <!--
+          Con todo colapsado hace falta saber cuánto queda sin abrir treinta
+          tarjetas. Se recalcula con lo que se está escribiendo, no con lo que
+          respondió el central.
+        -->
+        <div class="avance">
+          <div class="avance-texto">
+            <span class="avance-conteo">{{ resumen().contados }} de {{ items().length }} contados</span>
+            @if (resumen().conDiferencia > 0) {
+              <span class="avance-dif">{{ resumen().conDiferencia }} con diferencia</span>
+            }
+          </div>
+          <div class="barra"><span class="barra-hecho" [style.width.%]="resumen().porcentaje"></span></div>
+        </div>
+
         @if (sugerenciasFallaron()) {
           <!--
             «No hay vencimiento conocido» y «no pude preguntar» son
@@ -128,54 +135,21 @@ const ESTADOS: OpcionSeleccion[] = [
             vacíos; cargalos a mano si hace falta.
           </p>
         }
-        @for (fila of items(); track fila.itemId) {
-          <frc-seccion [titulo]="fila.etiqueta" [panel]="true">
-            <div class="linea">
-              <span class="sistema">{{ fila.presentacion }} · Sistema: {{ fila.sistema }}</span>
-              @if (fila.diferencia !== null) {
-                <span class="dif" [class.falta]="fila.diferencia < 0" [class.sobra]="fila.diferencia > 0">
-                  {{ fila.diferencia > 0 ? '+' : '' }}{{ fila.diferencia }}
-                </span>
-              }
-            </div>
 
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Contado</mat-label>
-              <input
-                matInput
-                type="number"
-                inputmode="decimal"
-                [value]="fila.contado ?? ''"
-                (input)="cambiarContado(fila.itemId, $event)"
-              />
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Vencimiento</mat-label>
-              <input
-                matInput
-                type="date"
-                [value]="fila.vencimiento"
-                (input)="cambiarVencimiento(fila.itemId, $event)"
-              />
-            </mat-form-field>
-            @if (fila.sugerencia; as s) {
-              <!--
-                De dónde salió la fecha. Sin el origen, «sugerido» a secas no
-                deja decidir si creerle.
-              -->
-              <p class="pista" [class.vencido]="s.vencido">{{ pista(s) }}</p>
-            }
-
-            <frc-selector
-              etiqueta="Estado"
-              [opciones]="estados"
-              [valor]="fila.estado"
-              (valorChange)="cambiarEstado(fila.itemId, $event)"
+        <div class="lista">
+          @for (fila of items(); track fila.itemId) {
+            <frc-inventario-item-card
+              [fila]="fila"
+              [abierta]="abiertoId() === fila.itemId"
+              [estados]="estados"
+              (alternar)="alternar(fila.itemId)"
+              (contado)="cambiarContado(fila.itemId, $event)"
+              (vencimiento)="cambiarVencimiento(fila.itemId, $event)"
+              (estado)="cambiarEstado(fila.itemId, $event)"
+              (usarConocido)="cambiarVencimiento(fila.itemId, $event)"
             />
-          </frc-seccion>
-        }
-
+          }
+        </div>
       }
 
       <!--
@@ -200,17 +174,30 @@ const ESTADOS: OpcionSeleccion[] = [
     </frc-pagina>
   `,
   styles: `
-    .linea { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
-    .sistema { font-size: var(--fs-label); color: var(--text-soft); }
-    .dif {
-      font-family: var(--font-num);
-      font-variant-numeric: tabular-nums;
-      font-weight: var(--fw-bold);
+    .lista { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .avance { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .avance-texto {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--sp-3);
+      font-size: var(--fs-label);
+      color: var(--text-soft);
     }
-    .dif.falta { color: var(--danger); }
-    .dif.sobra { color: var(--warn); }
-    .pista { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
-    .pista.vencido { color: var(--danger); }
+    .avance-conteo { font-variant-numeric: tabular-nums; }
+    .avance-dif { color: var(--warn); font-variant-numeric: tabular-nums; }
+    .barra {
+      height: var(--sp-1);
+      border-radius: var(--radius-full);
+      background: var(--surface-sunken);
+      overflow: hidden;
+    }
+    .barra-hecho {
+      display: block;
+      height: 100%;
+      border-radius: var(--radius-full);
+      background: var(--ok);
+      transition: width 160ms ease;
+    }
     .sin-sugerencias { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
   `,
 })
@@ -226,6 +213,19 @@ export class InventarioCargaPage {
   readonly productoId = input<string>();
 
   readonly estados = ESTADOS;
+
+  /**
+   * Una sola fecha por visita a la pantalla.
+   *
+   * Con `new Date()` dentro del `computed`, cada repintado da un instante
+   * distinto: nada que se pueda afirmar en un test, y un ítem podría cambiar
+   * de «vencido» a «vigente» a mitad de un conteo que cruza la medianoche.
+   */
+  private readonly hoy = new Date();
+  private readonly hoyIso = aIso(this.hoy) ?? '';
+
+  /** Qué ítem está desplegado. Uno a la vez: una zona tiene treinta. */
+  readonly abiertoId = signal<number | null>(null);
 
   readonly inventario = signal<Inventario | null>(null);
   readonly cargando = signal(true);
@@ -258,7 +258,7 @@ export class InventarioCargaPage {
 
   readonly titulo = computed(() => this.producto()?.zona?.descripcion || 'Conteo');
 
-  readonly items = computed(() => {
+  readonly items = computed<FilaConteo[]>(() => {
     const cambios = this.edicion();
     return (this.producto()?.inventarioProductoItemList ?? []).map((item) => {
       const itemId = Number(item.id);
@@ -267,11 +267,17 @@ export class InventarioCargaPage {
       // los nombres engañan, pero es el par que usa el central al finalizar.
       const contado = cambio?.contado !== undefined ? cambio.contado : item.cantidad ?? null;
       const sistema = item.cantidadFisica ?? 0;
-      const sugerido = vencimientoSugerido(
+      // Lo que el central sabe de esta presentación. Se calcula SIEMPRE,
+      // tenga el ítem su propia fecha o no: es justo cuando la tiene que hace
+      // falta poder comparar contra lo que dice el envase.
+      const conocido = vencimientoSugerido(
         this.conocidos(),
         Number(item.presentacion?.id),
-        new Date(),
+        this.hoy,
       );
+      const vencimiento =
+        cambio?.vencimiento ??
+        (item.vencimiento ? item.vencimiento.slice(0, 10) : conocido?.fecha ?? '');
       return {
         itemId,
         // El producto cuelga de la presentación: `InventarioProducto` es la
@@ -283,15 +289,36 @@ export class InventarioCargaPage {
         // La diferencia se recalcula en vivo con lo que se está escribiendo,
         // que es lo que el operador necesita para decidir si recuenta.
         diferencia: contado == null ? null : contado - sistema,
-        vencimiento:
-          cambio?.vencimiento ?? (item.vencimiento ? item.vencimiento.slice(0, 10) : sugerido?.fecha ?? ''),
-        // ⚠️ Solo se rotula como sugerido lo que **no** tenía fecha propia:
-        // un vencimiento ya cargado nunca se pisa ni se pone en duda.
-        sugerencia: item.vencimiento || cambio?.vencimiento ? null : sugerido,
+        vencimiento,
+        conocido,
+        // ⚠️ Se rotula como sugerido solo mientras el campo muestra **esa**
+        // fecha. Antes se decidía por «el ítem no traía fecha», y entonces
+        // borrar el campo dejaba en pantalla un «Sugerido de una compra» que
+        // no correspondía a nada de lo que se veía.
+        sugerencia: conocido && vencimiento === conocido.fecha ? conocido : null,
+        vencido: vencimiento !== '' && vencimiento < this.hoyIso,
         estado: cambio?.estado ?? item.estado ?? InventarioProductoEstado.BUENO,
         original: item,
       };
     });
+  });
+
+  /**
+   * Cómo va la zona, con lo que se está escribiendo.
+   *
+   * No usa `resumirItems()` a propósito: esa función resume lo que respondió
+   * el central, y acá lo que importa es lo que hay en pantalla sin guardar —
+   * si no, el contador no se mueve mientras se cuenta, que es exactamente
+   * cuando se lo mira.
+   */
+  readonly resumen = computed(() => {
+    const filas = this.items();
+    const contados = filas.filter((f) => f.contado != null).length;
+    return {
+      contados,
+      conDiferencia: filas.filter((f) => f.contado != null && f.diferencia !== 0).length,
+      porcentaje: filas.length === 0 ? 0 : Math.round((contados / filas.length) * 100),
+    };
   });
 
   readonly cambiados = computed(() => this.items().filter((f) => this.edicion().has(f.itemId)));
@@ -383,10 +410,6 @@ export class InventarioCargaPage {
     });
   }
 
-  pista(sugerencia: SugerenciaVencimiento): string {
-    return textoDeSugerencia(sugerencia);
-  }
-
   cambiarContado(itemId: number, evento: Event): void {
     const crudo = (evento.target as HTMLInputElement).value;
     const n = Number(crudo);
@@ -395,8 +418,25 @@ export class InventarioCargaPage {
     });
   }
 
-  cambiarVencimiento(itemId: number, evento: Event): void {
-    this.editar(itemId, { vencimiento: (evento.target as HTMLInputElement).value });
+  /** `yyyy-MM-dd`, o vacío. Llega ya convertido por `<frc-campo-fecha>`. */
+  cambiarVencimiento(itemId: number, valor: string): void {
+    this.editar(itemId, { vencimiento: valor });
+    this.abrir(itemId);
+  }
+
+  /**
+   * Abre uno y cierra el que estaba.
+   *
+   * Lo escrito **no se pierde al colapsar**: la edición vive en la señal
+   * `edicion`, no en los campos del DOM. Es la razón por la que la card no
+   * guarda estado propio.
+   */
+  alternar(itemId: number): void {
+    this.abiertoId.update((actual) => (actual === itemId ? null : itemId));
+  }
+
+  private abrir(itemId: number): void {
+    this.abiertoId.set(itemId);
   }
 
   cambiarEstado(itemId: number, valor: unknown): void {

@@ -3107,6 +3107,129 @@ de la sucursal, y el stock queda igual.
 
 ---
 
+## Bloque 44 — La lista del conteo y el campo de fecha *(nuevo)*
+
+**Por qué está acá:** la pantalla de conteo pasó de tener los tres campos de
+cada ítem siempre abiertos a una lista desplegable, y el vencimiento pasó de un
+`<input type="date">` a un calendario propio. Lo que hay que probar es
+justamente lo que un test no alcanza: que en el teléfono, de pie frente a la
+góndola, no se pierda nada al colapsar y que el calendario se pueda usar con
+el pulgar.
+
+**Necesita:** una toma **abierta** con una zona de al menos **cinco** ítems, y
+uno de ellos con vencimiento ya cargado de una compra o transferencia. El
+teléfono real: en el escritorio el calendario se toca con el mouse y eso no
+prueba nada del tamaño de los objetivos.
+
+### 44.1 · La zona entra colapsada y se lee entera
+
+1. Entrá a *Contar* en una zona con cinco o más ítems.
+
+**Esperado:** los cinco productos se ven **sin scrollear** o casi, cada uno en
+un renglón con su presentación, el stock del sistema y la diferencia. Ningún
+campo de texto abierto. Arriba, la barra de avance con «0 de 5 contados».
+
+### 44.2 · Se despliega uno a la vez
+
+1. Tocá el primer renglón. Tocá el tercero.
+
+**Esperado:** al abrir el tercero, el primero **se cierra solo**. Nunca hay dos
+formularios abiertos.
+
+### 44.3 · Lo escrito sobrevive al colapso
+
+1. Abrí un ítem, escribí una cantidad y elegí un estado.
+2. **Cerralo** tocando su cabecera. Abrí otro. Volvé al primero.
+
+**Esperado:** la cantidad y el estado siguen ahí. El botón *Guardar conteo (n)*
+sigue contando ese ítem.
+
+⚠️ Es el caso que más importa del bloque: si esto falla, se pierde trabajo ya
+hecho en medio de un pasillo y sin ningún aviso.
+
+### 44.4 · La cabecera dice si vale la pena abrir
+
+1. Contá un ítem con un número **mayor** al del sistema y otro **menor**.
+   Dejá un tercero sin tocar.
+
+**Esperado:** en las cabeceras colapsadas, el primero muestra la diferencia en
+**+** (naranja), el segundo en **−** (rojo) y el tercero un **guion**. Los dos
+contados muestran el **tilde** en la miniatura; el tercero, el ícono de
+producto.
+
+### 44.5 · El avance se mueve mientras se cuenta
+
+1. Con la zona a medio contar, mirá la barra de arriba.
+
+**Esperado:** dice cuántos de cuántos van y cuántos tienen diferencia, y cambia
+**al escribir**, sin necesidad de guardar.
+
+### 44.6 · El calendario se abre y se usa con el pulgar
+
+1. Abrí un ítem y tocá el ícono de almanaque del campo *Vencimiento*.
+
+**Esperado:** se abre el calendario de la app —**no** el selector del sistema
+operativo—, los días son objetivos cómodos de tocar, y elegir uno lo escribe en
+el campo como `dd/mm/aaaa`. El formulario **queda abierto** después de cerrar
+el calendario.
+
+### 44.7 · La fecha se puede escribir a mano
+
+1. En el campo *Vencimiento*, escribí `15/03/2027` con el teclado.
+2. Sacá el foco del campo y guardá.
+
+**Esperado:** lo toma. Guardado y recargada la pantalla, sigue diciendo
+`15/03/2027`.
+
+⚠️ Escribí también algo que no es una fecha (`aaa`, `31/02/2027`) y salí del
+campo: tiene que quedar **vacío**, no con la fecha anterior.
+
+### 44.8 · El vencimiento anterior se ve y se puede copiar
+
+1. Abrí el ítem que ya tenía vencimiento cargado.
+
+**Esperado:** debajo del campo dice **«Anterior dd/mm/aaaa»** con la fuente
+—«Nota de compra #123», «una transferencia», «el último inventario»— y un
+botón **usar**. Tocarlo copia esa fecha al campo.
+
+⚠️ Si el anterior **ya venció**, la línea se ve en rojo y aclara «ya vencido».
+
+### 44.9 · Un vencimiento vencido se marca en la cabecera
+
+1. Cargá en un ítem una fecha anterior a hoy y cerrá la tarjeta.
+
+**Esperado:** en la cabecera colapsada aparece el ícono de vencido, en rojo,
+al lado del nombre del producto.
+
+### 44.10 · Guardar sigue guardando lo mismo
+
+1. Contá tres ítems, guardá.
+2. Volvé a entrar a la zona.
+
+**Esperado:** los tres conservan cantidad, vencimiento y estado, y el toast dice
+«Conteo guardado». La diferencia de cada uno coincide con la que se veía antes
+de guardar.
+
+### 44.11 · Zona vacía y sin conexión
+
+1. Entrá a una zona **sin ítems**.
+2. Con la zona cargada, cortá la conexión y tocá *Reintentar* del estado de
+   error (o entrá con el central caído).
+
+**Esperado:** la zona vacía invita a agregar el primer producto; el error dice
+qué pasó y ofrece reintentar. En ninguno de los dos casos aparece una lista a
+medio dibujar.
+
+### 44.12 · Tema oscuro y tema claro
+
+1. Cambiá el tema en *Mi cuenta → Aplicación* y volvé a la pantalla.
+
+**Esperado:** en los dos temas se leen el título del producto, el stock del
+sistema, la línea de «Anterior» y el calendario abierto. El tilde de contado y
+la barra de avance se distinguen del fondo.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -3154,7 +3277,8 @@ de la sucursal, y el stock queda igual.
 | 41 · Lo contado llega al stock | 6 | | | |
 | 42 · Agregar un producto al conteo | 9 | | | |
 | 43 · Vencimiento sugerido y transferencias | 9 | | | |
-| **Total** | **328** | | | |
+| 44 · Lista del conteo y campo de fecha | 12 | | | |
+| **Total** | **340** | | | |
 
 ### Los cinco que más importan
 

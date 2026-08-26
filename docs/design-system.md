@@ -78,9 +78,14 @@ Todo se exporta desde `src/app/shared/index.ts`.
 |---|---|
 | `<frc-selector>` | Select. Implementa `ControlValueAccessor` |
 | `<frc-campo-importe>` | Campo de importe. Implementa `ControlValueAccessor` |
+| `<frc-campo-fecha>` | Campo de fecha con calendario. Implementa `ControlValueAccessor` |
 | `BuscadorComponent` | Diálogo de búsqueda de entidad. Modo `local` o `paginado` |
 
 Ambos campos respetan `formControl.disable()`.
+
+> ⚠️ **`<frc-campo-fecha>` entra y sale como texto `yyyy-MM-dd`, nunca como `Date`.** Es lo que manda el central y lo que viajan los inputs de GraphQL; devolver un `Date` obliga a cada llamador a convertir, y ahí es donde aparece el `toISOString()` que corre el día —el 15 a las 21:00 en Asunción ya es el 16 en Greenwich—. Las conversiones viven en `shared/campos/fecha-py.ts`, con sus pruebas.
+>
+> No usa `<input type="date">`: el nativo muestra un `dd/mm/aaaa` gris en Chrome de escritorio, el diálogo del sistema en Android y una ruedita en Safari. Tres pantallas para el mismo campo, y ninguna que se pueda probar sin el aparato. El adaptador de Material tampoco alcanza solo: `NativeDateAdapter.parse` lee `MM/dd/yyyy`, así que escribir `15/03/2026` a mano vaciaba el campo.
 
 > ⚠️ **`<frc-selector>` compara valores con `String(a) === String(b)`**, porque los ids llegan a veces como número y a veces como string desde GraphQL. Por eso **no se pueden usar objetos como valor**: todos colapsarían a `[object Object]`. Usá ids primitivos.
 

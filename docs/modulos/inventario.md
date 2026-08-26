@@ -279,16 +279,48 @@ aparece si el inventario está abierto**: concluido o cancelado, el conteo ya
 es un hecho histórico y escribir encima cambiaría el resultado de una toma
 cerrada.
 
-Un bloque por presentación, con lo que dice el sistema, el campo *Contado*, el
-vencimiento y el estado.
+**La zona es una lista desplegable**, un renglón por presentación. La cabecera
+—siempre visible— tiene lo que hace falta para decidir si abrirla: la
+miniatura con un tilde si ya se contó, el producto, la presentación, el stock
+del sistema, un ícono si la fecha cargada ya venció, y la diferencia. Se
+despliega **uno a la vez**, y adentro están *Contado*, *Vencimiento* y
+*Estado*.
 
-> ⚠️ **`cantidad` no se toca nunca.** Es lo que dice el sistema, y la
-> diferencia contra `cantidadFisica` **es** el resultado del inventario. La
-> pantalla solo escribe `cantidadFisica`, y manda `cantidad` de vuelta tal
-> como vino.
+Arriba de la lista, el avance de la zona: «12 de 30 contados · 4 con
+diferencia», con su barra. Se calcula con lo que hay **en pantalla sin
+guardar**, no con lo que respondió el central: si no, el contador no se mueve
+mientras se cuenta, que es exactamente cuando se lo mira.
+
+> ⚠️ **Antes los tres campos de cada ítem estaban siempre abiertos.** Una
+> góndola de treinta ítems eran noventa campos apilados y había que
+> recorrerla entera para saber qué faltaba contar.
+>
+> **Colapsar no pierde nada**: lo escrito vive en una señal de la pantalla, no
+> en los campos del DOM. Si viviera en el DOM, cerrar la tarjeta borraría el
+> conteo, y sería una pérdida muda en medio de un pasillo. Hay una prueba que
+> lo fija.
+
+> ⚠️ **No reutiliza `frc-producto-card`.** La card del buscador expande a las
+> **presentaciones** de un producto; acá cada renglón **ya es** una
+> presentación y expande a un **formulario**. Meter los dos comportamientos en
+> un componente es lo que llevó el buscador de `frc-mobile` a 442 líneas y
+> forzó la copia entera de la pantalla en transferencias. Lo que sí se
+> comparte es el vocabulario visual.
+
+> ⚠️ **Lo contado va en `cantidad`; el stock del sistema, en `cantidadFisica`
+> — al revés de lo que sugieren los nombres.** Lo fija
+> `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La
+> pantalla escribe `cantidad` y manda `cantidadFisica` de vuelta tal como
+> vino: pisarla borra contra qué se comparó.
+>
+> Este documento afirmó lo contrario hasta el hallazgo #60 de
+> `TODO_TECNICO.md`, y la app lo había copiado: lo contado desde el teléfono
+> no entraba en el ajuste de stock, sin ningún síntoma visible.
 
 > La diferencia se recalcula **mientras se escribe**, no al guardar: es lo que
 > le dice al operador si tiene que volver a contar antes de irse del pasillo.
+> **Cero no es un guion**: cero dice que coincide, el guion que nadie fue a la
+> góndola todavía.
 
 > ⚠️ **La pantalla es de una zona, no de un producto.** Lista todos los ítems
 > de la zona y cada renglón se titula con su producto, leído de
@@ -328,6 +360,20 @@ central devuelve solo lo caduco y la mayoría de los campos quedarían vacíos.
 
 **Un vencimiento ya cargado nunca se pisa.** Lo que alguien escribió mirando el
 envase gana sobre cualquier sugerencia.
+
+**Pero el anterior se muestra igual.** Cuando lo que el central conoce **no**
+es lo que hay en el campo, debajo aparece «Anterior 20/11/2026 · Nota de
+compra #123», en rojo si esa fecha ya pasó, con un botón *usar* que la copia.
+
+⚠️ Antes esto se escondía justo cuando el ítem traía fecha propia —el único
+caso en que sirve—, y quien contaba no tenía contra qué comparar el envase.
+Y el rótulo «Sugerido de…» se decidía por «el ítem no traía fecha», así que
+borrar el campo dejaba el cartel colgado sin ninguna fecha a la vista; ahora
+se decide por lo que el campo **muestra**.
+
+**El campo es un calendario, no un `<input type="date">`.** Es
+`<frc-campo-fecha>` del sistema de diseño: mismo control en Chrome, Android y
+Safari. Ver `docs/design-system.md`.
 
 **Es una consulta secundaria**: `mostrarCarga: false` y `notificarError: false`,
 la pantalla cuenta igual sin ella. Si falla, lo dice — un campo vacío afirmaría

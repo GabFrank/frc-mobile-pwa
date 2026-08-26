@@ -73,12 +73,23 @@ export function vencimientoSugerido(
   };
 }
 
+/**
+ * De dónde viene la fecha, a secas: «Nota de compra #123», «una compra».
+ *
+ * Se usa suelto en la línea del vencimiento anterior, donde la fecha ya está
+ * escrita al lado y anteponerle «Sugerido de» la nombraría dos veces.
+ */
+export function origenDeSugerencia(sugerencia: SugerenciaVencimiento): string {
+  return (
+    sugerencia.detalle?.trim() ||
+    (sugerencia.fuente ? NOMBRE_FUENTE[sugerencia.fuente] : 'un registro anterior')
+  );
+}
+
 /** Qué se le muestra al operador debajo del campo. */
 export function textoDeSugerencia(sugerencia: SugerenciaVencimiento): string {
-  const origen =
-    sugerencia.detalle?.trim() ||
-    (sugerencia.fuente ? NOMBRE_FUENTE[sugerencia.fuente] : 'un registro anterior');
   // Sin el origen, «sugerido» a secas no deja decidir si creerle.
+  const origen = origenDeSugerencia(sugerencia);
   return sugerencia.vencido ? `Sugerido de ${origen} — ya vencido` : `Sugerido de ${origen}`;
 }
 

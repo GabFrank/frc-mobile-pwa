@@ -752,10 +752,22 @@ Descuenta las zonas ya usadas con `s.zonaList = s.zonaList.filter(...)` sobre lo
 
 ---
 
+### 62. 🟢 Quedan cuatro `<input type="date">` sin migrar a `<frc-campo-fecha>`
+
+**Dónde:** este mismo repo — `mi-trabajo/solicitud-dialog.component.ts` (dos), `operaciones/solicitud-pago/solicitud-pago-nueva.page.ts`, `operaciones/devolucion/devolucion-item-dialog.component.ts`.
+
+El campo de fecha del sistema de diseño se creó al rediseñar la carga del conteo, y ahí es el único lugar donde se usa. Los otros cuatro siguen con el input nativo: en Chrome de escritorio muestran un `dd/mm/aaaa` gris que se lee como un campo roto, en Android abren el diálogo del sistema y en Safari de iOS una ruedita — tres controles distintos para el mismo campo.
+
+**Por qué no se hizo de una:** migrarlos estaba fuera de lo pedido, y dos de ellos —`desde`/`hasta` de una solicitud— tienen validación cruzada de rango que hay que probar aparte, no arrastrar en un cambio de otra pantalla.
+
+**Estado:** pendiente. `<frc-campo-fecha>` ya acepta `[minimo]` y `[maximo]` en el mismo `yyyy-MM-dd` que el valor, que es lo que ese par necesita.
+
+---
+
 ## Cómo usar este archivo
 
 Al arrancar la fase de corrección: convertir cada ítem en un issue, empezando por los 🔴. Los ítems 16-19, 46-48 y 50-51 son borrado o movimiento puro y pueden agruparse en un solo PR de limpieza — pero el 17 toca `capacitor.config.ts` y por lo tanto exige release nativo, y el 47 requiere actualizar un import.
 
 Los ítems 34-36 son cosméticos **con riesgo de contrato**: antes de renombrar cualquier cosa que viaje al backend, verificá el schema del central.
 
-**Resumen:** 61 hallazgos — 7 🔴, 27 🟡, 27 🟢. Los dos últimos salieron al portar el alta de inventario: el #60 es un defecto **de este repo**, no de `frc-mobile`.
+**Resumen:** 62 hallazgos — 7 🔴, 27 🟡, 28 🟢. El #60 y el #62 son deuda **de este repo**, no de `frc-mobile`.

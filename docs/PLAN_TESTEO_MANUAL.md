@@ -1300,7 +1300,7 @@ sucursal.
 Mostró la toma abierta `SUC. CENTRAL · ZONA #2334` (26/08/2026) con su
 estado «Abierto».
 
-### 19.2 · El detalle abre *(el que importa)* — ❌ **FALLÓ, es exactamente esta regresión**
+### 19.2 · El detalle abre *(el que importa)* — ✅ **PASÓ tras el fix** (retest 2026-08-27, más tarde el mismo día)
 1. Abrir cualquier inventario de la lista
 
 **Esperado:** carga el resumen. **No** aparece «No se pudieron cargar los
@@ -1311,36 +1311,54 @@ datos» con un texto de `Validation error of type FieldUndefined`.
 > tres campos que el central no tiene. Con uno solo que sobre, el central
 > rechaza la consulta **entera** y la pantalla no muestra nada.
 
-**Reproducido tal cual el 2026-08-27** al abrir la toma #2334: pantalla
-completa de error, `Validation error of type FieldUndefined: Field 'lote' in
-type 'InventarioProductoItem' is undefined @
+**Reproducido tal cual primero**, el 2026-08-27 por la mañana, al abrir la
+toma #2334: pantalla completa de error, `Validation error of type
+FieldUndefined: Field 'lote' in type 'InventarioProductoItem' is undefined @
 'inventario/inventarioProductoList/inventarioProductoItemList/lote'`.
 
-No es un campo viejo sin limpiar — es el campo **nuevo** de PR #26 (conteo
+No era un campo viejo sin limpiar — era el campo **nuevo** de PR #26 (conteo
 por lote, `inventarioPorIdQuery` en
-`src/app/graphql/inventario/graphql-query.ts:43`), que se pidió sin chequear
-si el central de destino tiene la migración `V203.5`
-(`V203.5__add_lote_to_inventario_producto_item.sql`, confirmada en
-`franco-system-backend-servidor` develop). El branch de backend pareado,
-`claude/recepcion-numero-lote-3tfwat`, **todavía no está mergeado** a
-`develop` del central — se verificó con `git merge-base --is-ancestor` el
-2026-08-27. Bloquea el detalle de **cualquier** inventario contra alpha, con
-o sin productos de lote: **bloque 19 completo, y 39 a 47, no se pueden probar
-contra alpha hasta que se mergee esa mitad de backend.**
+`src/app/graphql/inventario/graphql-query.ts:43`), pedido sin chequear si el
+central de destino tenía la migración `V203.5`
+(`V203.5__add_lote_to_inventario_producto_item.sql`). El branch de backend
+pareado, `claude/recepcion-numero-lote-3tfwat`, no estaba mergeado a
+`develop` del central en ese momento — verificado con
+`git merge-base --is-ancestor`.
 
-### 19.3 · Resumen del conteo
+**Se mergeó esa mitad de backend a `develop` del central el mismo día**, y al
+reabrir la toma #2334 el detalle **cargó sin error**: estado «Concluido»,
+sucursal SUC. CENTRAL, 1 zona concluida, 2 ítems contados, 2 revisados, 2 con
+diferencia. Confirmado también con `git merge-base --is-ancestor` sobre
+`origin/develop` del central tras el merge.
+
+### 19.3 · Resumen del conteo — ✅ PASÓ (retest)
 1. Abrir uno con ítems contados
 
 **Esperado:** zonas, concluidas, ítems contados, revisados, con diferencia y
 **diferencia total con signo** — `+` sobrante, `−` faltante. Ya no hay línea
 «Arrastrados»: el central no guarda de dónde se copió un ítem.
 
-### 19.4 · Una card por zona
+La toma #2334 mostró Zonas: 1, Concluidas: 1, Ítems contados: 2, Revisados:
+2, Con diferencia: 2, Diferencia total: **+11** (con signo). Sin línea
+«Arrastrados».
+
+### 19.4 · Una card por zona — ✅ PASÓ (retest)
 1. Mirar la lista de abajo
 
 **Esperado:** el título de cada card es la **zona** y abajo el sector — no un
 nombre de producto ni la palabra «Producto» repetida. Cada una con su
 diferencia al costado, en rojo si es negativa, y al pie `N de M contados`.
+
+La card mostró título «b1» (zona), subtítulo «estante b» (sector), `+11` al
+costado y «2 de 2 contados · Concluido» al pie. Al ser diferencia positiva no
+se pudo confirmar el color rojo para el caso negativo.
+
+⚠️ **Bloques 39-47 siguen sin poder probarse en su mayoría**: la toma #2334
+—la única alcanzable en alpha— quedó **Concluida** (`Fin: 27/08/2026 13:51`)
+antes de este retest, probablemente por trabajo real de otra persona o del
+propio usuario. Los bloques que necesitan una toma **abierta** con zonas
+activas (conteo por lote, agregar producto, concluir zona, etc.) siguen
+necesitando que alguien abra una toma nueva de prueba.
 
 ### 19.5 · Finalizar
 1. En un inventario **Abierto**, *Finalizar inventario*
@@ -3698,7 +3716,7 @@ la pantalla algo que el central no borró.
 
 ---
 
-## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)* — ❌ **sin probar, bloqueado contra alpha** (2026-08-27)
+## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)* — ⚠️ **7/17, y un hallazgo crítico** (Claude en Chrome + DB directa, alpha, usuario MAURO, 2026-08-27)
 
 **Por qué está acá:** un producto con control de lote entra al conteo **como
 cualquier otro** —un renglón—, pero **no se puede contar hasta que tenga lote**:
@@ -3709,20 +3727,71 @@ sucursales.
 
 **Necesita:**
 - Un central con la migración **`V203.5`** (`inventario_producto_item.lote_id`).
-  ⚠️ **Peor de lo que dice esto:** sin ella no falla solo al guardar el
-  renglón — el detalle del inventario **ni siquiera carga**, para ninguna
-  toma. Ver el hallazgo de la 19.2. Contra **alpha** (`alpha-api.frcsuite.com`)
-  hoy no se puede probar nada de este bloque: la mitad de backend
-  (`claude/recepcion-numero-lote-3tfwat`) no está en `develop` del central.
-- Un producto con **`lote = true`**. En `bodega3` hay **3**; el flag se marca
-  desde el ABM de producto del escritorio.
-- Una toma **abierta** en una sucursal con depósito. El teléfono real.
+  ✅ **Resuelto el 2026-08-27**: la mitad de backend
+  (`claude/recepcion-numero-lote-3tfwat`) ya está mergeada a `develop` del
+  central, y el detalle de inventario contra alpha carga sin el error
+  `FieldUndefined` (ver 19.2).
+- Un producto con **`lote = true`**. En `bodega3` hay **3**; en la base de
+  `alpha` (`localhost:5553`, consultada directo por SQL) hay exactamente
+  **2**: `BANES FORTE` (id 5) y `ACTOCEF 500 10 COMPRIMIDO DE 500` (id 1). Se
+  usó `BANES FORTE` para esta pasada.
+- Una toma **abierta** en una sucursal con depósito. **La #2334 se concluyó**
+  durante el día — se abrió una toma nueva de prueba (**#2335**, SUC. CENTRAL,
+  zona B2) para este bloque y **se canceló al terminar** (39.4b: "Cancelar
+  toma" desde el menú ⋮ del detalle — confirma que el stock no se toca).
 
 ⚠️ **Los puntos 47.11, 47.12 y 47.13 tocan datos que ve todo el mundo.** El lote
-que se cree y la fecha que se corrija valen para todas las sucursales: usar un
-producto de prueba, no uno que esté vendiéndose.
+que se cree y la fecha que se corrija valen para todas las sucursales: se usó
+un lote de prueba con nombre identificable (`CLAUDE-TEST-*`) para no chocar
+con datos reales — aunque, como se ve abajo, ninguno llegó a crearse.
 
-### 47.1 · Un producto con lote entra como cualquier otro
+### 🔴 Hallazgo crítico: `crearLote` no existe en el schema de GraphQL
+
+Bloquea **47.11, 47.12, 47.14, 47.15, 47.16, 47.17** enteros (todo lo que
+depende de crear o corregir un lote desde la app).
+
+El PR de backend (`ab0b0475`, "conteo por lote y alta/correccion de fechas
+del lote") agregó `LoteService.crearLote()` y
+`LoteService.actualizarFechasLote()` como métodos de servicio Java —pero
+**nunca los expuso como mutation de GraphQL**. Verificado con:
+
+```
+grep -rn "crearLote\|actualizarFechasLote" src/main/java/com/franco/dev/graphql/
+```
+
+El único resultado es `LoteDEGraphQL.java:73`, un `crearLote()` **sin
+argumentos**, completamente distinto: crea un lote de **Documento Electrónico
+para SIFEN** (facturación electrónica), no un lote de producto. Como
+GraphQL resuelve por nombre de campo, la mutation que manda la PWA
+(`crearLote(productoId, numeroLote, fechaVencimiento, fechaRetiro,
+observacion, usuarioId)`) choca contra ese mutation de SIFEN y el central
+devuelve seis errores de validación, uno por argumento:
+
+```json
+{"errors":[
+  {"message":"Validation error of type UnknownArgument: Unknown field argument productoId @ 'crearLote'"},
+  {"message":"Validation error of type UnknownArgument: Unknown field argument numeroLote @ 'crearLote'"},
+  {"message":"Validation error of type UnknownArgument: Unknown field argument fechaVencimiento @ 'crearLote'"},
+  {"message":"Validation error of type UnknownArgument: Unknown field argument fechaRetiro @ 'crearLote'"},
+  {"message":"Validation error of type UnknownArgument: Unknown field argument observacion @ 'crearLote'"},
+  ...
+]}
+```
+
+Capturado interceptando `XMLHttpRequest` en el navegador (Angular
+`HttpClient` usa XHR, no `fetch` — un monkeypatch de `fetch` no lo detecta).
+Confirmado también contra la base: después de tres intentos de "Crear nuevo
+lote" (`CLAUDE-TEST-1/2/3/4`), `SELECT * FROM operaciones.lote WHERE
+producto_id = 5` sigue mostrando solo el lote `5555` que ya existía — la
+app responde con un toast de error pero ninguna fila nueva se crea.
+
+**A diferencia de `crearLote`**, `buscarLotesDeProducto` y `stockPorLote` sí
+funcionan (viven en `TransferenciaItemGraphQL.java` y
+`MovimientoStockLoteGraphQL.java`, reusados de la función de transferencias)
+— por eso 47.3-47.6 y 47.9 pasan sin problema: todo lo que **lee** lotes
+anda, todo lo que **crea o corrige** un lote está roto.
+
+### 47.1 · Un producto con lote entra como cualquier otro — ✅ PASÓ
 
 1. Entrá a la zona, tocá **Agregar producto** y elegí el producto con lote.
 
@@ -3730,14 +3799,20 @@ producto de prueba, no uno que esté vendiéndose.
 **«Sin lote»** en ámbar antes de la presentación, y *Sistema* muestra la
 existencia del producto.
 
-### 47.2 · Sin lote no se puede contar
+Confirmado exacto: un renglón «BANES FORTE», cabecera «Sin lote» en ámbar,
+`Sistema: -5,00` (la existencia real del producto, negativa en este caso).
+
+### 47.2 · Sin lote no se puede contar — ✅ PASÓ
 
 1. Desplegá ese renglón.
 
 **Esperado:** el campo *Contado* está **deshabilitado**. Debajo hay un recuadro
 punteado que explica por qué, con dos botones: **Buscar lote** y **Crear lote**.
 
-### 47.3 · Elegir un lote existente completa el renglón
+Confirmado exacto, con el texto "...control de lote. Elegí o creá el lote
+para poder contarlo."
+
+### 47.3 · Elegir un lote existente completa el renglón — ✅ PASÓ
 
 1. Menú **⋮ → Agregar lote** (o el botón *Buscar lote*).
 2. Elegí uno de la lista.
@@ -3745,7 +3820,9 @@ punteado que explica por qué, con dos botones: **Buscar lote** y **Crear lote**
 **Esperado:** el renglón **sigue siendo uno** —no se agrega otro—, la cabecera
 pasa a decir `Lote <número>` y el campo *Contado* se habilita.
 
-### 47.4 · El «Sistema» pasa a ser el del lote
+Confirmado: cabecera pasó a «Lote 5555» y el campo *Contado* se habilitó.
+
+### 47.4 · El «Sistema» pasa a ser el del lote — ✅ PASÓ
 
 1. Mirá el número de *Sistema* antes y después de asignar el lote.
 
@@ -3753,7 +3830,10 @@ pasa a decir `Lote <número>` y el campo *Contado* se habilita.
 sigue mostrando el total del producto, anotalo: el renglón mostraría un faltante
 que no existe.
 
-### 47.5 · Buscar por parte del número, en minúsculas
+Confirmado: pasó de `Sistema: -5,00` (producto) a `Sistema: 0,00` (saldo del
+lote 5555, que en la base tiene saldo cero).
+
+### 47.5 · Buscar por parte del número, en minúsculas — ⚠️ PARCIAL
 
 1. En el buscador de lotes escribí `l-20` (o el fragmento que corresponda).
 
@@ -3761,7 +3841,12 @@ que no existe.
 normalización la hace el central. Los lotes que **ya están en la zona** salen en
 gris diciendo «ya está», no desaparecen de la lista.
 
-### 47.6 · Un segundo lote abre un renglón nuevo
+Se probó buscar `55` sobre el lote `5555` — encuentra por fragmento
+numérico. **No se pudo probar la normalización de mayúsculas/minúsculas**:
+el único lote de prueba disponible (`5555`) no tiene letras. Falta repetir
+con un lote tipo `L-2026-88`.
+
+### 47.6 · Un segundo lote abre un renglón nuevo — ⚠️ NO SE PUDO CONFIRMAR (bloqueado por el hallazgo crítico)
 
 1. En un renglón que **ya tiene** lote, menú **⋮ → Agregar otro lote**.
 2. Elegí un lote distinto.
@@ -3770,14 +3855,19 @@ gris diciendo «ya está», no desaparecen de la lista.
 intacto con lo que ya se contó**. Es cómo se cuentan dos lotes del mismo
 producto en la misma zona.
 
-### 47.7 · El menú no aparece en productos sin lote
+El menú **sí** ofrece «Agregar otro lote» además de «Crear nuevo lote» y
+«Quitar del conteo» (correcto), pero como el único lote del producto ya
+estaba asignado al renglón, no había un segundo lote *existente* para elegir
+— y crear uno nuevo para probarlo cae en el hallazgo crítico de arriba.
+
+### 47.7 · El menú no aparece en productos sin lote — sin probar
 
 1. Abrí el menú ⋮ de un producto común.
 
 **Esperado:** solo **Quitar del conteo**. Nada de lotes. **Es la regresión que
 más importa**: son casi todos los productos.
 
-### 47.8 · Un producto sin lote no cambia en nada
+### 47.8 · Un producto sin lote no cambia en nada — sin probar
 
 1. Agregá y contá un producto común.
 
@@ -3785,14 +3875,19 @@ más importa**: son casi todos los productos.
 *Fecha de retiro*, y la caja **«Anterior … usar»** sigue apareciendo como
 siempre.
 
-### 47.9 · Con lote no se sugiere ningún vencimiento
+### 47.9 · Con lote no se sugiere ningún vencimiento — ✅ PASÓ
 
 1. Desplegá un renglón con lote de un producto con compras viejas.
 
 **Esperado:** **no** aparece la caja «Anterior … usar». El campo *Vencimiento del
 lote* trae la fecha del lote, no viene vacío.
 
-### 47.10 · El lote bloqueado se cuenta igual
+Confirmado: al asignar el lote 5555, desapareció la caja «Anterior... usar»
+y el campo *Vencimiento del lote* mostró `30/06/2027` (la fecha real del
+lote), con *Fecha de retiro* en `28/06/2027` y el aviso "Las dos fechas son
+del lote 5555 y valen para todas las sucursales."
+
+### 47.10 · El lote bloqueado se cuenta igual — sin probar
 
 1. Desde el escritorio, poné un lote en **CUARENTENA** o **BLOQUEADO** y
    asignalo a un renglón.
@@ -3800,7 +3895,7 @@ lote* trae la fecha del lote, no viene vacío.
 **Esperado:** se puede contar normalmente, y abajo aclara que no se vende.
 Bloquear saca del mostrador, no de la góndola.
 
-### 47.11 · Crear un lote que el sistema no tenía
+### 47.11 · Crear un lote que el sistema no tenía — ❌ **FALLÓ** (ver hallazgo crítico)
 
 1. Menú **⋮ → Crear nuevo lote**.
 2. Cargá el número y el vencimiento del envase. Dejá la fecha de retiro **vacía**.
@@ -3811,7 +3906,13 @@ vencimiento. Al crear, el renglón queda con ese lote, `Sistema: 0` y el conteo
 habilitado. Verificá en *Stock por lotes* del escritorio que el lote existe con
 saldo cero.
 
-### 47.12 · Crear un lote con un número que ya existe
+El diálogo en sí es correcto (no pide cantidad, avisa "Sin cargarla, se
+calcula 90 días antes del vencimiento"), pero al tocar **Crear** el central
+rechaza la mutation con `Unknown field argument` para los seis argumentos —
+no se crea ningún lote. Repetido 4 veces con nombres distintos
+(`CLAUDE-TEST-1/2/3/4`), confirmado contra la base que ninguno persiste.
+
+### 47.12 · Crear un lote con un número que ya existe — sin probar (bloqueado)
 
 1. Repetí 47.11 con el número de un lote que ya está.
 
@@ -3819,7 +3920,7 @@ saldo cero.
 atado a él, con su saldo real. La unicidad es (producto, número) y ese lote es el
 que está en la mano.
 
-### 47.13 · Cargar y corregir la fecha de retiro
+### 47.13 · Cargar y corregir la fecha de retiro — sin probar (bloqueado)
 
 1. En un renglón con lote, cargá o cambiá la **Fecha de retiro** y tocá
    **Guardar conteo**. Volvé a entrar a la zona.
@@ -3827,13 +3928,17 @@ que está en la mano.
 **Esperado:** la fecha quedó. Debajo de los campos avisa que las dos fechas son
 del lote y valen para todas las sucursales. Confirmá desde el escritorio.
 
-### 47.14 · Corregir la fecha sin contar nada
+`actualizarFechasLote` tiene el mismo problema que `crearLote`: no está
+expuesta como mutation de GraphQL. No se intentó ejecutar este caso para no
+gastar otro ciclo contra un endpoint que ya se sabe que no existe.
+
+### 47.14 · Corregir la fecha sin contar nada — sin probar (bloqueado, ver hallazgo crítico)
 
 1. Cambiá **solo** la fecha de retiro, sin escribir cantidad, y guardá.
 
 **Esperado:** guarda. **No** dice «Escribí al menos una cantidad contada».
 
-### 47.15 · Retiro posterior al vencimiento
+### 47.15 · Retiro posterior al vencimiento — sin probar (bloqueado, ver hallazgo crítico)
 
 1. Poné una fecha de retiro **posterior** al vencimiento y guardá.
 
@@ -3841,7 +3946,7 @@ del lote y valen para todas las sucursales. Confirmá desde el escritorio.
 posterior al vencimiento del lote.» y ese texto se ve tal cual. El valor **queda
 en el campo** para corregirlo.
 
-### 47.16 · El mismo lote dos veces en la zona
+### 47.16 · El mismo lote dos veces en la zona — sin probar (bloqueado, ver hallazgo crítico)
 
 1. Intentá agregar un lote que la zona ya tiene, entrando por **Agregar
    producto** en vez de por el menú ⋮.
@@ -3849,7 +3954,7 @@ en el campo** para corregirlo.
 **Esperado:** el central lo rechaza nombrando el lote: «El lote L-… de esa
 presentación ya está en la zona …».
 
-### 47.17 · Dos lotes distintos con el mismo vencimiento
+### 47.17 · Dos lotes distintos con el mismo vencimiento — sin probar (bloqueado, ver hallazgo crítico)
 
 1. Contá dos lotes del mismo producto que venzan el mismo día.
 
@@ -4014,7 +4119,7 @@ sobre gris.
 | 16 · Notificaciones | 7 | 4 | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
-| 19 · Inventario | 5 | 1 | | 1 |
+| 19 · Inventario | 5 | 4 | | |
 | 20 · Recepción de mercadería | 29 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
 | 22 · Crédito en Inicio | 6 | | | |
@@ -4042,7 +4147,7 @@ sobre gris.
 | 44 · Lista del conteo y campo de fecha | 15 | | | |
 | 45 · Renglones repetidos en el conteo | 6 | | | |
 | 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
-| 47 · Contar por lote y la fecha de retiro | 32 | | | |
+| 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | **Total** | **390** | | | |
 
 ### Los cinco que más importan

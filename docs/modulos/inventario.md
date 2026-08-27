@@ -450,6 +450,12 @@ la misma condición que habilita *Agregar producto*.
 > la misma fecha para la misma presentación en todas las zonas, así que contar
 > un producto en dos zonas y guardar hacía fallar el segundo.
 
+**El botón se esconde mientras se cuenta.** Con una card desplegada el
+operador está contando ese renglón, y *Agregar producto* justo arriba de
+*Guardar conteo* se lee como si fuera el paso siguiente. Se muestra solo con
+todo colapsado (`mostrarAgregar` = toma abierta **y** ningún ítem desplegado);
+`puedeAgregar` sigue diciendo si se **permite**, que es otra pregunta.
+
 *Agregar producto* abre `frc-buscador-producto-dialog`, el mismo buscador de
 la pestaña Buscar: descripción, código, cámara y códigos de balanza. Recibe la
 sucursal de la toma, así que muestra el stock de cada producto antes de

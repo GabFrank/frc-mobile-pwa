@@ -3133,7 +3133,16 @@ por presentación.
 **Esperado:** no está el botón *Agregar producto*. El alcance de una toma
 cerrada ya es un hecho histórico.
 
-### 42.9 · Sin conexión no agrega con un cero inventado
+### 42.9 · Contando un renglón, el botón no está
+
+1. Con la toma abierta, entrá a una zona con productos y **desplegá una card**.
+
+**Esperado:** desaparece *Agregar producto* y abajo queda solo *Guardar
+conteo*. Al **colapsar** la card vuelve a aparecer. Con la card abierta el
+botón compite con el de guardar y se lee como si fuera el paso siguiente del
+conteo.
+
+### 42.10 · Sin conexión no agrega con un cero inventado
 
 1. Cortá la conexión y tocá *Agregar producto*, eligiendo algo.
 
@@ -3944,13 +3953,13 @@ sobre gris.
 | 39 · Abrir una toma de inventario | 10 | | | |
 | 40 · Zonas de la toma | 11 | | | |
 | 41 · Lo contado llega al stock | 6 | | | |
-| 42 · Agregar un producto al conteo | 9 | | | |
+| 42 · Agregar un producto al conteo | 10 | | | |
 | 43 · Vencimiento sugerido y transferencias | 9 | | | |
 | 44 · Lista del conteo y campo de fecha | 15 | | | |
 | 45 · Renglones repetidos en el conteo | 6 | | | |
 | 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
 | 47 · Contar por lote y la fecha de retiro | 32 | | | |
-| **Total** | **390** | | | |
+| **Total** | **391** | | | |
 
 ### Los cinco que más importan
 

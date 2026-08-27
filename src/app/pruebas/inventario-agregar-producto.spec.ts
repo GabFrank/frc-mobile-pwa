@@ -97,6 +97,29 @@ describe('Agregar un producto al conteo', () => {
     expect(f.nativeElement.textContent).toContain('Agregar producto');
   });
 
+  it('mientras se cuenta un renglón el botón no está', () => {
+    // Con la card abierta compite con «Guardar conteo» y se lee como si fuera
+    // el paso siguiente del conteo.
+    servicio.porId = vi.fn(() =>
+      of(
+        inventario(InventarioEstado.ABIERTO, [
+          { id: 700, cantidad: null, cantidadFisica: 1, presentacion: { id: 9, cantidad: 1 } },
+        ]),
+      ),
+    );
+    const f = montar();
+
+    f.componentInstance.alternar(700);
+    f.detectChanges();
+    expect(f.componentInstance.mostrarAgregar()).toBe(false);
+    expect(f.nativeElement.textContent).not.toContain('Agregar producto');
+
+    // Al colapsar vuelve: la toma sigue abierta.
+    f.componentInstance.alternar(700);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Agregar producto');
+  });
+
   it('con la toma cerrada no se puede agregar', () => {
     // El alcance de una toma cerrada ya es un hecho histórico.
     servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO)));

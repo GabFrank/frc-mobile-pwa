@@ -1300,7 +1300,7 @@ sucursal.
 Mostró la toma abierta `SUC. CENTRAL · ZONA #2334` (26/08/2026) con su
 estado «Abierto».
 
-### 19.2 · El detalle abre *(el que importa)* — ❌ **FALLÓ, es exactamente esta regresión**
+### 19.2 · El detalle abre *(el que importa)* — ✅ **PASÓ tras el fix** (retest 2026-08-27, más tarde el mismo día)
 1. Abrir cualquier inventario de la lista
 
 **Esperado:** carga el resumen. **No** aparece «No se pudieron cargar los
@@ -1311,36 +1311,54 @@ datos» con un texto de `Validation error of type FieldUndefined`.
 > tres campos que el central no tiene. Con uno solo que sobre, el central
 > rechaza la consulta **entera** y la pantalla no muestra nada.
 
-**Reproducido tal cual el 2026-08-27** al abrir la toma #2334: pantalla
-completa de error, `Validation error of type FieldUndefined: Field 'lote' in
-type 'InventarioProductoItem' is undefined @
+**Reproducido tal cual primero**, el 2026-08-27 por la mañana, al abrir la
+toma #2334: pantalla completa de error, `Validation error of type
+FieldUndefined: Field 'lote' in type 'InventarioProductoItem' is undefined @
 'inventario/inventarioProductoList/inventarioProductoItemList/lote'`.
 
-No es un campo viejo sin limpiar — es el campo **nuevo** de PR #26 (conteo
+No era un campo viejo sin limpiar — era el campo **nuevo** de PR #26 (conteo
 por lote, `inventarioPorIdQuery` en
-`src/app/graphql/inventario/graphql-query.ts:43`), que se pidió sin chequear
-si el central de destino tiene la migración `V203.5`
-(`V203.5__add_lote_to_inventario_producto_item.sql`, confirmada en
-`franco-system-backend-servidor` develop). El branch de backend pareado,
-`claude/recepcion-numero-lote-3tfwat`, **todavía no está mergeado** a
-`develop` del central — se verificó con `git merge-base --is-ancestor` el
-2026-08-27. Bloquea el detalle de **cualquier** inventario contra alpha, con
-o sin productos de lote: **bloque 19 completo, y 39 a 47, no se pueden probar
-contra alpha hasta que se mergee esa mitad de backend.**
+`src/app/graphql/inventario/graphql-query.ts:43`), pedido sin chequear si el
+central de destino tenía la migración `V203.5`
+(`V203.5__add_lote_to_inventario_producto_item.sql`). El branch de backend
+pareado, `claude/recepcion-numero-lote-3tfwat`, no estaba mergeado a
+`develop` del central en ese momento — verificado con
+`git merge-base --is-ancestor`.
 
-### 19.3 · Resumen del conteo
+**Se mergeó esa mitad de backend a `develop` del central el mismo día**, y al
+reabrir la toma #2334 el detalle **cargó sin error**: estado «Concluido»,
+sucursal SUC. CENTRAL, 1 zona concluida, 2 ítems contados, 2 revisados, 2 con
+diferencia. Confirmado también con `git merge-base --is-ancestor` sobre
+`origin/develop` del central tras el merge.
+
+### 19.3 · Resumen del conteo — ✅ PASÓ (retest)
 1. Abrir uno con ítems contados
 
 **Esperado:** zonas, concluidas, ítems contados, revisados, con diferencia y
 **diferencia total con signo** — `+` sobrante, `−` faltante. Ya no hay línea
 «Arrastrados»: el central no guarda de dónde se copió un ítem.
 
-### 19.4 · Una card por zona
+La toma #2334 mostró Zonas: 1, Concluidas: 1, Ítems contados: 2, Revisados:
+2, Con diferencia: 2, Diferencia total: **+11** (con signo). Sin línea
+«Arrastrados».
+
+### 19.4 · Una card por zona — ✅ PASÓ (retest)
 1. Mirar la lista de abajo
 
 **Esperado:** el título de cada card es la **zona** y abajo el sector — no un
 nombre de producto ni la palabra «Producto» repetida. Cada una con su
 diferencia al costado, en rojo si es negativa, y al pie `N de M contados`.
+
+La card mostró título «b1» (zona), subtítulo «estante b» (sector), `+11` al
+costado y «2 de 2 contados · Concluido» al pie. Al ser diferencia positiva no
+se pudo confirmar el color rojo para el caso negativo.
+
+⚠️ **Bloques 39-47 siguen sin poder probarse en su mayoría**: la toma #2334
+—la única alcanzable en alpha— quedó **Concluida** (`Fin: 27/08/2026 13:51`)
+antes de este retest, probablemente por trabajo real de otra persona o del
+propio usuario. Los bloques que necesitan una toma **abierta** con zonas
+activas (conteo por lote, agregar producto, concluir zona, etc.) siguen
+necesitando que alguien abra una toma nueva de prueba.
 
 ### 19.5 · Finalizar
 1. En un inventario **Abierto**, *Finalizar inventario*
@@ -3698,7 +3716,7 @@ la pantalla algo que el central no borró.
 
 ---
 
-## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)* — ❌ **sin probar, bloqueado contra alpha** (2026-08-27)
+## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)* — ❌ **sin probar, ahora necesita una toma abierta** (retest 2026-08-27)
 
 **Por qué está acá:** un producto con control de lote entra al conteo **como
 cualquier otro** —un renglón—, pero **no se puede contar hasta que tenga lote**:
@@ -3709,14 +3727,16 @@ sucursales.
 
 **Necesita:**
 - Un central con la migración **`V203.5`** (`inventario_producto_item.lote_id`).
-  ⚠️ **Peor de lo que dice esto:** sin ella no falla solo al guardar el
-  renglón — el detalle del inventario **ni siquiera carga**, para ninguna
-  toma. Ver el hallazgo de la 19.2. Contra **alpha** (`alpha-api.frcsuite.com`)
-  hoy no se puede probar nada de este bloque: la mitad de backend
-  (`claude/recepcion-numero-lote-3tfwat`) no está en `develop` del central.
+  ✅ **Resuelto el 2026-08-27**: la mitad de backend
+  (`claude/recepcion-numero-lote-3tfwat`) ya está mergeada a `develop` del
+  central, y el detalle de inventario contra alpha carga sin el error
+  `FieldUndefined` (ver 19.2). El bloqueo que había hoy a la mañana ya no
+  aplica.
 - Un producto con **`lote = true`**. En `bodega3` hay **3**; el flag se marca
   desde el ABM de producto del escritorio.
-- Una toma **abierta** en una sucursal con depósito. El teléfono real.
+- Una toma **abierta** en una sucursal con depósito. **La única alcanzable en
+  alpha (#2334) se concluyó** durante el día — hace falta abrir una toma de
+  prueba nueva para seguir con este bloque. El teléfono real.
 
 ⚠️ **Los puntos 47.11, 47.12 y 47.13 tocan datos que ve todo el mundo.** El lote
 que se cree y la fecha que se corrija valen para todas las sucursales: usar un
@@ -4014,7 +4034,7 @@ sobre gris.
 | 16 · Notificaciones | 7 | 4 | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
-| 19 · Inventario | 5 | 1 | | 1 |
+| 19 · Inventario | 5 | 4 | | |
 | 20 · Recepción de mercadería | 29 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
 | 22 · Crédito en Inicio | 6 | | | |

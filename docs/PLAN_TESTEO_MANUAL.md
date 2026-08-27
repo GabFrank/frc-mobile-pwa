@@ -3198,8 +3198,9 @@ vencimiento conocido, que es otra cosa.
 1. Dejá una transferencia en camino a la sucursal de la toma, sin recibir.
 2. Abrí el detalle del inventario.
 
-**Esperado:** franja de aviso arriba con cuántas hay y por qué importa. Tocarla
-lleva a transferencias.
+**Esperado:** franja de aviso arriba: «N transferencias sin recibir. Continuar
+el conteo dejará el stock mal en la sucursal». Con una sola dice
+«1 transferencia», en singular. Tocarla lleva a transferencias.
 
 ### 43.8 · También ve las que ya llegaron
 

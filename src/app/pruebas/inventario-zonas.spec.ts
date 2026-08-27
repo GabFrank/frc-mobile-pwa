@@ -470,10 +470,10 @@ describe('Zonas de la toma', () => {
   });
 
   /**
-   * ⚠️ **Contar una sucursal con mercadería sin recibir da diferencias que no
-   * son diferencias**: el stock del sistema todavía no la tiene y la góndola
-   * tampoco, o al revés. `frc-mobile` avisa con un toast de seis segundos que
-   * se pierde si mirás para otro lado.
+   * ⚠️ **Contar una sucursal con mercadería sin recibir le deja el stock mal
+   * al producto**: esa mercadería puede estar en el depósito y todavía no
+   * haber entrado al sistema. `frc-mobile` avisa con un toast de seis
+   * segundos que se pierde si mirás para otro lado.
    */
   describe('Aviso de transferencias pendientes', () => {
     it('filtra por estado y no por etapa, para no perder las que ya llegaron', () => {
@@ -498,6 +498,18 @@ describe('Zonas de la toma', () => {
 
       expect(f.componentInstance.transferenciasPendientes()).toBe(3);
       expect(f.nativeElement.textContent).toContain('3 transferencias sin recibir');
+    });
+
+    it('dice la consecuencia, sin la paradoja de antes', () => {
+      transferencias.conFiltros = vi.fn(() => of({ getTotalElements: 3 }));
+      const f = montar();
+      f.detectChanges();
+
+      const texto = f.nativeElement.textContent as string;
+      expect(texto).toContain('Continuar el conteo dejará el stock mal en la sucursal');
+      // La frase vieja no se entendía en el mostrador: nombraba el síntoma con
+      // una paradoja en vez de decir lo que pasa.
+      expect(texto).not.toContain('diferencias que no son diferencias');
     });
 
     it('en singular no dice 1 transferencias', () => {

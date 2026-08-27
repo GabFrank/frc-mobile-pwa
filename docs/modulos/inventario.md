@@ -228,8 +228,12 @@ signo**: `+` es sobrante y `−` faltante.
 
 Con la toma **abierta**, el detalle muestra una franja si hay transferencias en
 camino a esa sucursal que nadie recibió todavía, con un enlace a la lista
-filtrada. Contar una sucursal con mercadería sin recibir **da diferencias que
-no son diferencias**.
+filtrada.
+
+El texto **dice la consecuencia**: «N transferencias sin recibir. Continuar el
+conteo dejará el stock mal en la sucursal». La versión anterior cerraba con «da
+diferencias que no son diferencias», y esa frase no se entiende en el
+mostrador: nombra el síntoma con una paradoja en vez de decir lo que pasa.
 
 ⚠️ **Se filtra por estado, no por etapa, y eso corrige al repo anterior.**
 `frc-mobile` usa `etapa: TRANSPORTE_EN_CAMINO`, y una transferencia en tránsito

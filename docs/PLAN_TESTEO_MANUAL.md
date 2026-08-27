@@ -980,31 +980,51 @@ contador de «Sin registrar» baja en uno. El monto **no se puede editar**.
 
 ---
 
-## Bloque 15 — Marcación *(nuevo)*
+## Bloque 15 — Marcación *(nuevo)* — ⚠️ **5 de 9** (Claude en Chrome, `localhost` contra alpha, usuario MAURO, 2026-08-27)
 
 > Necesita **HTTPS o `localhost`**: sin contexto seguro no hay GPS. En
 > Android, `adb reverse tcp:4300 tcp:4300`.
 
-### 15.1 · Estado del día
+> Corrido con automatización de navegador de escritorio, no un teléfono real.
+> **Sin ejecutar: 15.5, 15.6, 15.7** (piden cambiar de sucursal o de usuario a
+> mitad de sesión) **y 15.4** (no se pudo forzar "lejos": el navegador dio una
+> ubicación real de escritorio, no simulable desde acá). El diálogo de
+> verificación facial ("No tenés rostro registrado") intercepta cada marcación
+> porque MAURO no tiene rostro cargado — se resolvió con "Marcar igual" en las
+> dos veces que apareció, así que ese camino de faceless-fallback también
+> quedó cubierto de paso.
+
+### 15.1 · Estado del día — ✅ PASÓ
 1. Inicio → **Marcación**
 
 **Esperado:** muestra si estás en jornada y **un solo botón**, el de la
 acción que corresponde. Nunca entrada y salida a la vez.
 
-### 15.2 · Permiso de ubicación
+Con la jornada en "Fuera de jornada" apareció un solo botón, "Marcar
+entrada".
+
+### 15.2 · Permiso de ubicación — ✅ PASÓ (camino sin GPS)
 1. Tocar el botón de marcar y aceptar el permiso
 
 **Esperado:** el panel de ubicación muestra el avance y la precisión
 (`±N m`). Si negás el permiso, ofrece marcar igual avisando que queda sin
 GPS.
 
-### 15.3 · Marcar entrada
+La primera marcación no consiguió ubicación ("No se pudo obtener la
+ubicación") y ofreció el diálogo "Sin ubicación — ¿Marcar igual? Va a quedar
+registrado sin GPS", que no bloquea. **No se probó** el camino con permiso
+concedido y precisión mostrada en el primer intento — sí se vio en 15.8.
+
+### 15.3 · Marcar entrada — ✅ PASÓ
 1. Estando **en la sucursal**, marcar
 
 **Esperado:** se registra, aparece la hora de entrada y el botón pasa a la
 siguiente acción.
 
-### 15.4 · Marcar lejos *(el caso a calibrar)*
+Registró «Entrada 27/08/2026 10:32», estado pasó a «En jornada» y la barra
+inferior ofreció «Salir a almorzar» / «Marcar salida».
+
+### 15.4 · Marcar lejos *(el caso a calibrar)* — sin probar
 1. Marcar desde lejos de la sucursal
 
 **Esperado:** avisa la distancia y la precisión y **pide confirmación** — no
@@ -1013,23 +1033,26 @@ bloquea. Al confirmar, queda registrado con esos datos.
 > Anotá qué distancia y qué precisión te dio: son los números con los que hay
 > que decidir si el umbral de ±33 m sirve o hay que cambiarlo.
 
-### 15.5 · La sucursal se recuerda
+No se pudo forzar una ubicación lejana desde el navegador de escritorio;
+necesita un dispositivo real o GPS simulado.
+
+### 15.5 · La sucursal se recuerda — sin probar
 1. Elegir otra sucursal, salir de la pantalla y volver
 
 **Esperado:** queda la última elegida.
 
-### 15.6 · Y se borra al cerrar sesión
+### 15.6 · Y se borra al cerrar sesión — sin probar
 1. Cerrar sesión, entrar con **otro usuario** e ir a Marcación
 
 **Esperado:** **no** aparece la sucursal del usuario anterior.
 
-### 15.7 · Salida de almuerzo
+### 15.7 · Salida de almuerzo — sin probar
 1. Con la jornada abierta, tocar **«Salir a almorzar»** y después el retorno
 
 **Esperado:** la jornada **no se cierra** con la salida de almuerzo; las
 horas trabajadas siguen contando bien al volver.
 
-### 15.9 · El almuerzo es opcional *(el que importa de esta tanda)*
+### 15.9 · El almuerzo es opcional *(el que importa de esta tanda)* — ✅ PASÓ
 1. Marcar entrada
 2. Sin salir a almorzar, mirar la barra de abajo
 3. Tocar **«Marcar salida»** (el rojo, no el de contorno)
@@ -1042,11 +1065,21 @@ entrada» — **no** «Volver del almuerzo».
 El estado de arriba dice **«En jornada»** a secas mientras haya dos opciones,
 no «falta marcar salida».
 
+Confirmado tal cual: aparecieron los dos botones, se tocó «Marcar salida»
+directo (sin pasar por «Salir a almorzar»), la jornada cerró («Fuera de
+jornada», «Salida —» quedó con hora) y al recargar la pantalla ofreció
+«Marcar entrada», nunca «Volver del almuerzo». Esta vez el navegador sí dio
+ubicación real (±101.888 m) y la mutation se guardó **sin** el error
+`Variable 'entity' has an invalid value: Expected type 'Int' but was
+'Double'` — no se inspeccionó el payload de red crudo, pero el guardado
+exitoso con una distancia real (no cero) es evidencia fuerte de que el fix
+del ítem 1 de PR #25 funciona contra alpha.
+
 > Antes de este cambio la primera salida del día se registraba siempre como
 > salida de almuerzo, así que el retorno era obligatorio. Si volvés a ver
 > «Volver del almuerzo» sin haber tocado «Salir a almorzar», es la regresión.
 
-### 15.8 · Marcar con el GPS activo *(la regresión del tipo `Int`)*
+### 15.8 · Marcar con el GPS activo *(la regresión del tipo `Int`)* — ✅ PASÓ
 1. Con permiso de ubicación **concedido**, esperar a que el panel muestre una
    distancia distinta de cero —alcanza con estar a unos metros— y marcar
 2. Si aparece el aviso de «Estás lejos de la sucursal», confirmar
@@ -1059,32 +1092,47 @@ que es lo que salía cuando la distancia calculada viajaba con decimales.
 > manda y el error no aparece nunca. Por eso hay que **conceder** el permiso y
 > esperar a ver los metros en pantalla antes de tocar el botón.
 
+Se dio junto con 15.9: al marcar salida el navegador consiguió ubicación real
+(±101.888 m, no cero) y la marcación se guardó sin el error de tipo. No se
+inspeccionó el payload GraphQL crudo para confirmar el valor exacto que viajó
+como `distanciaSucursalMetros`, solo el resultado observable (guardado
+exitoso, sin diálogo de error).
+
 ---
 
-## Bloque 16 — Notificaciones *(nuevo)*
+## Bloque 16 — Notificaciones *(nuevo)* — ⚠️ **4 de 9** (Claude en Chrome, `localhost` contra alpha, usuario MAURO, 2026-08-27)
 
 > Para que haya algo que ver hace falta un evento real: un retiro, una venta
 > con stock negativo, una diferencia de maletín, o una solicitud de RRHH —
 > esas ya notifican a los aprobadores.
 
-### 16.1 · Bandeja
+> MAURO no tenía ninguna notificación (ni leída ni sin leer) en el momento de
+> la prueba: **16.2, 16.3, 16.4 y 16.5 sin probar** por falta de datos, no por
+> un defecto — hace falta un usuario con notificaciones reales o generar un
+> evento que dispare una.
+
+### 16.1 · Bandeja — ✅ PASÓ
 1. Inicio → **Notificaciones**
 
 **Esperado:** arranca en **Sin leer**. Cada fila muestra el mensaje y la
 fecha, y las no leídas están marcadas.
 
-### 16.2 · Abrir marca como leída
+Arrancó en «Sin leer» con el estado vacío correcto («Nada sin leer»). La
+pestaña «Todas» también mostró su propio estado vacío («Sin notificaciones»)
+en vez de quedar en blanco.
+
+### 16.2 · Abrir marca como leída — sin probar (sin datos)
 1. Tocar una notificación sin leer
 
 **Esperado:** abre el hilo de comentarios y, al volver, esa fila ya no está
 en «Sin leer».
 
-### 16.3 · Comentar
+### 16.3 · Comentar — sin probar (sin datos)
 1. En el hilo, escribir un comentario y **Enviar**
 
 **Esperado:** aparece en la lista con tu nombre y la hora.
 
-### 16.4 · Responder
+### 16.4 · Responder — sin probar (sin datos)
 1. Tocar **Responder** en un comentario, escribir y enviar
 
 **Esperado:** la respuesta queda **indentada bajo ese comentario**.
@@ -1093,25 +1141,37 @@ en «Sin leer».
 
 **Esperado:** queda al mismo nivel que la anterior, **no más adentro**.
 
-### 16.5 · Marcar todas
+### 16.5 · Marcar todas — sin probar (sin datos)
 1. Volver a la bandeja y **Marcar todas como leídas**
 
 **Esperado:** «Sin leer» queda vacío.
 
-### 16.6 · Preferencias
+### 16.6 · Preferencias — ✅ PASÓ
 1. **Preferencias** desde la barra superior
 
 **Esperado:** una fila por tipo. Las obligatorias —diferencia de maletín, por
 ejemplo— aparecen **con el interruptor deshabilitado** y el texto «Siempre se
 envía». No están escondidas.
 
-### 16.7 · Apagar una opcional
+Confirmado: «Alerta de seguridad por nuevo dispositivo» y «Notificación de
+compra a crédito propia» aparecen con el interruptor deshabilitado (gris,
+marcado) y el texto «Siempre se envía» debajo, mezcladas en la lista — no
+separadas ni ocultas.
+
+### 16.7 · Apagar una opcional — ✅ PASÓ
 1. Apagar un tipo opcional, salir y volver
 
 **Esperado:** queda apagado. Si el servidor rechaza el cambio, el interruptor
 vuelve a su posición y avisa.
 
-### 16.8 · El orden no cambia entre entradas
+Se probó al revés (prendiendo una que estaba apagada, «Alerta de diferencia
+detectada en maletín») porque no había ninguna encendida a mano para apagar:
+tocar el interruptor, navegar a Inicio y volver a Preferencias — el cambio
+persistió. Se revirtió al terminar para no dejar la preferencia real de
+MAURO modificada. **No se probó** el camino de rechazo del servidor (el
+interruptor debe volver solo y avisar).
+
+### 16.8 · El orden no cambia entre entradas — ✅ PASÓ
 1. Anotar el orden de las filas
 2. Volver atrás y entrar de nuevo a **Preferencias**, tres o cuatro veces
 
@@ -1121,12 +1181,22 @@ sin el orden del cliente los interruptores saltan de lugar entre una entrada y
 la siguiente. Es el caso que más importa del bloque: apagar el interruptor
 equivocado se hace justamente así.
 
-### 16.9 · Ninguna fila queda sin texto
+Capturado el árbol de accesibilidad de la pantalla tres veces, navegando a
+Inicio y volviendo entre cada captura: **las 15 filas salieron en el mismo
+orden alfabético exacto las tres veces** (Alerta de diferencia… · Alerta de
+factura… · Alerta de seguridad… · Alerta de venta… · Aviso de cambio… ·
+Notificación de actualización… … Notificación de venta con pago por
+transferencia).
+
+### 16.9 · Ninguna fila queda sin texto — ✅ PASÓ
 1. Recorrer toda la lista
 
 **Esperado:** **cada fila dice qué avisa**, en castellano y sin guiones bajos.
 No puede aparecer un `PRODUCTO_CREADO` crudo ni una fila vacía: cuando el
 central no manda `descripcion`, la app usa su propia tabla de tipos.
+
+Las 15 filas visibles para MAURO tienen texto legible en castellano, ninguna
+en mayúsculas con guion bajo ni vacía.
 
 > ⚠️ **Qué tipos aparecen lo decide el central, no la app.** La lista sale de
 > cruzar los roles del usuario contra `notificacion_tipo_role`. Si falta un
@@ -1217,17 +1287,20 @@ sucursal.
 
 ---
 
-## Bloque 19 — Inventario *(nuevo)*
+## Bloque 19 — Inventario *(nuevo)* — ❌ **19.2 sigue roto contra alpha** (Claude en Chrome, MAURO, 2026-08-27)
 
 > Necesita el rol **`VER INVENTARIO`** y una toma existente: la PWA todavía
 > no crea inventarios.
 
-### 19.1 · Lista
+### 19.1 · Lista — ✅ PASÓ
 1. Inicio → **Inventario**
 
 **Esperado:** tus inventarios, del más reciente al más viejo, con su estado.
 
-### 19.2 · El detalle abre *(el que importa)*
+Mostró la toma abierta `SUC. CENTRAL · ZONA #2334` (26/08/2026) con su
+estado «Abierto».
+
+### 19.2 · El detalle abre *(el que importa)* — ✅ **PASÓ tras el fix** (retest 2026-08-27, más tarde el mismo día)
 1. Abrir cualquier inventario de la lista
 
 **Esperado:** carga el resumen. **No** aparece «No se pudieron cargar los
@@ -1238,19 +1311,54 @@ datos» con un texto de `Validation error of type FieldUndefined`.
 > tres campos que el central no tiene. Con uno solo que sobre, el central
 > rechaza la consulta **entera** y la pantalla no muestra nada.
 
-### 19.3 · Resumen del conteo
+**Reproducido tal cual primero**, el 2026-08-27 por la mañana, al abrir la
+toma #2334: pantalla completa de error, `Validation error of type
+FieldUndefined: Field 'lote' in type 'InventarioProductoItem' is undefined @
+'inventario/inventarioProductoList/inventarioProductoItemList/lote'`.
+
+No era un campo viejo sin limpiar — era el campo **nuevo** de PR #26 (conteo
+por lote, `inventarioPorIdQuery` en
+`src/app/graphql/inventario/graphql-query.ts:43`), pedido sin chequear si el
+central de destino tenía la migración `V203.5`
+(`V203.5__add_lote_to_inventario_producto_item.sql`). El branch de backend
+pareado, `claude/recepcion-numero-lote-3tfwat`, no estaba mergeado a
+`develop` del central en ese momento — verificado con
+`git merge-base --is-ancestor`.
+
+**Se mergeó esa mitad de backend a `develop` del central el mismo día**, y al
+reabrir la toma #2334 el detalle **cargó sin error**: estado «Concluido»,
+sucursal SUC. CENTRAL, 1 zona concluida, 2 ítems contados, 2 revisados, 2 con
+diferencia. Confirmado también con `git merge-base --is-ancestor` sobre
+`origin/develop` del central tras el merge.
+
+### 19.3 · Resumen del conteo — ✅ PASÓ (retest)
 1. Abrir uno con ítems contados
 
 **Esperado:** zonas, concluidas, ítems contados, revisados, con diferencia y
 **diferencia total con signo** — `+` sobrante, `−` faltante. Ya no hay línea
 «Arrastrados»: el central no guarda de dónde se copió un ítem.
 
-### 19.4 · Una card por zona
+La toma #2334 mostró Zonas: 1, Concluidas: 1, Ítems contados: 2, Revisados:
+2, Con diferencia: 2, Diferencia total: **+11** (con signo). Sin línea
+«Arrastrados».
+
+### 19.4 · Una card por zona — ✅ PASÓ (retest)
 1. Mirar la lista de abajo
 
 **Esperado:** el título de cada card es la **zona** y abajo el sector — no un
 nombre de producto ni la palabra «Producto» repetida. Cada una con su
 diferencia al costado, en rojo si es negativa, y al pie `N de M contados`.
+
+La card mostró título «b1» (zona), subtítulo «estante b» (sector), `+11` al
+costado y «2 de 2 contados · Concluido» al pie. Al ser diferencia positiva no
+se pudo confirmar el color rojo para el caso negativo.
+
+⚠️ **Bloques 39-47 siguen sin poder probarse en su mayoría**: la toma #2334
+—la única alcanzable en alpha— quedó **Concluida** (`Fin: 27/08/2026 13:51`)
+antes de este retest, probablemente por trabajo real de otra persona o del
+propio usuario. Los bloques que necesitan una toma **abierta** con zonas
+activas (conteo por lote, agregar producto, concluir zona, etc.) siguen
+necesitando que alguien abra una toma nueva de prueba.
 
 ### 19.5 · Finalizar
 1. En un inventario **Abierto**, *Finalizar inventario*
@@ -3618,7 +3726,7 @@ la pantalla algo que el central no borró.
 
 ---
 
-## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)*
+## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)* — ⚠️ **7/17, y un hallazgo crítico** (Claude en Chrome + DB directa, alpha, usuario MAURO, 2026-08-27)
 
 **Por qué está acá:** un producto con control de lote entra al conteo **como
 cualquier otro** —un renglón—, pero **no se puede contar hasta que tenga lote**:
@@ -3629,16 +3737,71 @@ sucursales.
 
 **Necesita:**
 - Un central con la migración **`V203.5`** (`inventario_producto_item.lote_id`).
-  Sin ella falla al guardar el renglón.
-- Un producto con **`lote = true`**. En `bodega3` hay **3**; el flag se marca
-  desde el ABM de producto del escritorio.
-- Una toma **abierta** en una sucursal con depósito. El teléfono real.
+  ✅ **Resuelto el 2026-08-27**: la mitad de backend
+  (`claude/recepcion-numero-lote-3tfwat`) ya está mergeada a `develop` del
+  central, y el detalle de inventario contra alpha carga sin el error
+  `FieldUndefined` (ver 19.2).
+- Un producto con **`lote = true`**. En `bodega3` hay **3**; en la base de
+  `alpha` (`localhost:5553`, consultada directo por SQL) hay exactamente
+  **2**: `BANES FORTE` (id 5) y `ACTOCEF 500 10 COMPRIMIDO DE 500` (id 1). Se
+  usó `BANES FORTE` para esta pasada.
+- Una toma **abierta** en una sucursal con depósito. **La #2334 se concluyó**
+  durante el día — se abrió una toma nueva de prueba (**#2335**, SUC. CENTRAL,
+  zona B2) para este bloque y **se canceló al terminar** (39.4b: "Cancelar
+  toma" desde el menú ⋮ del detalle — confirma que el stock no se toca).
 
 ⚠️ **Los puntos 47.11, 47.12 y 47.13 tocan datos que ve todo el mundo.** El lote
-que se cree y la fecha que se corrija valen para todas las sucursales: usar un
-producto de prueba, no uno que esté vendiéndose.
+que se cree y la fecha que se corrija valen para todas las sucursales: se usó
+un lote de prueba con nombre identificable (`CLAUDE-TEST-*`) para no chocar
+con datos reales — aunque, como se ve abajo, ninguno llegó a crearse.
 
-### 47.1 · Un producto con lote entra como cualquier otro
+### 🔴 Hallazgo crítico: `crearLote` no existe en el schema de GraphQL
+
+Bloquea **47.11, 47.12, 47.14, 47.15, 47.16, 47.17** enteros (todo lo que
+depende de crear o corregir un lote desde la app).
+
+El PR de backend (`ab0b0475`, "conteo por lote y alta/correccion de fechas
+del lote") agregó `LoteService.crearLote()` y
+`LoteService.actualizarFechasLote()` como métodos de servicio Java —pero
+**nunca los expuso como mutation de GraphQL**. Verificado con:
+
+```
+grep -rn "crearLote\|actualizarFechasLote" src/main/java/com/franco/dev/graphql/
+```
+
+El único resultado es `LoteDEGraphQL.java:73`, un `crearLote()` **sin
+argumentos**, completamente distinto: crea un lote de **Documento Electrónico
+para SIFEN** (facturación electrónica), no un lote de producto. Como
+GraphQL resuelve por nombre de campo, la mutation que manda la PWA
+(`crearLote(productoId, numeroLote, fechaVencimiento, fechaRetiro,
+observacion, usuarioId)`) choca contra ese mutation de SIFEN y el central
+devuelve seis errores de validación, uno por argumento:
+
+```json
+{"errors":[
+  {"message":"Validation error of type UnknownArgument: Unknown field argument productoId @ 'crearLote'"},
+  {"message":"Validation error of type UnknownArgument: Unknown field argument numeroLote @ 'crearLote'"},
+  {"message":"Validation error of type UnknownArgument: Unknown field argument fechaVencimiento @ 'crearLote'"},
+  {"message":"Validation error of type UnknownArgument: Unknown field argument fechaRetiro @ 'crearLote'"},
+  {"message":"Validation error of type UnknownArgument: Unknown field argument observacion @ 'crearLote'"},
+  ...
+]}
+```
+
+Capturado interceptando `XMLHttpRequest` en el navegador (Angular
+`HttpClient` usa XHR, no `fetch` — un monkeypatch de `fetch` no lo detecta).
+Confirmado también contra la base: después de tres intentos de "Crear nuevo
+lote" (`CLAUDE-TEST-1/2/3/4`), `SELECT * FROM operaciones.lote WHERE
+producto_id = 5` sigue mostrando solo el lote `5555` que ya existía — la
+app responde con un toast de error pero ninguna fila nueva se crea.
+
+**A diferencia de `crearLote`**, `buscarLotesDeProducto` y `stockPorLote` sí
+funcionan (viven en `TransferenciaItemGraphQL.java` y
+`MovimientoStockLoteGraphQL.java`, reusados de la función de transferencias)
+— por eso 47.3-47.6 y 47.9 pasan sin problema: todo lo que **lee** lotes
+anda, todo lo que **crea o corrige** un lote está roto.
+
+### 47.1 · Un producto con lote entra como cualquier otro — ✅ PASÓ
 
 1. Entrá a la zona, tocá **Agregar producto** y elegí el producto con lote.
 
@@ -3646,14 +3809,20 @@ producto de prueba, no uno que esté vendiéndose.
 **«Sin lote»** en ámbar antes de la presentación, y *Sistema* muestra la
 existencia del producto.
 
-### 47.2 · Sin lote no se puede contar
+Confirmado exacto: un renglón «BANES FORTE», cabecera «Sin lote» en ámbar,
+`Sistema: -5,00` (la existencia real del producto, negativa en este caso).
+
+### 47.2 · Sin lote no se puede contar — ✅ PASÓ
 
 1. Desplegá ese renglón.
 
 **Esperado:** el campo *Contado* está **deshabilitado**. Debajo hay un recuadro
 punteado que explica por qué, con dos botones: **Buscar lote** y **Crear lote**.
 
-### 47.3 · Elegir un lote existente completa el renglón
+Confirmado exacto, con el texto "...control de lote. Elegí o creá el lote
+para poder contarlo."
+
+### 47.3 · Elegir un lote existente completa el renglón — ✅ PASÓ
 
 1. Menú **⋮ → Agregar lote** (o el botón *Buscar lote*).
 2. Elegí uno de la lista.
@@ -3661,7 +3830,9 @@ punteado que explica por qué, con dos botones: **Buscar lote** y **Crear lote**
 **Esperado:** el renglón **sigue siendo uno** —no se agrega otro—, la cabecera
 pasa a decir `Lote <número>` y el campo *Contado* se habilita.
 
-### 47.4 · El «Sistema» pasa a ser el del lote
+Confirmado: cabecera pasó a «Lote 5555» y el campo *Contado* se habilitó.
+
+### 47.4 · El «Sistema» pasa a ser el del lote — ✅ PASÓ
 
 1. Mirá el número de *Sistema* antes y después de asignar el lote.
 
@@ -3669,7 +3840,10 @@ pasa a decir `Lote <número>` y el campo *Contado* se habilita.
 sigue mostrando el total del producto, anotalo: el renglón mostraría un faltante
 que no existe.
 
-### 47.5 · Buscar por parte del número, en minúsculas
+Confirmado: pasó de `Sistema: -5,00` (producto) a `Sistema: 0,00` (saldo del
+lote 5555, que en la base tiene saldo cero).
+
+### 47.5 · Buscar por parte del número, en minúsculas — ⚠️ PARCIAL
 
 1. En el buscador de lotes escribí `l-20` (o el fragmento que corresponda).
 
@@ -3677,7 +3851,12 @@ que no existe.
 normalización la hace el central. Los lotes que **ya están en la zona** salen en
 gris diciendo «ya está», no desaparecen de la lista.
 
-### 47.6 · Un segundo lote abre un renglón nuevo
+Se probó buscar `55` sobre el lote `5555` — encuentra por fragmento
+numérico. **No se pudo probar la normalización de mayúsculas/minúsculas**:
+el único lote de prueba disponible (`5555`) no tiene letras. Falta repetir
+con un lote tipo `L-2026-88`.
+
+### 47.6 · Un segundo lote abre un renglón nuevo — ⚠️ NO SE PUDO CONFIRMAR (bloqueado por el hallazgo crítico)
 
 1. En un renglón que **ya tiene** lote, menú **⋮ → Agregar otro lote**.
 2. Elegí un lote distinto.
@@ -3686,14 +3865,19 @@ gris diciendo «ya está», no desaparecen de la lista.
 intacto con lo que ya se contó**. Es cómo se cuentan dos lotes del mismo
 producto en la misma zona.
 
-### 47.7 · El menú no aparece en productos sin lote
+El menú **sí** ofrece «Agregar otro lote» además de «Crear nuevo lote» y
+«Quitar del conteo» (correcto), pero como el único lote del producto ya
+estaba asignado al renglón, no había un segundo lote *existente* para elegir
+— y crear uno nuevo para probarlo cae en el hallazgo crítico de arriba.
+
+### 47.7 · El menú no aparece en productos sin lote — sin probar
 
 1. Abrí el menú ⋮ de un producto común.
 
 **Esperado:** solo **Quitar del conteo**. Nada de lotes. **Es la regresión que
 más importa**: son casi todos los productos.
 
-### 47.8 · Un producto sin lote no cambia en nada
+### 47.8 · Un producto sin lote no cambia en nada — sin probar
 
 1. Agregá y contá un producto común.
 
@@ -3701,14 +3885,19 @@ más importa**: son casi todos los productos.
 *Fecha de retiro*, y la caja **«Anterior … usar»** sigue apareciendo como
 siempre.
 
-### 47.9 · Con lote no se sugiere ningún vencimiento
+### 47.9 · Con lote no se sugiere ningún vencimiento — ✅ PASÓ
 
 1. Desplegá un renglón con lote de un producto con compras viejas.
 
 **Esperado:** **no** aparece la caja «Anterior … usar». El campo *Vencimiento del
 lote* trae la fecha del lote, no viene vacío.
 
-### 47.10 · El lote bloqueado se cuenta igual
+Confirmado: al asignar el lote 5555, desapareció la caja «Anterior... usar»
+y el campo *Vencimiento del lote* mostró `30/06/2027` (la fecha real del
+lote), con *Fecha de retiro* en `28/06/2027` y el aviso "Las dos fechas son
+del lote 5555 y valen para todas las sucursales."
+
+### 47.10 · El lote bloqueado se cuenta igual — sin probar
 
 1. Desde el escritorio, poné un lote en **CUARENTENA** o **BLOQUEADO** y
    asignalo a un renglón.
@@ -3716,7 +3905,7 @@ lote* trae la fecha del lote, no viene vacío.
 **Esperado:** se puede contar normalmente, y abajo aclara que no se vende.
 Bloquear saca del mostrador, no de la góndola.
 
-### 47.11 · Crear un lote que el sistema no tenía
+### 47.11 · Crear un lote que el sistema no tenía — ❌ **FALLÓ** (ver hallazgo crítico)
 
 1. Menú **⋮ → Crear nuevo lote**.
 2. Cargá el número y el vencimiento del envase. Dejá la fecha de retiro **vacía**.
@@ -3727,7 +3916,13 @@ vencimiento. Al crear, el renglón queda con ese lote, `Sistema: 0` y el conteo
 habilitado. Verificá en *Stock por lotes* del escritorio que el lote existe con
 saldo cero.
 
-### 47.12 · Crear un lote con un número que ya existe
+El diálogo en sí es correcto (no pide cantidad, avisa "Sin cargarla, se
+calcula 90 días antes del vencimiento"), pero al tocar **Crear** el central
+rechaza la mutation con `Unknown field argument` para los seis argumentos —
+no se crea ningún lote. Repetido 4 veces con nombres distintos
+(`CLAUDE-TEST-1/2/3/4`), confirmado contra la base que ninguno persiste.
+
+### 47.12 · Crear un lote con un número que ya existe — sin probar (bloqueado)
 
 1. Repetí 47.11 con el número de un lote que ya está.
 
@@ -3735,7 +3930,7 @@ saldo cero.
 atado a él, con su saldo real. La unicidad es (producto, número) y ese lote es el
 que está en la mano.
 
-### 47.13 · Cargar y corregir la fecha de retiro
+### 47.13 · Cargar y corregir la fecha de retiro — sin probar (bloqueado)
 
 1. En un renglón con lote, cargá o cambiá la **Fecha de retiro** y tocá
    **Guardar conteo**. Volvé a entrar a la zona.
@@ -3743,13 +3938,17 @@ que está en la mano.
 **Esperado:** la fecha quedó. Debajo de los campos avisa que las dos fechas son
 del lote y valen para todas las sucursales. Confirmá desde el escritorio.
 
-### 47.14 · Corregir la fecha sin contar nada
+`actualizarFechasLote` tiene el mismo problema que `crearLote`: no está
+expuesta como mutation de GraphQL. No se intentó ejecutar este caso para no
+gastar otro ciclo contra un endpoint que ya se sabe que no existe.
+
+### 47.14 · Corregir la fecha sin contar nada — sin probar (bloqueado, ver hallazgo crítico)
 
 1. Cambiá **solo** la fecha de retiro, sin escribir cantidad, y guardá.
 
 **Esperado:** guarda. **No** dice «Escribí al menos una cantidad contada».
 
-### 47.15 · Retiro posterior al vencimiento
+### 47.15 · Retiro posterior al vencimiento — sin probar (bloqueado, ver hallazgo crítico)
 
 1. Poné una fecha de retiro **posterior** al vencimiento y guardá.
 
@@ -3757,7 +3956,7 @@ del lote y valen para todas las sucursales. Confirmá desde el escritorio.
 posterior al vencimiento del lote.» y ese texto se ve tal cual. El valor **queda
 en el campo** para corregirlo.
 
-### 47.16 · El mismo lote dos veces en la zona
+### 47.16 · El mismo lote dos veces en la zona — sin probar (bloqueado, ver hallazgo crítico)
 
 1. Intentá agregar un lote que la zona ya tiene, entrando por **Agregar
    producto** en vez de por el menú ⋮.
@@ -3765,7 +3964,7 @@ en el campo** para corregirlo.
 **Esperado:** el central lo rechaza nombrando el lote: «El lote L-… de esa
 presentación ya está en la zona …».
 
-### 47.17 · Dos lotes distintos con el mismo vencimiento
+### 47.17 · Dos lotes distintos con el mismo vencimiento — sin probar (bloqueado, ver hallazgo crítico)
 
 1. Contá dos lotes del mismo producto que venzan el mismo día.
 
@@ -3926,11 +4125,11 @@ sobre gris.
 | 12 · Buscar producto | 9 | | | |
 | 13 · Devoluciones | 7 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
-| 15 · Marcación | 9 | | | |
-| 16 · Notificaciones | 7 | | | |
+| 15 · Marcación | 9 | 5 | | |
+| 16 · Notificaciones | 7 | 4 | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
-| 19 · Inventario | 5 | | | |
+| 19 · Inventario | 5 | 4 | | |
 | 20 · Recepción de mercadería | 29 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
 | 22 · Crédito en Inicio | 6 | | | |
@@ -3958,7 +4157,7 @@ sobre gris.
 | 44 · Lista del conteo y campo de fecha | 15 | | | |
 | 45 · Renglones repetidos en el conteo | 6 | | | |
 | 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
-| 47 · Contar por lote y la fecha de retiro | 32 | | | |
+| 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | **Total** | **391** | | | |
 
 ### Los cinco que más importan

@@ -3241,7 +3241,16 @@ por presentación.
 **Esperado:** no está el botón *Agregar producto*. El alcance de una toma
 cerrada ya es un hecho histórico.
 
-### 42.9 · Sin conexión no agrega con un cero inventado
+### 42.9 · Contando un renglón, el botón no está
+
+1. Con la toma abierta, entrá a una zona con productos y **desplegá una card**.
+
+**Esperado:** desaparece *Agregar producto* y abajo queda solo *Guardar
+conteo*. Al **colapsar** la card vuelve a aparecer. Con la card abierta el
+botón compite con el de guardar y se lee como si fuera el paso siguiente del
+conteo.
+
+### 42.10 · Sin conexión no agrega con un cero inventado
 
 1. Cortá la conexión y tocá *Agregar producto*, eligiendo algo.
 
@@ -3306,8 +3315,9 @@ vencimiento conocido, que es otra cosa.
 1. Dejá una transferencia en camino a la sucursal de la toma, sin recibir.
 2. Abrí el detalle del inventario.
 
-**Esperado:** franja de aviso arriba con cuántas hay y por qué importa. Tocarla
-lleva a transferencias.
+**Esperado:** franja de aviso arriba: «N transferencias sin recibir. Continuar
+el conteo dejará el stock mal en la sucursal». Con una sola dice
+«1 transferencia», en singular. Tocarla lleva a transferencias.
 
 ### 43.8 · También ve las que ya llegaron
 
@@ -3745,7 +3755,22 @@ que se cree y la fecha que se corrija valen para todas las sucursales: se usó
 un lote de prueba con nombre identificable (`CLAUDE-TEST-*`) para no chocar
 con datos reales — aunque, como se ve abajo, ninguno llegó a crearse.
 
-### 🔴 Hallazgo crítico: `crearLote` no existe en el schema de GraphQL
+### 🔴 Hallazgo crítico: `crearLote` no existe en el schema de GraphQL — ✅ **arreglado el 2026-08-27, falta desplegar**
+
+> **Causa y arreglo.** La mutation **sí estaba escrita** en el central
+> (`MovimientoStockLoteGraphQL.crearLote` +
+> `operaciones/movimiento-stock-lote.graphqls`), pero **compartía nombre** con el
+> `crearLote()` de SIFEN. GraphQL fusiona los `extend type Mutation` por nombre
+> de campo: ganaba el de SIFEN —sin argumentos y devolviendo `LoteDE`—, el
+> central arrancaba sin quejarse y la app recibía un `UnknownArgument` por cada
+> argumento. Se renombró a **`crearLoteProducto`** en el central y en la PWA, y
+> se sumó `SchemaSinCamposDuplicadosTest` para que un choque así falle en el CI
+> en vez de en el mostrador.
+>
+> ⚠️ **Los casos de abajo siguen sin probar hasta que alpha corra un central con
+> el renombre.** La PWA con este cambio **no crea lotes contra un central
+> viejo** —y tampoco los creaba antes—, así que hay que desplegar las dos
+> mitades.
 
 Bloquea **47.11, 47.12, 47.14, 47.15, 47.16, 47.17** enteros (todo lo que
 depende de crear o corregir un lote desde la app).
@@ -3928,8 +3953,9 @@ que está en la mano.
 **Esperado:** la fecha quedó. Debajo de los campos avisa que las dos fechas son
 del lote y valen para todas las sucursales. Confirmá desde el escritorio.
 
-`actualizarFechasLote` tiene el mismo problema que `crearLote`: no está
-expuesta como mutation de GraphQL. No se intentó ejecutar este caso para no
+`actualizarFechasLote` se dio por bloqueada junto con `crearLote`, pero **no
+comparte nombre con nada**: está declarada una sola vez en el schema, así que
+debería resolver. Queda por probar contra un central desplegado. No se intentó ejecutar este caso para no
 gastar otro ciclo contra un endpoint que ya se sabe que no existe.
 
 ### 47.14 · Corregir la fecha sin contar nada — sin probar (bloqueado, ver hallazgo crítico)
@@ -4142,13 +4168,13 @@ sobre gris.
 | 39 · Abrir una toma de inventario | 10 | | | |
 | 40 · Zonas de la toma | 11 | | | |
 | 41 · Lo contado llega al stock | 6 | | | |
-| 42 · Agregar un producto al conteo | 9 | | | |
+| 42 · Agregar un producto al conteo | 10 | | | |
 | 43 · Vencimiento sugerido y transferencias | 9 | | | |
 | 44 · Lista del conteo y campo de fecha | 15 | | | |
 | 45 · Renglones repetidos en el conteo | 6 | | | |
 | 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
-| **Total** | **390** | | | |
+| **Total** | **391** | | | |
 
 ### Los cinco que más importan
 

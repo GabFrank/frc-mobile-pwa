@@ -228,8 +228,12 @@ signo**: `+` es sobrante y `−` faltante.
 
 Con la toma **abierta**, el detalle muestra una franja si hay transferencias en
 camino a esa sucursal que nadie recibió todavía, con un enlace a la lista
-filtrada. Contar una sucursal con mercadería sin recibir **da diferencias que
-no son diferencias**.
+filtrada.
+
+El texto **dice la consecuencia**: «N transferencias sin recibir. Continuar el
+conteo dejará el stock mal en la sucursal». La versión anterior cerraba con «da
+diferencias que no son diferencias», y esa frase no se entiende en el
+mostrador: nombra el síntoma con una paradoja en vez de decir lo que pasa.
 
 ⚠️ **Se filtra por estado, no por etapa, y eso corrige al repo anterior.**
 `frc-mobile` usa `etapa: TRANSPORTE_EN_CAMINO`, y una transferencia en tránsito
@@ -445,6 +449,12 @@ la misma condición que habilita *Agregar producto*.
 > 2025-10-16— rompía además **Guardar conteo**: el vencimiento sugerido propone
 > la misma fecha para la misma presentación en todas las zonas, así que contar
 > un producto en dos zonas y guardar hacía fallar el segundo.
+
+**El botón se esconde mientras se cuenta.** Con una card desplegada el
+operador está contando ese renglón, y *Agregar producto* justo arriba de
+*Guardar conteo* se lee como si fuera el paso siguiente. Se muestra solo con
+todo colapsado (`mostrarAgregar` = toma abierta **y** ningún ítem desplegado);
+`puedeAgregar` sigue diciendo si se **permite**, que es otra pregunta.
 
 *Agregar producto* abre `frc-buscador-producto-dialog`, el mismo buscador de
 la pestaña Buscar: descripción, código, cámara y códigos de balanza. Recibe la

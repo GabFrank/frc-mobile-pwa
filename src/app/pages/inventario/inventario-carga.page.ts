@@ -175,7 +175,12 @@ const ESTADOS: OpcionSeleccion[] = [
       -->
       @if (!cargando() && !error()) {
         <div acciones>
-          @if (puedeAgregar()) {
+          <!--
+            Con una card abierta el botón desaparece: mientras se cuenta un
+            renglón, «Agregar producto» compite con «Guardar conteo» y se lee
+            como si fuera el paso siguiente del conteo. Vuelve al colapsar.
+          -->
+          @if (mostrarAgregar()) {
             <button matButton [disabled]="agregando() || guardando()" (click)="agregarProducto()">
               {{ agregando() ? 'Agregando…' : 'Agregar producto' }}
             </button>
@@ -589,6 +594,15 @@ export class InventarioCargaPage {
   readonly puedeAgregar = computed(
     () => String(this.inventario()?.estado ?? '').toUpperCase() === 'ABIERTO',
   );
+
+  /**
+   * `puedeAgregar` dice si **se permite**; esto, si **corresponde mostrarlo**.
+   *
+   * Con un renglón desplegado el operador está contando ese producto, y el
+   * botón ahí arriba de «Guardar conteo» confunde: parece parte de lo que está
+   * haciendo. Se oculta mientras dura la edición y vuelve al colapsar la card.
+   */
+  readonly mostrarAgregar = computed(() => this.puedeAgregar() && this.abiertoId() === null);
 
   /**
    * Sumar a la zona una presentación que la toma no incluía.

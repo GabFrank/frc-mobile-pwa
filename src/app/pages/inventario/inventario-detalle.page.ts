@@ -127,8 +127,8 @@ import { InventarioService } from './inventario.service';
       @if (transferenciasPendientes() > 0) {
         <!--
           Fijo mientras el problema exista, no un toast de seis segundos como
-          en el repo anterior: contar una sucursal con mercadería sin recibir
-          da diferencias que no son diferencias.
+          en el repo anterior: esa mercadería puede estar en el depósito y
+          todavía no sumar al stock, así que el conteo deja mal a la sucursal.
         -->
         <button type="button" class="aviso" (click)="verTransferencias()">
           <frc-icono nombre="camion" [tamano]="20" />
@@ -316,10 +316,16 @@ export class InventarioDetallePage {
   readonly transferenciasPendientes = signal(0);
 
 
+  /**
+   * Dice la consecuencia, en criollo. La versión anterior cerraba con «da
+   * diferencias que no son diferencias»: en el mostrador esa frase no se
+   * entiende, porque nombra el síntoma con una paradoja en vez de decir lo
+   * que pasa — el stock de la sucursal queda mal.
+   */
   readonly textoTransferencias = computed(() => {
     const n = this.transferenciasPendientes();
     const cuantas = n === 1 ? '1 transferencia' : `${n} transferencias`;
-    return `${cuantas} sin recibir en esta sucursal. Contar antes de recibirlas da diferencias que no son diferencias.`;
+    return `${cuantas} sin recibir. Continuar el conteo dejará el stock mal en la sucursal.`;
   });
 
   constructor() {

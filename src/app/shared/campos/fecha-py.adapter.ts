@@ -1,4 +1,4 @@
-import { Provider } from '@angular/core';
+import { Injectable, Provider } from '@angular/core';
 import {
   DateAdapter,
   MAT_DATE_FORMATS,
@@ -21,7 +21,13 @@ import { formatearFechaPy, parsearFechaPy } from './fecha-py';
  * —nombres de meses, primer día de la semana— lo resuelve `NativeDateAdapter`
  * con el locale de la app, y reimplementarlo sería traer un problema
  * resuelto.
+ *
+ * ⚠️ **El `@Injectable()` es obligatorio acá.** Heredar el decorador de
+ * `NativeDateAdapter` alcanzaba para funcionar, pero Angular lo avisa como
+ * deprecado en cada instanciación —una línea de consola por cada campo de
+ * fecha que se abre— y va a ser error en una versión futura.
  */
+@Injectable()
 export class FechaPyDateAdapter extends NativeDateAdapter {
   override parse(valor: unknown): Date | null {
     if (valor instanceof Date) {

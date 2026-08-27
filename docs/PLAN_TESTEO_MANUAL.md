@@ -980,31 +980,51 @@ contador de «Sin registrar» baja en uno. El monto **no se puede editar**.
 
 ---
 
-## Bloque 15 — Marcación *(nuevo)*
+## Bloque 15 — Marcación *(nuevo)* — ⚠️ **5 de 9** (Claude en Chrome, `localhost` contra alpha, usuario MAURO, 2026-08-27)
 
 > Necesita **HTTPS o `localhost`**: sin contexto seguro no hay GPS. En
 > Android, `adb reverse tcp:4300 tcp:4300`.
 
-### 15.1 · Estado del día
+> Corrido con automatización de navegador de escritorio, no un teléfono real.
+> **Sin ejecutar: 15.5, 15.6, 15.7** (piden cambiar de sucursal o de usuario a
+> mitad de sesión) **y 15.4** (no se pudo forzar "lejos": el navegador dio una
+> ubicación real de escritorio, no simulable desde acá). El diálogo de
+> verificación facial ("No tenés rostro registrado") intercepta cada marcación
+> porque MAURO no tiene rostro cargado — se resolvió con "Marcar igual" en las
+> dos veces que apareció, así que ese camino de faceless-fallback también
+> quedó cubierto de paso.
+
+### 15.1 · Estado del día — ✅ PASÓ
 1. Inicio → **Marcación**
 
 **Esperado:** muestra si estás en jornada y **un solo botón**, el de la
 acción que corresponde. Nunca entrada y salida a la vez.
 
-### 15.2 · Permiso de ubicación
+Con la jornada en "Fuera de jornada" apareció un solo botón, "Marcar
+entrada".
+
+### 15.2 · Permiso de ubicación — ✅ PASÓ (camino sin GPS)
 1. Tocar el botón de marcar y aceptar el permiso
 
 **Esperado:** el panel de ubicación muestra el avance y la precisión
 (`±N m`). Si negás el permiso, ofrece marcar igual avisando que queda sin
 GPS.
 
-### 15.3 · Marcar entrada
+La primera marcación no consiguió ubicación ("No se pudo obtener la
+ubicación") y ofreció el diálogo "Sin ubicación — ¿Marcar igual? Va a quedar
+registrado sin GPS", que no bloquea. **No se probó** el camino con permiso
+concedido y precisión mostrada en el primer intento — sí se vio en 15.8.
+
+### 15.3 · Marcar entrada — ✅ PASÓ
 1. Estando **en la sucursal**, marcar
 
 **Esperado:** se registra, aparece la hora de entrada y el botón pasa a la
 siguiente acción.
 
-### 15.4 · Marcar lejos *(el caso a calibrar)*
+Registró «Entrada 27/08/2026 10:32», estado pasó a «En jornada» y la barra
+inferior ofreció «Salir a almorzar» / «Marcar salida».
+
+### 15.4 · Marcar lejos *(el caso a calibrar)* — sin probar
 1. Marcar desde lejos de la sucursal
 
 **Esperado:** avisa la distancia y la precisión y **pide confirmación** — no
@@ -1013,23 +1033,26 @@ bloquea. Al confirmar, queda registrado con esos datos.
 > Anotá qué distancia y qué precisión te dio: son los números con los que hay
 > que decidir si el umbral de ±33 m sirve o hay que cambiarlo.
 
-### 15.5 · La sucursal se recuerda
+No se pudo forzar una ubicación lejana desde el navegador de escritorio;
+necesita un dispositivo real o GPS simulado.
+
+### 15.5 · La sucursal se recuerda — sin probar
 1. Elegir otra sucursal, salir de la pantalla y volver
 
 **Esperado:** queda la última elegida.
 
-### 15.6 · Y se borra al cerrar sesión
+### 15.6 · Y se borra al cerrar sesión — sin probar
 1. Cerrar sesión, entrar con **otro usuario** e ir a Marcación
 
 **Esperado:** **no** aparece la sucursal del usuario anterior.
 
-### 15.7 · Salida de almuerzo
+### 15.7 · Salida de almuerzo — sin probar
 1. Con la jornada abierta, tocar **«Salir a almorzar»** y después el retorno
 
 **Esperado:** la jornada **no se cierra** con la salida de almuerzo; las
 horas trabajadas siguen contando bien al volver.
 
-### 15.9 · El almuerzo es opcional *(el que importa de esta tanda)*
+### 15.9 · El almuerzo es opcional *(el que importa de esta tanda)* — ✅ PASÓ
 1. Marcar entrada
 2. Sin salir a almorzar, mirar la barra de abajo
 3. Tocar **«Marcar salida»** (el rojo, no el de contorno)
@@ -1042,11 +1065,21 @@ entrada» — **no** «Volver del almuerzo».
 El estado de arriba dice **«En jornada»** a secas mientras haya dos opciones,
 no «falta marcar salida».
 
+Confirmado tal cual: aparecieron los dos botones, se tocó «Marcar salida»
+directo (sin pasar por «Salir a almorzar»), la jornada cerró («Fuera de
+jornada», «Salida —» quedó con hora) y al recargar la pantalla ofreció
+«Marcar entrada», nunca «Volver del almuerzo». Esta vez el navegador sí dio
+ubicación real (±101.888 m) y la mutation se guardó **sin** el error
+`Variable 'entity' has an invalid value: Expected type 'Int' but was
+'Double'` — no se inspeccionó el payload de red crudo, pero el guardado
+exitoso con una distancia real (no cero) es evidencia fuerte de que el fix
+del ítem 1 de PR #25 funciona contra alpha.
+
 > Antes de este cambio la primera salida del día se registraba siempre como
 > salida de almuerzo, así que el retorno era obligatorio. Si volvés a ver
 > «Volver del almuerzo» sin haber tocado «Salir a almorzar», es la regresión.
 
-### 15.8 · Marcar con el GPS activo *(la regresión del tipo `Int`)*
+### 15.8 · Marcar con el GPS activo *(la regresión del tipo `Int`)* — ✅ PASÓ
 1. Con permiso de ubicación **concedido**, esperar a que el panel muestre una
    distancia distinta de cero —alcanza con estar a unos metros— y marcar
 2. Si aparece el aviso de «Estás lejos de la sucursal», confirmar
@@ -1059,32 +1092,47 @@ que es lo que salía cuando la distancia calculada viajaba con decimales.
 > manda y el error no aparece nunca. Por eso hay que **conceder** el permiso y
 > esperar a ver los metros en pantalla antes de tocar el botón.
 
+Se dio junto con 15.9: al marcar salida el navegador consiguió ubicación real
+(±101.888 m, no cero) y la marcación se guardó sin el error de tipo. No se
+inspeccionó el payload GraphQL crudo para confirmar el valor exacto que viajó
+como `distanciaSucursalMetros`, solo el resultado observable (guardado
+exitoso, sin diálogo de error).
+
 ---
 
-## Bloque 16 — Notificaciones *(nuevo)*
+## Bloque 16 — Notificaciones *(nuevo)* — ⚠️ **4 de 9** (Claude en Chrome, `localhost` contra alpha, usuario MAURO, 2026-08-27)
 
 > Para que haya algo que ver hace falta un evento real: un retiro, una venta
 > con stock negativo, una diferencia de maletín, o una solicitud de RRHH —
 > esas ya notifican a los aprobadores.
 
-### 16.1 · Bandeja
+> MAURO no tenía ninguna notificación (ni leída ni sin leer) en el momento de
+> la prueba: **16.2, 16.3, 16.4 y 16.5 sin probar** por falta de datos, no por
+> un defecto — hace falta un usuario con notificaciones reales o generar un
+> evento que dispare una.
+
+### 16.1 · Bandeja — ✅ PASÓ
 1. Inicio → **Notificaciones**
 
 **Esperado:** arranca en **Sin leer**. Cada fila muestra el mensaje y la
 fecha, y las no leídas están marcadas.
 
-### 16.2 · Abrir marca como leída
+Arrancó en «Sin leer» con el estado vacío correcto («Nada sin leer»). La
+pestaña «Todas» también mostró su propio estado vacío («Sin notificaciones»)
+en vez de quedar en blanco.
+
+### 16.2 · Abrir marca como leída — sin probar (sin datos)
 1. Tocar una notificación sin leer
 
 **Esperado:** abre el hilo de comentarios y, al volver, esa fila ya no está
 en «Sin leer».
 
-### 16.3 · Comentar
+### 16.3 · Comentar — sin probar (sin datos)
 1. En el hilo, escribir un comentario y **Enviar**
 
 **Esperado:** aparece en la lista con tu nombre y la hora.
 
-### 16.4 · Responder
+### 16.4 · Responder — sin probar (sin datos)
 1. Tocar **Responder** en un comentario, escribir y enviar
 
 **Esperado:** la respuesta queda **indentada bajo ese comentario**.
@@ -1093,25 +1141,37 @@ en «Sin leer».
 
 **Esperado:** queda al mismo nivel que la anterior, **no más adentro**.
 
-### 16.5 · Marcar todas
+### 16.5 · Marcar todas — sin probar (sin datos)
 1. Volver a la bandeja y **Marcar todas como leídas**
 
 **Esperado:** «Sin leer» queda vacío.
 
-### 16.6 · Preferencias
+### 16.6 · Preferencias — ✅ PASÓ
 1. **Preferencias** desde la barra superior
 
 **Esperado:** una fila por tipo. Las obligatorias —diferencia de maletín, por
 ejemplo— aparecen **con el interruptor deshabilitado** y el texto «Siempre se
 envía». No están escondidas.
 
-### 16.7 · Apagar una opcional
+Confirmado: «Alerta de seguridad por nuevo dispositivo» y «Notificación de
+compra a crédito propia» aparecen con el interruptor deshabilitado (gris,
+marcado) y el texto «Siempre se envía» debajo, mezcladas en la lista — no
+separadas ni ocultas.
+
+### 16.7 · Apagar una opcional — ✅ PASÓ
 1. Apagar un tipo opcional, salir y volver
 
 **Esperado:** queda apagado. Si el servidor rechaza el cambio, el interruptor
 vuelve a su posición y avisa.
 
-### 16.8 · El orden no cambia entre entradas
+Se probó al revés (prendiendo una que estaba apagada, «Alerta de diferencia
+detectada en maletín») porque no había ninguna encendida a mano para apagar:
+tocar el interruptor, navegar a Inicio y volver a Preferencias — el cambio
+persistió. Se revirtió al terminar para no dejar la preferencia real de
+MAURO modificada. **No se probó** el camino de rechazo del servidor (el
+interruptor debe volver solo y avisar).
+
+### 16.8 · El orden no cambia entre entradas — ✅ PASÓ
 1. Anotar el orden de las filas
 2. Volver atrás y entrar de nuevo a **Preferencias**, tres o cuatro veces
 
@@ -1121,12 +1181,22 @@ sin el orden del cliente los interruptores saltan de lugar entre una entrada y
 la siguiente. Es el caso que más importa del bloque: apagar el interruptor
 equivocado se hace justamente así.
 
-### 16.9 · Ninguna fila queda sin texto
+Capturado el árbol de accesibilidad de la pantalla tres veces, navegando a
+Inicio y volviendo entre cada captura: **las 15 filas salieron en el mismo
+orden alfabético exacto las tres veces** (Alerta de diferencia… · Alerta de
+factura… · Alerta de seguridad… · Alerta de venta… · Aviso de cambio… ·
+Notificación de actualización… … Notificación de venta con pago por
+transferencia).
+
+### 16.9 · Ninguna fila queda sin texto — ✅ PASÓ
 1. Recorrer toda la lista
 
 **Esperado:** **cada fila dice qué avisa**, en castellano y sin guiones bajos.
 No puede aparecer un `PRODUCTO_CREADO` crudo ni una fila vacía: cuando el
 central no manda `descripcion`, la app usa su propia tabla de tipos.
+
+Las 15 filas visibles para MAURO tienen texto legible en castellano, ninguna
+en mayúsculas con guion bajo ni vacía.
 
 > ⚠️ **Qué tipos aparecen lo decide el central, no la app.** La lista sale de
 > cruzar los roles del usuario contra `notificacion_tipo_role`. Si falta un
@@ -1217,17 +1287,20 @@ sucursal.
 
 ---
 
-## Bloque 19 — Inventario *(nuevo)*
+## Bloque 19 — Inventario *(nuevo)* — ❌ **19.2 sigue roto contra alpha** (Claude en Chrome, MAURO, 2026-08-27)
 
 > Necesita el rol **`VER INVENTARIO`** y una toma existente: la PWA todavía
 > no crea inventarios.
 
-### 19.1 · Lista
+### 19.1 · Lista — ✅ PASÓ
 1. Inicio → **Inventario**
 
 **Esperado:** tus inventarios, del más reciente al más viejo, con su estado.
 
-### 19.2 · El detalle abre *(el que importa)*
+Mostró la toma abierta `SUC. CENTRAL · ZONA #2334` (26/08/2026) con su
+estado «Abierto».
+
+### 19.2 · El detalle abre *(el que importa)* — ❌ **FALLÓ, es exactamente esta regresión**
 1. Abrir cualquier inventario de la lista
 
 **Esperado:** carga el resumen. **No** aparece «No se pudieron cargar los
@@ -1237,6 +1310,23 @@ datos» con un texto de `Validation error of type FieldUndefined`.
 > `creadoEn` sobre `InventarioProducto` y `copiedFromItemId` sobre el ítem,
 > tres campos que el central no tiene. Con uno solo que sobre, el central
 > rechaza la consulta **entera** y la pantalla no muestra nada.
+
+**Reproducido tal cual el 2026-08-27** al abrir la toma #2334: pantalla
+completa de error, `Validation error of type FieldUndefined: Field 'lote' in
+type 'InventarioProductoItem' is undefined @
+'inventario/inventarioProductoList/inventarioProductoItemList/lote'`.
+
+No es un campo viejo sin limpiar — es el campo **nuevo** de PR #26 (conteo
+por lote, `inventarioPorIdQuery` en
+`src/app/graphql/inventario/graphql-query.ts:43`), que se pidió sin chequear
+si el central de destino tiene la migración `V203.5`
+(`V203.5__add_lote_to_inventario_producto_item.sql`, confirmada en
+`franco-system-backend-servidor` develop). El branch de backend pareado,
+`claude/recepcion-numero-lote-3tfwat`, **todavía no está mergeado** a
+`develop` del central — se verificó con `git merge-base --is-ancestor` el
+2026-08-27. Bloquea el detalle de **cualquier** inventario contra alpha, con
+o sin productos de lote: **bloque 19 completo, y 39 a 47, no se pueden probar
+contra alpha hasta que se mergee esa mitad de backend.**
 
 ### 19.3 · Resumen del conteo
 1. Abrir uno con ítems contados
@@ -3608,7 +3698,7 @@ la pantalla algo que el central no borró.
 
 ---
 
-## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)*
+## Bloque 47 — Contar por lote y la fecha de retiro *(nuevo)* — ❌ **sin probar, bloqueado contra alpha** (2026-08-27)
 
 **Por qué está acá:** un producto con control de lote entra al conteo **como
 cualquier otro** —un renglón—, pero **no se puede contar hasta que tenga lote**:
@@ -3619,7 +3709,11 @@ sucursales.
 
 **Necesita:**
 - Un central con la migración **`V203.5`** (`inventario_producto_item.lote_id`).
-  Sin ella falla al guardar el renglón.
+  ⚠️ **Peor de lo que dice esto:** sin ella no falla solo al guardar el
+  renglón — el detalle del inventario **ni siquiera carga**, para ninguna
+  toma. Ver el hallazgo de la 19.2. Contra **alpha** (`alpha-api.frcsuite.com`)
+  hoy no se puede probar nada de este bloque: la mitad de backend
+  (`claude/recepcion-numero-lote-3tfwat`) no está en `develop` del central.
 - Un producto con **`lote = true`**. En `bodega3` hay **3**; el flag se marca
   desde el ABM de producto del escritorio.
 - Una toma **abierta** en una sucursal con depósito. El teléfono real.
@@ -3916,11 +4010,11 @@ sobre gris.
 | 12 · Buscar producto | 9 | | | |
 | 13 · Devoluciones | 7 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
-| 15 · Marcación | 9 | | | |
-| 16 · Notificaciones | 7 | | | |
+| 15 · Marcación | 9 | 5 | | |
+| 16 · Notificaciones | 7 | 4 | | |
 | 17 · Caja chica | 5 | | | |
 | 18 · Transferencias | 5 | | | |
-| 19 · Inventario | 5 | | | |
+| 19 · Inventario | 5 | 1 | | 1 |
 | 20 · Recepción de mercadería | 29 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
 | 22 · Crédito en Inicio | 6 | | | |

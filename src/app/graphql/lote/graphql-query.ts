@@ -76,6 +76,13 @@ export const buscarLotesDeProductoQuery = gql`
  * ⚠️ **Si el número ya existe para ese producto, el central devuelve el
  * existente en vez de fallar.** La unicidad es `(producto, número)` y ese lote
  * ES el que el operador tiene en la mano.
+ *
+ * ⚠️ **La mutation es `crearLoteProducto`, no `crearLote`.** Ese nombre ya lo
+ * ocupa SIFEN —el lote de documentos electrónicos, sin argumentos— y el
+ * central fusiona los `extend type Mutation` por nombre de campo: ganaba el de
+ * SIFEN y la respuesta era `Unknown field argument productoId @ 'crearLote'`,
+ * uno por argumento. **Necesita un central con el renombre**; contra uno viejo
+ * «Crear nuevo lote» falla.
  */
 export const crearLoteMutation = gql`
   mutation (
@@ -86,7 +93,7 @@ export const crearLoteMutation = gql`
     $observacion: String
     $usuarioId: ID
   ) {
-    data: crearLote(
+    data: crearLoteProducto(
       productoId: $productoId
       numeroLote: $numeroLote
       fechaVencimiento: $fechaVencimiento

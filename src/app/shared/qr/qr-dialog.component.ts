@@ -32,6 +32,15 @@ export interface DatosQr {
  *
  * ⚠️ **`qrcode` entra por `import()` dinámico.** No tiene sentido que pese en
  * el arranque de quien nunca comparte nada.
+ *
+ * ⚠️ **La librería sale de `default`, no de un export con nombre.** `qrcode`
+ * es CommonJS —`main` sin `module` ni `exports`—, así que el bundle de
+ * producción expone un único `export default`. `const { toCanvas } = await
+ * import('qrcode')` compila, typechequea (los `@types` declaran exports con
+ * nombre) y devuelve `undefined` en release. En `ng serve` y en los tests no
+ * se ve porque el pre-bundler de Vite le agrega interop —es la única
+ * dependencia con `needsInterop: true`—, que es exactamente por qué el QR
+ * andaba en local y en ningún canal desplegado.
  */
 @Component({
   selector: 'frc-qr-dialog',
@@ -94,19 +103,24 @@ export class QrDialogComponent {
 
   private async dibujar(): Promise<void> {
     try {
-      const { toCanvas } = await import('qrcode');
+      const { default: QRCode } = await import('qrcode');
       const el = this.lienzo()?.nativeElement;
       if (!el) {
         return;
       }
-      await toCanvas(el, this.datos.codigo, {
+      await QRCode.toCanvas(el, this.datos.codigo, {
         width: 240,
         margin: 1,
         // Corrección media: el QR se lee de una pantalla, a veces con brillo
         // bajo o con el dedo encima de una esquina.
         errorCorrectionLevel: 'M',
       });
-    } catch {
+    } catch (error) {
+      // El cartel de la pantalla es genérico a propósito —al usuario no le
+      // sirve el detalle—, pero sin este log el error queda invisible: así
+      // fue como un `toCanvas` que valía `undefined` en release sobrevivió
+      // cinco días en beta pareciendo «el QR no se genera».
+      console.error('[qr] No se pudo generar el código:', error);
       this.error.set(true);
     }
   }
@@ -120,7 +134,8 @@ export class QrDialogComponent {
     try {
       await navigator.clipboard.writeText(this.datos.codigo);
       this.notificacion.ok('Código copiado.');
-    } catch {
+    } catch (error) {
+      console.warn('[qr] No se pudo copiar el código:', error);
       this.notificacion.warn('No se pudo copiar. Escaneá el código.');
     }
   }

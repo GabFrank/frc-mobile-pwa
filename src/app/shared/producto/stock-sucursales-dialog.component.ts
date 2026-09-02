@@ -10,7 +10,7 @@ import {
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
 import { Producto } from 'src/app/domains/productos/producto.model';
-import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { EstadoErrorComponent } from '../estados-ui/estado-error.component';
 import { SkeletonComponent } from '../estados-ui/skeleton.component';
 
@@ -181,7 +181,8 @@ export class StockSucursalesDialogComponent {
   }
 
   legible(cantidad: number): string {
-    return formatearCantidad(cantidad, Number.isInteger(cantidad) ? 0 : 2);
+    // Sin decimales salvo pesable: ver `formatearExistencia`.
+    return formatearExistencia(cantidad, this.data.producto?.balanza === true);
   }
 
   cerrar(): void {

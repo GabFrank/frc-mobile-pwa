@@ -4216,23 +4216,21 @@ si sale «no se pudo compartir», se está tratando `AbortError` como error.
 ### 48.8 · En el escritorio — ⚠️ **el caso que se rompió**
 1. Abrir la app en la computadora (Chrome/Linux o Firefox), compartir un QR.
 
-**Esperado:** se abre **WhatsApp Web en una pestaña nueva**, con el mensaje ya
+**Esperado:** **la misma pestaña** pasa a WhatsApp Web con el mensaje ya
 escrito: rótulo, enlace al registro y código. Solo falta elegir el contacto.
-**Una sola pestaña**, y **la pestaña de la app sigue donde estaba**, con el
-diálogo del QR abierto: volver a ella tiene que ser cambiar de pestaña, no
-navegar para atrás.
+El contador de pestañas del navegador **no cambia**. Con «atrás» se vuelve a
+la app —recargada, que es el precio de no abrir pestaña—.
 
-⚠️ **Lo que NO tiene que pasar (dos cosas, las dos ya vistas):**
+⚠️ **Lo que NO tiene que pasar (tres cosas, las tres ya vistas):**
 
 1. Que baje un PNG y no abra nada. En el escritorio `navigator.share` no
    existe, y la primera versión de esto caía en una descarga — el usuario
    veía «genera una imagen» y ningún WhatsApp.
-2. Que se abran **dos** pestañas de WhatsApp y la app desaparezca. Pasaba
+2. Que se abra una pestaña nueva. Se pidió expresamente que no.
+3. Que se abran **dos** pestañas de WhatsApp y la app desaparezca. Pasaba
    porque `window.open(url, '_blank', 'noopener')` devuelve `null` aunque
    abra la pestaña: el servicio lo leía como popup bloqueado y encima
-   navegaba la vista actual. Si vuelve a aparecer el cartel «Abriendo
-   WhatsApp. Volvé con el botón de atrás» en una computadora sin bloqueador
-   de popups, es esto de nuevo.
+   navegaba la vista actual.
 
 ### 48.9 · Sin conexión
 1. Modo avión, abrir un detalle ya cargado y compartir.

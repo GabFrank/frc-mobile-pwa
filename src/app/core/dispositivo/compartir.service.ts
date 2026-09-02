@@ -1,6 +1,4 @@
-import { inject, Injectable } from '@angular/core';
-
-import { NotificacionService } from '../ui/notificacion.service';
+import { Injectable } from '@angular/core';
 
 /** Un archivo listo para adjuntar. El nombre viaja con extensión. */
 export interface ArchivoCompartible {
@@ -36,9 +34,9 @@ export type ResultadoCompartir = 'compartido' | 'cancelado' | 'whatsapp' | 'fall
  * versión de esto descargaba el PNG cuando faltaba, y el resultado era que
  * en la computadora el botón «no compartía nada, solo bajaba una imagen».
  * Por eso el último recurso ahora es **abrir WhatsApp** con un enlace
- * `wa.me`: no puede llevar la imagen —ningún enlace puede— pero lleva el
- * enlace al registro, que es lo que el otro necesita tocar. **Nunca se
- * termina en una descarga.**
+ * `wa.me` **en la misma vista**: no puede llevar la imagen —ningún enlace
+ * puede— pero lleva el enlace al registro, que es lo que el otro necesita
+ * tocar. **Nunca se termina en una descarga, ni en una pestaña de más.**
  *
  * ⚠️ **`navigator.share` solo corre dentro del gesto del usuario.** Fuera del
  * manejador del clic tira `NotAllowedError`. Por eso el archivo tiene que
@@ -52,8 +50,6 @@ export type ResultadoCompartir = 'compartido' | 'cancelado' | 'whatsapp' | 'fall
  */
 @Injectable({ providedIn: 'root' })
 export class CompartirService {
-  private readonly notificacion = inject(NotificacionService);
-
   /** `true` si el sistema tiene hoja de compartir. Falso en escritorio Firefox. */
   hayHojaDeCompartir(): boolean {
     return typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -81,8 +77,8 @@ export class CompartirService {
    * Abre la hoja del sistema. Tiene que llamarse desde el manejador del clic.
    *
    * Tres caminos, de mejor a peor: la hoja con el archivo adentro, la hoja
-   * solo con el texto, y abrir WhatsApp con el mensaje escrito. El último no
-   * es decorativo: en el escritorio es lo único que queda.
+   * solo con el texto, y navegar a WhatsApp con el mensaje escrito. El
+   * último no es decorativo: en el escritorio es lo único que queda.
    */
   async compartir(datos: Compartible): Promise<ResultadoCompartir> {
     if (this.puedeAdjuntar(datos.archivo)) {
@@ -126,35 +122,21 @@ export class CompartirService {
    * computadora abre WhatsApp Web. El usuario elige el contacto y manda; el
    * texto ya está puesto.
    *
-   * ⚠️ **Tiene que correr dentro del gesto del usuario**, igual que la hoja:
-   * una pestaña abierta después de un `await` la corta el bloqueador de
-   * popups. Y si igual la corta, se navega en la misma vista, que es lo
-   * único que queda —la misma lección de `PdfService`—.
+   * ⚠️ **Va en la misma vista, no en una pestaña nueva.** Es lo que se pidió,
+   * y es lo que se parece a la app: en el teléfono `wa.me` le pasa la posta a
+   * WhatsApp y la PWA queda atrás, sin una pestaña de más que después haya
+   * que cerrar a mano. En la computadora el precio es que volver con «atrás»
+   * recarga la app.
    *
-   * ⚠️ **`noopener` no puede ir en las opciones de `window.open`.** Pedirlo
-   * ahí obliga a devolver `null` *aunque la pestaña se haya abierto* —está
-   * en la spec y se verificó en Chrome con un clic real—, así que el
-   * `if (!ventana)` daba siempre verdadero: se abría el popup **y** además
-   * se navegaba la vista actual. Quedaban dos pestañas de WhatsApp y la app
-   * desaparecía. Se consigue lo mismo anulando `opener` en la ventana ya
-   * abierta, que es el mitigante de siempre, y el retorno vuelve a
-   * significar lo que dice.
+   * De paso desaparece el problema que traía `window.open`: pedir `noopener`
+   * en sus opciones lo obliga a devolver `null` *aunque la pestaña se haya
+   * abierto* —está en la spec y se verificó en Chrome con un clic real—, así
+   * que el chequeo de «popup bloqueado» daba siempre verdadero y se abrían
+   * dos WhatsApp. Navegar en la misma vista no lo bloquea nadie: no hay nada
+   * que detectar ni plan B que tener.
    */
   private abrirWhatsapp(texto: string): ResultadoCompartir {
-    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
-    const ventana = window.open(url, '_blank');
-    if (ventana) {
-      // Que la pestaña nueva no pueda tocar la nuestra por `window.opener`.
-      try {
-        ventana.opener = null;
-      } catch {
-        // Algún navegador puede no dejar; no vale perder el compartir por esto.
-      }
-      return 'whatsapp';
-    }
-
-    this.notificacion.neutral('Abriendo WhatsApp. Volvé con el botón de atrás.');
-    window.location.href = url;
+    window.location.href = `https://wa.me/?text=${encodeURIComponent(texto)}`;
     return 'whatsapp';
   }
 

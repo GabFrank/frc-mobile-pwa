@@ -183,9 +183,19 @@ y lo resuelve `CompartirService` (`core/dispositivo/compartir.service.ts`).
    y en Safari, pero no en Chrome de Linux ni en Firefox. La primera versión
    de esto **descargaba el PNG** cuando faltaba, y en la computadora el botón
    se leía como «no comparte nada, solo baja una imagen». Ahora el último
-   recurso abre WhatsApp con un enlace `wa.me`: no puede llevar la imagen
+   recurso navega a WhatsApp con un enlace `wa.me`: no puede llevar la imagen
    —ningún enlace puede— pero lleva el **enlace al registro**, que es lo que
    el otro toca. **Ningún camino termina en una descarga.**
+
+   Va **en la misma vista**, no en una pestaña nueva: en el teléfono `wa.me`
+   le pasa la posta a la app de WhatsApp y la PWA queda atrás, sin dejar una
+   pestaña de más que después haya que cerrar a mano. En la computadora el
+   precio es que volver con «atrás» recarga la app.
+
+   ⚠️ **No volver a `window.open` para esto.** Con `noopener` en las opciones
+   devuelve `null` *aunque la pestaña se haya abierto* —está en la spec, y se
+   verificó en Chrome con un clic real—, así que cualquier chequeo de «popup
+   bloqueado» da siempre verdadero y termina abriendo WhatsApp dos veces.
 
 2. **La imagen se compone al abrir el diálogo, no al tocar el botón.**
    `navigator.share` solo corre dentro del gesto del usuario; dibujar el PNG
@@ -229,8 +239,9 @@ la galería del que recibe no queden cinco `image.png` indistinguibles.
 |---|---|
 | Hoja con archivos (Android, Safari 15+) | Comparte la **imagen** con su texto — idéntico a `frc-mobile` |
 | Hoja sin archivos | Comparte solo el texto — el enlace sigue sirviendo |
-| Sin hoja (escritorio, Firefox) | Abre **WhatsApp Web** con el mensaje escrito |
-| Popup bloqueado | Navega a WhatsApp en la misma vista |
+| Sin hoja (escritorio, Firefox) | **Navega** a WhatsApp Web con el mensaje escrito, en la misma vista |
 
-Los cuatro están fijados en `compartir-qr.spec.ts`, y el que más importa es el
-tercero: es el que se rompió.
+Los tres están fijados en `compartir-qr.spec.ts`, y el que más importa es el
+tercero: es el que se rompió. No hay un cuarto caso de «popup bloqueado»
+porque ya no se abre ninguna pestaña: navegar en la misma vista no lo bloquea
+nadie.

@@ -2543,6 +2543,9 @@ generación y la lectura tienen que coincidir campo por campo.
 **Esperado:** llega al mismo lugar que escaneando. Sirve cuando no se puede
 apuntar la cámara — dos personas por teléfono, o una pantalla rota.
 
+> Mandar el QR por WhatsApp —para cuando el otro **no** está enfrente— es el
+> bloque 48.
+
 ---
 
 ---
@@ -4123,6 +4126,127 @@ sobre gris.
 
 ---
 
+## Bloque 48 — Compartir el QR por WhatsApp *(nuevo)*
+
+**Por qué está acá:** hasta ahora el QR solo servía **de pantalla a pantalla**
+—los dos teléfonos en la misma mesa—. `frc-mobile` mandaba la imagen por
+WhatsApp con `@capacitor/share`; esto lo devuelve, sin plugin, con la hoja del
+sistema.
+
+**Necesita:** un teléfono real con WhatsApp instalado **y** una pasada por la
+computadora — son dos caminos distintos, no el mismo con menos suerte:
+
+| Dónde | Qué hace | Qué recibe el otro |
+|---|---|---|
+| Teléfono (Android/iOS) | Hoja del sistema, como `frc-mobile` | La **imagen** del QR, para escanear |
+| Computadora | WhatsApp Web con el mensaje escrito | Un **enlace** que abre el registro |
+
+En la computadora no hay `navigator.share`, así que la hoja no existe y no va
+a existir. Que ahí termine en WhatsApp igual es la mitad que este bloque
+verifica.
+
+⚠️ **Lo que más importa probar es iOS.** La imagen se prepara al abrir el
+diálogo, no al tocar el botón, justamente porque Safari corta
+`navigator.share` si el gesto ya venció. Si alguien mete un `await` de más,
+Android sigue andando y iPhone deja de compartir. El caso 48.6 es ese.
+
+### 48.1 · Compartir una transferencia por WhatsApp
+1. Abrir una transferencia → botón de código de la barra superior.
+2. Tocar **Compartir**.
+3. Elegir WhatsApp y un contacto.
+
+**Esperado:** se abre la hoja del sistema del teléfono, **igual que en
+`frc-mobile`**. Llega **una imagen** —QR sobre fondo blanco, con
+«Transferencia #N» debajo— y un texto con el enlace al registro y el código.
+El diálogo del QR se cierra solo al volver.
+
+### 48.2 · El que recibe lo escanea desde WhatsApp
+1. En **otro teléfono**, abrir la imagen recibida en WhatsApp.
+2. Con la app, botón flotante → escanear esa imagen en la pantalla del otro.
+
+**Esperado:** abre la misma transferencia. **Es el caso que justifica todo
+esto**: el QR tiene que seguir siendo legible después de que WhatsApp lo
+recomprime.
+
+### 48.3 · Lo mismo con inventario y recepción
+1. Repetir desde el detalle de un inventario y de una recepción.
+
+**Esperado:** cada uno abre el suyo, y el rótulo de la imagen dice
+«Inventario #N» / «Recepción #N» — no el título del diálogo.
+
+### 48.4 · El nombre del archivo identifica el registro
+1. En WhatsApp, ver el nombre del archivo recibido (o guardarlo en la
+   galería).
+
+**Esperado:** `transferencia-54061.png`, no `image.png`. Con tres QR
+compartidos el mismo día, es lo único que los distingue.
+
+### 48.5 · El enlace del mensaje abre el registro
+1. Del otro lado, **tocar el enlace** del mensaje (no escanear nada).
+
+**Esperado:** se abre la app directo en esa transferencia. Es el camino que
+sirve cuando el otro lee el mensaje desde la computadora, donde no hay cámara.
+
+> ⚠️ **Desde `localhost:4300` el enlace no le va a servir a nadie**: sale del
+> origen desde el que se comparte. Para probar esto hay que estar en alpha,
+> beta o producción.
+
+### 48.5b · El código en texto, para el que no puede tocar nada
+1. Copiar el código del final del mensaje y pegarlo en la carga manual del
+   escáner.
+
+**Esperado:** llega al mismo lugar. Está a propósito para la pantalla rota o
+la cámara sin permiso.
+
+### 48.6 · iPhone *(necesita dispositivo)*
+1. Repetir 48.1 en un iPhone, **con la PWA instalada** desde la pantalla de
+   inicio.
+
+**Esperado:** se abre la hoja de iOS **con la imagen**, no solo con el texto.
+Si aparece sin imagen o no aparece nada, el gesto se perdió: es el bug que
+este bloque existe para atrapar.
+
+### 48.7 · Cancelar no es un error
+1. Tocar **Compartir** y cerrar la hoja sin elegir nada.
+
+**Esperado:** vuelve al diálogo del QR **sin ningún cartel rojo** y el botón
+queda usable otra vez. Cerrar la hoja rechaza la promesa igual que un fallo;
+si sale «no se pudo compartir», se está tratando `AbortError` como error.
+
+### 48.8 · En el escritorio — ⚠️ **el caso que se rompió**
+1. Abrir la app en la computadora (Chrome/Linux o Firefox), compartir un QR.
+
+**Esperado:** **la misma pestaña** pasa a WhatsApp Web con el mensaje ya
+escrito: rótulo, enlace al registro y código. Solo falta elegir el contacto.
+El contador de pestañas del navegador **no cambia**. Con «atrás» se vuelve a
+la app —recargada, que es el precio de no abrir pestaña—.
+
+⚠️ **Lo que NO tiene que pasar (tres cosas, las tres ya vistas):**
+
+1. Que baje un PNG y no abra nada. En el escritorio `navigator.share` no
+   existe, y la primera versión de esto caía en una descarga — el usuario
+   veía «genera una imagen» y ningún WhatsApp.
+2. Que se abra una pestaña nueva. Se pidió expresamente que no.
+3. Que se abran **dos** pestañas de WhatsApp y la app desaparezca. Pasaba
+   porque `window.open(url, '_blank', 'noopener')` devuelve `null` aunque
+   abra la pestaña: el servicio lo leía como popup bloqueado y encima
+   navegaba la vista actual.
+
+### 48.9 · Sin conexión
+1. Modo avión, abrir un detalle ya cargado y compartir.
+
+**Esperado:** el QR se dibuja y se comparte igual — no consulta al central
+para nada. Lo que falle será WhatsApp, no la app.
+
+### 48.10 · Tema oscuro y tema claro
+1. Compartir con cada tema.
+
+**Esperado:** la imagen que sale es **siempre** de fondo blanco con texto
+oscuro, en los dos temas. Un QR claro sobre fondo oscuro no lo lee ningún
+lector, y la imagen exportada no tiene tema que respetar.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -4174,7 +4298,8 @@ sobre gris.
 | 45 · Renglones repetidos en el conteo | 6 | | | |
 | 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
-| **Total** | **391** | | | |
+| 48 · Compartir el QR por WhatsApp | 11 | | | |
+| **Total** | **402** | | | |
 
 ### Los cinco que más importan
 

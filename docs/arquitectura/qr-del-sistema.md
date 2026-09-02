@@ -162,3 +162,75 @@ en el camino.
    incompleto navega al registro cero.
 5. Sumá el caso a `escaneo-ruteo.spec.ts` con valores que **no coincidan
    entre sí**, para que leer un campo por otro haga fallar el test.
+
+---
+
+## Mandarlo por WhatsApp
+
+El QR no siempre se escanea de pantalla a pantalla: muchas veces la otra
+persona no está enfrente. `QrDialogComponent` tiene **Compartir**, que abre la
+hoja del sistema con la imagen adjunta — ahí aparece WhatsApp con los
+contactos recientes.
+
+Es lo que `frc-mobile` hacía con `@capacitor/share`: escribía el PNG en el
+caché con `Filesystem.writeFile` y le pasaba la URI al plugin. Acá no hace
+falta ningún archivo en disco — `navigator.share` acepta un `File` en memoria—
+y lo resuelve `CompartirService` (`core/dispositivo/compartir.service.ts`).
+
+### Tres cosas que hay que saber antes de tocarlo
+
+1. **Esa hoja no existe en el escritorio.** `navigator.share` está en Android
+   y en Safari, pero no en Chrome de Linux ni en Firefox. La primera versión
+   de esto **descargaba el PNG** cuando faltaba, y en la computadora el botón
+   se leía como «no comparte nada, solo baja una imagen». Ahora el último
+   recurso abre WhatsApp con un enlace `wa.me`: no puede llevar la imagen
+   —ningún enlace puede— pero lleva el **enlace al registro**, que es lo que
+   el otro toca. **Ningún camino termina en una descarga.**
+
+2. **La imagen se compone al abrir el diálogo, no al tocar el botón.**
+   `navigator.share` solo corre dentro del gesto del usuario; dibujar el PNG
+   toma un par de ciclos y para cuando el blob está listo el gesto venció
+   —Safari responde `NotAllowedError`—. Por eso `QrDialogComponent` la
+   prepara en el constructor y el handler solo la adjunta. **Si alguna vez
+   metés un `await` antes de `compartir()`, esto se rompe en iOS y anda en
+   Android**, que es la peor forma de romperse.
+
+3. **Cancelar también rechaza la promesa**, con `AbortError`. Tratarlo como
+   error mostraba «no se pudo compartir» cada vez que alguien cerraba la
+   hoja.
+
+### Qué se manda
+
+Desde el teléfono, una imagen de 608×704 px —el QR a 512 px con su rótulo
+debajo, fondo blanco y tinta oscura **siempre**, porque sale del teléfono y no
+tiene tema—. Desde cualquier lado, un texto de tres capas:
+
+1. **El enlace al registro** (`https://…/transferencias/54061`). Es lo que el
+   otro toca, y le abre la app directo en la transferencia. Lo construye
+   `enlaceAlRegistro()` a partir de `rutearEscaneo`, o sea de la **misma
+   tabla** a la que llega quien escanea: si mañana cambia dónde vive el
+   detalle, el enlace cambia con ella.
+2. **El QR**, cuando viajó como imagen adjunta.
+3. **El código en claro**, para pegarlo en la carga manual del escáner.
+
+⚠️ **Los QR con `queryParams` no dan enlace.** Ahí viaja el token que autoriza
+un retiro de caja chica: en un mensaje de WhatsApp queda escrito para siempre.
+
+⚠️ **El enlace sale del origen desde el que se comparte.** Compartiendo desde
+`localhost:4300` el otro recibe un `localhost` que no le abre nada — en
+desarrollo no hay ninguna URL pública que ofrecer.
+
+El nombre del archivo sale del rótulo (`transferencia-54061.png`) para que en
+la galería del que recibe no queden cinco `image.png` indistinguibles.
+
+### Planes B, de mejor a peor
+
+| Situación | Qué hace |
+|---|---|
+| Hoja con archivos (Android, Safari 15+) | Comparte la **imagen** con su texto — idéntico a `frc-mobile` |
+| Hoja sin archivos | Comparte solo el texto — el enlace sigue sirviendo |
+| Sin hoja (escritorio, Firefox) | Abre **WhatsApp Web** con el mensaje escrito |
+| Popup bloqueado | Navega a WhatsApp en la misma vista |
+
+Los cuatro están fijados en `compartir-qr.spec.ts`, y el que más importa es el
+tercero: es el que se rompió.

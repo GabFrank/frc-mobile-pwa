@@ -173,3 +173,33 @@ export function rutearEscaneo(texto: string): DestinoEscaneo {
 
   return { clase: 'desconocido', mensaje: 'Ese QR no abre ninguna pantalla de la app.' };
 }
+
+/**
+ * El camino inverso: de un QR del sistema a un enlace que abre esa pantalla.
+ *
+ * Sirve para mandar un registro por WhatsApp. **Un enlace le gana al QR
+ * cuando el otro no está enfrente**: lo toca y la app se le abre en la
+ * transferencia, sin cámara de por medio. El QR sigue siendo lo que sirve
+ * cuando están los dos con el teléfono en la mano.
+ *
+ * Sale de `rutearEscaneo` a propósito, y no de una tabla propia: es la misma
+ * ruta a la que llega quien lo escanea. Si mañana cambia dónde vive el
+ * detalle de transferencias, el enlace cambia con ella.
+ *
+ * ⚠️ **Los QR con `queryParams` no dan enlace.** Ahí viaja el token que
+ * autoriza un retiro de caja chica: en un mensaje de WhatsApp queda escrito
+ * para siempre, y quien lea la conversación puede usarlo. Devuelve `null` y
+ * el que comparte manda solo el código.
+ */
+export function enlaceAlRegistro(texto: string): string | null {
+  const destino = rutearEscaneo(texto);
+  if (destino.clase !== 'navegar' || destino.queryParams) {
+    return null;
+  }
+  const ruta = destino.ruta.map(String).join('/').replace(/^\/+/, '');
+  try {
+    return new URL(ruta, document.baseURI).href;
+  } catch {
+    return null;
+  }
+}

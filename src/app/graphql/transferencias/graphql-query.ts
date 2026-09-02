@@ -92,18 +92,25 @@ export const itemsPorTransferenciaQuery = gql`
         presentacionPreTransferencia { id cantidad producto { id descripcion } }
         vencimientoPreTransferencia
         observacionPreTransferencia
+        motivoModificacionPreTransferencia
         motivoRechazoPreTransferencia
         cantidadPreparacion
         presentacionPreparacion { id cantidad }
+        vencimientoPreparacion
         observacionPreparacion
+        motivoModificacionPreparacion
         motivoRechazoPreparacion
         cantidadTransporte
         presentacionTransporte { id cantidad }
+        vencimientoTransporte
         observacionTransporte
+        motivoModificacionTransporte
         motivoRechazoTransporte
         cantidadRecepcion
         presentacionRecepcion { id cantidad }
+        vencimientoRecepcion
         observacionRecepcion
+        motivoModificacionRecepcion
         motivoRechazoRecepcion
       }
     }
@@ -127,5 +134,42 @@ export const avanzarEtapaMutation = gql`
 export const finalizarTransferenciaMutation = gql`
   mutation finalizarTransferencia($id: ID!, $usuarioId: ID!) {
     data: finalizarTransferencia(id: $id, usuarioId: $usuarioId)
+  }
+`;
+
+/**
+ * Guarda un ítem. **Es un PATCH**: lo que el input no trae, el central lo
+ * conserva de la fila existente.
+ *
+ * ⚠️ **Mandar `null` no borra.** `frc-mobile` desconfirma poniendo los
+ * campos en `null` y guardando; contra este central eso no vacía nada y la
+ * pantalla queda mostrando un estado que no se guardó. Para vaciar una
+ * etapa está `desconfirmarTransferenciaItem`.
+ *
+ * ⚠️ **El input exige `usuarioId`** —la columna es `NOT NULL`— y lo completa
+ * `DatosService.guardar()` con el usuario en sesión.
+ */
+export const saveTransferenciaItemMutation = gql`
+  mutation saveTransferenciaItem($entity: TransferenciaItemInput!) {
+    data: saveTransferenciaItem(transferenciaItem: $entity) {
+      id
+    }
+  }
+`;
+
+/**
+ * Vacía las columnas de **una** etapa del ítem y desactiva su movimiento de
+ * stock. Es la única forma de deshacer una verificación: ver el aviso de
+ * `saveTransferenciaItemMutation`.
+ *
+ * ⚠️ Solo acepta las tres etapas en las que se verifican ítems
+ * (`PREPARACION_MERCADERIA`, `TRANSPORTE_VERIFICACION`,
+ * `RECEPCION_EN_VERIFICACION`); con cualquier otra el central responde error.
+ */
+export const desconfirmarTransferenciaItemMutation = gql`
+  mutation desconfirmarTransferenciaItem($id: ID!, $etapa: EtapaTransferencia!) {
+    data: desconfirmarTransferenciaItem(id: $id, etapa: $etapa) {
+      id
+    }
   }
 `;

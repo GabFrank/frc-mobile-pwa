@@ -8,12 +8,16 @@ import {
   EtapaTransferencia,
   Transferencia,
   TransferenciaItem,
+  TransferenciaItemInput,
 } from 'src/app/domains/transferencia/transferencia.model';
 import { AvanzarEtapaGQL } from 'src/app/graphql/transferencias/avanzarEtapa';
 import { FinalizarTransferenciaGQL } from 'src/app/graphql/transferencias/finalizarTransferencia';
 import { ItemsPorTransferenciaGQL } from 'src/app/graphql/transferencias/itemsPorTransferencia';
 import { TransferenciaPorIdGQL } from 'src/app/graphql/transferencias/transferenciaPorId';
 import { TransferenciasConFiltrosGQL } from 'src/app/graphql/transferencias/transferenciasConFiltros';
+import { SaveTransferenciaItemGQL } from 'src/app/graphql/transferencias/saveTransferenciaItem';
+import { DesconfirmarTransferenciaItemGQL } from 'src/app/graphql/transferencias/desconfirmarTransferenciaItem';
+import { SolicitarPushGQL } from 'src/app/graphql/notificaciones/solicitarPush';
 
 export interface FiltrosTransferencia {
   sucursalOrigenId?: number;
@@ -53,6 +57,9 @@ export class TransferenciaService {
   private readonly itemsGQL = inject(ItemsPorTransferenciaGQL);
   private readonly avanzarGQL = inject(AvanzarEtapaGQL);
   private readonly finalizarGQL = inject(FinalizarTransferenciaGQL);
+  private readonly guardarItemGQL = inject(SaveTransferenciaItemGQL);
+  private readonly desconfirmarItemGQL = inject(DesconfirmarTransferenciaItemGQL);
+  private readonly pushGQL = inject(SolicitarPushGQL);
 
   porId(id: number): Observable<Transferencia> {
     return this.datos.porId<Transferencia>(this.porIdGQL, id);
@@ -110,5 +117,58 @@ export class TransferenciaService {
 
   finalizar(id: number, usuarioId: number): Observable<boolean> {
     return this.datos.mutar<boolean>(this.finalizarGQL, { id, usuarioId });
+  }
+
+  /**
+   * Guarda lo verificado de un ítem en la etapa en curso.
+   *
+   * ⚠️ **Es un PATCH: lo que el input no trae, el central lo conserva.**
+   * Mandar `null` no borra nada — para vaciar una etapa está
+   * {@link desconfirmarItem}. `DatosService.guardar()` completa el
+   * `usuarioId`, que el central exige.
+   */
+  guardarItem(input: TransferenciaItemInput): Observable<TransferenciaItem> {
+    return this.datos.guardar<TransferenciaItem>(
+      this.guardarItemGQL,
+      input as unknown as Record<string, unknown>,
+      undefined,
+      { mensajeExito: 'Ítem guardado' },
+    );
+  }
+
+  /**
+   * Deshace la verificación de un ítem en una etapa.
+   *
+   * Vacía las cuatro columnas de esa etapa y desactiva el movimiento de
+   * stock que había generado. Solo aplica a las tres etapas de verificación;
+   * con cualquier otra el central responde error.
+   */
+  desconfirmarItem(
+    itemId: number,
+    etapa: EtapaTransferencia,
+    opciones?: { mensajeExito?: string },
+  ): Observable<TransferenciaItem> {
+    return this.datos.mutar<TransferenciaItem>(
+      this.desconfirmarItemGQL,
+      { id: itemId, etapa },
+      { mensajeExito: opciones?.mensajeExito },
+    );
+  }
+
+  /**
+   * Avisa por push a una persona.
+   *
+   * ⚠️ **Es `personaId`, no `usuarioId`**: los dispositivos cuelgan de la
+   * persona. Y el central lo expone como **query**, no como mutation.
+   *
+   * Se usa para avisar de un rechazo. Que falle no puede voltear la
+   * operación: el rechazo ya quedó guardado, y el aviso es secundario.
+   */
+  avisarPorPush(personaId: number, titulo: string, mensaje: string): Observable<boolean> {
+    return this.datos.consultar<boolean>(
+      this.pushGQL,
+      { entity: { personaId, titulo, mensaje } },
+      { mostrarCarga: false, notificarError: false },
+    );
   }
 }

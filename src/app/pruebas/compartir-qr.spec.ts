@@ -25,6 +25,8 @@ describe('CompartirService — la hoja del sistema y sus planes B', () => {
   let clickeado: HTMLAnchorElement | null;
   let navegado: string | null;
   let abierto: string | null;
+  /** Si el navegador abrió la pestaña, más allá de lo que haya devuelto. */
+  let abiertoDeVerdad: boolean;
 
   const uaOriginal = navigator.userAgent;
 
@@ -43,9 +45,19 @@ describe('CompartirService — la hoja del sistema y sus planes B', () => {
     ios?: boolean;
     popupBloqueado?: boolean;
   }): void {
-    window.open = ((url: string) => {
+    /*
+      Modela lo que hace el navegador de verdad, no lo que uno querría:
+      **con `noopener` en las opciones, `window.open` devuelve `null` aunque
+      la pestaña se haya abierto**. Verificado en Chrome con un gesto real.
+      El stub anterior devolvía siempre un objeto y por eso no vio el bug.
+    */
+    window.open = ((url: string, _destino?: string, opts?: string) => {
       abierto = url;
-      return opciones.popupBloqueado ? null : ({} as Window);
+      if (opciones.popupBloqueado) {
+        return null;
+      }
+      abiertoDeVerdad = true;
+      return String(opts ?? '').includes('noopener') ? null : ({} as Window);
     }) as unknown as typeof window.open;
 
     Object.defineProperty(navigator, 'userAgent', {
@@ -85,6 +97,7 @@ describe('CompartirService — la hoja del sistema y sus planes B', () => {
     clickeado = null;
     navegado = null;
     abierto = null;
+    abiertoDeVerdad = false;
     notificacion = { ok: vi.fn(), warn: vi.fn(), danger: vi.fn(), neutral: vi.fn() };
 
     URL.createObjectURL = vi.fn(() => 'blob:falso');
@@ -162,6 +175,21 @@ describe('CompartirService — la hoja del sistema y sus planes B', () => {
 
     expect(await servicio().compartir(datos())).toBe('whatsapp');
     expect(abierto).toContain('wa.me');
+  });
+
+  it('abrir WhatsApp no se lleva puesta la pestaña de la app', async () => {
+    /*
+      El bug: `window.open(url, '_blank', 'noopener')` devuelve `null` aunque
+      abra la pestaña, así que el servicio creía que el popup estaba
+      bloqueado y **además** navegaba la vista actual. Quedaban dos pestañas
+      de WhatsApp y la app desaparecía.
+    */
+    sistema({});
+
+    expect(await servicio().compartir(datos())).toBe('whatsapp');
+    expect(abiertoDeVerdad).toBe(true);
+    expect(navegado).toBeNull();
+    expect(notificacion.neutral).not.toHaveBeenCalled();
   });
 
   it('con el popup bloqueado navega igual: nunca se queda sin hacer nada', async () => {

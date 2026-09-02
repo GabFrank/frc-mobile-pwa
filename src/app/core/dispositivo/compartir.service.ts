@@ -81,9 +81,8 @@ export class CompartirService {
    * Abre la hoja del sistema. Tiene que llamarse desde el manejador del clic.
    *
    * Tres caminos, de mejor a peor: la hoja con el archivo adentro, la hoja
-   * solo con el texto, y la descarga. El último no es decorativo: en el
-   * escritorio es lo único que queda, y con la imagen bajada el usuario la
-   * arrastra a WhatsApp Web.
+   * solo con el texto, y abrir WhatsApp con el mensaje escrito. El último no
+   * es decorativo: en el escritorio es lo único que queda.
    */
   async compartir(datos: Compartible): Promise<ResultadoCompartir> {
     if (this.puedeAdjuntar(datos.archivo)) {
@@ -131,14 +130,31 @@ export class CompartirService {
    * una pestaña abierta después de un `await` la corta el bloqueador de
    * popups. Y si igual la corta, se navega en la misma vista, que es lo
    * único que queda —la misma lección de `PdfService`—.
+   *
+   * ⚠️ **`noopener` no puede ir en las opciones de `window.open`.** Pedirlo
+   * ahí obliga a devolver `null` *aunque la pestaña se haya abierto* —está
+   * en la spec y se verificó en Chrome con un clic real—, así que el
+   * `if (!ventana)` daba siempre verdadero: se abría el popup **y** además
+   * se navegaba la vista actual. Quedaban dos pestañas de WhatsApp y la app
+   * desaparecía. Se consigue lo mismo anulando `opener` en la ventana ya
+   * abierta, que es el mitigante de siempre, y el retorno vuelve a
+   * significar lo que dice.
    */
   private abrirWhatsapp(texto: string): ResultadoCompartir {
     const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
-    const ventana = window.open(url, '_blank', 'noopener');
-    if (!ventana) {
-      this.notificacion.neutral('Abriendo WhatsApp. Volvé con el botón de atrás.');
-      window.location.href = url;
+    const ventana = window.open(url, '_blank');
+    if (ventana) {
+      // Que la pestaña nueva no pueda tocar la nuestra por `window.opener`.
+      try {
+        ventana.opener = null;
+      } catch {
+        // Algún navegador puede no dejar; no vale perder el compartir por esto.
+      }
+      return 'whatsapp';
     }
+
+    this.notificacion.neutral('Abriendo WhatsApp. Volvé con el botón de atrás.');
+    window.location.href = url;
     return 'whatsapp';
   }
 

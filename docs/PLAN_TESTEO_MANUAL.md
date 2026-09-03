@@ -4855,6 +4855,119 @@ físico**, por eso quedó sin probar.
 
 ---
 
+## Bloque 54 — Cantidades en enteros, no en decimales *(nuevo)* — **10/10** (Claude en Chrome; alpha y central local, usuario MAURO, 2026-09-03)
+
+> **Este bloque se perdió y se recuperó.** El código y los tests unitarios de
+> la PR #38 entraron a `develop` sin problema, pero al resolver el conflicto
+> del plan en el merge `a3266da` —cruzado con la renumeración de bloques que
+> traía la rama de transferencias— se tomó la versión de `develop` y estos 10
+> casos, todos ya ejecutados, quedaron afuera. Se restauran verbatim desde
+> `52bdcbf`, renumerados de 51 a 54 porque 51, 52 y 53 ya están ocupados.
+
+**Por qué está acá:** el central devuelve las cantidades como `Float` aunque el
+producto se cuente por unidad —`movimiento_stock` y `cantidad_fisica` son
+columnas numéricas con decimales—, y cuatro pantallas las imprimían con dos
+decimales fijos. `-3,00` unidades se lee como si faltara una fracción de
+envase. Es el mismo defecto que el bloque de existencia por sucursal ya
+corrigió; estas cuatro quedaron afuera.
+
+**La regla la decide el valor, no el producto.** Ninguna de las cuatro
+consultas trae el `balanza` del producto —`ProductoSaldoDto` no tiene ese
+campo—, así que: entero sin decimales, fraccionado con ellos. En un pesable el
+decimal son kilos y en un producto por unidad es un ajuste mal cargado; los dos
+hay que verlos, no redondearlos.
+
+⚠️ **Diferencia con la ficha de producto:** ahí, sabiendo que el producto es de
+balanza, la existencia se muestra con 3 decimales fijos (`7,000`). Acá un
+pesable con kilos justos se ve `7`. Igualar las dos requiere agregar `balanza`
+al `ProductoSaldoDto` del central.
+
+### 54.1 · Control de inventario, saldo negativo — ✅ PASÓ
+1. **Inventario → Control de inventario**, reporte **Saldo negativo**.
+
+**Esperado:** los saldos se ven `-3`, `-12`, sin `,00`. El signo se conserva y
+el número sigue en rojo.
+
+### 54.2 · Control de inventario, saldo positivo — ✅ PASÓ
+1. Cambiar el reporte a **Saldo positivo**.
+
+**Esperado:** se ven `+7`, `+25`, sin decimales.
+
+### 54.3 · Un saldo fraccionado sí los muestra — ✅ PASÓ
+
+Contra el **central local** (`localhost:8081`, base `bodega`), en Control de
+inventario → Saldo negativo → **SUC. CENTRAL**, las dos ramas de la regla
+conviven en la misma pantalla:
+
+| Producto | Saldo | |
+|---|---|---|
+| DELIVERY | `-1.021` | entero, con punto de miles |
+| COSTILLA VACUNA PREMIUN | `-983,98` | **fraccionado**, decimales conservados |
+| FRIMESA CHORIZO TOSCANO | `-982,33` | **fraccionado** |
+| ARCOR CHOCOMANI 6.5G | `-958` | entero, pelado |
+| MANDIOCA | `-751,08` | **fraccionado** |
+
+Carne y mandioca llevan decimales; los caramelos no. Nadie le dice a la app
+cuál es pesable: lo decide el valor.
+
+⚠️ **La sucursal importa para poder verlo.** En «Todas las sucursales» el
+primer saldo fraccionado cae en un puesto inalcanzable entre 22.699 productos;
+acotado a SUC. CENTRAL queda **décimo de 1.701**, en la primera página.
+
+⚠️ **En alpha este caso no se puede probar**: hay un solo saldo fraccionado en
+toda la instancia y vale `0,00000004768372` —residuo de punto flotante, no un
+pesable—, que además se vería como `+0,00`.
+
+### 54.4 · Carga del conteo: «Sistema» — ✅ PASÓ (toma #2338, zona b1: «Sistema: -601.243» y «Sistema: -5», sin `,00`)
+1. Abrir una toma, entrar a una zona con renglones ya cargados.
+2. Mirar la cabecera colapsada de cada tarjeta.
+
+**Esperado:** dice `Sistema: 70`, no `Sistema: 70,00`. Es lo que decide si vale
+la pena abrir la tarjeta, y con el contado al lado en entero los dos números se
+comparan de un vistazo.
+
+### 54.5 · La diferencia sigue calculándose igual — ✅ PASÓ (contado 10 contra -601.243 → `+601253`; sin contar, guion)
+1. En esa misma zona, escribir un contado distinto al del sistema.
+
+**Esperado:** la diferencia aparece como antes (`+6`, `-2`), y un renglón sin
+contar sigue mostrando el guion, no un cero.
+
+### 54.6 · Saldo del lote en el buscador de lotes — ✅ PASÓ (BANES FORTE, lote 5555: saldo `0`, no `0,00`)
+1. En el conteo, en un producto con control de lote, tocar **Buscar lote**.
+
+**Esperado:** el saldo de cada lote se ve `24`, no `24,00`.
+
+### 54.7 · Productos vencidos — ✅ PASÓ
+1. **Productos vencidos**, mirar la columna de unidades.
+
+**Esperado:** `3`, no `3,00`. Cuando la presentación es mayor a 1 sigue
+apareciendo el `(x6)` al lado.
+
+### 54.8 · Tema oscuro y tema claro — ✅ PASÓ (claro y oscuro: «Sistema: -601.243» legible, diferencia `-2,50` en rojo con coma decimal)
+1. Repetir 54.1 y 54.4 con cada tema.
+
+**Esperado:** solo cambia el color; los números siguen alineados por la
+tipografía tabular y sin decimales.
+
+
+### 54.9 · La diferencia también se formatea — ✅ PASÓ (contado -596.243 contra -601.243 → `+5.000`)
+1. En la carga del conteo, contar algo que dé una diferencia de miles
+   (por ejemplo 5.070 contra un sistema de 70).
+
+**Esperado:** dice `+5.000`, con separador de miles, igual que el «Sistema:»
+que tiene al lado. Antes salía `+5000`: el mismo número escrito de dos formas
+en la misma línea.
+
+### 54.10 · Una diferencia fraccionada no muestra el float crudo — ✅ PASÓ (contado -601.242,9 → `+0,10`, antes `+0.09999999999999432`)
+1. Contar `70,1` contra un sistema de `70`.
+
+**Esperado:** `+0,1`. Antes salía **`+0.09999999999999432`** —el punto flotante
+entero, y con punto decimal inglés—, que es exactamente el problema de locale
+por el que el repo prohíbe el pipe `number`.
+
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -4908,11 +5021,12 @@ físico**, por eso quedó sin probar.
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
-| 50 · Mayúsculas en login y búsqueda | 7 | | | |
+| 50 · Mayúsculas en login y búsqueda | 7 | 4 | | |
 | 51 · Crear una transferencia y cargarle productos | 16 | | | |
 | 52 · Elegir el lote al cargar un producto | 16 | | | |
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
-| **Total** | **462** | | | |
+| 54 · Cantidades en enteros | 10 | 10 | | |
+| **Total** | **472** | | | |
 
 ### Los cinco que más importan
 

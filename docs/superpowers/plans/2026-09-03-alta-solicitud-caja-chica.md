@@ -27,6 +27,9 @@ Aplican a **todas** las tareas. Salen de `CLAUDE.md` y del skill del repo.
 - **Tipo de commit: solo `feat` o `fix`.** `style`, `chore` y `docs` no versionan — semantic-release los ignora.
 - **Los tests van en `src/app/pruebas/`**, no junto al archivo. Es la convención del repo (49 archivos).
 - **`npm run build` es el gate real.** `tsc --noEmit` no typechequea plantillas.
+- **Los tests se corren con `npm test` (`ng test`, builder `@angular/build:unit-test`).** ⚠️ **`npx vitest run` NO funciona acá**: no hay `vitest.config`, así que no resuelve el alias `src/*` y todo import falla. Para un archivo suelto: `npm test -- --include=<ruta>`.
+- **No hay `@angular/animations` instalado**, así que `NoopAnimationsModule` no existe: no lo agregues a ningún `TestBed`.
+- **`fixture.whenStable()` no espera una promesa plana** que Angular no registró como tarea pendiente. Para eso el repo ya tiene el patrón `asentar()` de `src/app/pruebas/escaner.spec.ts` — reusalo en vez de inventar otro.
 - **`npm run build` y `npm test` matan cualquier `npm start` en curso** (SIGTERM, salida 143): comparten `.angular/cache`.
 - **Nunca `git push` ni `gh pr create`** sin que el usuario haya probado la app y aprobado explícitamente.
 
@@ -202,7 +205,7 @@ describe('Buscador en modo paginado', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/app/pruebas/buscador-paginado.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/buscador-paginado.spec.ts`
 Expected: FAIL. El segundo caso falla porque el componente hoy renderiza «Sin resultados» ante un error, y `error` / `reintentar` no existen.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -267,7 +270,7 @@ Ajustar los nombres de `input`/`output` del paso 3 a los que el componente realm
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `npx vitest run src/app/pruebas/buscador-paginado.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/buscador-paginado.spec.ts`
 Expected: PASS, los cuatro casos.
 
 - [ ] **Step 6: Commit**
@@ -347,7 +350,7 @@ import { TipoGasto } from '../domains/gastos/pre-gasto.model';
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/app/pruebas/tipo-gasto-reglas.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/tipo-gasto-reglas.spec.ts`
 Expected: FAIL de tipos — `TipoGasto` no tiene `tipoNaturaleza` ni `esPagoCuotaActivo`; hoy declara `naturaleza`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -475,7 +478,7 @@ export type ActivoBusqueda = Vehiculo | Mueble | Inmueble | Equipo;
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx vitest run src/app/pruebas/tipo-gasto-reglas.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/tipo-gasto-reglas.spec.ts`
 Expected: PASS.
 
 Run: `grep -rn "\.naturaleza" src/app --include=*.ts`
@@ -1020,7 +1023,7 @@ describe('Totales por moneda', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-reglas.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-reglas.spec.ts`
 Expected: FAIL — el módulo `gastos-solicitud.reglas` no existe.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1142,7 +1145,7 @@ Nota sobre el orden: el test «rechaza un monto en cero» espera el mensaje de m
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-reglas.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-reglas.spec.ts`
 Expected: PASS, los quince casos.
 
 - [ ] **Step 5: Commit**
@@ -1348,7 +1351,7 @@ describe('Autocompletado al elegir un activo', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/app/pruebas/ente-financiero-reglas.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/ente-financiero-reglas.spec.ts`
 Expected: FAIL — el módulo no existe.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1504,7 +1507,7 @@ function recortarFecha(fecha?: string | null): string {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/app/pruebas/ente-financiero-reglas.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/ente-financiero-reglas.spec.ts`
 Expected: PASS, los dieciséis casos.
 
 - [ ] **Step 5: Commit**
@@ -1679,7 +1682,7 @@ describe('GastosService — alta de solicitud', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-servicio.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-servicio.spec.ts`
 Expected: FAIL — los métodos no existen.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1822,7 +1825,7 @@ Con sus imports. `DatosService.guardar` ya completa `usuarioId` desde la sesión
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-servicio.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-servicio.spec.ts`
 Expected: PASS.
 
 Run: `npm run build`
@@ -2001,7 +2004,7 @@ y ajustá el doble a esa firma — no inventes un método que no existe.
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-nueva.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-nueva.spec.ts`
 Expected: FAIL — la página no existe.
 
 - [ ] **Step 4: Write the page skeleton with its three states**
@@ -2029,7 +2032,7 @@ En `gastos-lista.page.ts`, un botón que navegue a `/operaciones/gastos/nueva`, 
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-nueva.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-nueva.spec.ts`
 Expected: PASS.
 
 Run: `npm run build`
@@ -2176,7 +2179,7 @@ real, no al revés.**
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-nueva.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-nueva.spec.ts`
 Expected: FAIL en los casos nuevos.
 
 - [ ] **Step 3: Implement**
@@ -2193,7 +2196,7 @@ En la página:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-nueva.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-nueva.spec.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -2396,7 +2399,7 @@ Agregar `import { Router } from '@angular/router';` al encabezado del archivo.
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/app/pruebas/gastos-solicitud-nueva.spec.ts`
+Run: `npm test -- --include=src/app/pruebas/gastos-solicitud-nueva.spec.ts`
 Expected: FAIL en los casos nuevos.
 
 - [ ] **Step 3: Implement the input builder**

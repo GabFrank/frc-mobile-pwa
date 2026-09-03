@@ -134,3 +134,54 @@ export interface Transferencia {
   creadoEn?: string;
   items?: TransferenciaItem[];
 }
+
+/**
+ * Lo que viaja al central para guardar un ítem.
+ *
+ * ⚠️ **`saveTransferenciaItem` es un PATCH: un campo ausente significa «no lo
+ * toques», nunca «borralo».** Para vaciar una etapa existe la mutation
+ * `desconfirmarTransferenciaItem`. Mandar `null` —como hace `frc-mobile` al
+ * desconfirmar— no borra nada y deja la pantalla mostrando algo que el
+ * central no guardó.
+ *
+ * ⚠️ **`usuarioId` es obligatorio**: la columna es `NOT NULL` y el central
+ * rechaza el input sin él. Lo completa `DatosService.guardar()` con el
+ * usuario en sesión.
+ */
+export interface TransferenciaItemInput {
+  id?: number;
+  transferenciaId?: number;
+
+  presentacionPreTransferenciaId?: number;
+  presentacionPreparacionId?: number;
+  presentacionTransporteId?: number;
+  presentacionRecepcionId?: number;
+
+  cantidadPreTransferencia?: number;
+  cantidadPreparacion?: number;
+  cantidadTransporte?: number;
+  cantidadRecepcion?: number;
+
+  observacionPreTransferencia?: string;
+  observacionPreparacion?: string;
+  observacionTransporte?: string;
+  observacionRecepcion?: string;
+
+  /** ⚠️ Texto `yyyy-MM-dd`, no un `Date`: el input del central es `String`. */
+  vencimientoPreTransferencia?: string;
+  vencimientoPreparacion?: string;
+  vencimientoTransporte?: string;
+  vencimientoRecepcion?: string;
+
+  motivoModificacionPreTransferencia?: MotivoModificacion;
+  motivoModificacionPreparacion?: MotivoModificacion;
+  motivoModificacionTransporte?: MotivoModificacion;
+  motivoModificacionRecepcion?: MotivoModificacion;
+
+  motivoRechazoPreTransferencia?: MotivoRechazo;
+  motivoRechazoPreparacion?: MotivoRechazo;
+  motivoRechazoTransporte?: MotivoRechazo;
+  motivoRechazoRecepcion?: MotivoRechazo;
+
+  usuarioId?: number;
+}

@@ -1533,7 +1533,7 @@ Claude-Session: https://claude.ai/code/session_0163TzsnGbnUuxmoaSnxHPDi"
 **Interfaces:**
 - Consumes: las clases GQL de la Task 3; `DatosService`; `tipoEnteDesdeModuloPadre` de `tipo-gasto.reglas`.
 - Produces, sobre `GastosService`:
-  - `tiposDeGasto(): Observable<TipoGasto[]>`
+  - `tiposDeGasto(): Observable<TipoGasto[]>`, `monedas(): Observable<Moneda[]>`, `formasPago(): Observable<FormaPago[]>` — los tres catálogos de la carga inicial. **Las sucursales no pasan por acá**: la pantalla inyecta `SucursalService` (`domains/empresarial/sucursal/sucursal.service.ts`) directo, como `recepcion-nueva.page.ts`
   - `buscarPersonas(texto: string, pagina: number): Promise<{ items: Persona[]; hayMas: boolean }>` y sus gemelas `buscarProveedores`, `buscarVehiculos`, `buscarMuebles`, `buscarInmuebles`, `buscarEquipos`
   - `resolverEnte(moduloPadre: string, referenciaId: number): Promise<Ente>`
   - `resumenDelEnte(enteId: number, tipoGastoId: number | null): Observable<ResumenFinancieroEnte>`
@@ -1698,12 +1698,27 @@ Agregar a `src/app/pages/operaciones/gastos/gastos.service.ts`:
   private readonly mueblesGQL = inject(MuebleSearchPageGQL);
   private readonly inmueblesGQL = inject(InmuebleSearchPageGQL);
   private readonly equiposGQL = inject(EquipoSearchPageGQL);
+  private readonly monedasGQL = inject(MonedasGQL);
+  private readonly formasPagoGQL = inject(FormasPagoGQL);
 
   /** Tamaño de página de todos los buscadores del alta. */
   private static readonly TAM_PAGINA = 25;
 
   tiposDeGasto(): Observable<TipoGasto[]> {
-    return this.datos.paginado<TipoGasto[]>(this.tipoGastosGQL, 0, 200);
+    return this.datos
+      .paginado<TipoGasto[]>(this.tipoGastosGQL, 0, 200)
+      .pipe(map((lista) => lista ?? []));
+  }
+
+  monedas(): Observable<Moneda[]> {
+    return this.datos.consultar<Moneda[]>(this.monedasGQL).pipe(map((l) => l ?? []));
+  }
+
+  /** Igual que `SolicitudPagoService.formasPago()`: catálogo chico, se trae entero. */
+  formasPago(): Observable<FormaPago[]> {
+    return this.datos
+      .consultar<FormaPago[]>(this.formasPagoGQL, { page: 0, size: 200 }, { mostrarCarga: false })
+      .pipe(map((l) => l ?? []));
   }
 
   /**
@@ -1840,7 +1855,7 @@ Claude-Session: https://claude.ai/code/session_0163TzsnGbnUuxmoaSnxHPDi"
 - Test: `src/app/pruebas/gastos-solicitud-nueva.spec.ts`
 
 **Interfaces:**
-- Consumes: `GastosService` (Task 6), `faltaParaGuardar` / `totalesPorMoneda` (Task 4), `AuthService.sucursal()`, `PaginaComponent`, `SeccionComponent`, `SelectorComponent`, `BuscadorComponent`, `CampoImporteComponent`, `CampoFechaComponent`, `ImporteComponent`, `EstadoErrorComponent`, `SkeletonComponent`, `DialogoService`, `NotificacionService`.
+- Consumes: `GastosService` (Task 6) para tipos de gasto, monedas y formas de pago; `SucursalService` para las sucursales; `faltaParaGuardar` / `totalesPorMoneda` (Task 4), `AuthService.sucursal()`, `PaginaComponent`, `SeccionComponent`, `SelectorComponent`, `BuscadorComponent`, `CampoImporteComponent`, `CampoFechaComponent`, `ImporteComponent`, `EstadoErrorComponent`, `SkeletonComponent`, `DialogoService`, `NotificacionService`.
 - Produces: `GastosSolicitudNuevaPage`, ruta `nueva`.
 
 - [ ] **Step 1: Read the sibling page before writing anything**
@@ -1860,10 +1875,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { NEVER, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
+import { SucursalService } from '../domains/empresarial/sucursal/sucursal.service';
 import { GastosService } from '../pages/operaciones/gastos/gastos.service';
 import { GastosSolicitudNuevaPage } from '../pages/operaciones/gastos/gastos-solicitud-nueva.page';
 
@@ -1901,7 +1917,6 @@ describe('Alta de solicitud de caja chica', () => {
       tiposDeGasto: vi.fn(() => of(TIPOS)),
       monedas: vi.fn(() => of(MONEDAS)),
       formasPago: vi.fn(() => of([{ id: 1, descripcion: 'EFECTIVO' }])),
-      sucursales: vi.fn(() => of(SUCURSALES)),
       resolverEnte: vi.fn(async () => ({ id: 50 })),
       resumenDelEnte: vi.fn(() => of({})),
       crearSolicitud: vi.fn(() => of({ id: 2338, sucursalId: 1 })),
@@ -1919,6 +1934,9 @@ describe('Alta de solicitud de caja chica', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: GastosService, useValue: gastos },
+        // Las sucursales no pasan por GastosService: la pantalla usa el
+        // servicio que ya existe, como recepcion-nueva.page.ts.
+        { provide: SucursalService, useValue: { todas: () => of(SUCURSALES) } },
       ],
     });
     // La sucursal sale de la sesión: no existe «entrar a una sucursal».
@@ -1932,7 +1950,11 @@ describe('Alta de solicitud de caja chica', () => {
   it('muestra el esqueleto mientras los catálogos no llegaron', () => {
     // Un selector de tipo de gasto vacío no se distingue de «no hay tipos de
     // gasto». Mientras no hay respuesta, esqueleto.
-    gastos['tiposDeGasto'].mockReturnValue(of<unknown[]>([]).pipe());
+    //
+    // ⚠️ `NEVER`, no `of([])`: `of` emite en el mismo tick, la carga
+    // terminaría antes del primer `detectChanges` y el test miraría un
+    // estado que ya pasó — pasaría o fallaría por la razón equivocada.
+    gastos['tiposDeGasto'].mockReturnValue(NEVER);
     const fixture = montar();
 
     expect(fixture.nativeElement.querySelector('frc-skeleton')).not.toBeNull();
@@ -1972,9 +1994,10 @@ describe('Alta de solicitud de caja chica', () => {
 });
 ```
 
-Los nombres de los métodos doblados (`monedas`, `formasPago`, `sucursales`) tienen
-que coincidir con los que exponga `GastosService` al terminar la Task 6: si allá
-quedaron con otro nombre, se ajusta acá — no se inventa un método que no existe.
+Los nombres de los métodos doblados (`monedas`, `formasPago`) tienen que coincidir
+con los que expone `GastosService` al terminar la Task 6. **`SucursalService` no se
+proxea**: verificá su método real con `sed -n 1,40p src/app/domains/empresarial/sucursal/sucursal.service.ts`
+y ajustá el doble a esa firma — no inventes un método que no existe.
 
 - [ ] **Step 3: Run test to verify it fails**
 

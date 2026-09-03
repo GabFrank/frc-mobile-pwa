@@ -1249,8 +1249,8 @@ rendición, aparece su propio estado aparte del estado de la solicitud.
 
 ## Bloque 18 — Transferencias *(nuevo)*
 
-> Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes: la PWA
-> todavía no las crea.
+> Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes. Crear
+> una es el bloque 50, y pide además `CREAR TRANSFERENCIA`.
 
 ### 18.1 · Los tres puntos de vista
 1. Inicio → **Transferencias**
@@ -4441,6 +4441,142 @@ primero que se necesita saber.
 
 ---
 
+## Bloque 50 — Crear una transferencia y cargarle productos *(nuevo, sin probar)*
+
+**Por qué está acá:** cierra el ciclo. Hasta ahora la PWA leía y movía
+transferencias que había creado la APK; con esto el documento **nace** en el
+teléfono.
+
+**Necesita:** el rol **`CREAR TRANSFERENCIA`** (además de `VER TRANSFERENCIA`
+para la lista), y dos sucursales con depósito.
+
+> ⚠️ **Confirmá primero cuánta gente tiene el rol.** Si en la base no lo tiene
+> nadie, el botón «Nueva transferencia» solo lo van a ver los ADMIN. El arreglo
+> es **asignar el rol**, no sacar el guard.
+
+⚠️ **Este bloque no mueve stock.** Crear y cargar no descuentan nada: el
+descuento ocurre al despachar (bloque 49). Lo que sí deja es un documento
+`ABIERTA` en la lista si se abandona a la mitad.
+
+### 50.1 · El botón aparece según el rol
+1. Entrar a **Transferencias** con un usuario que tenga solo `VER
+   TRANSFERENCIA`.
+2. Repetir con uno que tenga `CREAR TRANSFERENCIA`.
+
+**Esperado:** el botón **Nueva transferencia** al pie solo con el segundo.
+Escribiendo `/transferencias/nueva` a mano, el primero rebota a Inicio.
+
+### 50.2 · Solo sucursales que mueven stock
+1. Tocar **Nueva transferencia** y abrir los dos selectores.
+
+**Esperado:** no aparecen `SERVIDOR` ni `COMPRAS` —no tienen depósito—, y el
+origen arranca en la sucursal de tu sesión.
+
+### 50.3 · El destino no puede ser el origen
+1. Elegir un destino.
+2. Cambiar el **origen** a esa misma sucursal.
+
+**Esperado:** la sucursal elegida como origen desaparece de la lista de
+destinos, y el destino queda en blanco. El botón de crear se apaga hasta que
+elijas otro.
+
+### 50.4 · Crear el borrador
+1. Con origen y destino elegidos, tocar **Crear y cargar productos**.
+
+**Esperado:** se abre la pantalla de carga con `#número`, «Sale de» y «Llega
+a», y **Responsable** con tu nombre. ⚠️ Tocar «atrás» vuelve a la lista, **no**
+crea una segunda transferencia.
+
+### 50.5 · El borrador queda en la lista y se retoma
+1. Volver a la lista y buscar la transferencia recién creada.
+2. Tocarla.
+
+**Esperado:** figura como **Abierta / En creación**, y al tocarla se abre otra
+vez la pantalla de carga —no el detalle de etapas, que no tendría nada que
+ofrecer.
+
+### 50.6 · Agregar un producto, con los dos stocks a la vista
+1. Tocar **Agregar producto** y buscar uno por descripción.
+2. Expandir la card.
+
+**Esperado:** la card muestra **dos existencias**: `Origen` y `Destino`. Es lo
+que evita mandar mercadería a una sucursal que ya la tiene.
+
+### 50.7 · Cantidad, vencimiento y observación
+1. Elegir una presentación.
+2. Cargar cantidad 2, un vencimiento y una observación.
+
+**Esperado:** el diálogo dice la presentación («Cantidad: 12 (Caja)») y, si se
+pudo consultar, cuántas unidades hay en origen. Al aceptar, el renglón aparece
+en la lista con su presentación y la observación abajo.
+
+### 50.8 · El aviso de stock avisa, no bloquea
+1. Cargar una cantidad que supere lo que hay en origen.
+
+**Esperado:** el texto del stock se pone en color de advertencia y dice cuántas
+unidades estás pidiendo. **El botón sigue habilitado**: pedir de más es un caso
+real y el descuento recién ocurre al despachar.
+
+### 50.9 · Un código de balanza trae los kilos
+1. Escanear (o tipear) un código de balanza de un producto pesable.
+
+**Esperado:** la cantidad viene cargada con los kilos del código; no hay que
+volver a escribirla.
+
+### 50.10 · Corregir un renglón
+1. Tocar un producto ya cargado.
+2. Cambiar la cantidad y aceptar.
+
+**Esperado:** se reabre el mismo diálogo con lo que tenía, y al guardar la
+lista muestra la cantidad nueva. El contador de **Unidades** de arriba se
+actualiza.
+
+### 50.11 · Quitar un renglón
+1. Tocar **Quitar** en un producto.
+
+**Esperado:** pide confirmación, lo saca de la lista y avisa «Ítem quitado».
+⚠️ Tocar **Quitar** no abre la edición.
+
+### 50.12 · Sin productos no se finaliza
+1. Quitar todos los renglones.
+
+**Esperado:** el botón **Finalizar** queda apagado. Una transferencia vacía
+llegaría hasta preparación sin nada que preparar, y el central no lo impide.
+
+### 50.13 · Finalizar
+1. Con al menos un producto, tocar **Finalizar** y confirmar.
+
+**Esperado:** la confirmación nombra cuántos productos, de qué sucursal y a
+cuál. Al aceptar se abre el **detalle**, ya en **Pendiente en origen**, con el
+botón «Preparar productos» — que es donde sigue el bloque 49.
+
+### 50.14 · Lo finalizado ya no se edita acá
+1. Volver atrás, o escribir a mano `/transferencias/<id>/borrador` de la que
+   se acaba de finalizar.
+
+**Esperado:** manda al detalle. Sus ítems son los que otra etapa va a
+verificar; quitarlos desde acá dejaría a alguien preparando mercadería que ya
+no figura.
+
+### 50.15 · Las cuatro cifras nacen bien
+1. Abrir el detalle de la transferencia recién finalizada.
+
+**Esperado:** cada ítem muestra **solo** «Pedido», con su cantidad y
+presentación. Las otras tres etapas **no** aparecen en cero: todavía no pasó
+nada ahí. ⚠️ Este es el caso que prueba que el alta no pisó las otras etapas.
+
+### 50.16 · Los tres estados
+1. Abrir el alta con el servidor caído; el borrador sin productos; y mirar la
+   carga.
+
+**Esperado:** esqueleto mientras carga, error con **Reintentar** si fallan las
+sucursales o la cabecera, y «Sin productos» con su botón cuando el borrador
+está vacío. ⚠️ Si fallan **solo los ítems**, avisa «No se pudieron traer los
+productos cargados»: un borrador cargado que se muestra vacío en silencio
+termina cargándose dos veces.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -4494,7 +4630,8 @@ primero que se necesita saber.
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
-| **Total** | **419** | | | |
+| 50 · Crear una transferencia y cargarle productos | 16 | | | |
+| **Total** | **435** | | | |
 
 ### Los cinco que más importan
 

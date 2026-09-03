@@ -159,15 +159,17 @@ Cada transferencia concluida genera movimientos de stock de tipo `TRANSFERENCIA`
 
 # Qué cambió en la PWA
 
-> **Estado:** portadas la **lista**, el **detalle con las cuatro etapas** y el
-> **avance de etapa completo, hasta recepción concluida**, con la verificación
-> ítem por ítem. El **alta** de la transferencia y la gestión de sus ítems
-> —agregar y quitar productos— no.
+> **Estado:** portado el ciclo entero — el **alta**, la **carga de productos**
+> del borrador, la **lista**, el **detalle con las cuatro etapas** y el
+> **avance de etapa completo hasta recepción concluida**, con la verificación
+> ítem por ítem.
 
-| Ruta | Componente |
-|---|---|
-| `/transferencias` | `TransferenciasListaPage` |
-| `/transferencias/:id` | `TransferenciaDetallePage` |
+| Ruta | Componente | Rol |
+|---|---|---|
+| `/transferencias` | `TransferenciasListaPage` | `VER TRANSFERENCIA` |
+| `/transferencias/nueva` | `TransferenciaNuevaPage` | `CREAR TRANSFERENCIA` |
+| `/transferencias/:id/borrador` | `TransferenciaBorradorPage` | `CREAR TRANSFERENCIA` |
+| `/transferencias/:id` | `TransferenciaDetallePage` | `VER TRANSFERENCIA` |
 
 ## El modo E del buscador, por fin con consumidor
 
@@ -303,12 +305,76 @@ Y una que se agrega: `frc-mobile` **no ofrece «Modif. Item» en la recepción**
 menos de lo despachado es exactamente el caso que el módulo existe para
 registrar, así que acá está en las tres etapas.
 
+## El alta: dos pantallas y un borrador en el central
+
+El input de la cabecera **no acepta ítems anidados**: sin transferencia
+guardada no hay dónde poner el primer producto. Por eso el alta son dos pasos,
+y el primero ya escribe en el central.
+
+1. **`/transferencias/nueva`** — origen y destino, y se crea la transferencia
+   `ABIERTA` en `PRE_TRANSFERENCIA_CREACION`.
+2. **`/transferencias/:id/borrador`** — se le cargan los productos, uno por
+   uno, y se finaliza.
+
+> **Cada ítem se guarda al agregarlo, no al final.** Acumular cuarenta
+> renglones en memoria y confirmarlos juntos es perderlos cuando el service
+> worker se actualiza en el medio, o cuando alguien toca atrás. El costo es que
+> un borrador abandonado queda en la lista como `ABIERTA` — que es lo mismo que
+> pasa en `frc-mobile`.
+
+> **La lista navega siempre a `/transferencias/:id`.** El detalle redirige al
+> borrador si la transferencia todavía está en creación, y el borrador redirige
+> al detalle si ya salió. Así ninguna pantalla necesita saber de antemano en
+> qué estado está lo que se tocó.
+
+⚠️ **Un borrador que ya se finalizó no se edita más acá.** Sus ítems son los
+que otra etapa está verificando: quitarlos por esta pantalla dejaría a alguien
+preparando mercadería que ya no figura.
+
+### Tres cosas que el central hace distinto de lo que parece
+
+| Qué | Qué pasa de verdad |
+|---|---|
+| `usuarioId` en la cabecera | **No asigna el responsable.** `saveTransferencia` solo mira `usuarioPreTransferenciaId`; el `usuarioId` genérico que completa `DatosService.guardar()` lo ignora. `frc-mobile` no lo manda y sus borradores figuran sin responsable hasta que alguien los finaliza. Acá se manda desde el alta |
+| `finalizarTransferencia` | Devuelve **`false` sin error** si el estado no es `ABIERTA`. Tratarlo como éxito llevaría al detalle anunciando algo que no ocurrió |
+| Finalizar sin ítems | **Lo acepta.** La transferencia vacía queda pendiente en origen y alguien la abre para preparar lo que no hay. El botón se apaga del lado del cliente |
+
+### El ítem del borrador escribe **solo** el grupo `PreTransferencia`
+
+`frc-mobile` manda las otras tres etapas en cero o en nulo. Contra este
+central, que trata el save como un PATCH, eso es ruido que puede pisar lo que
+no debe; y el vencimiento y la observación vacíos se **omiten** en vez de
+viajar en `null`, porque un `null` no borra nada y dejaría la pantalla
+mostrando algo que el central no guardó.
+
+Es lo que hace que, recién finalizada, cada ítem muestre solo «Pedido»: las
+otras tres etapas no aparecen en cero porque todavía no pasó nada ahí.
+
+### El aviso de stock
+
+Al cargar la cantidad se consulta la existencia en **origen** y se compara
+`cantidad × presentación` contra ella. Avisa, **no bloquea**: pedir de más es
+un caso real —se repone contra lo que va llegando— y el descuento ocurre recién
+al despachar. Sin stock conocido no se dice nada: «no pude consultarlo» y «no
+hay» son respuestas distintas.
+
+### Crear pide su propio rol
+
+`transferenciasAlta` = `ADMIN` + `CREAR TRANSFERENCIA`, separado de
+`transferencias` (`VER TRANSFERENCIA`, 257 usuarios): mirar el movimiento de
+mercadería no es originar uno. `frc-mobile` declara el rol en su enum y **no lo
+usa en ningún lado**.
+
+⚠️ **Falta confirmar cuántos usuarios lo tienen asignado.** Si fueran cero, el
+alta quedaría visible solo para ADMIN; el arreglo ahí es asignar el rol, no
+sacar el guard.
+
 ## Lo que falta
 
 | Qué | Nota |
 |---|---|
-| Alta de transferencia | usa el buscador en modo E, que ya existe |
-| Agregar y quitar ítems | el ABM de productos de la transferencia, antes de despacharla |
+| Cambiar las sucursales de un borrador | `frc-mobile` lo ofrece en su menú. Cambiar el origen con ítems ya cargados invalida el stock contra el que se cargaron |
+| Descartar un borrador | `deleteTransferencia` no se portó: un borrador vacío queda en la lista como `ABIERTA` |
 | Impresión | `imprimirTransferencia` devuelve base64 |
 | Asignar lotes a mano | el central lo acepta (`lotesAsignados`); sin eso el desglose sale por FEFO, que es lo que hacen hoy todos los clientes |
 

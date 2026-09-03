@@ -173,3 +173,40 @@ export const desconfirmarTransferenciaItemMutation = gql`
     }
   }
 `;
+
+/**
+ * Alta y edición de la cabecera.
+ *
+ * ⚠️ **El responsable solo entra por `usuarioPreTransferenciaId`.** El
+ * `usuarioId` genérico que completa `DatosService.guardar()` la cabecera no lo
+ * mira: `saveTransferencia` asigna `usuarioPreTransferencia` únicamente cuando
+ * el input trae ese campo, y si no lo trae conserva el que ya tenía la fila
+ * —que en un alta es ninguno—.
+ *
+ * ⚠️ **También es un PATCH.** El central carga la fila existente para
+ * preservar lo que el input no manda, y valida que la etapa no retroceda: un
+ * input viejo con la etapa vieja sería un `save` que devuelve la
+ * transferencia al principio.
+ *
+ * Devuelve la cabecera completa porque de `estado` y `etapa` depende adónde
+ * navega la pantalla después de crear.
+ */
+export const saveTransferenciaMutation = gql`
+  mutation saveTransferencia($entity: TransferenciaInput!) {
+    data: saveTransferencia(transferencia: $entity) {
+      ${cabecera}
+    }
+  }
+`;
+
+/**
+ * Quita un ítem del borrador.
+ *
+ * Es un borrado real, no un `activo = false`: mientras la transferencia está
+ * en creación el renglón todavía no significa nada para el stock.
+ */
+export const deleteTransferenciaItemMutation = gql`
+  mutation deleteTransferenciaItem($id: ID!) {
+    data: deleteTransferenciaItem(id: $id)
+  }
+`;

@@ -183,5 +183,38 @@ export interface TransferenciaItemInput {
   motivoRechazoTransporte?: MotivoRechazo;
   motivoRechazoRecepcion?: MotivoRechazo;
 
+  /** Sigue vigente. El central no lo completa solo en un ítem nuevo. */
+  activo?: boolean;
+  /** Si el renglón declara vencimiento. Espeja a `vencimientoPreTransferencia`. */
+  poseeVencimiento?: boolean;
+
+  usuarioId?: number;
+}
+
+/**
+ * Lo que viaja al central para guardar la cabecera.
+ *
+ * ⚠️ **`usuarioId` no alcanza para dejar el responsable.** `saveTransferencia`
+ * solo asigna `usuarioPreTransferencia` cuando el input trae
+ * `usuarioPreTransferenciaId`; el `usuarioId` genérico que completa
+ * `DatosService.guardar()` lo ignora. `frc-mobile` no lo manda, así que sus
+ * borradores no tienen responsable hasta que alguien los finaliza —y ahí lo
+ * escribe `finalizarTransferencia`, no el alta.
+ *
+ * ⚠️ **Sin `id` es un alta.** El central preserva los campos ausentes solo
+ * cuando el input trae un `id` existente.
+ */
+export interface TransferenciaInput {
+  id?: number;
+  sucursalOrigenId?: number;
+  sucursalDestinoId?: number;
+  estado?: TransferenciaEstado;
+  tipo?: TipoTransferencia;
+  etapa?: EtapaTransferencia;
+  observacion?: string;
+  usuarioPreTransferenciaId?: number;
+  usuarioPreparacionId?: number;
+  usuarioTransporteId?: number;
+  usuarioRecepcionId?: number;
   usuarioId?: number;
 }

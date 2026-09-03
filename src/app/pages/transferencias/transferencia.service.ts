@@ -7,6 +7,7 @@ import type { PageInfo } from 'src/app/domains/page-info.model';
 import {
   EtapaTransferencia,
   Transferencia,
+  TransferenciaInput,
   TransferenciaItem,
   TransferenciaItemInput,
 } from 'src/app/domains/transferencia/transferencia.model';
@@ -15,7 +16,9 @@ import { FinalizarTransferenciaGQL } from 'src/app/graphql/transferencias/finali
 import { ItemsPorTransferenciaGQL } from 'src/app/graphql/transferencias/itemsPorTransferencia';
 import { TransferenciaPorIdGQL } from 'src/app/graphql/transferencias/transferenciaPorId';
 import { TransferenciasConFiltrosGQL } from 'src/app/graphql/transferencias/transferenciasConFiltros';
+import { SaveTransferenciaGQL } from 'src/app/graphql/transferencias/saveTransferencia';
 import { SaveTransferenciaItemGQL } from 'src/app/graphql/transferencias/saveTransferenciaItem';
+import { DeleteTransferenciaItemGQL } from 'src/app/graphql/transferencias/deleteTransferenciaItem';
 import { DesconfirmarTransferenciaItemGQL } from 'src/app/graphql/transferencias/desconfirmarTransferenciaItem';
 import { SolicitarPushGQL } from 'src/app/graphql/notificaciones/solicitarPush';
 
@@ -57,7 +60,9 @@ export class TransferenciaService {
   private readonly itemsGQL = inject(ItemsPorTransferenciaGQL);
   private readonly avanzarGQL = inject(AvanzarEtapaGQL);
   private readonly finalizarGQL = inject(FinalizarTransferenciaGQL);
+  private readonly guardarGQL = inject(SaveTransferenciaGQL);
   private readonly guardarItemGQL = inject(SaveTransferenciaItemGQL);
+  private readonly eliminarItemGQL = inject(DeleteTransferenciaItemGQL);
   private readonly desconfirmarItemGQL = inject(DesconfirmarTransferenciaItemGQL);
   private readonly pushGQL = inject(SolicitarPushGQL);
 
@@ -102,6 +107,39 @@ export class TransferenciaService {
           })),
         ),
       );
+  }
+
+  /**
+   * Crea la transferencia en borrador.
+   *
+   * ⚠️ **Solo para el alta y para editar la cabecera.** No sirve para mover
+   * el workflow: la etapa se cambia con {@link avanzarEtapa}, que es donde el
+   * central valida y genera los movimientos de stock. Un `save` con la etapa
+   * cambiada los saltea.
+   *
+   * ⚠️ **El responsable va en `usuarioPreTransferenciaId`.** El `usuarioId`
+   * que completa `DatosService.guardar()` no lo asigna: el central solo mira
+   * ese campo. Lo arma `nuevaTransferenciaInput()`.
+   */
+  crear(input: TransferenciaInput): Observable<Transferencia> {
+    return this.datos.guardar<Transferencia>(
+      this.guardarGQL,
+      input as unknown as Record<string, unknown>,
+    );
+  }
+
+  /**
+   * Quita un ítem del borrador.
+   *
+   * Borrado real: mientras la transferencia está en creación el renglón
+   * todavía no generó ningún movimiento de stock.
+   */
+  eliminarItem(itemId: number): Observable<boolean> {
+    return this.datos.mutar<boolean>(
+      this.eliminarItemGQL,
+      { id: itemId },
+      { mensajeExito: 'Ítem quitado' },
+    );
   }
 
   /**

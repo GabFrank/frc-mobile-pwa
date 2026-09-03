@@ -181,6 +181,23 @@ describe('Alta de solicitud — el activo imputado', () => {
     expect(texto(fixture)).not.toContain('₲ 0');
   });
 
+  it('dice «No se pudo consultar el activo» cuando el resumen llega null', async () => {
+    // `data: null` es una respuesta GraphQL válida, no un error de red —
+    // `DatosService.consultar` no la envuelve en el canal de error (Task 6
+    // ya lo prueba para `resolverEnte`). El mismo aviso tiene que salir acá,
+    // y nunca un monto en cero.
+    gastos['resumenDelEnte'].mockReturnValue(of(null));
+    const fixture = montar();
+    fixture.componentInstance.elegirTipoGasto(TIPOS[1]);
+    await fixture.componentInstance.elegirActivo({ id: 88, chapa: 'ABC123' });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.errorResumen()).toBe(true);
+    expect(fixture.componentInstance.vistaResumen()).toBeNull();
+    expect(texto(fixture)).toContain('No se pudo consultar el activo');
+    expect(texto(fixture)).not.toContain('₲ 0');
+  });
+
   it('autocompleta el primer detalle vacío al elegir el activo', async () => {
     gastos['resumenDelEnte'].mockReturnValue(
       of({ montoSugerido: 450000, monedaId: 1, autocompletarMonto: true }),
@@ -224,5 +241,29 @@ describe('Alta de solicitud — el activo imputado', () => {
 
     expect(gastos['buscarInmuebles']).toHaveBeenCalled();
     expect(gastos['buscarVehiculos']).not.toHaveBeenCalled();
+  });
+
+  it('el proveedor que trae el resumen del activo pisa el beneficiario elegido a mano', async () => {
+    // Decisión deliberada, portada del spec de frc-mobile: en un gasto
+    // recurrente el central ya sabe a quién se le paga — ANDE, por ejemplo—
+    // y ese proveedor manda sobre lo que el operador haya tocado antes en
+    // el buscador de beneficiario.
+    gastos['resumenDelEnte'].mockReturnValue(
+      of({ proveedorId: 77, proveedorNombre: 'ande s.a.' }),
+    );
+    const fixture = montar();
+    fixture.componentInstance.elegirTipoGasto(TIPOS[2]);
+    fixture.componentInstance.elegirProveedor({
+      id: 5,
+      persona: { nombre: 'PROVEEDOR ELEGIDO A MANO' },
+    } as never);
+
+    await fixture.componentInstance.elegirActivo({ id: 12, nombreAsignado: 'LOCAL 3' });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.beneficiarioTipo()).toBe('PROVEEDOR');
+    expect(fixture.componentInstance.beneficiarioProveedorId()).toBe(77);
+    expect(texto(fixture)).toContain('ANDE S.A.');
+    expect(texto(fixture)).not.toContain('PROVEEDOR ELEGIDO A MANO');
   });
 });

@@ -36,6 +36,7 @@ import {
 import { Moneda } from 'src/app/domains/moneda/moneda.model';
 import { Persona } from 'src/app/domains/personas/persona.model';
 import { nombreProveedor, Proveedor } from 'src/app/domains/personas/proveedor.model';
+import type { ResumenFinancieroEnte } from 'src/app/graphql/operaciones/gastos/enteFinancialSummary';
 import {
   BuscadorComponent,
   ConfigBuscador,
@@ -466,30 +467,63 @@ export class GastosSolicitudNuevaPage {
     }
 
     this.servicio.resumenDelEnte(enteId, this.tipoGastoId()).subscribe({
-      next: (resumen) => {
-        this.vistaResumen.set(construirVistaResumen(resumen, this.monedasParaResumen()));
-
-        const resultado = aplicarAutocompletado(resumen, {
-          fechaVencimiento: this.fechaVencimiento() ?? '',
-          detalles: this.detalles(),
-          beneficiarioTipo: this.beneficiarioTipo(),
-          beneficiarioProveedorId: this.beneficiarioProveedorId(),
-          textoProveedor: '',
-        });
-        this.fechaVencimiento.set(resultado.fechaVencimiento || null);
-        this.detalles.set(resultado.detalles);
-        if (resultado.beneficiarioProveedorId != null) {
-          this.beneficiarioTipo.set('PROVEEDOR');
-          this.proveedor.set({
-            id: resultado.beneficiarioProveedorId,
-            persona: { nombre: resultado.textoProveedor },
-          } as Proveedor);
-        }
-      },
-      error: () => {
-        this.errorResumen.set(true);
-      },
+      next: (resumen) => this.aplicarResumen(resumen),
+      // Cualquier fallo del `Observable` —de red, de GraphQL— cae acá.
+      error: () => this.errorResumen.set(true),
     });
+  }
+
+  /**
+   * Único punto por el que un resumen recibido se convierte en tarjeta o en
+   * error. Es a propósito el único lugar que hace `errorResumen.set(true)`
+   * fuera de los otros dos guardas tempranos de `elegirActivo` (módulo sin
+   * activo, `Ente` sin id) — así un fallo nuevo, sea cual sea su forma, no
+   * tiene otro camino que ese mismo `catch`.
+   *
+   * ⚠️ **`resumen` puede llegar `null` con una respuesta GraphQL válida**
+   * (`DatosService.consultar` no envuelve `data: null` en un error — Task 6
+   * ya lo prueba para `resolverEnte`). Sin este guardia, `construirVistaResumen`
+   * revienta dentro del `next` del `subscribe`: RxJS no reencamina una
+   * excepción lanzada ahí hacia `error`, así que quedaba sin manejar y la
+   * tarjeta no decía nada — se rompía en silencio en vez de avisar.
+   */
+  private aplicarResumen(resumen: ResumenFinancieroEnte | null | undefined): void {
+    if (resumen == null) {
+      this.errorResumen.set(true);
+      return;
+    }
+
+    try {
+      this.vistaResumen.set(construirVistaResumen(resumen, this.monedasParaResumen()));
+
+      const resultado = aplicarAutocompletado(resumen, {
+        fechaVencimiento: this.fechaVencimiento() ?? '',
+        detalles: this.detalles(),
+        beneficiarioTipo: this.beneficiarioTipo(),
+        beneficiarioProveedorId: this.beneficiarioProveedorId(),
+        textoProveedor: '',
+      });
+      this.fechaVencimiento.set(resultado.fechaVencimiento || null);
+      this.detalles.set(resultado.detalles);
+      if (resultado.beneficiarioProveedorId != null) {
+        // ⚠️ Pisa el beneficiario ya elegido a mano, a propósito: es el
+        // apartamiento deliberado del spec (portado de `frc-mobile`) para
+        // los gastos recurrentes con proveedor conocido —cuando el central
+        // sabe a quién se le paga ese gasto, ese proveedor manda sobre lo
+        // que el operador haya tocado antes en el buscador de beneficiario.
+        // No lo "arregles" sacando este pisado sin revisar el spec primero.
+        this.beneficiarioTipo.set('PROVEEDOR');
+        this.proveedor.set({
+          id: resultado.beneficiarioProveedorId,
+          persona: { nombre: resultado.textoProveedor },
+        } as Proveedor);
+      }
+    } catch {
+      // Un resumen con forma inesperada no es distinto de un resumen que no
+      // llegó: la tarjeta tiene que decir lo mismo en los dos casos.
+      this.vistaResumen.set(null);
+      this.errorResumen.set(true);
+    }
   }
 
   /** `MonedaResumen` exige `id` numérico; `Moneda.id` llega opcional del catálogo. */

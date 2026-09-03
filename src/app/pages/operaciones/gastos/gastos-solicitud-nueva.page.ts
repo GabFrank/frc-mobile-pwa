@@ -10,17 +10,41 @@ import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { FormaPago } from 'src/app/domains/forma-pago/forma-pago.model';
-import { BeneficiarioTipo, TipoGasto } from 'src/app/domains/gastos/pre-gasto.model';
+import {
+  construirVistaResumen,
+  aplicarAutocompletado,
+  VistaResumenEnte,
+} from 'src/app/domains/gastos/ente-financiero.reglas';
+import {
+  ActivoBusqueda,
+  Equipo,
+  Inmueble,
+  Mueble,
+  Vehiculo,
+} from 'src/app/domains/gastos/ente.model';
+import {
+  BeneficiarioTipo,
+  DetalleFinanciero,
+  MonedaResumen,
+  TipoGasto,
+} from 'src/app/domains/gastos/pre-gasto.model';
+import {
+  etiquetaModuloPadre,
+  requiereEnteActivo,
+  tipoEnteDesdeModuloPadre,
+} from 'src/app/domains/gastos/tipo-gasto.reglas';
 import { Moneda } from 'src/app/domains/moneda/moneda.model';
 import { Persona } from 'src/app/domains/personas/persona.model';
 import { nombreProveedor, Proveedor } from 'src/app/domains/personas/proveedor.model';
 import {
   BuscadorComponent,
   ConfigBuscador,
+  ConfigBuscadorPaginado,
 } from 'src/app/shared/buscador/buscador.component';
 import { CampoFechaComponent } from 'src/app/shared/campos/campo-fecha.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
+import { ImportePipe } from 'src/app/shared/importe/importe.pipe';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
@@ -71,6 +95,7 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
     MatFormFieldModule,
     MatInputModule,
     FormsModule,
+    ImportePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -109,6 +134,32 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
           </button>
         </frc-seccion>
 
+        @if (requiereActivo()) {
+          <frc-seccion [titulo]="etiquetaActivo()" [panel]="true">
+            <p class="dato">{{ textoActivo() || 'Sin elegir' }}</p>
+            <button matButton="tonal" type="button" (click)="abrirBuscadorActivo()">
+              Elegir {{ etiquetaActivo() }}
+            </button>
+            @if (errorResumen()) {
+              <p class="error-resumen">No se pudo consultar el activo</p>
+            } @else if (vistaResumen(); as resumen) {
+              <div class="resumen">
+                <p class="dato">{{ resumen.titulo }}</p>
+                <p>
+                  Pendiente:
+                  {{ resumen.montoPendiente | importe: resumen.denominacion : resumen.simbolo }}
+                </p>
+                @if (resumen.mostrarCuotas) {
+                  <p class="ayuda">{{ resumen.cuotaTexto }} · {{ resumen.cuotasFaltantesTexto }}</p>
+                }
+                @if (resumen.notificacion) {
+                  <p class="ayuda">{{ resumen.notificacion }}</p>
+                }
+              </div>
+            }
+          </frc-seccion>
+        }
+
         <frc-seccion titulo="Retiro" [panel]="true">
           <frc-selector
             etiqueta="Sucursal de retiro"
@@ -143,6 +194,19 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
     .campo { width: 100%; }
     .dato { margin: 0; font-weight: var(--fw-medium); }
     .ayuda { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
+    .resumen {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      margin-top: var(--sp-2);
+      padding-top: var(--sp-2);
+      border-top: 1px solid var(--border);
+    }
+    .error-resumen {
+      margin: var(--sp-2) 0 0;
+      font-size: var(--fs-caption);
+      color: var(--danger);
+    }
   `,
 })
 export class GastosSolicitudNuevaPage {
@@ -184,6 +248,31 @@ export class GastosSolicitudNuevaPage {
   readonly tipoGasto = signal<TipoGasto | null>(null);
   readonly tipoGastoId = computed(() => this.tipoGasto()?.id ?? null);
   readonly nombreTipoGasto = computed(() => this.tipoGasto()?.descripcion ?? 'Sin elegir');
+
+  // ──────────────────────────────────────────────────────────── Activo ──
+
+  readonly moduloPadre = computed(() => this.tipoGasto()?.moduloPadre ?? null);
+  /** Los siete servicios continuos también piden activo: se imputan a un `INMUEBLE`. */
+  readonly requiereActivo = computed(() => requiereEnteActivo(this.moduloPadre()));
+  readonly etiquetaActivo = computed(() => etiquetaModuloPadre(this.moduloPadre()));
+
+  readonly enteId = signal<number | null>(null);
+  readonly activoReferenciaId = signal<number | null>(null);
+  readonly textoActivo = signal('');
+  readonly vistaResumen = signal<VistaResumenEnte | null>(null);
+  /** ⚠️ Nunca se muestra un monto en cero cuando esto es `true`: la tarjeta dice que no se pudo consultar. */
+  readonly errorResumen = signal(false);
+
+  // ────────────────────────────────────────────────────── Detalle financiero ──
+
+  /**
+   * Forma mínima del detalle: un único renglón `{monto, monedaId, formaPago}`.
+   * Agregar/quitar filas y los totales por moneda son de la Task 9 — acá
+   * alcanza con tener dónde autocompletar y dónde no pisar lo ya cargado.
+   */
+  readonly detalles = signal<DetalleFinanciero[]>([
+    { monto: null, monedaId: null, formaPago: null },
+  ]);
 
   readonly beneficiarioTipo = signal<BeneficiarioTipo>('PROVEEDOR');
   readonly proveedor = signal<Proveedor | null>(null);
@@ -244,6 +333,14 @@ export class GastosSolicitudNuevaPage {
 
   elegirTipoGasto(tipo: TipoGasto): void {
     this.tipoGasto.set(tipo);
+
+    // ⚠️ Cambiar de tipo de gasto tiene que limpiar el activo: si no, un
+    // vehículo queda imputado a un gasto de inmueble y nadie lo nota.
+    this.enteId.set(null);
+    this.activoReferenciaId.set(null);
+    this.textoActivo.set('');
+    this.vistaResumen.set(null);
+    this.errorResumen.set(false);
   }
 
   async abrirBuscadorTipoGasto(): Promise<void> {
@@ -262,6 +359,150 @@ export class GastosSolicitudNuevaPage {
     if (elegido) {
       this.elegirTipoGasto(elegido);
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────── Activo ──
+
+  /**
+   * Qué buscador corresponde al módulo padre del tipo de gasto elegido.
+   *
+   * Extraído de `abrirBuscadorActivo()` para poder probarse sin pasar por
+   * un diálogo real: los siete servicios continuos resuelven al mismo
+   * buscador de inmuebles que `INMUEBLE`, vía `tipoEnteDesdeModuloPadre`.
+   */
+  configBuscadorActivo(): ConfigBuscadorPaginado<ActivoBusqueda> | null {
+    const tipoEnte = tipoEnteDesdeModuloPadre(this.moduloPadre());
+    switch (tipoEnte) {
+      case 'VEHICULO':
+        return {
+          modo: 'paginado',
+          titulo: 'Elegir vehículo',
+          placeholder: 'Buscar vehículo',
+          cargarPagina: (texto, pagina) => this.servicio.buscarVehiculos(texto, pagina),
+          texto: (item) => (item as Vehiculo).chapa || `Vehículo ${item.id}`,
+          id: (item) => item.id,
+        };
+      case 'MUEBLE':
+        return {
+          modo: 'paginado',
+          titulo: 'Elegir mueble',
+          placeholder: 'Buscar mueble',
+          cargarPagina: (texto, pagina) => this.servicio.buscarMuebles(texto, pagina),
+          texto: (item) => (item as Mueble).descripcion || `Mueble ${item.id}`,
+          id: (item) => item.id,
+        };
+      case 'INMUEBLE':
+        return {
+          modo: 'paginado',
+          titulo: 'Elegir inmueble',
+          placeholder: 'Buscar inmueble',
+          cargarPagina: (texto, pagina) => this.servicio.buscarInmuebles(texto, pagina),
+          texto: (item) => (item as Inmueble).nombreAsignado || `Inmueble ${item.id}`,
+          id: (item) => item.id,
+        };
+      case 'EQUIPO':
+        return {
+          modo: 'paginado',
+          titulo: 'Elegir equipo',
+          placeholder: 'Buscar equipo',
+          cargarPagina: (texto, pagina) => this.servicio.buscarEquipos(texto, pagina),
+          texto: (item) => {
+            const equipo = item as Equipo;
+            return equipo.identificador || equipo.descripcion || `Equipo ${item.id}`;
+          },
+          id: (item) => item.id,
+        };
+      default:
+        return null;
+    }
+  }
+
+  async abrirBuscadorActivo(): Promise<void> {
+    const config = this.configBuscadorActivo();
+    if (!config) {
+      return;
+    }
+    const elegido = await this.dialogo.abrir<
+      BuscadorComponent<ActivoBusqueda>,
+      ConfigBuscador<ActivoBusqueda>,
+      ActivoBusqueda
+    >(BuscadorComponent, config);
+    if (elegido) {
+      await this.elegirActivo(elegido);
+    }
+  }
+
+  /**
+   * Vincula el activo elegido: resuelve su `Ente`, lee el resumen financiero
+   * y aplica lo que se pueda autocompletar.
+   *
+   * ⚠️ Si el resumen falla, la tarjeta dice que no se pudo consultar y no
+   * muestra ningún monto — un cero afirmaría una deuda que nadie confirmó.
+   */
+  async elegirActivo(item: ActivoBusqueda): Promise<void> {
+    const config = this.configBuscadorActivo();
+    this.activoReferenciaId.set(item.id);
+    this.textoActivo.set(config ? config.texto(item) : '');
+    this.vistaResumen.set(null);
+    this.errorResumen.set(false);
+
+    const modulo = this.moduloPadre();
+    if (modulo == null) {
+      return;
+    }
+
+    try {
+      const ente = await this.servicio.resolverEnte(modulo, item.id);
+      this.enteId.set(ente.id ?? null);
+    } catch {
+      this.errorResumen.set(true);
+      return;
+    }
+
+    const enteId = this.enteId();
+    if (enteId == null) {
+      this.errorResumen.set(true);
+      return;
+    }
+
+    this.servicio.resumenDelEnte(enteId, this.tipoGastoId()).subscribe({
+      next: (resumen) => {
+        this.vistaResumen.set(construirVistaResumen(resumen, this.monedasParaResumen()));
+
+        const resultado = aplicarAutocompletado(resumen, {
+          fechaVencimiento: this.fechaVencimiento() ?? '',
+          detalles: this.detalles(),
+          beneficiarioTipo: this.beneficiarioTipo(),
+          beneficiarioProveedorId: this.beneficiarioProveedorId(),
+          textoProveedor: '',
+        });
+        this.fechaVencimiento.set(resultado.fechaVencimiento || null);
+        this.detalles.set(resultado.detalles);
+        if (resultado.beneficiarioProveedorId != null) {
+          this.beneficiarioTipo.set('PROVEEDOR');
+          this.proveedor.set({
+            id: resultado.beneficiarioProveedorId,
+            persona: { nombre: resultado.textoProveedor },
+          } as Proveedor);
+        }
+      },
+      error: () => {
+        this.errorResumen.set(true);
+      },
+    });
+  }
+
+  /** `MonedaResumen` exige `id` numérico; `Moneda.id` llega opcional del catálogo. */
+  private monedasParaResumen(): MonedaResumen[] {
+    return this.monedas()
+      .filter((m): m is Moneda & { id: number } => m.id != null)
+      .map((m) => ({ id: m.id, denominacion: m.denominacion, simbolo: m.simbolo }));
+  }
+
+  cambiarDetalle(indice: number, cambios: Partial<DetalleFinanciero>): void {
+    this.detalles.update((lista) =>
+      lista.map((detalle, i) => (i === indice ? { ...detalle, ...cambios } : detalle)),
+    );
   }
 
   // ─────────────────────────────────────────────────────────── Beneficiario ──

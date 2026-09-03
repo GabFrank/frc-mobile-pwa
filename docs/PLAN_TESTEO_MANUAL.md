@@ -4441,7 +4441,7 @@ primero que se necesita saber.
 
 ---
 
-## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo)* — **4/7 y uno parcial** (Franco + Claude en Chrome, alpha, 2026-09-03)
+## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo)* — **4/7 y dos parciales** (Franco + Claude en Chrome; alpha y central local, 2026-09-03)
 
 **Por qué está acá:** `frc-mobile` mostraba en mayúsculas lo que se escribía en
 el login y en el buscador de productos (`text-transform: uppercase` sobre el
@@ -4498,7 +4498,11 @@ avanzar de etapa una transferencia real, así que no se probó.
 **Esperado:** en las tres se ve en mayúsculas — es el mismo componente
 compartido, no tres campos distintos.
 
-### 50.7 · Tema oscuro y tema claro — sin probar
+### 50.7 · Tema oscuro y tema claro — parcial: ✅ el buscador; el login sin probar
+
+Verificado en la pestaña **Buscar** contra el central local, con los dos temas:
+en claro «mandioca» → `MANDIOCA`, en oscuro «costilla» → `COSTILLA`, legible en
+los dos. El **login** no se probó: verlo exige cerrar la sesión.
 1. Repetir 50.1 y 50.4 con cada tema.
 
 **Esperado:** solo cambia el color; el texto sigue en mayúsculas y legible.
@@ -4506,7 +4510,7 @@ compartido, no tres campos distintos.
 
 ---
 
-## Bloque 51 — Cantidades en enteros, no en decimales *(nuevo)* — **9/10** (Claude en Chrome, alpha, usuario MAURO, 2026-09-03)
+## Bloque 51 — Cantidades en enteros, no en decimales *(nuevo)* — **10/10** (Claude en Chrome; alpha y central local, usuario MAURO, 2026-09-03)
 
 **Por qué está acá:** el central devuelve las cantidades como `Float` aunque el
 producto se cuente por unidad —`movimiento_stock` y `cantidad_fisica` son
@@ -4537,28 +4541,30 @@ el número sigue en rojo.
 
 **Esperado:** se ven `+7`, `+25`, sin decimales.
 
-### 51.3 · Un saldo fraccionado sí los muestra — sin probar **en esta pantalla**, y no por falta de intentos
+### 51.3 · Un saldo fraccionado sí los muestra — ✅ PASÓ
 
-Consultada la base de alpha (`localhost:5553`) por SQL: en toda la instancia hay
-**un solo** producto con saldo fraccionado, `PLAN SLIM LINE C/60 SAQUITOS`
-(id 4354, sucursal 1), y vale `0,00000004768372` — residuo de punto flotante, no
-un pesable. Para verlo habría que llegar al final de «Saldo positivo» acotado a
-esa sucursal: **2.405 productos de a 15**, unas 161 tandas de «Cargar más». La
-pantalla no expone filtro por producto, aunque la query del central sí acepta
-`productoId`.
+Contra el **central local** (`localhost:8081`, base `bodega`), en Control de
+inventario → Saldo negativo → **SUC. CENTRAL**, las dos ramas de la regla
+conviven en la misma pantalla:
 
-La rama fraccionada de `formatearExistencia` **sí está verificada en la app**,
-por otras pantallas que la usan: la diferencia del conteo mostró `+0,10` y
-`-2,50`, y la presentación CAJA de ALGILEM GESIC mostró `-300.621,50`.
+| Producto | Saldo | |
+|---|---|---|
+| DELIVERY | `-1.021` | entero, con punto de miles |
+| COSTILLA VACUNA PREMIUN | `-983,98` | **fraccionado**, decimales conservados |
+| FRIMESA CHORIZO TOSCANO | `-982,33` | **fraccionado** |
+| ARCOR CHOCOMANI 6.5G | `-958` | entero, pelado |
+| MANDIOCA | `-751,08` | **fraccionado** |
 
-⚠️ **Hallazgo menor:** ese producto se vería como `+0,00` — un saldo que no es
-cero pintado como cero. A efectos del negocio 4,7·10⁻⁸ **es** cero, así que no
-se cambió nada, pero queda anotado.
-1. Buscar un producto de balanza, o uno con un ajuste fraccionado, en
-   cualquiera de los dos reportes.
+Carne y mandioca llevan decimales; los caramelos no. Nadie le dice a la app
+cuál es pesable: lo decide el valor.
 
-**Esperado:** `2,5` — el decimal **no** se redondea. Si ves un saldo entero
-donde esperabas kilos, el producto tiene kilos justos, no es un error.
+⚠️ **La sucursal importa para poder verlo.** En «Todas las sucursales» el
+primer saldo fraccionado cae en un puesto inalcanzable entre 22.699 productos;
+acotado a SUC. CENTRAL queda **décimo de 1.701**, en la primera página.
+
+⚠️ **En alpha este caso no se puede probar**: hay un solo saldo fraccionado en
+toda la instancia y vale `0,00000004768372` —residuo de punto flotante, no un
+pesable—, que además se vería como `+0,00`.
 
 ### 51.4 · Carga del conteo: «Sistema» — ✅ PASÓ (toma #2338, zona b1: «Sistema: -601.243» y «Sistema: -5», sin `,00`)
 1. Abrir una toma, entrar a una zona con renglones ya cargados.
@@ -4664,7 +4670,7 @@ por el que el repo prohíbe el pipe `number`.
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
 | 50 · Mayúsculas en login y búsqueda | 7 | 4 | | |
-| 51 · Cantidades en enteros | 10 | 9 | | |
+| 51 · Cantidades en enteros | 10 | 10 | | |
 | **Total** | **436** | | | |
 
 ### Los cinco que más importan

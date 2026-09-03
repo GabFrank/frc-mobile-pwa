@@ -1250,7 +1250,7 @@ rendición, aparece su propio estado aparte del estado de la solicitud.
 ## Bloque 18 — Transferencias *(nuevo)*
 
 > Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes. Crear
-> una es el bloque 50, y pide además `CREAR TRANSFERENCIA`.
+> una es el bloque 51, y pide además `CREAR TRANSFERENCIA`.
 
 ### 18.1 · Los tres puntos de vista
 1. Inicio → **Transferencias**
@@ -2675,7 +2675,7 @@ Para que no se reporte como falla:
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: agregar un producto que la toma no incluye | No portado. Abrir la toma (bloque 39), agregarle zonas (bloque 40), contar (bloque 29), revisar (35) y finalizar sí. Sumar a una zona una presentación que no está necesita el buscador paginado y el alta de ítem |
 | Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
-| Transferencias: **elegir el lote en la preparación** | No portado. Elegir el lote al **cargar** el producto sí (bloque 51). El escritorio deja reasignarlo también mientras se prepara la mercadería (`etapaAsignacionLote: PREPARACION`); acá esa etapa sigue resolviéndose por FEFO o por lo que se eligió al cargar |
+| Transferencias: **elegir el lote en la preparación** | No portado. Elegir el lote al **cargar** el producto sí (bloque 52). El escritorio deja reasignarlo también mientras se prepara la mercadería (`etapaAsignacionLote: PREPARACION`); acá esa etapa sigue resolviéndose por FEFO o por lo que se eligió al cargar |
 | Transferencias: **repartir un renglón entre varios lotes** | No portado, y el escritorio tampoco lo hace. El central lo acepta; acá se carga el producto dos veces |
 | Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
@@ -4443,7 +4443,67 @@ primero que se necesita saber.
 
 ---
 
-## Bloque 50 — Crear una transferencia y cargarle productos *(nuevo, sin probar)*
+## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo, sin probar)*
+
+**Por qué está acá:** `frc-mobile` mostraba en mayúsculas lo que se escribía en
+el login y en el buscador de productos (`text-transform: uppercase` sobre el
+`ion-input`), y la PWA no lo había portado. Es paridad, no una idea nueva.
+
+**Qué es y qué no es:** es **presentación**. El valor que viaja al central
+conserva lo que se tipeó — la app no transforma nada. Que dé igual lo decide el
+backend: el usuario se resuelve con `findByNicknameIgnoreCase`, la contraseña se
+compara con `toUpperCase()` de los dos lados, y la búsqueda de productos filtra
+con `UPPER(...) like UPPER(...)`.
+
+### 50.1 · El usuario se ve en mayúsculas
+1. Abrir el login (si hay sesión, cerrarla).
+2. Escribir el usuario en minúsculas.
+
+**Esperado:** se ve en **MAYÚSCULAS** mientras se escribe. Entrar funciona
+igual, sin importar cómo se tipeó.
+
+### 50.2 · La contraseña también, con el ojo abierto
+1. En el login, escribir la contraseña.
+2. Tocar el ojo para mostrarla.
+
+**Esperado:** con el ojo cerrado se ven los puntos de siempre; al abrirlo, el
+texto aparece en mayúsculas. El login entra igual.
+
+### 50.3 · Con usuario recordado
+1. Entrar con «Recordar usuario» activo, salir y volver al login.
+
+**Esperado:** el usuario precargado también se ve en mayúsculas, y el foco
+sigue arrancando en la contraseña.
+
+### 50.4 · El buscador de productos
+1. Pestaña **Buscar** → escribir parte de una descripción en minúsculas.
+
+**Esperado:** el campo se ve en mayúsculas y los resultados son los mismos que
+antes del cambio.
+
+### 50.5 · El código escaneado y el de balanza
+1. En **Buscar**, tocar el ícono y escanear un código de barras.
+2. Repetir con una etiqueta de balanza.
+
+**Esperado:** el código cargado en el campo se ve en mayúsculas, el producto
+aparece y el bloque de producto pesado sigue calculando igual.
+
+### 50.6 · El mismo buscador en las otras pantallas
+1. Abrir el buscador de producto desde devolución, desde el conteo de
+   inventario y desde transferencias.
+
+**Esperado:** en las tres se ve en mayúsculas — es el mismo componente
+compartido, no tres campos distintos.
+
+### 50.7 · Tema oscuro y tema claro
+1. Repetir 50.1 y 50.4 con cada tema.
+
+**Esperado:** solo cambia el color; el texto sigue en mayúsculas y legible.
+
+
+---
+
+## Bloque 51 — Crear una transferencia y cargarle productos *(nuevo, sin probar)*
 
 **Por qué está acá:** cierra el ciclo. Hasta ahora la PWA leía y movía
 transferencias que había creado la APK; con esto el documento **nace** en el
@@ -4460,7 +4520,7 @@ para la lista), y dos sucursales con depósito.
 descuento ocurre al despachar (bloque 49). Lo que sí deja es un documento
 `ABIERTA` en la lista si se abandona a la mitad.
 
-### 50.1 · El botón aparece según el rol
+### 51.1 · El botón aparece según el rol
 1. Entrar a **Transferencias** con un usuario que tenga solo `VER
    TRANSFERENCIA`.
 2. Repetir con uno que tenga `CREAR TRANSFERENCIA`.
@@ -4468,13 +4528,13 @@ descuento ocurre al despachar (bloque 49). Lo que sí deja es un documento
 **Esperado:** el botón **Nueva transferencia** al pie solo con el segundo.
 Escribiendo `/transferencias/nueva` a mano, el primero rebota a Inicio.
 
-### 50.2 · Solo sucursales que mueven stock
+### 51.2 · Solo sucursales que mueven stock
 1. Tocar **Nueva transferencia** y abrir los dos selectores.
 
 **Esperado:** no aparecen `SERVIDOR` ni `COMPRAS` —no tienen depósito—, y el
 origen arranca en la sucursal de tu sesión.
 
-### 50.3 · El destino no puede ser el origen
+### 51.3 · El destino no puede ser el origen
 1. Elegir un destino.
 2. Cambiar el **origen** a esa misma sucursal.
 
@@ -4482,14 +4542,14 @@ origen arranca en la sucursal de tu sesión.
 destinos, y el destino queda en blanco. El botón de crear se apaga hasta que
 elijas otro.
 
-### 50.4 · Crear el borrador
+### 51.4 · Crear el borrador
 1. Con origen y destino elegidos, tocar **Crear y cargar productos**.
 
 **Esperado:** se abre la pantalla de carga con `#número`, «Sale de» y «Llega
 a», y **Responsable** con tu nombre. ⚠️ Tocar «atrás» vuelve a la lista, **no**
 crea una segunda transferencia.
 
-### 50.5 · El borrador queda en la lista y se retoma
+### 51.5 · El borrador queda en la lista y se retoma
 1. Volver a la lista y buscar la transferencia recién creada.
 2. Tocarla.
 
@@ -4497,14 +4557,14 @@ crea una segunda transferencia.
 vez la pantalla de carga —no el detalle de etapas, que no tendría nada que
 ofrecer.
 
-### 50.6 · Agregar un producto, con los dos stocks a la vista
+### 51.6 · Agregar un producto, con los dos stocks a la vista
 1. Tocar **Agregar producto** y buscar uno por descripción.
 2. Expandir la card.
 
 **Esperado:** la card muestra **dos existencias**: `Origen` y `Destino`. Es lo
 que evita mandar mercadería a una sucursal que ya la tiene.
 
-### 50.7 · Cantidad, vencimiento y observación
+### 51.7 · Cantidad, vencimiento y observación
 1. Elegir una presentación.
 2. Cargar cantidad 2, un vencimiento y una observación.
 
@@ -4512,20 +4572,20 @@ que evita mandar mercadería a una sucursal que ya la tiene.
 pudo consultar, cuántas unidades hay en origen. Al aceptar, el renglón aparece
 en la lista con su presentación y la observación abajo.
 
-### 50.8 · El aviso de stock avisa, no bloquea
+### 51.8 · El aviso de stock avisa, no bloquea
 1. Cargar una cantidad que supere lo que hay en origen.
 
 **Esperado:** el texto del stock se pone en color de advertencia y dice cuántas
 unidades estás pidiendo. **El botón sigue habilitado**: pedir de más es un caso
 real y el descuento recién ocurre al despachar.
 
-### 50.9 · Un código de balanza trae los kilos
+### 51.9 · Un código de balanza trae los kilos
 1. Escanear (o tipear) un código de balanza de un producto pesable.
 
 **Esperado:** la cantidad viene cargada con los kilos del código; no hay que
 volver a escribirla.
 
-### 50.10 · Corregir un renglón
+### 51.10 · Corregir un renglón
 1. Tocar un producto ya cargado.
 2. Cambiar la cantidad y aceptar.
 
@@ -4533,26 +4593,26 @@ volver a escribirla.
 lista muestra la cantidad nueva. El contador de **Unidades** de arriba se
 actualiza.
 
-### 50.11 · Quitar un renglón
+### 51.11 · Quitar un renglón
 1. Tocar **Quitar** en un producto.
 
 **Esperado:** pide confirmación, lo saca de la lista y avisa «Ítem quitado».
 ⚠️ Tocar **Quitar** no abre la edición.
 
-### 50.12 · Sin productos no se finaliza
+### 51.12 · Sin productos no se finaliza
 1. Quitar todos los renglones.
 
 **Esperado:** el botón **Finalizar** queda apagado. Una transferencia vacía
 llegaría hasta preparación sin nada que preparar, y el central no lo impide.
 
-### 50.13 · Finalizar
+### 51.13 · Finalizar
 1. Con al menos un producto, tocar **Finalizar** y confirmar.
 
 **Esperado:** la confirmación nombra cuántos productos, de qué sucursal y a
 cuál. Al aceptar se abre el **detalle**, ya en **Pendiente en origen**, con el
 botón «Preparar productos» — que es donde sigue el bloque 49.
 
-### 50.14 · Lo finalizado ya no se edita acá
+### 51.14 · Lo finalizado ya no se edita acá
 1. Volver atrás, o escribir a mano `/transferencias/<id>/borrador` de la que
    se acaba de finalizar.
 
@@ -4560,14 +4620,14 @@ botón «Preparar productos» — que es donde sigue el bloque 49.
 verificar; quitarlos desde acá dejaría a alguien preparando mercadería que ya
 no figura.
 
-### 50.15 · Las cuatro cifras nacen bien
+### 51.15 · Las cuatro cifras nacen bien
 1. Abrir el detalle de la transferencia recién finalizada.
 
 **Esperado:** cada ítem muestra **solo** «Pedido», con su cantidad y
 presentación. Las otras tres etapas **no** aparecen en cero: todavía no pasó
 nada ahí. ⚠️ Este es el caso que prueba que el alta no pisó las otras etapas.
 
-### 50.16 · Los tres estados
+### 51.16 · Los tres estados
 1. Abrir el alta con el servidor caído; el borrador sin productos; y mirar la
    carga.
 
@@ -4579,7 +4639,7 @@ termina cargándose dos veces.
 
 ---
 
-## Bloque 51 — Elegir el lote al cargar un producto *(nuevo, sin probar)*
+## Bloque 52 — Elegir el lote al cargar un producto *(nuevo, sin probar)*
 
 **Por qué está acá:** hasta ahora el central resolvía **siempre** por FEFO de
 qué lote salía la mercadería. Este bloque prueba el caso en que el depósito
@@ -4588,7 +4648,7 @@ real no coincide con ese orden teórico y el operador elige a mano.
 **Necesita:** el rol **`CREAR TRANSFERENCIA`**, y un producto con **control de
 lote** (`producto.lote = true`) que tenga **al menos dos lotes con saldo** en
 la sucursal de origen. Idealmente uno de ellos **bloqueado o en cuarentena**,
-para el caso 51.5.
+para el caso 52.5.
 
 > ✅ **No hace falta promover el central.** `lotesAsignados`,
 > `etapaAsignacionLote` y `stockPorLoteEnPresentacion` entraron en el commit
@@ -4600,10 +4660,10 @@ para el caso 51.5.
 qué lote sacar. El descuento real ocurre al despachar (bloque 49), y ahí es
 donde hay que verificar que salió del lote elegido y no de otro.
 
-⚠️ **El caso crítico es el 51.12**, el único que confirma que la elección se
+⚠️ **El caso crítico es el 52.12**, el único que confirma que la elección se
 respetó de verdad. Todo lo demás es pantalla.
 
-### 51.1 · El lote solo se ofrece si el producto lo lleva
+### 52.1 · El lote solo se ofrece si el producto lo lleva
 1. Crear un borrador y agregar un producto **sin** control de lote.
 2. Agregar otro **con** control de lote.
 
@@ -4611,7 +4671,7 @@ respetó de verdad. Todo lo demás es pantalla.
 observación—. En el segundo aparece arriba una fila **Lote** que dice «Elegir
 lote — Opcional. Sin elegir, se manda lo que vence antes».
 
-### 51.2 · La lista muestra el saldo en la presentación del renglón
+### 52.2 · La lista muestra el saldo en la presentación del renglón
 1. En el producto con lote, elegir una presentación de **más de una unidad**
    (una caja, un pack) y tocar la fila **Lote**.
 
@@ -4623,21 +4683,21 @@ dice «3» arriba y «20 unid. · sobran 2» abajo.
 ⚠️ Si el saldo apareciera en unidades donde debería decir cajas, **pará**: es
 la conversión, y el número que se manda al central saldría multiplicado.
 
-### 51.3 · Buscar por número de lote
+### 52.3 · Buscar por número de lote
 1. Con la lista abierta, escribir parte de un número de lote.
 
 **Esperado:** la lista se filtra **contra el central** (hay una pausa corta al
 tipear, no filtra letra por letra en memoria). Buscar «l-20» encuentra
 «L-2026-88»: el central normaliza igual que al crear el lote.
 
-### 51.4 · Ver más lotes
+### 52.4 · Ver más lotes
 1. Usar un producto con más de diez lotes con saldo.
 
 **Esperado:** aparece **Ver más lotes** al pie; al tocarlo la lista **se
 agranda**, no se reemplaza. Los lotes vienen ordenados por FEFO: primero lo
 que hay que sacar antes.
 
-### 51.5 · Un lote bloqueado se ve pero no se puede elegir
+### 52.5 · Un lote bloqueado se ve pero no se puede elegir
 1. Bloquear un lote desde el escritorio (o usar uno en cuarentena) y abrir la
    lista.
 
@@ -4646,13 +4706,13 @@ mandar», y tocarlo no hace nada. ⚠️ **Que aparezca es el punto:** si se
 escondiera, el operador buscaría el lote que tiene en la mano y no entendería
 por qué no está.
 
-### 51.6 · Elegir un lote
+### 52.6 · Elegir un lote
 1. Tocar un lote liberado.
 
 **Esperado:** vuelve al diálogo del ítem, y la fila **Lote** ahora muestra el
 número, «Vence dd/MM/yyyy» y «N disponible».
 
-### 51.7 · El vencimiento viene sugerido
+### 52.7 · El vencimiento viene sugerido
 1. Con el campo **Vencimiento** vacío, elegir un lote que tenga vencimiento
    cargado.
 2. Después, **borrar** el lote y elegir otro con **otro** vencimiento, pero
@@ -4665,7 +4725,7 @@ mano gana sobre lo que dice el maestro.
 ⚠️ La fecha se ve como `dd/MM/yyyy`, **sin hora**. Si apareciera «00:00»,
 anotalo: el central manda las fechas con hora y hay que recortarla.
 
-### 51.8 · El aviso de stock pasa a ser el del lote
+### 52.8 · El aviso de stock pasa a ser el del lote
 1. Con un lote elegido, cargar una cantidad **mayor** al saldo de ese lote pero
    menor a lo que hay en la sucursal.
 
@@ -4676,20 +4736,20 @@ igual que el aviso de la sucursal.
 ⚠️ Es el caso que justifica la funcionalidad: contra el saldo de la sucursal
 —que suma todos los lotes— ese pedido parecería sobrado.
 
-### 51.9 · Salir sin elegir no es un error
+### 52.9 · Salir sin elegir no es un error
 1. Abrir la lista de lotes y tocar **Que decida el sistema**.
 
 **Esperado:** vuelve al diálogo del ítem sin lote, y la fila dice otra vez
 «Elegir lote». El renglón se guarda igual. **Cancelar** deja lo que hubiera.
 
-### 51.10 · El renglón cargado muestra su lote
+### 52.10 · El renglón cargado muestra su lote
 1. Guardar el ítem con lote y mirar la lista del borrador.
 
 **Esperado:** la card del renglón dice «⟨presentación⟩ · Lote L-… · Vence …».
 ⚠️ Es lo único que distingue dos cargas del mismo producto: sin verlo,
 corregirlo obliga a abrir renglón por renglón.
 
-### 51.11 · Corregir el lote de un renglón ya cargado
+### 52.11 · Corregir el lote de un renglón ya cargado
 1. Tocar un renglón con lote y abrir la fila **Lote**.
 2. Elegir otro lote y guardar.
 3. Volver a abrirlo y tocar **Sacar el lote**; guardar.
@@ -4702,7 +4762,7 @@ saldo, hasta que se vuelva a abrir la lista. Es correcto: el saldo es otra
 consulta y de otro momento; decir «0 disponible» afirmaría que el lote está
 vacío.
 
-### 51.12 · **El lote elegido es el que sale** — ⚠️ *crítico*
+### 52.12 · **El lote elegido es el que sale** — ⚠️ *crítico*
 1. Elegir a mano un lote que **no** sea el primero por FEFO (o sea: elegir uno
    que vence **después** que otro con saldo).
 2. Finalizar la transferencia y llevarla hasta **despachar** (bloque 49, caso
@@ -4715,7 +4775,7 @@ quedó intacto. ⚠️ **Este es el único caso que prueba que la funcionalidad
 sirve.** Si el descuento saliera del lote de FEFO, todo lo anterior fue
 pantalla.
 
-### 51.13 · La cantidad sale en la unidad correcta
+### 52.13 · La cantidad sale en la unidad correcta
 1. Con una presentación de varias unidades (caja de 6), elegir un lote y cargar
    **2** cajas. Despachar.
 2. Mirar el movimiento del lote.
@@ -4724,7 +4784,7 @@ pantalla.
 central en presentaciones y él la convierte; una conversión de más multiplica
 la salida por el tamaño de la caja **sin dar error**.
 
-### 51.14 · Un producto sin lotes con saldo
+### 52.14 · Un producto sin lotes con saldo
 1. Agregar un producto con control de lote que **no** tenga lotes con saldo en
    origen, y abrir la lista.
 
@@ -4732,15 +4792,15 @@ la salida por el tamaño de la caja **sin dar error**.
 sucursal. Se puede mandar igual: el sistema resuelve el desglose por FEFO».
 El renglón se carga sin problema.
 
-### 51.15 · Los tres estados
+### 52.15 · Los tres estados
 1. Abrir la lista de lotes con el servidor caído.
 2. Buscar un texto que no exista.
 
 **Esperado:** esqueleto mientras carga; error con **Reintentar** si el central
 no responde; «Ningún lote de este producto coincide con lo buscado» cuando la
-búsqueda no trae nada —distinto del texto de 51.14, que es «no tiene lotes»—.
+búsqueda no trae nada —distinto del texto de 52.14, que es «no tiene lotes»—.
 
-### 51.16 · Tema oscuro y tema claro
+### 52.16 · Tema oscuro y tema claro
 1. Recorrer la lista de lotes y el diálogo del ítem en los dos temas.
 
 **Esperado:** el lote elegido se distingue del resto, los atenuados se leen, y
@@ -4801,9 +4861,10 @@ el aviso de stock en advertencia tiene contraste suficiente en los dos.
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
-| 50 · Crear una transferencia y cargarle productos | 16 | | | |
-| 51 · Elegir el lote al cargar un producto | 16 | | | |
-| **Total** | **451** | | | |
+| 50 · Mayúsculas en login y búsqueda | 7 | | | |
+| 51 · Crear una transferencia y cargarle productos | 16 | | | |
+| 52 · Elegir el lote al cargar un producto | 16 | | | |
+| **Total** | **458** | | | |
 
 ### Los cinco que más importan
 

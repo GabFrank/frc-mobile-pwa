@@ -173,6 +173,13 @@ const LOTE = 10;
       gap: var(--sp-2);
     }
     .campo { flex: 1; min-width: 0; }
+    /*
+      Mayúsculas, como en frc-mobile: los códigos de barra y las descripciones
+      del catálogo están cargados en mayúsculas, y el central compara con
+      UPPER() de los dos lados. Es solo presentación — el valor que viaja
+      conserva lo que se tipeó, y la búsqueda no distingue mayúsculas.
+    */
+    .campo input { text-transform: uppercase; }
     .escanear {
       flex-shrink: 0;
       width: 48px;

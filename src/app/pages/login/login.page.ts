@@ -144,6 +144,14 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
       color: var(--text-mute);
     }
     .form { display: flex; flex-direction: column; gap: var(--sp-4); }
+    /*
+      Mayúsculas en usuario y contraseña, como el login de frc-mobile. No es
+      cosmético: el central resuelve el usuario con findByNicknameIgnoreCase y
+      compara la clave con toUpperCase() de los dos lados, así que el login
+      entero es insensible a mayúsculas y mostrarlo así no miente sobre lo que
+      se envía. La contraseña se ve solo con el ojo abierto.
+    */
+    .form input { text-transform: uppercase; }
     .entrar { width: 100%; }
     .error {
       margin: 0;

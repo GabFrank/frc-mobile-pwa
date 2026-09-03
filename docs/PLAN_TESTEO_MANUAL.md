@@ -4486,7 +4486,12 @@ antes del cambio.
 **Esperado:** el código cargado en el campo se ve en mayúsculas, el producto
 aparece y el bloque de producto pesado sigue calculando igual.
 
-### 50.6 · El mismo buscador en las otras pantallas — parcial: ✅ desde el conteo de inventario (escrito «algilem», se ve «ALGILEM»); faltan devolución y transferencias
+### 50.6 · El mismo buscador en las otras pantallas — parcial: ✅ inventario y devolución; transferencias sin probar
+
+Verificado desde el conteo de inventario («algilem» → `ALGILEM`) y desde
+**Nueva devolución** («banes forte» → `BANES FORTE`). En **transferencias** el
+buscador solo aparece dentro de la etapa de preparación: llegar hasta él exige
+avanzar de etapa una transferencia real, así que no se probó.
 1. Abrir el buscador de producto desde devolución, desde el conteo de
    inventario y desde transferencias.
 

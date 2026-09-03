@@ -10,6 +10,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
@@ -59,6 +60,7 @@ import {
   ModificarItemData,
   ModificarItemDialogComponent,
 } from './modificar-item-dialog.component';
+import { esBorrador } from './transferencia-alta';
 import {
   RechazarItemData,
   RechazarItemDialogComponent,
@@ -361,6 +363,7 @@ export class TransferenciaDetallePage {
   private readonly escaner = inject(EscanerService);
   private readonly productos = inject(ProductoBusquedaService);
   private readonly notificacion = inject(NotificacionService);
+  private readonly router = inject(Router);
 
   /** Input opcional: el router lo asigna después de construir (NG0950). */
   readonly id = input<string>();
@@ -470,6 +473,13 @@ export class TransferenciaDetallePage {
       next: (t) => {
         this.transferencia.set(t ?? null);
         this.cargando.set(false);
+        // Una transferencia en creación todavía no tiene etapas que mostrar:
+        // lo que corresponde es terminar de cargarla. Redirigir acá es lo que
+        // deja que la lista navegue siempre a `/transferencias/:id` sin saber
+        // en qué estado está.
+        if (esBorrador(t)) {
+          void this.router.navigate(['/transferencias', id, 'borrador'], { replaceUrl: true });
+        }
       },
       error: (err: Error) => {
         this.error.set(err.message);

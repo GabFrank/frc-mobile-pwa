@@ -1249,8 +1249,8 @@ rendición, aparece su propio estado aparte del estado de la solicitud.
 
 ## Bloque 18 — Transferencias *(nuevo)*
 
-> Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes: la PWA
-> todavía no las crea.
+> Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes. Crear
+> una es el bloque 51, y pide además `CREAR TRANSFERENCIA`.
 
 ### 18.1 · Los tres puntos de vista
 1. Inicio → **Transferencias**
@@ -2675,6 +2675,8 @@ Para que no se reporte como falla:
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: agregar un producto que la toma no incluye | No portado. Abrir la toma (bloque 39), agregarle zonas (bloque 40), contar (bloque 29), revisar (35) y finalizar sí. Sumar a una zona una presentación que no está necesita el buscador paginado y el alta de ítem |
 | Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
+| Transferencias: **elegir el lote en la preparación** | No portado. Elegir el lote al **cargar** el producto sí (bloque 52). El escritorio deja reasignarlo también mientras se prepara la mercadería (`etapaAsignacionLote: PREPARACION`); acá esa etapa sigue resolviéndose por FEFO o por lo que se eligió al cargar |
+| Transferencias: **repartir un renglón entre varios lotes** | No portado, y el escritorio tampoco lo hace. El central lo acepta; acá se carga el producto dos veces |
 | Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
 | Recibir push (FCM) | No portado — la bandeja sí |
@@ -4510,109 +4512,308 @@ los dos. El **login** no se probó: verlo exige cerrar la sesión.
 
 ---
 
-## Bloque 51 — Cantidades en enteros, no en decimales *(nuevo)* — **10/10** (Claude en Chrome; alpha y central local, usuario MAURO, 2026-09-03)
+## Bloque 51 — Crear una transferencia y cargarle productos *(nuevo, sin probar)*
 
-**Por qué está acá:** el central devuelve las cantidades como `Float` aunque el
-producto se cuente por unidad —`movimiento_stock` y `cantidad_fisica` son
-columnas numéricas con decimales—, y cuatro pantallas las imprimían con dos
-decimales fijos. `-3,00` unidades se lee como si faltara una fracción de
-envase. Es el mismo defecto que el bloque de existencia por sucursal ya
-corrigió; estas cuatro quedaron afuera.
+**Por qué está acá:** cierra el ciclo. Hasta ahora la PWA leía y movía
+transferencias que había creado la APK; con esto el documento **nace** en el
+teléfono.
 
-**La regla la decide el valor, no el producto.** Ninguna de las cuatro
-consultas trae el `balanza` del producto —`ProductoSaldoDto` no tiene ese
-campo—, así que: entero sin decimales, fraccionado con ellos. En un pesable el
-decimal son kilos y en un producto por unidad es un ajuste mal cargado; los dos
-hay que verlos, no redondearlos.
+**Necesita:** el rol **`CREAR TRANSFERENCIA`** (además de `VER TRANSFERENCIA`
+para la lista), y dos sucursales con depósito.
 
-⚠️ **Diferencia con la ficha de producto:** ahí, sabiendo que el producto es de
-balanza, la existencia se muestra con 3 decimales fijos (`7,000`). Acá un
-pesable con kilos justos se ve `7`. Igualar las dos requiere agregar `balanza`
-al `ProductoSaldoDto` del central.
+> ⚠️ **Confirmá primero cuánta gente tiene el rol.** Si en la base no lo tiene
+> nadie, el botón «Nueva transferencia» solo lo van a ver los ADMIN. El arreglo
+> es **asignar el rol**, no sacar el guard.
 
-### 51.1 · Control de inventario, saldo negativo — ✅ PASÓ
-1. **Inventario → Control de inventario**, reporte **Saldo negativo**.
+⚠️ **Este bloque no mueve stock.** Crear y cargar no descuentan nada: el
+descuento ocurre al despachar (bloque 49). Lo que sí deja es un documento
+`ABIERTA` en la lista si se abandona a la mitad.
 
-**Esperado:** los saldos se ven `-3`, `-12`, sin `,00`. El signo se conserva y
-el número sigue en rojo.
+### 51.1 · El botón aparece según el rol
+1. Entrar a **Transferencias** con un usuario que tenga solo `VER
+   TRANSFERENCIA`.
+2. Repetir con uno que tenga `CREAR TRANSFERENCIA`.
 
-### 51.2 · Control de inventario, saldo positivo — ✅ PASÓ
-1. Cambiar el reporte a **Saldo positivo**.
+**Esperado:** el botón **Nueva transferencia** al pie solo con el segundo.
+Escribiendo `/transferencias/nueva` a mano, el primero rebota a Inicio.
 
-**Esperado:** se ven `+7`, `+25`, sin decimales.
+### 51.2 · Solo sucursales que mueven stock
+1. Tocar **Nueva transferencia** y abrir los dos selectores.
 
-### 51.3 · Un saldo fraccionado sí los muestra — ✅ PASÓ
+**Esperado:** no aparecen `SERVIDOR` ni `COMPRAS` —no tienen depósito—, y el
+origen arranca en la sucursal de tu sesión.
 
-Contra el **central local** (`localhost:8081`, base `bodega`), en Control de
-inventario → Saldo negativo → **SUC. CENTRAL**, las dos ramas de la regla
-conviven en la misma pantalla:
+### 51.3 · El destino no puede ser el origen
+1. Elegir un destino.
+2. Cambiar el **origen** a esa misma sucursal.
 
-| Producto | Saldo | |
-|---|---|---|
-| DELIVERY | `-1.021` | entero, con punto de miles |
-| COSTILLA VACUNA PREMIUN | `-983,98` | **fraccionado**, decimales conservados |
-| FRIMESA CHORIZO TOSCANO | `-982,33` | **fraccionado** |
-| ARCOR CHOCOMANI 6.5G | `-958` | entero, pelado |
-| MANDIOCA | `-751,08` | **fraccionado** |
+**Esperado:** la sucursal elegida como origen desaparece de la lista de
+destinos, y el destino queda en blanco. El botón de crear se apaga hasta que
+elijas otro.
 
-Carne y mandioca llevan decimales; los caramelos no. Nadie le dice a la app
-cuál es pesable: lo decide el valor.
+### 51.4 · Crear el borrador
+1. Con origen y destino elegidos, tocar **Crear y cargar productos**.
 
-⚠️ **La sucursal importa para poder verlo.** En «Todas las sucursales» el
-primer saldo fraccionado cae en un puesto inalcanzable entre 22.699 productos;
-acotado a SUC. CENTRAL queda **décimo de 1.701**, en la primera página.
+**Esperado:** se abre la pantalla de carga con `#número`, «Sale de» y «Llega
+a», y **Responsable** con tu nombre. ⚠️ Tocar «atrás» vuelve a la lista, **no**
+crea una segunda transferencia.
 
-⚠️ **En alpha este caso no se puede probar**: hay un solo saldo fraccionado en
-toda la instancia y vale `0,00000004768372` —residuo de punto flotante, no un
-pesable—, que además se vería como `+0,00`.
+### 51.5 · El borrador queda en la lista y se retoma
+1. Volver a la lista y buscar la transferencia recién creada.
+2. Tocarla.
 
-### 51.4 · Carga del conteo: «Sistema» — ✅ PASÓ (toma #2338, zona b1: «Sistema: -601.243» y «Sistema: -5», sin `,00`)
-1. Abrir una toma, entrar a una zona con renglones ya cargados.
-2. Mirar la cabecera colapsada de cada tarjeta.
+**Esperado:** figura como **Abierta / En creación**, y al tocarla se abre otra
+vez la pantalla de carga —no el detalle de etapas, que no tendría nada que
+ofrecer.
 
-**Esperado:** dice `Sistema: 70`, no `Sistema: 70,00`. Es lo que decide si vale
-la pena abrir la tarjeta, y con el contado al lado en entero los dos números se
-comparan de un vistazo.
+### 51.6 · Agregar un producto, con los dos stocks a la vista
+1. Tocar **Agregar producto** y buscar uno por descripción.
+2. Expandir la card.
 
-### 51.5 · La diferencia sigue calculándose igual — ✅ PASÓ (contado 10 contra -601.243 → `+601253`; sin contar, guion)
-1. En esa misma zona, escribir un contado distinto al del sistema.
+**Esperado:** la card muestra **dos existencias**: `Origen` y `Destino`. Es lo
+que evita mandar mercadería a una sucursal que ya la tiene.
 
-**Esperado:** la diferencia aparece como antes (`+6`, `-2`), y un renglón sin
-contar sigue mostrando el guion, no un cero.
+### 51.7 · Cantidad, vencimiento y observación
+1. Elegir una presentación.
+2. Cargar cantidad 2, un vencimiento y una observación.
 
-### 51.6 · Saldo del lote en el buscador de lotes — ✅ PASÓ (BANES FORTE, lote 5555: saldo `0`, no `0,00`)
-1. En el conteo, en un producto con control de lote, tocar **Buscar lote**.
+**Esperado:** el diálogo dice la presentación («Cantidad: 12 (Caja)») y, si se
+pudo consultar, cuántas unidades hay en origen. Al aceptar, el renglón aparece
+en la lista con su presentación y la observación abajo.
 
-**Esperado:** el saldo de cada lote se ve `24`, no `24,00`.
+### 51.8 · El aviso de stock avisa, no bloquea
+1. Cargar una cantidad que supere lo que hay en origen.
 
-### 51.7 · Productos vencidos — ✅ PASÓ
-1. **Productos vencidos**, mirar la columna de unidades.
+**Esperado:** el texto del stock se pone en color de advertencia y dice cuántas
+unidades estás pidiendo. **El botón sigue habilitado**: pedir de más es un caso
+real y el descuento recién ocurre al despachar.
 
-**Esperado:** `3`, no `3,00`. Cuando la presentación es mayor a 1 sigue
-apareciendo el `(x6)` al lado.
+### 51.9 · Un código de balanza trae los kilos
+1. Escanear (o tipear) un código de balanza de un producto pesable.
 
-### 51.8 · Tema oscuro y tema claro — ✅ PASÓ (claro y oscuro: «Sistema: -601.243» legible, diferencia `-2,50` en rojo con coma decimal)
-1. Repetir 51.1 y 51.4 con cada tema.
+**Esperado:** la cantidad viene cargada con los kilos del código; no hay que
+volver a escribirla.
 
-**Esperado:** solo cambia el color; los números siguen alineados por la
-tipografía tabular y sin decimales.
+### 51.10 · Corregir un renglón
+1. Tocar un producto ya cargado.
+2. Cambiar la cantidad y aceptar.
 
+**Esperado:** se reabre el mismo diálogo con lo que tenía, y al guardar la
+lista muestra la cantidad nueva. El contador de **Unidades** de arriba se
+actualiza.
 
-### 51.9 · La diferencia también se formatea — ✅ PASÓ (contado -596.243 contra -601.243 → `+5.000`)
-1. En la carga del conteo, contar algo que dé una diferencia de miles
-   (por ejemplo 5.070 contra un sistema de 70).
+### 51.11 · Quitar un renglón
+1. Tocar **Quitar** en un producto.
 
-**Esperado:** dice `+5.000`, con separador de miles, igual que el «Sistema:»
-que tiene al lado. Antes salía `+5000`: el mismo número escrito de dos formas
-en la misma línea.
+**Esperado:** pide confirmación, lo saca de la lista y avisa «Ítem quitado».
+⚠️ Tocar **Quitar** no abre la edición.
 
-### 51.10 · Una diferencia fraccionada no muestra el float crudo — ✅ PASÓ (contado -601.242,9 → `+0,10`, antes `+0.09999999999999432`)
-1. Contar `70,1` contra un sistema de `70`.
+### 51.12 · Sin productos no se finaliza
+1. Quitar todos los renglones.
 
-**Esperado:** `+0,1`. Antes salía **`+0.09999999999999432`** —el punto flotante
-entero, y con punto decimal inglés—, que es exactamente el problema de locale
-por el que el repo prohíbe el pipe `number`.
+**Esperado:** el botón **Finalizar** queda apagado. Una transferencia vacía
+llegaría hasta preparación sin nada que preparar, y el central no lo impide.
 
+### 51.13 · Finalizar
+1. Con al menos un producto, tocar **Finalizar** y confirmar.
+
+**Esperado:** la confirmación nombra cuántos productos, de qué sucursal y a
+cuál. Al aceptar se abre el **detalle**, ya en **Pendiente en origen**, con el
+botón «Preparar productos» — que es donde sigue el bloque 49.
+
+### 51.14 · Lo finalizado ya no se edita acá
+1. Volver atrás, o escribir a mano `/transferencias/<id>/borrador` de la que
+   se acaba de finalizar.
+
+**Esperado:** manda al detalle. Sus ítems son los que otra etapa va a
+verificar; quitarlos desde acá dejaría a alguien preparando mercadería que ya
+no figura.
+
+### 51.15 · Las cuatro cifras nacen bien
+1. Abrir el detalle de la transferencia recién finalizada.
+
+**Esperado:** cada ítem muestra **solo** «Pedido», con su cantidad y
+presentación. Las otras tres etapas **no** aparecen en cero: todavía no pasó
+nada ahí. ⚠️ Este es el caso que prueba que el alta no pisó las otras etapas.
+
+### 51.16 · Los tres estados
+1. Abrir el alta con el servidor caído; el borrador sin productos; y mirar la
+   carga.
+
+**Esperado:** esqueleto mientras carga, error con **Reintentar** si fallan las
+sucursales o la cabecera, y «Sin productos» con su botón cuando el borrador
+está vacío. ⚠️ Si fallan **solo los ítems**, avisa «No se pudieron traer los
+productos cargados»: un borrador cargado que se muestra vacío en silencio
+termina cargándose dos veces.
+
+---
+
+## Bloque 52 — Elegir el lote al cargar un producto *(nuevo, sin probar)*
+
+**Por qué está acá:** hasta ahora el central resolvía **siempre** por FEFO de
+qué lote salía la mercadería. Este bloque prueba el caso en que el depósito
+real no coincide con ese orden teórico y el operador elige a mano.
+
+**Necesita:** el rol **`CREAR TRANSFERENCIA`**, y un producto con **control de
+lote** (`producto.lote = true`) que tenga **al menos dos lotes con saldo** en
+la sucursal de origen. Idealmente uno de ellos **bloqueado o en cuarentena**,
+para el caso 52.5.
+
+> ✅ **No hace falta promover el central.** `lotesAsignados`,
+> `etapaAsignacionLote` y `stockPorLoteEnPresentacion` entraron en el commit
+> `b88fc34a` del central y están desde `v4.7.0-alpha.26`, `v4.7.0-beta.2` y
+> `v4.8.0`: farmacia y bodega ya los tienen. Es la diferencia con el bloque 49,
+> que sí exige promover.
+
+⚠️ **Elegir el lote NO mueve stock.** Lo que se guarda es la **intención**: de
+qué lote sacar. El descuento real ocurre al despachar (bloque 49), y ahí es
+donde hay que verificar que salió del lote elegido y no de otro.
+
+⚠️ **El caso crítico es el 52.12**, el único que confirma que la elección se
+respetó de verdad. Todo lo demás es pantalla.
+
+### 52.1 · El lote solo se ofrece si el producto lo lleva
+1. Crear un borrador y agregar un producto **sin** control de lote.
+2. Agregar otro **con** control de lote.
+
+**Esperado:** en el primero el diálogo es el de siempre —cantidad, vencimiento,
+observación—. En el segundo aparece arriba una fila **Lote** que dice «Elegir
+lote — Opcional. Sin elegir, se manda lo que vence antes».
+
+### 52.2 · La lista muestra el saldo en la presentación del renglón
+1. En el producto con lote, elegir una presentación de **más de una unidad**
+   (una caja, un pack) y tocar la fila **Lote**.
+
+**Esperado:** cada lote muestra su número, su vencimiento y el saldo **en
+cajas**, no en unidades. Debajo, en letra chica, el total en unidades y cuántas
+**sobran** fuera de las cajas completas: un lote de 20 unidades en cajas de 6
+dice «3» arriba y «20 unid. · sobran 2» abajo.
+
+⚠️ Si el saldo apareciera en unidades donde debería decir cajas, **pará**: es
+la conversión, y el número que se manda al central saldría multiplicado.
+
+### 52.3 · Buscar por número de lote
+1. Con la lista abierta, escribir parte de un número de lote.
+
+**Esperado:** la lista se filtra **contra el central** (hay una pausa corta al
+tipear, no filtra letra por letra en memoria). Buscar «l-20» encuentra
+«L-2026-88»: el central normaliza igual que al crear el lote.
+
+### 52.4 · Ver más lotes
+1. Usar un producto con más de diez lotes con saldo.
+
+**Esperado:** aparece **Ver más lotes** al pie; al tocarlo la lista **se
+agranda**, no se reemplaza. Los lotes vienen ordenados por FEFO: primero lo
+que hay que sacar antes.
+
+### 52.5 · Un lote bloqueado se ve pero no se puede elegir
+1. Bloquear un lote desde el escritorio (o usar uno en cuarentena) y abrir la
+   lista.
+
+**Esperado:** el lote **aparece igual**, atenuado, con «Bloqueado — no se puede
+mandar», y tocarlo no hace nada. ⚠️ **Que aparezca es el punto:** si se
+escondiera, el operador buscaría el lote que tiene en la mano y no entendería
+por qué no está.
+
+### 52.6 · Elegir un lote
+1. Tocar un lote liberado.
+
+**Esperado:** vuelve al diálogo del ítem, y la fila **Lote** ahora muestra el
+número, «Vence dd/MM/yyyy» y «N disponible».
+
+### 52.7 · El vencimiento viene sugerido
+1. Con el campo **Vencimiento** vacío, elegir un lote que tenga vencimiento
+   cargado.
+2. Después, **borrar** el lote y elegir otro con **otro** vencimiento, pero
+   habiendo escrito antes una fecha a mano.
+
+**Esperado:** en el primer caso el campo se completa con el vencimiento del
+lote. En el segundo **no se pisa** lo que escribiste: el papel que tenés en la
+mano gana sobre lo que dice el maestro.
+
+⚠️ La fecha se ve como `dd/MM/yyyy`, **sin hora**. Si apareciera «00:00»,
+anotalo: el central manda las fechas con hora y hay que recortarla.
+
+### 52.8 · El aviso de stock pasa a ser el del lote
+1. Con un lote elegido, cargar una cantidad **mayor** al saldo de ese lote pero
+   menor a lo que hay en la sucursal.
+
+**Esperado:** el aviso dice «El lote L-… tiene N unidades. Estás pidiendo M: se
+manda igual, pero revisá», en color de advertencia. ⚠️ **Sigue sin bloquear**,
+igual que el aviso de la sucursal.
+
+⚠️ Es el caso que justifica la funcionalidad: contra el saldo de la sucursal
+—que suma todos los lotes— ese pedido parecería sobrado.
+
+### 52.9 · Salir sin elegir no es un error
+1. Abrir la lista de lotes y tocar **Que decida el sistema**.
+
+**Esperado:** vuelve al diálogo del ítem sin lote, y la fila dice otra vez
+«Elegir lote». El renglón se guarda igual. **Cancelar** deja lo que hubiera.
+
+### 52.10 · El renglón cargado muestra su lote
+1. Guardar el ítem con lote y mirar la lista del borrador.
+
+**Esperado:** la card del renglón dice «⟨presentación⟩ · Lote L-… · Vence …».
+⚠️ Es lo único que distingue dos cargas del mismo producto: sin verlo,
+corregirlo obliga a abrir renglón por renglón.
+
+### 52.11 · Corregir el lote de un renglón ya cargado
+1. Tocar un renglón con lote y abrir la fila **Lote**.
+2. Elegir otro lote y guardar.
+3. Volver a abrirlo y tocar **Sacar el lote**; guardar.
+
+**Esperado:** después de (2) el renglón muestra el lote nuevo. Después de (3)
+el renglón **ya no muestra ningún lote** y vuelve a resolverse por FEFO.
+
+⚠️ Al reabrir un renglón, la fila muestra el número de lote pero **no** un
+saldo, hasta que se vuelva a abrir la lista. Es correcto: el saldo es otra
+consulta y de otro momento; decir «0 disponible» afirmaría que el lote está
+vacío.
+
+### 52.12 · **El lote elegido es el que sale** — ⚠️ *crítico*
+1. Elegir a mano un lote que **no** sea el primero por FEFO (o sea: elegir uno
+   que vence **después** que otro con saldo).
+2. Finalizar la transferencia y llevarla hasta **despachar** (bloque 49, caso
+   49.11).
+3. En el escritorio, abrir el historial del lote elegido y el del que FEFO
+   habría tomado.
+
+**Esperado:** el movimiento de salida está en **el lote elegido**, y el otro
+quedó intacto. ⚠️ **Este es el único caso que prueba que la funcionalidad
+sirve.** Si el descuento saliera del lote de FEFO, todo lo anterior fue
+pantalla.
+
+### 52.13 · La cantidad sale en la unidad correcta
+1. Con una presentación de varias unidades (caja de 6), elegir un lote y cargar
+   **2** cajas. Despachar.
+2. Mirar el movimiento del lote.
+
+**Esperado:** salieron **12 unidades**, no 2 ni 72. ⚠️ La cantidad viaja al
+central en presentaciones y él la convierte; una conversión de más multiplica
+la salida por el tamaño de la caja **sin dar error**.
+
+### 52.14 · Un producto sin lotes con saldo
+1. Agregar un producto con control de lote que **no** tenga lotes con saldo en
+   origen, y abrir la lista.
+
+**Esperado:** «Sin lotes — Este producto no tiene lotes con saldo en esta
+sucursal. Se puede mandar igual: el sistema resuelve el desglose por FEFO».
+El renglón se carga sin problema.
+
+### 52.15 · Los tres estados
+1. Abrir la lista de lotes con el servidor caído.
+2. Buscar un texto que no exista.
+
+**Esperado:** esqueleto mientras carga; error con **Reintentar** si el central
+no responde; «Ningún lote de este producto coincide con lo buscado» cuando la
+búsqueda no trae nada —distinto del texto de 52.14, que es «no tiene lotes»—.
+
+### 52.16 · Tema oscuro y tema claro
+1. Recorrer la lista de lotes y el diálogo del ítem en los dos temas.
+
+**Esperado:** el lote elegido se distingue del resto, los atenuados se leen, y
+el aviso de stock en advertencia tiene contraste suficiente en los dos.
 
 ---
 
@@ -4669,9 +4870,10 @@ por el que el repo prohíbe el pipe `number`.
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
-| 50 · Mayúsculas en login y búsqueda | 7 | 4 | | |
-| 51 · Cantidades en enteros | 10 | 10 | | |
-| **Total** | **436** | | | |
+| 50 · Mayúsculas en login y búsqueda | 7 | | | |
+| 51 · Crear una transferencia y cargarle productos | 16 | | | |
+| 52 · Elegir el lote al cargar un producto | 16 | | | |
+| **Total** | **458** | | | |
 
 ### Los cinco que más importan
 

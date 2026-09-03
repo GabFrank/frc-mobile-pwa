@@ -11,6 +11,9 @@ import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 
+import { AuthService } from 'src/app/core/auth/auth.service';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
+import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { EtapaTransferencia, Transferencia } from 'src/app/domains/transferencia/transferencia.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
@@ -53,6 +56,16 @@ const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: 
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <frc-pagina titulo="Transferencias" [conVolver]="true">
+      <!--
+        ⚠️ El atributo de proyección va en un hijo directo, fuera de todo
+        bloque de control: dentro de un @if no llega al slot con nombre.
+      -->
+      <div acciones class="botonera">
+        @if (puedeCrear()) {
+          <button matButton="filled" (click)="nueva()">Nueva transferencia</button>
+        }
+      </div>
+
       <mat-tab-group
         [selectedIndex]="indice()"
         (selectedIndexChange)="cambiarVista($event)"
@@ -118,11 +131,31 @@ const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: 
       color: var(--text-mute);
     }
     .mas { align-self: center; margin-top: var(--sp-3); }
+    .botonera {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: var(--sp-2);
+    }
+    /* Sin el rol de alta el envoltorio queda vacío y la barra se oculta. */
+    .botonera:empty { display: none; }
   `,
 })
 export class TransferenciasListaPage {
   private readonly servicio = inject(TransferenciaService);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
+  private readonly roles = inject(RoleService);
+
+  /**
+   * ⚠️ **Ver no es crear.** `VER TRANSFERENCIA` lo tienen 257 usuarios y es lo
+   * que abre esta lista; originar un movimiento de mercadería pide `CREAR
+   * TRANSFERENCIA`. La ruta lo vuelve a chequear con `rolGuard`: esconder sin
+   * guardar no protege nada.
+   */
+  readonly puedeCrear = computed(() =>
+    this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.transferenciasAlta),
+  );
 
   readonly vistas = VISTAS;
   readonly indice = signal(0);
@@ -239,5 +272,9 @@ export class TransferenciasListaPage {
 
   abrir(t: Transferencia): void {
     void this.router.navigate(['/transferencias', t.id]);
+  }
+
+  nueva(): void {
+    void this.router.navigate(['/transferencias', 'nueva']);
   }
 }

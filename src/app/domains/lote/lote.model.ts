@@ -76,6 +76,36 @@ export interface StockLote {
   cantidadDisponible?: number;
 }
 
+/**
+ * Saldo de un lote **expresado en la presentación con la que carga el
+ * operador**, tal como lo devuelve `stockPorLoteEnPresentacion`.
+ *
+ * ⚠️ **Acá no se divide nada.** A diferencia de [`StockLote`](#StockLote), la
+ * conversión ya viene resuelta del central: es la misma regla con la que
+ * después reparte el stock al guardar el ítem, y tenerla también en la
+ * pantalla sería tenerla en dos lados.
+ *
+ * ⚠️ **`cantidadDisponiblePresentacion` son presentaciones COMPLETAS** y
+ * `unidadesSobrantes` lo que queda fuera de ellas. Un lote con 20 unidades y
+ * presentación «caja x 6» da 3 cajas y sobran 2: mostrar solo el 3 haría
+ * pensar que esas 2 unidades no existen.
+ */
+export interface StockLotePresentacion {
+  loteId?: number;
+  numeroLote?: string;
+  fechaVencimiento?: string;
+  fechaRetiro?: string;
+  estado?: EstadoLote;
+  /** Saldo en unidades base, como vive en el ledger. */
+  cantidadDisponible?: number;
+  /** Presentaciones completas que entran en ese saldo. */
+  cantidadDisponiblePresentacion?: number;
+  /** Unidades que quedan fuera de esas presentaciones completas. */
+  unidadesSobrantes?: number;
+  unidadesPorPresentacion?: number;
+  presentacionDescripcion?: string;
+}
+
 /** Lo que se manda para dar de alta un lote. */
 export interface CrearLoteInput {
   productoId: number;

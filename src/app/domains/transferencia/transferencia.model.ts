@@ -1,4 +1,5 @@
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
+import { EstadoLote } from 'src/app/domains/lote/lote.model';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
@@ -66,6 +67,45 @@ export enum MotivoModificacion {
 }
 
 /**
+ * En qué etapa se eligieron los lotes de un ítem.
+ *
+ * ⚠️ **No son las cuatro etapas de la transferencia**, son las dos en las que
+ * todavía se puede decidir de qué lote sale la mercadería. `PREPARACION` pisa
+ * a `PRE_TRANSFERENCIA` al resolver el desglose, pero las dos quedan
+ * guardadas: así se puede auditar que lo pedido y lo preparado salieron de
+ * lotes distintos.
+ */
+export enum EtapaAsignacionLote {
+  PRE_TRANSFERENCIA = 'PRE_TRANSFERENCIA',
+  PREPARACION = 'PREPARACION',
+}
+
+/**
+ * Una porción de la cantidad de un ítem, atada a un lote concreto.
+ *
+ * ⚠️ **Es la INTENCIÓN del operador, no el movimiento.** El desglose real del
+ * stock vive en `movimiento_stock_lote`; esto es lo que se pidió sacar. Si no
+ * hay ninguno, el central reparte por FEFO.
+ *
+ * ⚠️ **`cantidad` viene en unidades y `cantidadPresentacion` en la
+ * presentación del ítem.** La segunda es la que se le muestra al operador,
+ * porque es la unidad en la que cargó el renglón.
+ */
+export interface TransferenciaItemLote {
+  id?: number;
+  loteId?: number;
+  numeroLote?: string;
+  /** En unidades base, como vive en el ledger. */
+  cantidad?: number;
+  /** La misma cantidad en la presentación del ítem, ya convertida por el central. */
+  cantidadPresentacion?: number;
+  etapa?: EtapaAsignacionLote;
+  fechaVencimiento?: string;
+  fechaRetiro?: string;
+  estadoLote?: EstadoLote;
+}
+
+/**
  * Un ítem, con **lo que registró cada una de las cuatro etapas**.
  *
  * ⚠️ **Cada etapa guarda lo suyo y no pisa lo anterior.** Si se piden 10, el
@@ -108,6 +148,16 @@ export interface TransferenciaItem {
   observacionRecepcion?: string;
   motivoModificacionRecepcion?: MotivoModificacion;
   motivoRechazoRecepcion?: MotivoRechazo;
+
+  /**
+   * Los lotes elegidos a mano para este ítem.
+   *
+   * ⚠️ **Vacío no es un error: significa FEFO.** Sin asignación el central
+   * saca la mercadería del lote que vence antes, que es lo que hicieron
+   * siempre todos los clientes. Elegir a mano es la excepción, para cuando lo
+   * que hay en la góndola no coincide con el orden teórico.
+   */
+  lotesAsignados?: TransferenciaItemLote[];
 }
 
 export interface Transferencia {
@@ -189,6 +239,31 @@ export interface TransferenciaItemInput {
   poseeVencimiento?: boolean;
 
   usuarioId?: number;
+
+  /**
+   * De qué lotes sale este ítem. **Tiene tres valores, no dos.**
+   *
+   * | Qué mandás | Qué hace el central |
+   * |---|---|
+   * | ausente / `undefined` | no toca la asignación que ya tenga — es lo que manda cualquier pantalla que no sabe de lotes |
+   * | `[]` | **borra** la asignación de esa etapa y el ítem vuelve a resolverse por FEFO |
+   * | una lista | reemplaza la asignación de esa etapa |
+   *
+   * ⚠️ **Un `null` no borra.** Como el resto del input, la ausencia significa
+   * «no lo toques»: para volver a FEFO hay que mandar la lista vacía.
+   *
+   * ⚠️ **La cantidad va EN PRESENTACIONES**, la misma unidad que
+   * `cantidadPreTransferencia` y que devuelve `stockPorLoteEnPresentacion`. El
+   * central la convierte a unidades con la presentación de la etapa.
+   * Mandarla ya en unidades saca del lote tantas veces de más como unidades
+   * tenga la presentación, y nadie se entera hasta el arqueo.
+   */
+  lotesAsignados?: { loteId: number; cantidad: number }[];
+  /**
+   * A qué etapa corresponde `lotesAsignados`. **Se ignora si la lista no
+   * viene**, y por defecto el central asume `PRE_TRANSFERENCIA`.
+   */
+  etapaAsignacionLote?: EtapaAsignacionLote;
 }
 
 /**

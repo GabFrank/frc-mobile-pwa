@@ -9,6 +9,7 @@ import {
 import type { Sucursal } from '../domains/empresarial/sucursal/sucursal.model';
 import type { Presentacion } from '../domains/productos/presentacion.model';
 import {
+  EtapaAsignacionLote,
   EtapaTransferencia,
   TipoTransferencia,
   Transferencia,
@@ -16,10 +17,12 @@ import {
   TransferenciaItem,
 } from '../domains/transferencia/transferencia.model';
 import {
+  asignacionDeLote,
   destinosPosibles,
   esBorrador,
   excedeElStock,
   itemDePreTransferencia,
+  loteDePreTransferencia,
   nuevaTransferenciaInput,
   puedeFinalizar,
   unidadesDelBorrador,
@@ -165,6 +168,100 @@ describe('Ítem que se agrega al borrador', () => {
     });
 
     expect(input.id).toBe(900);
+  });
+});
+
+/**
+ * ⚠️ Los tres valores de `lotesAsignados` son la parte del módulo donde una
+ * confusión no se ve: mandar `[]` de más borra una asignación que alguien
+ * eligió, y mandar `null` creyendo que borra deja el lote viejo puesto
+ * mientras la pantalla muestra otro.
+ */
+describe('De qué lote sale el ítem', () => {
+  it('con un lote elegido manda la lista y la etapa de creación', () => {
+    const input = itemDePreTransferencia({
+      transferenciaId: 1,
+      presentacionId: 2,
+      cantidad: 3,
+      lote: { loteId: 707 },
+    });
+
+    expect(input.lotesAsignados).toEqual([{ loteId: 707, cantidad: 3 }]);
+    expect(input.etapaAsignacionLote).toBe(EtapaAsignacionLote.PRE_TRANSFERENCIA);
+  });
+
+  /**
+   * ⚠️ El central multiplica por la presentación de la etapa: mandar la
+   * cantidad ya en unidades saca del lote tantas veces de más como unidades
+   * tenga la presentación, y no falla, así que nadie se entera.
+   */
+  it('la cantidad viaja en presentaciones, la misma que cantidadPreTransferencia', () => {
+    const input = itemDePreTransferencia({
+      transferenciaId: 1,
+      presentacionId: 2,
+      cantidad: 4,
+      lote: { loteId: 707 },
+    });
+
+    expect(input.lotesAsignados?.[0].cantidad).toBe(input.cantidadPreTransferencia);
+  });
+
+  it('sin lote y sin lote anterior no manda el campo: no hay nada que tocar', () => {
+    const input = itemDePreTransferencia({
+      transferenciaId: 1,
+      presentacionId: 2,
+      cantidad: 3,
+    });
+
+    expect('lotesAsignados' in input).toBe(false);
+    expect('etapaAsignacionLote' in input).toBe(false);
+  });
+
+  /** La lista vacía es lo ÚNICO que borra: un `null` sería «no lo toques». */
+  it('al sacarle el lote a un ítem que lo tenía manda la lista vacía', () => {
+    const input = itemDePreTransferencia({
+      id: 900,
+      transferenciaId: 1,
+      presentacionId: 2,
+      cantidad: 3,
+      lote: null,
+      loteAnterior: 707,
+    });
+
+    expect(input.lotesAsignados).toEqual([]);
+    expect(input.etapaAsignacionLote).toBe(EtapaAsignacionLote.PRE_TRANSFERENCIA);
+  });
+
+  it('cambiar de lote reemplaza, no acumula', () => {
+    const { lotesAsignados } = asignacionDeLote({ loteId: 808 }, 5, 707);
+
+    expect(lotesAsignados).toEqual([{ loteId: 808, cantidad: 5 }]);
+  });
+});
+
+describe('El lote que un ítem ya tiene', () => {
+  const conAsignacion = (etapa: EtapaAsignacionLote): TransferenciaItem => ({
+    id: 1,
+    lotesAsignados: [{ loteId: 707, numeroLote: 'L-2026-88', etapa }],
+  });
+
+  it('devuelve el de la etapa de creación', () => {
+    expect(loteDePreTransferencia(conAsignacion(EtapaAsignacionLote.PRE_TRANSFERENCIA))?.loteId).toBe(
+      707,
+    );
+  });
+
+  /**
+   * ⚠️ La asignación de preparación la decide quien prepara, desde el
+   * escritorio. Mostrarla en el borrador invitaría a pisarla.
+   */
+  it('ignora la de preparación, que no es la que edita esta pantalla', () => {
+    expect(loteDePreTransferencia(conAsignacion(EtapaAsignacionLote.PREPARACION))).toBeNull();
+  });
+
+  it('sin asignación devuelve null, que es FEFO', () => {
+    expect(loteDePreTransferencia({ id: 1 })).toBeNull();
+    expect(loteDePreTransferencia(null)).toBeNull();
   });
 });
 

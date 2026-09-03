@@ -144,3 +144,57 @@ export const actualizarFechasLoteMutation = gql`
     }
   }
 `;
+
+/**
+ * El mismo saldo que `stockPorLote`, pero **ya convertido a la presentación**
+ * con la que carga el operador, y paginado.
+ *
+ * ⚠️ **La conversión la hace el central a propósito.** La regla —cuántas
+ * presentaciones completas entran en el saldo y cuántas unidades quedan
+ * sueltas— es la misma con la que después reparte el stock al guardar el
+ * ítem. Repetirla en la pantalla sería tenerla en dos lados, y la que manda
+ * es la del central.
+ *
+ * ⚠️ **`cantidadDisponiblePresentacion` son presentaciones COMPLETAS.** Una
+ * caja no se parte: lo que sobra viaja aparte en `unidadesSobrantes`, para
+ * que el operador vea que esas unidades existen y no crea que se le perdió
+ * stock.
+ *
+ * `numeroLote` filtra por coincidencia parcial. Con `presentacionId` nulo el
+ * central devuelve las cantidades en unidades, sin convertir.
+ */
+export const stockPorLoteEnPresentacionQuery = gql`
+  query (
+    $productoId: ID!
+    $sucursalId: ID!
+    $presentacionId: ID
+    $numeroLote: String
+    $page: Int
+    $size: Int
+  ) {
+    data: stockPorLoteEnPresentacion(
+      productoId: $productoId
+      sucursalId: $sucursalId
+      presentacionId: $presentacionId
+      numeroLote: $numeroLote
+      page: $page
+      size: $size
+    ) {
+      getTotalElements
+      getTotalPages
+      hasNext
+      getContent {
+        loteId
+        numeroLote
+        fechaVencimiento
+        fechaRetiro
+        estado
+        cantidadDisponible
+        cantidadDisponiblePresentacion
+        unidadesSobrantes
+        unidadesPorPresentacion
+        presentacionDescripcion
+      }
+    }
+  }
+`;

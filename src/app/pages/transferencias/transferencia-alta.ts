@@ -1,6 +1,7 @@
 import type { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import type { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import {
+  EtapaAsignacionLote,
   EtapaTransferencia,
   TipoTransferencia,
   Transferencia,
@@ -8,6 +9,7 @@ import {
   TransferenciaInput,
   TransferenciaItem,
   TransferenciaItemInput,
+  TransferenciaItemLote,
 } from 'src/app/domains/transferencia/transferencia.model';
 
 /**
@@ -97,6 +99,10 @@ export function itemDePreTransferencia(datos: {
   /** `yyyy-MM-dd`. */
   vencimiento?: string | null;
   observacion?: string | null;
+  /** El lote elegido a mano, o `null` si se decidió no usar ninguno. */
+  lote?: { loteId: number } | null;
+  /** El lote que el ítem tenía antes de esta edición, para saber si hay algo que borrar. */
+  loteAnterior?: number | null;
 }): TransferenciaItemInput {
   const vencimiento = datos.vencimiento?.trim() ?? '';
   const observacion = datos.observacion?.trim() ?? '';
@@ -108,9 +114,68 @@ export function itemDePreTransferencia(datos: {
     cantidadPreTransferencia: datos.cantidad,
     ...(vencimiento ? { vencimientoPreTransferencia: vencimiento } : {}),
     ...(observacion ? { observacionPreTransferencia: observacion } : {}),
+    ...asignacionDeLote(datos.lote, datos.cantidad, datos.loteAnterior),
     activo: true,
     poseeVencimiento: !!vencimiento,
   };
+}
+
+/**
+ * La parte del input que dice de qué lote sale el ítem.
+ *
+ * ⚠️ **`lotesAsignados` tiene tres valores, no dos**, y confundirlos es el
+ * error que este pedazo aísla:
+ *
+ * | Situación | Qué viaja | Qué hace el central |
+ * |---|---|---|
+ * | Se eligió un lote | `[{ loteId, cantidad }]` | reemplaza la asignación |
+ * | Se sacó el lote que tenía | `[]` | borra y el ítem vuelve a FEFO |
+ * | No hay lote ni lo hubo | **nada** | no toca la asignación |
+ *
+ * El tercer caso es el importante: mandar `[]` cuando no había nada que
+ * borrar es ruido, y mandar `null` **no borra** —para el central un campo
+ * ausente y uno en `null` son lo mismo: «no lo toques»—.
+ *
+ * ⚠️ **La cantidad va en presentaciones**, la misma unidad que
+ * `cantidadPreTransferencia`. El central la convierte a unidades con la
+ * presentación de la etapa; mandarla ya convertida sacaría del lote tantas
+ * veces de más como unidades tenga la presentación.
+ */
+export function asignacionDeLote(
+  lote: { loteId: number } | null | undefined,
+  cantidad: number,
+  loteAnterior?: number | null,
+): Pick<TransferenciaItemInput, 'lotesAsignados' | 'etapaAsignacionLote'> {
+  if (lote?.loteId != null) {
+    return {
+      lotesAsignados: [{ loteId: lote.loteId, cantidad }],
+      etapaAsignacionLote: EtapaAsignacionLote.PRE_TRANSFERENCIA,
+    };
+  }
+  if (loteAnterior != null) {
+    return {
+      lotesAsignados: [],
+      etapaAsignacionLote: EtapaAsignacionLote.PRE_TRANSFERENCIA,
+    };
+  }
+  return {};
+}
+
+/**
+ * El lote que un ítem ya tiene asignado en la etapa de creación, si tiene.
+ *
+ * ⚠️ **Se filtra por etapa.** Un ítem puede llegar con la asignación de
+ * `PREPARACION` hecha desde el escritorio, y esa no es la que edita esta
+ * pantalla: mostrarla acá invitaría a pisar la decisión de quien preparó.
+ */
+export function loteDePreTransferencia(
+  item: TransferenciaItem | null | undefined,
+): TransferenciaItemLote | null {
+  return (
+    (item?.lotesAsignados ?? []).find(
+      (l) => l.etapa === EtapaAsignacionLote.PRE_TRANSFERENCIA && l.loteId != null,
+    ) ?? null
+  );
 }
 
 /**

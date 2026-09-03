@@ -7,12 +7,14 @@ import { ActualizarFechasLoteGQL } from 'src/app/graphql/lote/actualizarFechasLo
 import { BuscarLotesDeProductoGQL } from 'src/app/graphql/lote/buscarLotesDeProducto';
 import { CrearLoteGQL } from 'src/app/graphql/lote/crearLote';
 import { StockPorLoteGQL } from 'src/app/graphql/lote/stockPorLote';
+import { StockPorLoteEnPresentacionGQL } from 'src/app/graphql/lote/stockPorLoteEnPresentacion';
 import type {
   CrearLoteInput,
   FechasLoteInput,
   Lote,
   LoteDeProducto,
   StockLote,
+  StockLotePresentacion,
 } from './lote.model';
 import type { PageInfo } from 'src/app/domains/page-info.model';
 
@@ -30,6 +32,7 @@ export class LoteService {
   private readonly buscarGQL = inject(BuscarLotesDeProductoGQL);
   private readonly fechasGQL = inject(ActualizarFechasLoteGQL);
   private readonly crearGQL = inject(CrearLoteGQL);
+  private readonly stockPresentacionGQL = inject(StockPorLoteEnPresentacionGQL);
 
   /**
    * Saldo por lote de un producto en una sucursal, en **unidades base**.
@@ -65,6 +68,45 @@ export class LoteService {
       page,
       size,
     });
+  }
+
+  /**
+   * Saldo por lote **ya convertido a la presentación** con la que se está
+   * cargando el renglón, paginado y ordenado por FEFO.
+   *
+   * ⚠️ **Es la consulta que hay que usar cuando el operador carga en cajas.**
+   * `stockPorLote` devuelve unidades y obliga a dividir en la pantalla; acá la
+   * conversión la hace el central, que es el mismo que después reparte el
+   * stock contra el lote elegido. Dos implementaciones de esa división es
+   * exactamente lo que hace que el saldo mostrado y el descontado no coincidan.
+   *
+   * ⚠️ **Descarta la fila «SIN LOTE»** (`loteId` nulo), igual que
+   * [`stockPorLote`](#stockPorLote): es stock sin atribuir, no un lote que se
+   * pueda elegir.
+   */
+  stockEnPresentacion(
+    productoId: number,
+    sucursalId: number,
+    presentacionId: number | undefined,
+    texto: string | undefined,
+    page = 0,
+    size = 10,
+  ): Observable<PageInfo<StockLotePresentacion>> {
+    return this.datos
+      .consultar<PageInfo<StockLotePresentacion>>(this.stockPresentacionGQL, {
+        productoId,
+        sucursalId,
+        presentacionId: presentacionId ?? null,
+        numeroLote: texto?.trim() || null,
+        page,
+        size,
+      })
+      .pipe(
+        map((pagina) => ({
+          ...pagina,
+          getContent: (pagina?.getContent ?? []).filter((f) => f.loteId != null),
+        })),
+      );
   }
 
   /**

@@ -89,7 +89,7 @@ export const itemsPorTransferenciaQuery = gql`
       getContent {
         id
         cantidadPreTransferencia
-        presentacionPreTransferencia { id cantidad producto { id descripcion } }
+        presentacionPreTransferencia { id cantidad producto { id descripcion lote } }
         vencimientoPreTransferencia
         observacionPreTransferencia
         motivoModificacionPreTransferencia
@@ -112,6 +112,15 @@ export const itemsPorTransferenciaQuery = gql`
         observacionRecepcion
         motivoModificacionRecepcion
         motivoRechazoRecepcion
+        lotesAsignados {
+          loteId
+          numeroLote
+          cantidad
+          cantidadPresentacion
+          etapa
+          fechaVencimiento
+          estadoLote
+        }
       }
     }
   }

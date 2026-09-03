@@ -2675,6 +2675,8 @@ Para que no se reporte como falla:
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: agregar un producto que la toma no incluye | No portado. Abrir la toma (bloque 39), agregarle zonas (bloque 40), contar (bloque 29), revisar (35) y finalizar sí. Sumar a una zona una presentación que no está necesita el buscador paginado y el alta de ítem |
 | Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
+| Transferencias: **elegir el lote en la preparación** | No portado. Elegir el lote al **cargar** el producto sí (bloque 51). El escritorio deja reasignarlo también mientras se prepara la mercadería (`etapaAsignacionLote: PREPARACION`); acá esa etapa sigue resolviéndose por FEFO o por lo que se eligió al cargar |
+| Transferencias: **repartir un renglón entre varios lotes** | No portado, y el escritorio tampoco lo hace. El central lo acepta; acá se carga el producto dos veces |
 | Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
 | Recibir push (FCM) | No portado — la bandeja sí |
@@ -4577,6 +4579,175 @@ termina cargándose dos veces.
 
 ---
 
+## Bloque 51 — Elegir el lote al cargar un producto *(nuevo, sin probar)*
+
+**Por qué está acá:** hasta ahora el central resolvía **siempre** por FEFO de
+qué lote salía la mercadería. Este bloque prueba el caso en que el depósito
+real no coincide con ese orden teórico y el operador elige a mano.
+
+**Necesita:** el rol **`CREAR TRANSFERENCIA`**, y un producto con **control de
+lote** (`producto.lote = true`) que tenga **al menos dos lotes con saldo** en
+la sucursal de origen. Idealmente uno de ellos **bloqueado o en cuarentena**,
+para el caso 51.5.
+
+> ✅ **No hace falta promover el central.** `lotesAsignados`,
+> `etapaAsignacionLote` y `stockPorLoteEnPresentacion` entraron en el commit
+> `b88fc34a` del central y están desde `v4.7.0-alpha.26`, `v4.7.0-beta.2` y
+> `v4.8.0`: farmacia y bodega ya los tienen. Es la diferencia con el bloque 49,
+> que sí exige promover.
+
+⚠️ **Elegir el lote NO mueve stock.** Lo que se guarda es la **intención**: de
+qué lote sacar. El descuento real ocurre al despachar (bloque 49), y ahí es
+donde hay que verificar que salió del lote elegido y no de otro.
+
+⚠️ **El caso crítico es el 51.12**, el único que confirma que la elección se
+respetó de verdad. Todo lo demás es pantalla.
+
+### 51.1 · El lote solo se ofrece si el producto lo lleva
+1. Crear un borrador y agregar un producto **sin** control de lote.
+2. Agregar otro **con** control de lote.
+
+**Esperado:** en el primero el diálogo es el de siempre —cantidad, vencimiento,
+observación—. En el segundo aparece arriba una fila **Lote** que dice «Elegir
+lote — Opcional. Sin elegir, se manda lo que vence antes».
+
+### 51.2 · La lista muestra el saldo en la presentación del renglón
+1. En el producto con lote, elegir una presentación de **más de una unidad**
+   (una caja, un pack) y tocar la fila **Lote**.
+
+**Esperado:** cada lote muestra su número, su vencimiento y el saldo **en
+cajas**, no en unidades. Debajo, en letra chica, el total en unidades y cuántas
+**sobran** fuera de las cajas completas: un lote de 20 unidades en cajas de 6
+dice «3» arriba y «20 unid. · sobran 2» abajo.
+
+⚠️ Si el saldo apareciera en unidades donde debería decir cajas, **pará**: es
+la conversión, y el número que se manda al central saldría multiplicado.
+
+### 51.3 · Buscar por número de lote
+1. Con la lista abierta, escribir parte de un número de lote.
+
+**Esperado:** la lista se filtra **contra el central** (hay una pausa corta al
+tipear, no filtra letra por letra en memoria). Buscar «l-20» encuentra
+«L-2026-88»: el central normaliza igual que al crear el lote.
+
+### 51.4 · Ver más lotes
+1. Usar un producto con más de diez lotes con saldo.
+
+**Esperado:** aparece **Ver más lotes** al pie; al tocarlo la lista **se
+agranda**, no se reemplaza. Los lotes vienen ordenados por FEFO: primero lo
+que hay que sacar antes.
+
+### 51.5 · Un lote bloqueado se ve pero no se puede elegir
+1. Bloquear un lote desde el escritorio (o usar uno en cuarentena) y abrir la
+   lista.
+
+**Esperado:** el lote **aparece igual**, atenuado, con «Bloqueado — no se puede
+mandar», y tocarlo no hace nada. ⚠️ **Que aparezca es el punto:** si se
+escondiera, el operador buscaría el lote que tiene en la mano y no entendería
+por qué no está.
+
+### 51.6 · Elegir un lote
+1. Tocar un lote liberado.
+
+**Esperado:** vuelve al diálogo del ítem, y la fila **Lote** ahora muestra el
+número, «Vence dd/MM/yyyy» y «N disponible».
+
+### 51.7 · El vencimiento viene sugerido
+1. Con el campo **Vencimiento** vacío, elegir un lote que tenga vencimiento
+   cargado.
+2. Después, **borrar** el lote y elegir otro con **otro** vencimiento, pero
+   habiendo escrito antes una fecha a mano.
+
+**Esperado:** en el primer caso el campo se completa con el vencimiento del
+lote. En el segundo **no se pisa** lo que escribiste: el papel que tenés en la
+mano gana sobre lo que dice el maestro.
+
+⚠️ La fecha se ve como `dd/MM/yyyy`, **sin hora**. Si apareciera «00:00»,
+anotalo: el central manda las fechas con hora y hay que recortarla.
+
+### 51.8 · El aviso de stock pasa a ser el del lote
+1. Con un lote elegido, cargar una cantidad **mayor** al saldo de ese lote pero
+   menor a lo que hay en la sucursal.
+
+**Esperado:** el aviso dice «El lote L-… tiene N unidades. Estás pidiendo M: se
+manda igual, pero revisá», en color de advertencia. ⚠️ **Sigue sin bloquear**,
+igual que el aviso de la sucursal.
+
+⚠️ Es el caso que justifica la funcionalidad: contra el saldo de la sucursal
+—que suma todos los lotes— ese pedido parecería sobrado.
+
+### 51.9 · Salir sin elegir no es un error
+1. Abrir la lista de lotes y tocar **Que decida el sistema**.
+
+**Esperado:** vuelve al diálogo del ítem sin lote, y la fila dice otra vez
+«Elegir lote». El renglón se guarda igual. **Cancelar** deja lo que hubiera.
+
+### 51.10 · El renglón cargado muestra su lote
+1. Guardar el ítem con lote y mirar la lista del borrador.
+
+**Esperado:** la card del renglón dice «⟨presentación⟩ · Lote L-… · Vence …».
+⚠️ Es lo único que distingue dos cargas del mismo producto: sin verlo,
+corregirlo obliga a abrir renglón por renglón.
+
+### 51.11 · Corregir el lote de un renglón ya cargado
+1. Tocar un renglón con lote y abrir la fila **Lote**.
+2. Elegir otro lote y guardar.
+3. Volver a abrirlo y tocar **Sacar el lote**; guardar.
+
+**Esperado:** después de (2) el renglón muestra el lote nuevo. Después de (3)
+el renglón **ya no muestra ningún lote** y vuelve a resolverse por FEFO.
+
+⚠️ Al reabrir un renglón, la fila muestra el número de lote pero **no** un
+saldo, hasta que se vuelva a abrir la lista. Es correcto: el saldo es otra
+consulta y de otro momento; decir «0 disponible» afirmaría que el lote está
+vacío.
+
+### 51.12 · **El lote elegido es el que sale** — ⚠️ *crítico*
+1. Elegir a mano un lote que **no** sea el primero por FEFO (o sea: elegir uno
+   que vence **después** que otro con saldo).
+2. Finalizar la transferencia y llevarla hasta **despachar** (bloque 49, caso
+   49.11).
+3. En el escritorio, abrir el historial del lote elegido y el del que FEFO
+   habría tomado.
+
+**Esperado:** el movimiento de salida está en **el lote elegido**, y el otro
+quedó intacto. ⚠️ **Este es el único caso que prueba que la funcionalidad
+sirve.** Si el descuento saliera del lote de FEFO, todo lo anterior fue
+pantalla.
+
+### 51.13 · La cantidad sale en la unidad correcta
+1. Con una presentación de varias unidades (caja de 6), elegir un lote y cargar
+   **2** cajas. Despachar.
+2. Mirar el movimiento del lote.
+
+**Esperado:** salieron **12 unidades**, no 2 ni 72. ⚠️ La cantidad viaja al
+central en presentaciones y él la convierte; una conversión de más multiplica
+la salida por el tamaño de la caja **sin dar error**.
+
+### 51.14 · Un producto sin lotes con saldo
+1. Agregar un producto con control de lote que **no** tenga lotes con saldo en
+   origen, y abrir la lista.
+
+**Esperado:** «Sin lotes — Este producto no tiene lotes con saldo en esta
+sucursal. Se puede mandar igual: el sistema resuelve el desglose por FEFO».
+El renglón se carga sin problema.
+
+### 51.15 · Los tres estados
+1. Abrir la lista de lotes con el servidor caído.
+2. Buscar un texto que no exista.
+
+**Esperado:** esqueleto mientras carga; error con **Reintentar** si el central
+no responde; «Ningún lote de este producto coincide con lo buscado» cuando la
+búsqueda no trae nada —distinto del texto de 51.14, que es «no tiene lotes»—.
+
+### 51.16 · Tema oscuro y tema claro
+1. Recorrer la lista de lotes y el diálogo del ítem en los dos temas.
+
+**Esperado:** el lote elegido se distingue del resto, los atenuados se leen, y
+el aviso de stock en advertencia tiene contraste suficiente en los dos.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -4631,7 +4802,8 @@ termina cargándose dos veces.
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
 | 50 · Crear una transferencia y cargarle productos | 16 | | | |
-| **Total** | **435** | | | |
+| 51 · Elegir el lote al cargar un producto | 16 | | | |
+| **Total** | **451** | | | |
 
 ### Los cinco que más importan
 

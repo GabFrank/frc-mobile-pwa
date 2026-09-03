@@ -28,6 +28,7 @@ import { etiquetaPresentacion } from 'src/app/shared/producto/presentacion.util'
 import {
   esBorrador,
   itemDePreTransferencia,
+  loteDePreTransferencia,
   puedeFinalizar,
   unidadesDelBorrador,
 } from './transferencia-alta';
@@ -232,10 +233,18 @@ export class TransferenciaBorradorPage {
     });
   }
 
+  /**
+   * ⚠️ **El lote se muestra en el renglón a propósito.** Es lo único que
+   * distingue dos cargas del mismo producto, y es la decisión más fácil de
+   * olvidar entre cuarenta renglones: sin verla, corregirla exige abrir uno
+   * por uno.
+   */
   detalleDe(item: TransferenciaItem): string {
     const presentacion = item.presentacionPreTransferencia;
+    const lote = loteDePreTransferencia(item);
     return [
       presentacion ? etiquetaPresentacion(presentacion) : '',
+      lote ? 'Lote ' + (lote.numeroLote ?? '—') : '',
       item.vencimientoPreTransferencia ? 'Vence ' + item.vencimientoPreTransferencia : '',
     ]
       .filter(Boolean)
@@ -287,6 +296,7 @@ export class TransferenciaBorradorPage {
       producto: seleccion.producto,
       presentacion: seleccion.presentacion,
       sucursalOrigenId: t.sucursalOrigen?.id,
+      sucursalOrigenNombre: t.sucursalOrigen?.nombre,
       // Un pesable ya trae los kilos en el código: no se vuelven a pedir.
       cantidadInicial: seleccion.peso,
     });
@@ -302,6 +312,7 @@ export class TransferenciaBorradorPage {
         cantidad: draft.cantidad,
         vencimiento: draft.vencimiento,
         observacion: draft.observacion,
+        lote: draft.lote,
       }),
     );
   }
@@ -313,6 +324,7 @@ export class TransferenciaBorradorPage {
     if (t?.id == null || item.id == null || presentacion?.id == null) {
       return;
     }
+    const loteAsignado = loteDePreTransferencia(item);
 
     const draft = await this.dialogo.abrir<
       TransferenciaItemDialogComponent,
@@ -322,10 +334,22 @@ export class TransferenciaBorradorPage {
       producto: item.producto ?? presentacion.producto ?? {},
       presentacion,
       sucursalOrigenId: t.sucursalOrigen?.id,
+      sucursalOrigenNombre: t.sucursalOrigen?.nombre,
       draft: {
         cantidad: item.cantidadPreTransferencia ?? 0,
         vencimiento: item.vencimientoPreTransferencia ?? null,
         observacion: item.observacionPreTransferencia ?? '',
+        // ⚠️ **Sin saldo a propósito.** La asignación guardada dice de qué
+        // lote sale el ítem y cuánto se le asignó, pero **no cuánto queda en
+        // ese lote**: eso es otra consulta y de otro momento. Rellenarlo con
+        // la cantidad asignada mostraría «3 disponible» cuando 3 es lo que se
+        // sacó. El saldo aparece cuando se vuelve a abrir el selector.
+        lote: loteAsignado
+          ? {
+              loteId: Number(loteAsignado.loteId),
+              numeroLote: loteAsignado.numeroLote ?? '',
+            }
+          : null,
       },
     });
 
@@ -341,6 +365,8 @@ export class TransferenciaBorradorPage {
         cantidad: draft.cantidad,
         vencimiento: draft.vencimiento,
         observacion: draft.observacion,
+        lote: draft.lote,
+        loteAnterior: loteAsignado ? Number(loteAsignado.loteId) : null,
       }),
     );
   }

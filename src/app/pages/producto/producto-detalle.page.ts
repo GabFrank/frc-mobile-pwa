@@ -15,7 +15,7 @@ import { soloOperables } from 'src/app/domains/empresarial/sucursal/sucursal.uti
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
-import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
@@ -232,9 +232,12 @@ export class ProductoDetallePage {
    */
   readonly stockVisible = computed(() => {
     const mapa = this.stock();
+    // Sin decimales salvo que el producto se venda por peso: ver
+    // `formatearExistencia`.
+    const pesable = this.producto()?.balanza === true;
     return soloOperables(this.listaSucursales()).map((s) => ({
       nombre: s.nombre ?? `Sucursal ${s.id}`,
-      cantidad: formatearCantidad(mapa.get(String(s.id)) ?? 0, 2),
+      cantidad: formatearExistencia(mapa.get(String(s.id)) ?? 0, pesable),
     }));
   });
 

@@ -862,7 +862,9 @@ presentaciones se piden recién al abrir, no antes.
 
 **Esperado:** la lista de sucursales con su existencia, **de una sola vez**.
 `SERVIDOR` **no** aparece: no es un local. Una sucursal sin movimientos sale
-en `0`. Las negativas van en rojo — así están en la base, no es un error.
+en `0`. Las negativas van en rojo — así están en la base, no es un error. La
+cantidad va **sin decimales**, salvo que el producto sea de balanza, donde van
+tres (`7,500` kg).
 
 ### 12.8 · El stock en la card *(necesita un usuario de sucursal real)*
 1. Entrar con un usuario cuya sesión **no** esté en el SERVIDOR
@@ -2165,10 +2167,13 @@ siguen pegados a cajas viejas.
 *Cambiable* o *Envase* según corresponda.
 
 ### 27.5 · Existencia por sucursal
-1. Mirar la última sección.
+1. Mirar la última sección con un producto **por unidad** (sin el chip *De
+   balanza*).
 
-**Esperado:** una línea por sucursal operable, con `0,00` donde no hay
-movimientos.
+**Esperado:** una línea por sucursal operable, con la cantidad **sin
+decimales** —`12`, no `12,00`— y `0` donde no hay movimientos. Un `12,00` en
+un producto que se cuenta por unidad es un hallazgo: sugiere una fracción de
+unidad que no existe.
 
 > ⚠️ **Si dice *No se pudo consultar*, el central no tiene
 > `stockPorSucursales`.** Contra **alpha eso ya no debería pasar**: la consulta
@@ -2181,6 +2186,18 @@ movimientos.
 >
 > Lo que **no** puede pasar en ningún caso es que muestre todas las sucursales
 > en cero: eso afirmaría que no hay mercadería.
+
+### 27.6 · Existencia de un pesable *(nuevo)*
+1. Abrir la ficha de un producto **de balanza** —el que tiene el chip *De
+   balanza*— y mirar la existencia por sucursal.
+
+**Esperado:** acá **sí** hay decimales: `7,500` son siete kilos y medio. Es la
+única excepción a 27.5, porque en un pesable la fracción significa algo.
+
+> Si la existencia de un producto por unidad llega igual fraccionada —`7,5`—
+> se muestra tal cual, con decimales, y **es un hallazgo de inventario**: hay
+> un ajuste mal cargado en el central. No se redondea justamente para que se
+> vea.
 
 ---
 
@@ -4454,7 +4471,7 @@ primero que se necesita saber.
 | 24 · Configuración en Mi cuenta | 6 | | | |
 | 25 · Productos vencidos | 5 | 2 | | |
 | 26 · Modo kiosco | 8 | 3 | | |
-| 27 · Ficha de producto | 5 | 2 | | |
+| 27 · Ficha de producto | 6 | 2 | | |
 | 28 · Rendición de caja chica | 9 | | | |
 | 29 · Carga del conteo | 6 | | | |
 | 30 · Permisos por rol | 6 | | | |
@@ -4477,7 +4494,7 @@ primero que se necesita saber.
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
-| **Total** | **418** | | | |
+| **Total** | **419** | | | |
 
 ### Los cinco que más importan
 

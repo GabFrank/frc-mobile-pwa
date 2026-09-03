@@ -4441,6 +4441,66 @@ primero que se necesita saber.
 
 ---
 
+## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo, sin probar)*
+
+**Por qué está acá:** `frc-mobile` mostraba en mayúsculas lo que se escribía en
+el login y en el buscador de productos (`text-transform: uppercase` sobre el
+`ion-input`), y la PWA no lo había portado. Es paridad, no una idea nueva.
+
+**Qué es y qué no es:** es **presentación**. El valor que viaja al central
+conserva lo que se tipeó — la app no transforma nada. Que dé igual lo decide el
+backend: el usuario se resuelve con `findByNicknameIgnoreCase`, la contraseña se
+compara con `toUpperCase()` de los dos lados, y la búsqueda de productos filtra
+con `UPPER(...) like UPPER(...)`.
+
+### 50.1 · El usuario se ve en mayúsculas
+1. Abrir el login (si hay sesión, cerrarla).
+2. Escribir el usuario en minúsculas.
+
+**Esperado:** se ve en **MAYÚSCULAS** mientras se escribe. Entrar funciona
+igual, sin importar cómo se tipeó.
+
+### 50.2 · La contraseña también, con el ojo abierto
+1. En el login, escribir la contraseña.
+2. Tocar el ojo para mostrarla.
+
+**Esperado:** con el ojo cerrado se ven los puntos de siempre; al abrirlo, el
+texto aparece en mayúsculas. El login entra igual.
+
+### 50.3 · Con usuario recordado
+1. Entrar con «Recordar usuario» activo, salir y volver al login.
+
+**Esperado:** el usuario precargado también se ve en mayúsculas, y el foco
+sigue arrancando en la contraseña.
+
+### 50.4 · El buscador de productos
+1. Pestaña **Buscar** → escribir parte de una descripción en minúsculas.
+
+**Esperado:** el campo se ve en mayúsculas y los resultados son los mismos que
+antes del cambio.
+
+### 50.5 · El código escaneado y el de balanza
+1. En **Buscar**, tocar el ícono y escanear un código de barras.
+2. Repetir con una etiqueta de balanza.
+
+**Esperado:** el código cargado en el campo se ve en mayúsculas, el producto
+aparece y el bloque de producto pesado sigue calculando igual.
+
+### 50.6 · El mismo buscador en las otras pantallas
+1. Abrir el buscador de producto desde devolución, desde el conteo de
+   inventario y desde transferencias.
+
+**Esperado:** en las tres se ve en mayúsculas — es el mismo componente
+compartido, no tres campos distintos.
+
+### 50.7 · Tema oscuro y tema claro
+1. Repetir 50.1 y 50.4 con cada tema.
+
+**Esperado:** solo cambia el color; el texto sigue en mayúsculas y legible.
+
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -4494,7 +4554,8 @@ primero que se necesita saber.
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
-| **Total** | **419** | | | |
+| 50 · Mayúsculas en login y búsqueda | 7 | | | |
+| **Total** | **426** | | | |
 
 ### Los cinco que más importan
 

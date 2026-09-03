@@ -4817,6 +4817,44 @@ el aviso de stock en advertencia tiene contraste suficiente en los dos.
 
 ---
 
+## Bloque 53 — El botón flotante no va en Buscar *(nuevo)* — **3/4** (Claude en Chrome, central local, 2026-09-03)
+
+**Por qué está acá:** la pestaña **Buscar** tenía dos botones de escaneo —el
+del campo y el flotante de la esquina— ofreciendo lo mismo. Se apagó el
+flotante con el `conEscaner` que `frc-pagina` ya exponía, igual que hacen
+registrar rostro, nuevo inventario, rendir gasto y la carga del conteo.
+
+⚠️ **Lo que se pierde, a propósito:** parado en Buscar ya no se puede leer un
+QR del sistema —una transferencia, un inventario—, porque el escáner del campo
+pide solo formatos de producto. Se sale de Buscar con un toque; el intercambio
+se aceptó a sabiendas.
+
+### 53.1 · En Buscar no está — ✅ PASÓ
+1. Ir a la pestaña **Buscar**.
+
+**Esperado:** **no** hay botón flotante en la esquina inferior derecha. El
+ícono de escanear del campo, arriba a la derecha, sigue estando y funciona.
+
+### 53.2 · En las demás pantallas sigue estando — ✅ PASÓ
+1. Ir a **Control de inventario**, **Transferencias**, **Inicio**.
+
+**Esperado:** el flotante aparece en las tres, como siempre.
+
+### 53.3 · Se gana el alto que ocupaba — ✅ PASÓ
+1. Buscar algo que devuelva muchos resultados y bajar hasta el final.
+
+**Esperado:** la última fila llega hasta abajo, sin la franja vacía que
+`frc-pagina` reservaba para el flotante.
+
+### 53.4 · El escaneo desde el campo sigue navegando igual — sin probar
+1. En Buscar, tocar el ícono del campo y escanear un código de barras.
+
+**Esperado:** el producto aparece como antes. **Necesita cámara y un producto
+físico**, por eso quedó sin probar.
+
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -4873,7 +4911,8 @@ el aviso de stock en advertencia tiene contraste suficiente en los dos.
 | 50 · Mayúsculas en login y búsqueda | 7 | | | |
 | 51 · Crear una transferencia y cargarle productos | 16 | | | |
 | 52 · Elegir el lote al cargar un producto | 16 | | | |
-| **Total** | **458** | | | |
+| 53 · El flotante no va en Buscar | 4 | 3 | | |
+| **Total** | **462** | | | |
 
 ### Los cinco que más importan
 

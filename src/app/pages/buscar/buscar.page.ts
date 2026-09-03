@@ -25,7 +25,18 @@ import { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/bus
   imports: [PaginaComponent, BuscadorProductoComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Buscar">
+    <!--
+      Sin el botón flotante: el buscador ya trae el suyo, pegado al campo, y
+      el flotante ofrecía lo mismo desde la otra esquina. Apagarlo además
+      libera el relleno inferior que frc-pagina reserva para él, que acá es
+      una fila de resultados.
+
+      Lo que se pierde es leer un QR del sistema —una transferencia, un
+      inventario— parado en esta pantalla: el escáner del buscador pide solo
+      formatos de producto. Se sale de Buscar con un toque, así que el
+      intercambio conviene.
+    -->
+    <frc-pagina titulo="Buscar" [conEscaner]="false">
       <frc-buscador-producto
         [opciones]="opciones()"
         [codigoInicial]="codigo()"

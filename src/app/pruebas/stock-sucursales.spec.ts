@@ -110,6 +110,37 @@ describe('Stock por sucursal', () => {
     expect(texto(f)).not.toContain('SUC. CENTRAL');
   });
 
+  it('un producto por unidad no muestra decimales', () => {
+    // El central devuelve la existencia como Double aunque cuente cajas.
+    // "7,00" invita a leer que hay una fracción de unidad en algún lado.
+    busqueda.stockPorSucursales.mockReturnValue(of(new Map([['1', 7]])));
+    const f = montar();
+
+    expect(texto(f)).toContain('7');
+    expect(texto(f)).not.toContain('7,00');
+  });
+
+  it('un pesable sí muestra los decimales: son kilos', () => {
+    const pesable = Object.assign(new Producto(), {
+      id: 2,
+      descripcion: 'QUESO PARAGUAY',
+      balanza: true,
+    });
+    busqueda.stockPorSucursales.mockReturnValue(of(new Map([['1', 7.5]])));
+    const f = montar({ producto: pesable });
+
+    expect(texto(f)).toContain('7,500');
+  });
+
+  it('una existencia fraccionada de un producto por unidad no se redondea', () => {
+    // Un ajuste mal cargado. Esconderlo detrás de un redondeo lo vuelve
+    // invisible justo para quien podría corregirlo.
+    busqueda.stockPorSucursales.mockReturnValue(of(new Map([['1', 7.5]])));
+    const f = montar();
+
+    expect(texto(f)).toContain('7,5');
+  });
+
   it('un fallo de la consulta se muestra como error, no como ceros', () => {
     busqueda.stockPorSucursales.mockReturnValue(throwError(() => new Error('sin red')));
     const f = montar();

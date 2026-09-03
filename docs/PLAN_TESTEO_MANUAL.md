@@ -4264,6 +4264,183 @@ lector, y la imagen exportada no tiene tema que respetar.
 
 ---
 
+---
+
+## Bloque 49 — Avanzar de etapa una transferencia, hasta recepción concluida *(nuevo, sin probar)*
+
+**Por qué está acá:** es lo último que faltaba del módulo. Hasta ahora la PWA
+**leía** una transferencia y no la podía mover; el ciclo entero seguía
+dependiendo de la APK.
+
+⚠️ **Este bloque mueve stock de verdad.** El central da de **baja** en origen
+al despachar y de **alta** en destino al concluir la recepción. Probalo con
+una transferencia de prueba, entre dos sucursales que no estén facturando, y
+anotá el stock del producto antes y después: es la única forma de saber que lo
+que la pantalla dice coincide con lo que quedó en la base.
+
+**Necesita:** dos usuarios distintos —uno en origen y otro en destino—, una
+transferencia recién creada en `PRE_TRANSFERENCIA_ORIGEN`, y el QR de la
+sucursal de destino a mano (caso 49.8).
+
+⚠️ **Y un central con `desconfirmarTransferenciaItem`** —desde
+`v4.7.0-alpha.42`, `v4.8.0-beta.3` o `v4.10.0`—. **Probalo en alpha, no en
+farmacia ni en bodega.** Contra un central viejo el guardado de un ítem es un
+reemplazo completo y **borra las otras tres etapas sin avisar**: se pierden las
+cuatro cifras que este bloque verifica en el caso 49.13, y la operación
+responde OK igual. Si no sabés qué versión corre la instancia, no ejecutes este
+bloque.
+
+**El recorrido completo, en orden:**
+
+| Etapa | Botón | Quién |
+|---|---|---|
+| Pendiente en origen | Preparar productos | cualquiera en origen |
+| Preparando mercadería | Concluir preparación | quien la tomó |
+| Preparación concluida | Verificar para transporte | el transportista |
+| Verificando para transporte | Concluir y despachar | quien la tomó |
+| En camino | Iniciar recepción | quien recibe |
+| Verificando recepción | Concluir recepción | quien la tomó |
+
+### 49.1 · La pantalla dice en qué etapa está y qué sigue
+1. Abrir una transferencia en `PRE_TRANSFERENCIA_ORIGEN`.
+
+**Esperado:** «Etapa» dice **Pendiente en origen** (no `PRE_TRANSFERENCIA_ORIGEN`
+en mayúsculas), aparece «Responsable», y al pie hay **un solo** botón:
+**Preparar productos**. No hay menú de etapas ni forma de saltear pasos.
+
+### 49.2 · Tomar la preparación
+1. Tocar **Preparar productos** → leer el aviso → **Preparar productos**.
+
+**Esperado:** el diálogo avisa que empieza la preparación y que hay que
+verificar cada ítem. Al aceptar, la etapa pasa a **Preparando mercadería**,
+«Preparó» queda con tu nombre, y **cada ítem aparece con la cantidad que se
+pidió ya copiada** (eso lo hace el central, no la app).
+
+### 49.3 · Otro usuario no puede tocar la etapa ajena
+1. Con **otro** usuario, abrir la misma transferencia.
+
+**Esperado:** los ítems **no** muestran el menú de tres puntos, el botón
+**Concluir preparación** está apagado, y debajo de la cabecera dice **«Esta
+etapa la está trabajando <nombre>»**. Esto es nuevo: en `frc-mobile` el
+permiso se prendía y no se apagaba más.
+
+### 49.4 · Confirmar, modificar y rechazar un ítem
+1. En el menú de tres puntos de un ítem: **Confirmar como viene**.
+2. En otro: **Modificar** → cambiar la cantidad → **Guardar**.
+3. En un tercero: **Rechazar** → elegir «Producto averiado».
+
+**Esperado:** las etiquetas de la derecha pasan a **Verificado**, **Modificado**
+(naranja) y **Rechazado** (rojo). En el modificado, la lista de abajo muestra
+**las dos cifras**: lo pedido y lo preparado, cada una con su presentación.
+
+### 49.5 · Deshacer una verificación *(el caso que `frc-mobile` no resuelve)*
+1. En un ítem ya verificado: menú → **Deshacer**.
+2. Recargar la pantalla (F5).
+
+**Esperado:** el ítem vuelve a **Sin revisar** y **sigue así después de
+recargar**. Es el caso importante: la app vieja «desconfirma» mandando nulos
+en el guardado, y el central los ignora —para él un campo ausente significa
+«no lo toques»—, así que la pantalla mostraba una cosa y la base tenía otra.
+
+### 49.6 · Confirmar un ítem que estaba rechazado
+1. Rechazar un ítem. Después, en el mismo ítem: **Confirmar como viene**.
+2. Recargar.
+
+**Esperado:** queda **Verificado**, sin rastro del rechazo, también después de
+recargar. Por dentro son dos llamadas —primero vaciar la etapa, después
+guardar—, justo por lo del caso anterior.
+
+### 49.7 · No se concluye con ítems sin revisar
+1. Dejar un ítem sin tocar e intentar **Concluir preparación**.
+
+**Esperado:** el botón está apagado y arriba dice **«Falta revisar 1 producto
+para poder continuar»**. Verificar el último y el botón se enciende.
+
+> ⚠️ **Probalo con una transferencia de más de 50 ítems si tenés una.** La app
+> vieja cuenta solo la página que estás mirando y habilita «Concluir» con
+> ítems sin tocar en las páginas que nadie abrió.
+
+### 49.8 · El QR de la sucursal al iniciar la recepción
+1. Con la transferencia **En camino**, tocar **Iniciar recepción**.
+2. Escanear el QR de **otra** sucursal.
+3. Repetir y escanear el QR de la sucursal de destino correcta.
+4. Repetir y **cancelar** el escaneo.
+
+**Esperado:** con el QR equivocado dice «El QR no es de la sucursal de destino
+de esta transferencia» y **no avanza**. Con el correcto, «Sucursal confirmada»
+y sigue al diálogo. **Si cancelás la cámara, igual sigue** — es a propósito:
+en varios teléfonos la cámara no abre y la recepción no puede quedar clavada
+por eso.
+
+### 49.9 · Verificar un producto con su código
+1. En un ítem: menú → **Verificar con el código** → escanear ese producto.
+2. Repetir escaneando **otro** producto.
+
+**Esperado:** «Producto correcto» en el primero; en el segundo, «No
+corresponde: ese código es de <descripción>». **No confirma nada**: es solo el
+control de que estás mirando el producto que creés.
+
+### 49.10 · Escanear para saltar al ítem
+1. Con la lista abierta, tocar **Escanear producto** y leer uno de la lista.
+2. Repetir con un producto que **no** esté en la transferencia.
+
+**Esperado:** el primero abre directo el diálogo de modificar de ese ítem. El
+segundo dice «Ese producto no está en esta transferencia».
+
+### 49.11 · Despachar: el stock baja en origen *(crítico)*
+1. Anotar el stock del producto en la **sucursal de origen**.
+2. Recorrer hasta **Concluir y despachar** y aceptar.
+3. Volver a mirar el stock en origen.
+
+**Esperado:** el diálogo avisa que **se da de baja el stock en origen**, y el
+stock efectivamente baja por la cantidad **despachada** (`cantidadTransporte`),
+no por la pedida. Un ítem **rechazado no descuenta nada**.
+
+### 49.12 · Concluir la recepción: el stock sube en destino *(crítico)*
+1. Anotar el stock del producto en la **sucursal de destino**.
+2. Verificar todos los ítems y tocar **Concluir recepción**.
+3. Volver a mirar el stock en destino.
+
+**Esperado:** el diálogo avisa que **la mercadería se carga en el stock de
+destino**. El estado pasa a **Concluida**, la etapa a **Recepción concluida**,
+y el stock sube por la cantidad **recibida**. Ya no aparece ningún botón al
+pie: es el final del recorrido.
+
+### 49.13 · Recibir menos de lo despachado queda registrado
+1. En la recepción, **Modificar** un ítem y poner menos de lo que se despachó.
+2. Concluir la recepción y volver a abrir el detalle.
+
+**Esperado:** el ítem muestra **las cuatro cifras** —Pedido, Preparado,
+Despachado, Recibido— y se ve dónde apareció la diferencia. **Esto es la razón
+de ser del módulo**: 10→8 es falta de stock en origen; 8→7, un faltante en
+tránsito.
+
+### 49.14 · El aviso del rechazo le llega al de la etapa anterior
+1. En la recepción, rechazar un ítem.
+2. Mirar el teléfono del **transportista**.
+
+**Esperado:** le llega un push «Ítem rechazado en la transferencia N» con el
+producto y el motivo. ⚠️ **Cambió respecto de `frc-mobile`**, que se lo manda
+al que acaba de rechazar —o sea, a sí mismo—. Si el negocio prefiere el
+comportamiento viejo, decilo y se revierte.
+
+### 49.15 · Una transferencia ya concluida no ofrece nada
+1. Abrir una transferencia en **Recepción concluida**.
+
+**Esperado:** no hay botón al pie, ni menú en los ítems. Las cuatro etapas de
+cada ítem siguen a la vista: la pantalla sigue sirviendo como registro.
+
+### 49.16 · Los tres estados
+1. Abrir con el servidor caído; con una transferencia sin ítems; y mirar la
+   carga.
+
+**Esperado:** esqueleto mientras carga; «Sin productos» con su ícono cuando no
+tiene ítems; y el error con **Reintentar** si falla la cabecera. Si fallan solo
+los ítems, la cabecera igual se ve — en qué estado está la transferencia es lo
+primero que se necesita saber.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -4316,7 +4493,8 @@ lector, y la imagen exportada no tiene tema que respetar.
 | 46 · Vencimiento ofrecido y quitar producto | 9 | | | |
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
-| **Total** | **403** | | | |
+| 49 · Avanzar de etapa una transferencia | 16 | | | |
+| **Total** | **419** | | | |
 
 ### Los cinco que más importan
 

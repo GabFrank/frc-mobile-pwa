@@ -159,8 +159,10 @@ Cada transferencia concluida genera movimientos de stock de tipo `TRANSFERENCIA`
 
 # Qué cambió en la PWA
 
-> **Estado:** portadas la **lista y el detalle con las cuatro etapas**. El
-> alta, la gestión de ítems y el avance de etapa no.
+> **Estado:** portadas la **lista**, el **detalle con las cuatro etapas** y el
+> **avance de etapa completo, hasta recepción concluida**, con la verificación
+> ítem por ítem. El **alta** de la transferencia y la gestión de sus ítems
+> —agregar y quitar productos— no.
 
 | Ruta | Componente |
 |---|---|
@@ -200,14 +202,115 @@ comparando ids de sucursal**, y la lista filtra por esos mismos flags.
 
 Que una sucursal sea origen **y** destino es un caso válido, no un error.
 
+## El avance de etapa
+
+Las reglas viven en [`etapas.ts`](../../src/app/pages/transferencias/etapas.ts),
+en funciones puras y sin UI. Están separadas a propósito: **cada avance
+dispara movimientos de stock en el central**, y una condición mal copiada
+despacha mercadería que nadie preparó.
+
+| Etapa actual | Botón | Destino |
+|---|---|---|
+| `PRE_TRANSFERENCIA_ORIGEN` | Preparar productos | `PREPARACION_MERCADERIA` |
+| `PREPARACION_MERCADERIA` | Concluir preparación | `PREPARACION_MERCADERIA_CONCLUIDA` |
+| `PREPARACION_MERCADERIA_CONCLUIDA` | Verificar para transporte | `TRANSPORTE_VERIFICACION` |
+| `TRANSPORTE_VERIFICACION` | Concluir y despachar | `TRANSPORTE_EN_CAMINO` |
+| `TRANSPORTE_EN_CAMINO` **o** `TRANSPORTE_EN_DESTINO` | Iniciar recepción | `RECEPCION_EN_VERIFICACION` |
+| `RECEPCION_EN_VERIFICACION` | Concluir recepción | `RECEPCION_CONCLUIDA` |
+
+Se muestra **una sola acción**, la que corresponde. Un menú de etapas sería una
+invitación a saltear pasos que mueven stock.
+
+### Quién puede
+
+La etapa la trabaja **quien la tomó**: el que aprieta «Preparar productos»
+queda como `usuarioPreparacion` y es el único que confirma sus ítems. Mientras
+nadie la tomó —responsable en blanco— está abierta a cualquiera.
+
+> ⚠️ **Se recalcula en cada cambio de etapa.** En `frc-mobile` el flag
+> `puedeEditar` se prende y **nunca se apaga**, así que alcanzaba con haber
+> sido responsable de una etapa para poder editar las siguientes.
+
+Las tres etapas que **cierran** una verificación exigen las dos cosas: ser el
+responsable y no dejar ítems sin revisar. Las otras tres —tomar la
+preparación, pasar a transporte, iniciar la recepción— son justamente el acto
+de hacerse cargo, y ahí todavía no hay responsable a quien pedirle permiso.
+
+### La verificación ítem por ítem
+
+En `PREPARACION_MERCADERIA`, `TRANSPORTE_VERIFICACION` y
+`RECEPCION_EN_VERIFICACION` cada ítem tiene su menú: **verificar con el
+código**, **confirmar como viene**, **modificar**, **rechazar** y **deshacer**.
+
+Un ítem cuenta como revisado con **cualquiera** de las tres marcas de la
+etapa: cantidad, vencimiento o motivo de rechazo. Rechazar también es haberlo
+mirado — es lo que distingue «no va» de «todavía no lo revisé».
+
+> ⚠️ **Los ítems se traen todos de una** (500). El botón «Concluir» necesita
+> saber si están **todos** verificados, y con paginación esa cuenta se haría
+> sobre la página visible: `frc-mobile` la hace así y habilita el botón con
+> ítems sin tocar en las páginas que nadie abrió.
+
+### ⚠️ Qué central hace falta
+
+Todo esto exige un central con el commit `8f29003f` —presente desde
+`v4.7.0-alpha.42`, `v4.8.0-beta.3` y `v4.10.0`—, que trae dos cosas juntas:
+la mutation `desconfirmarTransferenciaItem` y la conversión de
+`saveTransferenciaItem` en un PATCH.
+
+**Contra un central anterior el daño es silencioso.** Ahí el save es un
+reemplazo completo (`ModelMapper` + `service.save`), así que un input que trae
+solo los campos de la etapa en curso **pone en `null` las otras tres**: se
+pierden las cuatro cifras por etapa, que son la razón de ser del módulo, y la
+operación responde OK.
+
+Al 2026-08-15 farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna lo
+tiene**. Alpha sí. Las dos mitades se publican juntas.
+
+### ⚠️ El save del central es un PATCH
+
+`saveTransferenciaItem` **conserva lo que el input no trae**: un campo ausente
+significa «no lo toques», nunca «borralo». Mandar `null` no borra nada.
+
+Consecuencias, las dos verificadas contra `TransferenciaItemGraphQL`:
+
+- **Desconfirmar va por `desconfirmarTransferenciaItem(id, etapa)`**, que
+  vacía las columnas de esa etapa y desactiva el movimiento de stock.
+  `frc-mobile` desconfirma poniendo nulos y guardando: contra este central eso
+  no vacía nada, y la pantalla queda mostrando un estado que no se guardó.
+- **Confirmar un ítem antes rechazado son dos llamadas**: primero vaciar la
+  etapa, después guardar. Si no, el ítem sigue rechazado mientras la pantalla
+  lo muestra en verde.
+
+> ⚠️ **Siempre viaja una cantidad y una presentación para la etapa**, incluso
+> al rechazar. El central multiplica `cantidad × presentacion.cantidad` para
+> armar el movimiento de stock —aunque después lo deje inactivo por el
+> rechazo—, y con cualquiera de las dos en `null` responde un error de
+> servidor, no una validación.
+
+### Dos cosas que se apartan de `frc-mobile`
+
+Las dos están anotadas en el código, y se revierten en una línea si el negocio
+prefiere el comportamiento viejo:
+
+| Qué | `frc-mobile` | Acá |
+|---|---|---|
+| Motivo de modificación | Siempre `CANTIDAD_INCORRECTA`, aun cuando lo que cambió fue el vencimiento o la presentación | El que corresponde a lo que cambió — para eso el enum tiene los tres valores |
+| Destinatario del push de rechazo | El responsable de la **etapa en curso**, que es quien acaba de rechazar: se manda un push a sí mismo | El de la **etapa anterior** — el que preparó lo que ahora se rechaza |
+
+Y una que se agrega: `frc-mobile` **no ofrece «Modif. Item» en la recepción**
+—está en el `switch` que lo procesa, pero no en la lista de acciones—. Recibir
+menos de lo despachado es exactamente el caso que el módulo existe para
+registrar, así que acá está en las tres etapas.
+
 ## Lo que falta
 
 | Qué | Nota |
 |---|---|
-| **Avanzar de etapa** | `avanzarEtapaTransferencia` ya está en el servicio. La UI necesita saber qué etapa sigue según el rol, que es la parte con reglas |
 | Alta de transferencia | usa el buscador en modo E, que ya existe |
-| Gestión y edición de ítems | con motivos de rechazo y modificación |
+| Agregar y quitar ítems | el ABM de productos de la transferencia, antes de despacharla |
 | Impresión | `imprimirTransferencia` devuelve base64 |
+| Asignar lotes a mano | el central lo acepta (`lotesAsignados`); sin eso el desglose sale por FEFO, que es lo que hacen hoy todos los clientes |
 
 > ⚠️ **`onAvanzarEtapa` es el único camino correcto para cambiar de etapa.**
 > Guardar la transferencia con la etapa modificada saltea las validaciones y

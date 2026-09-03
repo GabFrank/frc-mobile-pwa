@@ -203,13 +203,27 @@ No se portan los diez flags de error precalculados de `frc-mobile`
 (`errorTipoGasto`, `errorSucursal`, …). Existían para no poner métodos en un
 template de Ionic; con `computed` el recálculo ya está resuelto.
 
-**Los buscadores** usan `frc-buscador` en modo `paginado`
-(`shared/buscador/buscador.component.ts`), que ya existe y se usa en 19
-pantallas. Lo que falta no es el componente: son los `cargarPagina` por tipo de
-entidad, con la firma `(texto, pagina) => Promise<{items, hayMas}>`.
+**Los buscadores** usan `frc-buscador`
+(`shared/buscador/buscador.component.ts`) en modo `paginado`, con la firma
+`cargarPagina: (texto, pagina) => Promise<{items, hayMas}>`. Se abre con
+`dialogo.abrir<BuscadorComponent<T>, ConfigBuscador<T>, T>(BuscadorComponent, config)`.
+
+> ⚠️ **Esta pantalla es su primer consumidor real.** El componente existe en el
+> sistema de diseño pero **ninguna página lo usa**: la única llamada viva está en
+> `design-system/galeria.page.ts`, y en modo `local`. El modo `paginado` nunca se
+> ejecutó contra un backend y el componente no tiene tests. Las 19 pantallas que
+> parecían usarlo usan `SelectorComponent`, que es otra cosa.
+
+> ⚠️ **Y tiene un defecto que hay que arreglar antes de apoyarse en él.** En
+> `cargarPagina`, el `.catch()` hace `resultados.set([])` y `hayMas.set(false)`,
+> así que un fallo de red se presenta como **«Sin resultados»**. Es justamente lo
+> que la regla del repo prohíbe: «no hay» y «no pude preguntar» son respuestas
+> distintas, y un buscador que dice «no existe ese proveedor» cuando en realidad
+> no pudo preguntar hace que el operador cargue mal el gasto. Se arregla con un
+> estado de error propio y su test, como tarea previa.
 
 > ⚠️ En modo paginado, `cargarPagina` debe devolver `hayMas: false` cuando se
-> acaba; si no, el scroll pide páginas vacías indefinidamente.
+> acaba; si no, «Cargar más» pide páginas vacías indefinidamente.
 
 **Sucursal de retiro:** por defecto la de `inicioSesion.sucursal`, y elegible.
 **Sin filtrar por `soloOperables()`** — ese filtro existe para lo que mueve

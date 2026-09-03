@@ -68,6 +68,26 @@ export const PERMISOS = {
   transferencias: [ROLES.ADMIN, ROLES.VER_TRANSFERENCIA],
 
   /**
+   * Crear una transferencia.
+   *
+   * ⚠️ **Más restrictivo que `transferencias`, por el mismo motivo que
+   * `inventarioAlta`.** `VER TRANSFERENCIA` (257 usuarios) es mirar el
+   * movimiento de mercadería; crear una origina un documento que después
+   * descuenta stock en una sucursal y lo carga en otra. `CREAR TRANSFERENCIA`
+   * es exactamente el rol de quien la origina.
+   *
+   * `frc-mobile` declara el rol en su enum y **no lo usa en ningún lado**: el
+   * botón «Crear una nueva transferencia» cuelga del hub y lo ve cualquiera
+   * que entre al módulo.
+   *
+   * ⚠️ **Falta confirmar cuántos usuarios lo tienen asignado.** Si fueran cero
+   * —como pasa con `TESORERIA CPP PAGAR`—, el alta quedaría visible solo para
+   * ADMIN. El arreglo en ese caso es **asignar el rol**, no sacar el guard,
+   * igual que con `recepcion`.
+   */
+  transferenciasAlta: [ROLES.ADMIN, ROLES.CREAR_TRANSFERENCIA],
+
+  /**
    * ⚠️ **Solo 2 usuarios tienen RECIBIR PEDIDOS**, más los 28 ADMIN.
    *
    * Es el rol correcto para recibir mercadería, pero está muy poco repartido.

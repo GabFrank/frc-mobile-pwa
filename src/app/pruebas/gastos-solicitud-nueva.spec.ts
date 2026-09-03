@@ -167,6 +167,37 @@ describe('Alta de solicitud — el activo imputado', () => {
     expect(fixture.componentInstance.vistaResumen()).toBeNull();
   });
 
+  it('un segundo activo que falla al resolver el Ente no deja imputado el primero', async () => {
+    // El defecto: elegir el vehículo A (enteId 50) y que falle el resolverEnte
+    // del vehículo B dejaba enteId en 50 — la pantalla mostraba «B» y
+    // guardaba contra «A», con Guardar habilitado.
+    const fixture = montar();
+    fixture.componentInstance.elegirTipoGasto(TIPOS[1]);
+    await fixture.componentInstance.elegirActivo({ id: 88, chapa: 'AAA111' });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.enteId()).toBe(50);
+
+    gastos['resolverEnte'].mockRejectedValueOnce(new Error('sin red'));
+    await fixture.componentInstance.elegirActivo({ id: 99, chapa: 'BBB222' });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.enteId()).toBeNull();
+    expect(fixture.componentInstance.errorResumen()).toBe(true);
+    expect(fixture.componentInstance.falta()).not.toBeNull();
+  });
+
+  it('un resumen sin datos (`{}`) no afirma que no se debe nada', async () => {
+    // El mock por defecto de `resumenDelEnte` es `of({})`: con todos los
+    // campos nullables del central, eso es «no lo informó», no «deuda cero».
+    const fixture = montar();
+    fixture.componentInstance.elegirTipoGasto(TIPOS[1]);
+    await fixture.componentInstance.elegirActivo({ id: 88, chapa: 'ABC123' });
+    fixture.detectChanges();
+
+    expect(texto(fixture)).toContain('Sin datos del central');
+    expect(texto(fixture)).not.toContain('₲ 0');
+  });
+
   it('dice «No se pudo consultar el activo» cuando el resumen falla', async () => {
     // Nunca montos en cero: un cero afirma que no se debe nada, y eso no lo
     // dijo nadie.

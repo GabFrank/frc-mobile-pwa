@@ -13,6 +13,7 @@ const completo = (): DatosSolicitud => ({
   tipoGastoId: 5,
   moduloPadre: 'PERSONAS',
   enteId: null,
+  errorResumen: false,
   beneficiarioTipo: 'PROVEEDOR',
   beneficiarioPersonaId: null,
   beneficiarioProveedorId: 33,
@@ -60,6 +61,26 @@ describe('Qué falta para poder pedir la plata', () => {
 
   it('no pide activo para PERSONAS ni para OTRO', () => {
     expect(faltaParaGuardar({ ...completo(), moduloPadre: 'OTRO', enteId: null })).toBeNull();
+  });
+
+  it('no deja guardar si falló el resumen del activo, aunque haya quedado un enteId cargado', () => {
+    // El caso del defecto: se elige el activo A (enteId 50), falla el
+    // resolverEnte del activo B, y sin este chequeo el 50 seguía imputado.
+    expect(
+      faltaParaGuardar({
+        ...completo(),
+        moduloPadre: 'VEHICULO',
+        enteId: 50,
+        errorResumen: true,
+      }),
+    ).toBe('No se pudo confirmar vehículo, intente de nuevo');
+  });
+
+  it('no exige el resumen del activo cuando el módulo padre no pide uno', () => {
+    // `errorResumen` sin activo requerido no tiene que bloquear nada.
+    expect(
+      faltaParaGuardar({ ...completo(), moduloPadre: 'PERSONAS', errorResumen: true }),
+    ).toBeNull();
   });
 
   it('exige la persona cuando el beneficiario es una persona', () => {
@@ -202,6 +223,13 @@ describe('El input que se manda al central', () => {
     expect(
       construirPreGastoInput({ ...base, fechaVencimiento: '' }).fechaVencimiento,
     ).toBeUndefined();
+  });
+
+  it('agrega la hora al vencimiento para que el central lo pueda parsear', () => {
+    // El central hace LocalDateTime.parse(..., ISO_DATE_TIME) y traga la
+    // excepción en silencio: sin hora, "2026-10-05" no matchea y el campo
+    // queda nulo aunque la mutation responda OK.
+    expect(construirPreGastoInput(base).fechaVencimiento).toBe('2026-10-05T00:00:00');
   });
 
   it('manda las finanzas con monto, moneda y forma de pago', () => {

@@ -237,9 +237,14 @@ Las tres que más cuestan de adivinar leyendo el código:
 > ⚠️ **El campo de naturaleza se llama `tipoNaturaleza`, no `naturaleza`.**
 > El modelo de la PWA lo declaraba mal (`TipoGasto.naturaleza`) desde que se
 > portó; nadie lo consumía todavía, así que el error no se notaba. Corregido
-> en la Task 2 de `alta-solicitud-caja-chica` — sin el fix,
-> `mostrarTarjetaCuotasActivoEnSolicitud` habría devuelto `false` para todo
-> gasto recurrente y la tarjeta de cuotas nunca se habría mostrado.
+> en la Task 2 de `alta-solicitud-caja-chica`. **Ojo con sobrestimar el
+> impacto:** `mostrarCuotasActivo` (la función que usa este campo) no tiene
+> consumidor fuera de sus propios tests — la tarjeta de cuotas del alta sale
+> de `vistaResumen().mostrarCuotas`, calculado en `ente-financiero.reglas.ts`
+> a partir de `cuotasTotales`, un camino que no pasa por `tipoNaturaleza` en
+> ningún punto vivo. El fix era necesario igual — el campo estaba mal
+> tipado y la función lo va a necesitar cuando exista el pago de cuota —
+> pero no era lo que decidía si la tarjeta de cuotas se mostraba.
 
 ## Los estados los presenta el backend
 

@@ -70,10 +70,9 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
 /**
  * Alta de una solicitud de caja chica.
  *
- * Es el formulario más grande del módulo: tipo de gasto, activo imputado
- * (Task 8), beneficiario, detalle financiero (Task 9) y los datos del
- * retiro. Esta pantalla nace con la estructura, la carga de catálogos y sus
- * tres estados; el activo y los montos llegan en las tareas siguientes.
+ * Es el formulario más grande del módulo: tipo de gasto, activo imputado,
+ * beneficiario, detalle financiero y los datos del retiro, con sus tres
+ * estados de carga, vacío y error.
  *
  * ⚠️ **La carga inicial no puede fallar en silencio.** `frc-mobile` la envuelve
  * en un `catch {}` pelado y deja los selectores vacíos: un tipo de gasto sin
@@ -156,12 +155,28 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
             } @else if (vistaResumen(); as resumen) {
               <div class="resumen">
                 <p class="dato">{{ resumen.titulo }}</p>
-                <p>
-                  Pendiente:
-                  {{ resumen.montoPendiente | importe: resumen.denominacion : resumen.simbolo }}
-                </p>
+                @if (resumen.montoPendiente != null) {
+                  <p>
+                    Pendiente:
+                    {{ resumen.montoPendiente | importe: resumen.denominacion : resumen.simbolo }}
+                  </p>
+                } @else {
+                  <p class="ayuda">Sin datos del central</p>
+                }
+                @if (resumen.montoTotal != null) {
+                  <p class="ayuda">
+                    Total: {{ resumen.montoTotal | importe: resumen.denominacion : resumen.simbolo }}
+                  </p>
+                }
                 @if (resumen.mostrarCuotas) {
                   <p class="ayuda">{{ resumen.cuotaTexto }} · {{ resumen.cuotasFaltantesTexto }}</p>
+                  @if (resumen.montoCuota != null) {
+                    <p class="ayuda">
+                      Cuota sugerida:
+                      {{ resumen.montoCuota | importe: resumen.denominacion : resumen.simbolo }}
+                    </p>
+                  }
+                  <p class="ayuda">{{ resumen.vencimientoTexto }}</p>
                 }
                 @if (resumen.notificacion) {
                   <p class="ayuda">{{ resumen.notificacion }}</p>
@@ -365,7 +380,6 @@ export class GastosSolicitudNuevaPage {
   readonly etiquetaActivo = computed(() => etiquetaModuloPadre(this.moduloPadre()));
 
   readonly enteId = signal<number | null>(null);
-  readonly activoReferenciaId = signal<number | null>(null);
   readonly textoActivo = signal('');
   readonly vistaResumen = signal<VistaResumenEnte | null>(null);
   /** ⚠️ Nunca se muestra un monto en cero cuando esto es `true`: la tarjeta dice que no se pudo consultar. */
@@ -408,6 +422,7 @@ export class GastosSolicitudNuevaPage {
       beneficiarioTipo: this.beneficiarioTipo(),
       beneficiarioPersonaId: this.beneficiarioPersonaId(),
       beneficiarioProveedorId: this.beneficiarioProveedorId(),
+      errorResumen: this.errorResumen(),
       detalles: this.detalles(),
     }),
   );
@@ -459,7 +474,6 @@ export class GastosSolicitudNuevaPage {
     // ⚠️ Cambiar de tipo de gasto tiene que limpiar el activo: si no, un
     // vehículo queda imputado a un gasto de inmueble y nadie lo nota.
     this.enteId.set(null);
-    this.activoReferenciaId.set(null);
     this.textoActivo.set('');
     this.vistaResumen.set(null);
     this.errorResumen.set(false);
@@ -560,13 +574,20 @@ export class GastosSolicitudNuevaPage {
    *
    * ⚠️ Si el resumen falla, la tarjeta dice que no se pudo consultar y no
    * muestra ningún monto — un cero afirmaría una deuda que nadie confirmó.
+   *
+   * ⚠️ **Limpia `enteId` acá, no solo el resto.** Elegir un segundo activo
+   * cuyo `resolverEnte` falla dejaba el `enteId` del primero imputado en
+   * silencio: la pantalla mostraba el activo nuevo pero guardaba contra el
+   * viejo, y `falta()` no lo notaba porque `enteId` seguía cargado. Por eso
+   * se limpia antes de intentar resolver el nuevo, y `faltaParaGuardar`
+   * además bloquea el guardado mientras `errorResumen` esté en `true`.
    */
   async elegirActivo(item: ActivoBusqueda): Promise<void> {
     const config = this.configBuscadorActivo();
-    this.activoReferenciaId.set(item.id);
     this.textoActivo.set(config ? config.texto(item) : '');
     this.vistaResumen.set(null);
     this.errorResumen.set(false);
+    this.enteId.set(null);
 
     const modulo = this.moduloPadre();
     if (modulo == null) {
@@ -683,11 +704,13 @@ export class GastosSolicitudNuevaPage {
     this.cambiarDetalle(indice, { formaPago: valor == null ? null : String(valor) });
   }
 
-  // ─────────────────────────────────────────────────────────── Beneficiario ──
+  // ────────────────────────────────────────────────────────────── Retiro ──
 
   cambiarUrgencia(valor: unknown): void {
     this.nivelUrgencia.set(valor == null ? 'NORMAL' : String(valor));
   }
+
+  // ─────────────────────────────────────────────────────────── Beneficiario ──
 
   cambiarBeneficiarioTipo(valor: unknown): void {
     this.beneficiarioTipo.set(valor === 'PERSONA' ? 'PERSONA' : 'PROVEEDOR');

@@ -82,6 +82,16 @@ describe('Vista del resumen del activo', () => {
     expect(vista.cuotaTexto).toBe('AL DÍA');
   });
 
+  it('un resumen vacío no afirma que no se debe nada', () => {
+    // Todos los campos de EnteFinancialSummary son nullables: {} es «no lo
+    // informó», no «deuda cero». Colapsar las dos cosas con `?? 0` mentía
+    // delante de alguien que está por decidir cuánta plata pedir.
+    const vista = construirVistaResumen({}, monedas);
+
+    expect(vista.montoTotal).toBeNull();
+    expect(vista.montoPendiente).toBeNull();
+  });
+
   it('sin día fijo lo dice, en vez de inventar uno', () => {
     expect(construirVistaResumen({ monedaId: 1 }, monedas).vencimientoTexto).toBe(
       'Sin día fijo',

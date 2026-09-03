@@ -43,8 +43,8 @@ const TAMANO = 10;
   template: `
     <frc-pagina titulo="Caja chica" [conVolver]="true">
       <div acciones>
-        <button matButton (click)="nueva()">Nueva solicitud</button>
-        <button matButton="filled" (click)="escanear()">Escanear solicitud</button>
+        <button matButton="filled" (click)="nueva()">Nueva solicitud</button>
+        <button matButton (click)="escanear()">Escanear solicitud</button>
       </div>
 
       @if (cargando()) {

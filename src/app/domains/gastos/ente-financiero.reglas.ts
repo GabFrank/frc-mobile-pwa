@@ -15,9 +15,15 @@ import type {
 
 export interface VistaResumenEnte {
   titulo: string;
-  descripcion: string;
-  montoTotal: number;
-  montoPendiente: number;
+  /**
+   * `null` cuando el central no informó el campo — **no** es lo mismo que
+   * «no debe nada». Todos los campos de `EnteFinancialSummary` son
+   * nullables en el esquema (`pre_gasto.graphqls`): un `{}` es un resumen
+   * sin datos, no uno que afirme deuda cero.
+   */
+  montoTotal: number | null;
+  /** Mismo criterio que `montoTotal`: `null` es «no lo informó», no cero. */
+  montoPendiente: number | null;
   montoCuota: number | null;
   /** La denominación decide la precisión: el guaraní no lleva decimales. */
   denominacion: string;
@@ -27,7 +33,6 @@ export interface VistaResumenEnte {
   vencimientoTexto: string;
   notificacion: string | null;
   mostrarCuotas: boolean;
-  proveedorTexto: string;
 }
 
 /** Qué tan cerca está el vencimiento, o `null` si el central no lo informó. */
@@ -55,9 +60,8 @@ export function construirVistaResumen(
 
   return {
     titulo: resumen.descripcion || 'Activo vinculado',
-    descripcion: resumen.descripcionSugerida || resumen.descripcion || '',
-    montoTotal: resumen.montoTotal ?? 0,
-    montoPendiente: resumen.montoPendiente ?? 0,
+    montoTotal: resumen.montoTotal ?? null,
+    montoPendiente: resumen.montoPendiente ?? null,
     montoCuota: mostrarCuotas && (resumen.montoSugerido ?? 0) > 0
       ? (resumen.montoSugerido as number)
       : null,
@@ -74,7 +78,6 @@ export function construirVistaResumen(
       : 'Sin día fijo',
     notificacion: avisoVencimiento(resumen.diasParaVencer),
     mostrarCuotas,
-    proveedorTexto: resumen.proveedorNombre || '',
   };
 }
 

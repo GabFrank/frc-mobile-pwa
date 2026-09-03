@@ -4981,11 +4981,11 @@ Operaciones entra al formulario.
 >
 > **Criterio de las marcas:** un caso queda marcado como no ejecutado cuando
 > su «Esperado» depende de **qué entrada puntual del catálogo** se usó —un
-> módulo padre concreto (53.5, 53.6), o un activo con cuotas cargadas
-> (53.8, y lo que arrastra en 53.9/53.10)— porque hay que ir a elegir ese
-> dato contra la base antes de poder correrlo. 53.4 lleva una marca más
+> módulo padre concreto (55.5, 55.6), o un activo con cuotas cargadas
+> (55.8, y lo que arrastra en 55.9/55.10)— porque hay que ir a elegir ese
+> dato contra la base antes de poder correrlo. 55.4 lleva una marca más
 > suave: cualquier tipo de `PERSONAS` u `OTRO` sirve, pero no se confirmó
-> que el catálogo de prueba tenga alguno. Un caso como **53.7 no necesita
+> que el catálogo de prueba tenga alguno. Un caso como **55.7 no necesita
 > ninguna marca**: le alcanza con **dos tipos de gasto cualesquiera** que
 > pidan activo, sin importar cuáles — y eso se puede confirmar en el momento,
 > abriendo el buscador de tipo de gasto y mirando si aparece la sección
@@ -5058,7 +5058,7 @@ paginado; al pie de la primera página aparece **Cargar más**, y tocarlo
 resumen financiero desaparecen al volver a elegir en el paso 2. No queda el
 activo del paso 1 imputado a un tipo de gasto que ya no es el suyo.
 
-> A diferencia de 53.5/53.6, este caso **no necesita un módulo padre
+> A diferencia de 55.5/55.6, este caso **no necesita un módulo padre
 > puntual**: cualquier par de tipos de gasto que pidan activo alcanza, y eso
 > se ve en el momento sin haber consultado antes la base.
 
@@ -5120,8 +5120,8 @@ mensaje **«No repita la misma moneda en más de un detalle»**.
    monto no redondo).
 
 **Esperado:** el total de la moneda guaraní se muestra **sin decimales**; el
-de cualquier otra moneda, con dos. Es la regla de `monto-moneda.util.ts`:
-el guaraní no lleva decimales en ningún lado de la app.
+de cualquier otra moneda, con dos. Es la regla de `moneda.util.ts`
+(`generic/utils/`): el guaraní no lleva decimales en ningún lado de la app.
 
 ### 55.14 · Guardar lleva al detalle, con el QR visible
 1. Completar el formulario entero y tocar **Guardar solicitud**.
@@ -5137,6 +5137,28 @@ de la solicitud recién creada, con el QR de retiro visible ahí.
 **Esperado:** el retiro se confirma igual que con una solicitud creada desde
 el escritorio — el `qrToken` que trae la solicitud nueva es válido para
 `confirmarRetiroFuncionario`.
+
+> ⚠️ **En una solicitud multi-moneda, la lista muestra solo la moneda del
+> primer detalle.** El central arma `montoSolicitado` y `moneda` de la
+> cabecera a partir del **primer** `PreGastoDetalleFinanzas` que llega en
+> `finanzas` (`PreGastoGraphQL.java:232-243`) — no suma ni convierte los
+> demás. No es un bug de la PWA ni del central: es cómo se resume la
+> cabecera cuando hay más de un detalle. Al probar 55.12 (dos detalles en
+> monedas distintas), no esperes ver el total combinado en la lista —
+> confirmá el resto de los importes en el detalle, donde sí aparecen todos.
+
+### 55.16 · El detalle muestra lo que se cargó al guardar
+1. Completar el formulario con un **vencimiento** cargado a mano, una
+   **urgencia** distinta de la que trae por defecto, un **beneficiario**
+   puntual y una **descripción**, y tocar **Guardar solicitud**.
+2. En el detalle al que navega, revisar esos cuatro datos.
+
+**Esperado:** el vencimiento, la urgencia, el beneficiario y la descripción
+que se cargaron en el formulario aparecen en el detalle, sin ninguno vacío
+o distinto de lo tipeado. Es el caso que hubiera atajado el defecto del
+vencimiento que el central descartaba en silencio: la mutation respondía OK
+mientras el campo se perdía entero, y ningún caso anterior de este bloque
+abría el detalle a comprobarlo.
 
 ---
 
@@ -5198,8 +5220,8 @@ el escritorio — el `qrToken` que trae la solicitud nueva es válido para
 | 52 · Elegir el lote al cargar un producto | 16 | | | |
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
 | 54 · Cantidades en enteros | 10 | 10 | | |
-| 55 · Alta de solicitud de caja chica | 15 | | | |
-| **Total** | **487** | | | |
+| 55 · Alta de solicitud de caja chica | 16 | | | |
+| **Total** | **488** | | | |
 
 ### Los cinco que más importan
 

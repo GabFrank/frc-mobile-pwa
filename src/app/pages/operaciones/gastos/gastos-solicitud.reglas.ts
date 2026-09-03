@@ -22,6 +22,8 @@ export interface DatosSolicitud {
   tipoGastoId: number | null;
   moduloPadre: string | null;
   enteId: number | null;
+  /** `true` cuando el último intento de resolver el `Ente`/su resumen falló. */
+  errorResumen: boolean;
   beneficiarioTipo: BeneficiarioTipo;
   beneficiarioPersonaId: number | null;
   beneficiarioProveedorId: number | null;
@@ -43,6 +45,14 @@ export function faltaParaGuardar(datos: DatosSolicitud): string | null {
   }
   if (requiereEnteActivo(datos.moduloPadre) && !datos.enteId) {
     return `Seleccione ${etiquetaModuloPadre(datos.moduloPadre)}`;
+  }
+  // ⚠️ Aunque `enteId` haya quedado cargado, un resumen que falló no se
+  // puede guardar: sin él no hay forma de confirmar que el activo elegido
+  // es el que terminó resuelto. Ver la Task de arreglos finales — un
+  // `elegirActivo` que falla al resolver el segundo activo dejaba imputado
+  // el primero, en silencio.
+  if (requiereEnteActivo(datos.moduloPadre) && datos.errorResumen) {
+    return `No se pudo confirmar ${etiquetaModuloPadre(datos.moduloPadre).toLowerCase()}, intente de nuevo`;
   }
   if (datos.beneficiarioTipo === 'PERSONA' && !datos.beneficiarioPersonaId) {
     return 'Seleccione la persona beneficiaria';
@@ -148,7 +158,14 @@ export function construirPreGastoInput(datos: DatosParaInput): PreGastoInput {
       datos.beneficiarioTipo === 'PROVEEDOR'
         ? datos.beneficiarioProveedorId ?? undefined
         : undefined,
-    fechaVencimiento: datos.fechaVencimiento || undefined,
+    // ⚠️ Con hora, siempre. `campo-fecha.component.ts` entrega `yyyy-MM-dd`,
+    // pero el central parsea este campo con
+    // `LocalDateTime.parse(input.getFechaVencimiento(), DateTimeFormatter.ISO_DATE_TIME)`
+    // dentro de un `try/catch` que traga la excepción (`PreGastoGraphQL.java`):
+    // una fecha sin hora no matchea `ISO_DATE_TIME`, la mutation responde OK
+    // igual y el vencimiento queda `null` en silencio. No "simplificar"
+    // sacando el `T00:00:00`.
+    fechaVencimiento: datos.fechaVencimiento ? `${datos.fechaVencimiento}T00:00:00` : undefined,
     nivelUrgencia: datos.nivelUrgencia,
     descripcion: descripcion || undefined,
     finanzas: datos.detalles.map((d) => ({

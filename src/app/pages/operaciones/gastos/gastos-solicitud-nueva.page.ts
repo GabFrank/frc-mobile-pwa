@@ -3,12 +3,10 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
-import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { FormaPago } from 'src/app/domains/forma-pago/forma-pago.model';
@@ -152,8 +150,6 @@ export class GastosSolicitudNuevaPage {
   private readonly sucursalServicio = inject(SucursalService);
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);
-  private readonly notificacion = inject(NotificacionService);
-  private readonly router = inject(Router);
 
   readonly opcionesUrgencia = OPCIONES_URGENCIA;
   readonly opcionesBeneficiarioTipo: OpcionSeleccion[] = [

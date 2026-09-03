@@ -9,6 +9,12 @@ export const rutasGastos: Routes = [
     path: '',
     loadComponent: () => import('./gastos-lista.page').then((m) => m.GastosListaPage),
   },
+  /** ⚠️ `nueva` va antes que el detalle: como segmento posterior caería en `:id`. */
+  {
+    path: 'nueva',
+    loadComponent: () =>
+      import('./gastos-solicitud-nueva.page').then((m) => m.GastosSolicitudNuevaPage),
+  },
   /** ⚠️ `rendir` va antes que el detalle: si no, nunca se llega. */
   {
     path: ':id/:sucursalId/rendir',

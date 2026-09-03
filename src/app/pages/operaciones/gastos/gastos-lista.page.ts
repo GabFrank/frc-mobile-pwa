@@ -43,6 +43,7 @@ const TAMANO = 10;
   template: `
     <frc-pagina titulo="Caja chica" [conVolver]="true">
       <div acciones>
+        <button matButton (click)="nueva()">Nueva solicitud</button>
         <button matButton="filled" (click)="escanear()">Escanear solicitud</button>
       </div>
 
@@ -178,6 +179,10 @@ export class GastosListaPage {
       default:
         return 'neutral';
     }
+  }
+
+  nueva(): void {
+    void this.router.navigate(['/operaciones/gastos/nueva']);
   }
 
   abrir(g: PreGasto): void {

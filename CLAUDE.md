@@ -180,7 +180,16 @@ Sumado en la tercera: **abrir una toma de inventario** (`/inventario/nuevo`, con
 
 Sumado en la cuarta: **crear una transferencia** (`/transferencias/nueva`, con rol `CREAR TRANSFERENCIA` — el que `frc-mobile` declara y nunca usa) y **cargarle los productos** en `/transferencias/:id/borrador`, con el buscador mostrando **las dos existencias**, la de origen y la de destino, que es el modo que el componente ya soportaba y no usaba nadie. El borrador vive en el central desde el primer paso —el input de la cabecera no acepta ítems anidados— y cada ítem se guarda al agregarlo, así que una carga de cuarenta renglones no se pierde si el service worker se actualiza en el medio. Con eso el documento **nace** en el teléfono y sigue por las etapas que ya estaban. Sumado después: **de qué lote sale cada renglón**, elegido a mano al cargarlo, con el saldo por lote que el central convierte a la presentación con la que carga el operador. Es opcional —sin elegir, el desglose sigue saliendo por FEFO, que es lo que hicieron siempre todos los clientes— y **no necesita promover el central**: `lotesAsignados` está desde `v4.7.0-beta.2` y `v4.8.0`, así que farmacia y bodega ya lo tienen.
 
-Pendiente: de **caja chica**, el **alta** de la solicitud —es el formulario más grande que queda: tipo de gasto, activo imputado con su buscador paginado, beneficiario y detalle financiero—; de **inventario**, arrastrar el conteo de una toma anterior; de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; y el **transporte WebSocket** para suscripciones.
+Sumado en la quinta: de **caja chica**, el **alta** de la solicitud
+(`/operaciones/gastos/nueva`, sin guard de rol) — el formulario más grande
+del módulo: responsable de solo lectura, beneficiario, tipo de gasto, activo
+imputado con su buscador paginado y la tarjeta de resumen financiero,
+detalle financiero multi-moneda y los datos del retiro. Con esto,
+`frc-buscador` en modo **paginado** tiene su primer consumidor real fuera de
+la galería del sistema de diseño, y sus primeros tests — antes un fallo de
+red en ese modo se presentaba igual que «Sin resultados».
+
+Pendiente: de **inventario**, arrastrar el conteo de una toma anterior; de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; y el **transporte WebSocket** para suscripciones.
 
 La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

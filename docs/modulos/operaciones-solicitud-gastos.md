@@ -178,9 +178,18 @@ Es un servicio con estado, no solo un wrapper de queries. `cargarDatosIniciales(
 `graphql/` — 17 archivos.
 
 **Mutations:** `savePreGasto`, `saveGastoRendicion`, `confirmarRetiroFuncionario`, `saveEnte`.
-**Queries:** `preGastoPorId`, `preGastosSearch`, `tipoGastos`, `enteByReferenciaId`, `enteFinancialSummary`, `getEnteFinancialSummary`, y las búsquedas paginadas `personaSearchPage`, `proveedorSearchByPersonaPage`, `vehiculoSearchPage`, `muebleSearchPage`, `inmuebleSearchPage`, `equipoSearchPage`.
+**Queries:** `preGastoPorId`, `preGastosSearch`, `tipoGastos`, `enteByReferenciaId`, `enteFinancialSummary`, y las búsquedas paginadas `personaSearchPage`, `proveedorSearchByPersonaPage`, `vehiculoSearchPage`, `muebleSearchPage`, `inmuebleSearchPage`, `equipoSearchPage`.
 
-> ⚠️ **Gotcha — `enteFinancialSummary` y `getEnteFinancialSummary` son dos archivos distintos** para el mismo concepto. Verificá cuál usa el código antes de modificar.
+> ⚠️ **Corrección — `enteFinancialSummary` y `getEnteFinancialSummary` NO son
+> dos archivos para el mismo concepto**, como decía esta sección antes.
+> `enteFinancialSummary.ts` es un solo archivo: la clase `Query`
+> (`EnteFinancialSummaryGQL extends Query<Response>`). Esa clase importa su
+> documento GraphQL (`enteFinancialSummaryQuery`) desde `graphql-query.ts`, el
+> archivo donde viven **todos** los documentos del módulo. `getEnteFinancialSummary`,
+> con el `get`, no es un archivo — es el nombre del campo raíz que el central
+> expone y que ese documento consulta; `EnteFinancialSummary`, sin el `get`,
+> es el tipo de retorno. Verificado en la implementación de la PWA
+> (Task 3 de `alta-solicitud-caja-chica`).
 
 ## Al trabajar en este módulo
 
@@ -195,12 +204,17 @@ Es un servicio con estado, no solo un wrapper de queries. `cargarDatosIniciales(
 # Qué cambió en la PWA
 
 > **Estado:** portados las **reglas de tipo de gasto**, la consulta de
-> solicitudes y el **retiro con QR**. El alta de solicitud y la rendición no.
+> solicitudes, el **retiro con QR**, el **alta de solicitud** y la rendición.
 
 | Ruta | Componente |
 |---|---|
 | `/operaciones/gastos` | `GastosListaPage` |
+| `/operaciones/gastos/nueva` | `GastosSolicitudNuevaPage` |
 | `/operaciones/gastos/:id/:sucursalId` | `GastosDetallePage` |
+| `/operaciones/gastos/:id/:sucursalId/rendir` | `GastosRendicionPage` |
+
+> ⚠️ **`nueva` tiene que ir antes que `:id/:sucursalId` en las rutas**, o el
+> segmento `nueva` cae en el parámetro `:id`. Igual que `rendir`.
 
 Una sola ruta, no dos: `frc-mobile` registraba el módulo en
 `/operaciones/solicitud-gastos` **y** en `/solicitud-gastos`.
@@ -219,6 +233,13 @@ Las tres que más cuestan de adivinar leyendo el código:
 - **Un `esPagoCuotaActivo` explícito manda sobre la naturaleza**, porque es
   una decisión que alguien ya tomó para esa solicitud. `null` no cuenta como
   explícito.
+
+> ⚠️ **El campo de naturaleza se llama `tipoNaturaleza`, no `naturaleza`.**
+> El modelo de la PWA lo declaraba mal (`TipoGasto.naturaleza`) desde que se
+> portó; nadie lo consumía todavía, así que el error no se notaba. Corregido
+> en la Task 2 de `alta-solicitud-caja-chica` — sin el fix,
+> `mostrarTarjetaCuotasActivoEnSolicitud` habría devuelto `false` para todo
+> gasto recurrente y la tarjeta de cuotas nunca se habría mostrado.
 
 ## Los estados los presenta el backend
 
@@ -247,10 +268,38 @@ persona asociada da un error de datos, no de pantalla.
 
 | Qué | Espera a |
 |---|---|
-| **Alta de solicitud** | los buscadores paginados de personas, proveedores, vehículos, muebles, inmuebles y equipos — seis, uno por tipo de activo |
+| ~~**Alta de solicitud**~~ | ✅ `/operaciones/gastos/nueva`. Ver abajo |
 | ~~**Rendición**~~ | ✅ `/operaciones/gastos/:id/:sucursalId/rendir`. Ver abajo |
 | Devolución de vuelto | la rendición |
-| Validaciones del formulario (`validarFormulario`) | el alta. La regla dura: **una moneda por detalle, sin repetir** |
+
+## El alta — `/operaciones/gastos/nueva`
+
+`GastosSolicitudNuevaPage`, sin guard de rol — igual que el resto de
+`caja chica`. Secciones: **Responsable** (la persona de la sesión, solo
+lectura — no se elige), **Beneficiario** (proveedor por defecto, o persona,
+con `BuscadorComponent` en modo paginado), **Tipo de gasto** (mismo
+componente en modo local sobre el catálogo cargado), **Activo imputado**
+(solo si el tipo lo requiere, con la tarjeta de resumen financiero del
+activo), **Detalle financiero** (varias filas `{monto, moneda, forma de
+pago}`, con los totales por moneda) y **Retiro** (sucursal, vencimiento,
+urgencia, descripción). Al guardar, navega a
+`/operaciones/gastos/{id}/{sucursalId}` — el detalle, con el QR de retiro.
+
+Las reglas de validación (`validarFormulario` de esta misma página, en
+`gastos-solicitud.reglas.ts`) y el resumen financiero del activo
+(`ente-financiero.reglas.ts`) están portados y con tests.
+
+⚠️ **`extraerCajaId()` de `frc-mobile` era código muerto y no se portó.** Leía
+una clave de `localStorage` que ningún punto de ese repo escribe, así que
+`cajaId` viajaba siempre `undefined` en el input. El `PreGastoInput` de la
+PWA no declara ese campo.
+
+⚠️ **`frc-buscador` en modo paginado tiene acá su primer consumidor real y
+sus primeros tests** (`buscador-paginado.spec.ts`). Antes solo lo usaba la
+galería del sistema de diseño, en modo local — un fallo de red en modo
+paginado se presentaba como «Sin resultados», indistinguible de que el dato
+realmente no existía. Se corrigió como paso previo a este módulo, y se
+probó por primera vez contra un consumidor de producción acá.
 
 
 ---

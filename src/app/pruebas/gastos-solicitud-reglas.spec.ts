@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DatosSolicitud,
+  construirPreGastoInput,
   faltaParaGuardar,
   totalesPorMoneda,
 } from '../pages/operaciones/gastos/gastos-solicitud.reglas';
@@ -149,5 +150,67 @@ describe('Totales por moneda', () => {
     expect(
       totalesPorMoneda([{ monto: null, monedaId: 1, formaPago: 'EFECTIVO' }], monedas),
     ).toEqual([]);
+  });
+});
+
+describe('El input que se manda al central', () => {
+  const base = {
+    sucursalId: 1,
+    responsableId: 41,
+    tipoGastoId: 5,
+    enteId: 50,
+    beneficiarioTipo: 'PROVEEDOR' as const,
+    beneficiarioPersonaId: 77,
+    beneficiarioProveedorId: 33,
+    fechaVencimiento: '2026-10-05',
+    nivelUrgencia: 'NORMAL',
+    descripcion: '  combustible de la semana  ',
+    detalles: [{ monto: 500, monedaId: 1, formaPago: 'EFECTIVO' }],
+  };
+
+  it('no lleva cajaId', () => {
+    // El campo existe en frc-mobile y viaja siempre undefined: sale de una
+    // clave de localStorage que nadie escribe en todo el repo.
+    expect(construirPreGastoInput(base)).not.toHaveProperty('cajaId');
+  });
+
+  it('la sucursal de la caja es la misma de retiro', () => {
+    const input = construirPreGastoInput(base);
+    expect(input.sucursalId).toBe(1);
+    expect(input.sucursalCajaId).toBe(1);
+  });
+
+  it('manda el beneficiario que corresponde y no el otro', () => {
+    // Mandar los dos dejaría al central decidiendo cuál vale.
+    const proveedor = construirPreGastoInput(base);
+    expect(proveedor.beneficiarioProveedorId).toBe(33);
+    expect(proveedor.beneficiarioPersonaId).toBeUndefined();
+
+    const persona = construirPreGastoInput({ ...base, beneficiarioTipo: 'PERSONA' });
+    expect(persona.beneficiarioPersonaId).toBe(77);
+    expect(persona.beneficiarioProveedorId).toBeUndefined();
+  });
+
+  it('recorta la descripción y la omite si queda vacía', () => {
+    expect(construirPreGastoInput(base).descripcion).toBe('combustible de la semana');
+    expect(
+      construirPreGastoInput({ ...base, descripcion: '   ' }).descripcion,
+    ).toBeUndefined();
+  });
+
+  it('omite el vencimiento vacío en vez de mandar cadena vacía', () => {
+    expect(
+      construirPreGastoInput({ ...base, fechaVencimiento: '' }).fechaVencimiento,
+    ).toBeUndefined();
+  });
+
+  it('manda las finanzas con monto, moneda y forma de pago', () => {
+    expect(construirPreGastoInput(base).finanzas).toEqual([
+      { monto: 500, monedaId: 1, formaPago: 'EFECTIVO' },
+    ]);
+  });
+
+  it('no manda usuarioId: lo completa la capa de datos desde la sesión', () => {
+    expect(construirPreGastoInput(base)).not.toHaveProperty('usuarioId');
   });
 });

@@ -2,6 +2,7 @@ import type {
   BeneficiarioTipo,
   DetalleFinanciero,
   MonedaResumen,
+  PreGastoInput,
 } from 'src/app/domains/gastos/pre-gasto.model';
 import {
   etiquetaModuloPadre,
@@ -105,4 +106,55 @@ export function totalesPorMoneda(
       total,
     };
   });
+}
+
+export interface DatosParaInput {
+  sucursalId: number;
+  responsableId: number;
+  tipoGastoId: number;
+  enteId: number | null;
+  beneficiarioTipo: BeneficiarioTipo;
+  beneficiarioPersonaId: number | null;
+  beneficiarioProveedorId: number | null;
+  fechaVencimiento: string;
+  nivelUrgencia: string;
+  descripcion: string;
+  detalles: DetalleFinanciero[];
+}
+
+/**
+ * Lo que se le manda a `savePreGasto`.
+ *
+ * ⚠️ **Sin `cajaId` y sin `usuarioId`.** El primero es el campo muerto de
+ * `frc-mobile` —sale de una clave de localStorage que nadie escribe—; el
+ * segundo lo completa `DatosService.guardar` desde la sesión, y pisarlo acá
+ * atribuiría la solicitud a otro usuario.
+ */
+export function construirPreGastoInput(datos: DatosParaInput): PreGastoInput {
+  const descripcion = datos.descripcion.trim();
+
+  return {
+    sucursalId: datos.sucursalId,
+    // La caja de la que se retira es la de la sucursal elegida.
+    sucursalCajaId: datos.sucursalId,
+    funcionarioId: datos.responsableId,
+    tipoGastoId: datos.tipoGastoId,
+    enteId: datos.enteId ?? undefined,
+    // Solo el beneficiario que corresponde: mandar los dos dejaría al central
+    // decidiendo cuál vale.
+    beneficiarioPersonaId:
+      datos.beneficiarioTipo === 'PERSONA' ? datos.beneficiarioPersonaId ?? undefined : undefined,
+    beneficiarioProveedorId:
+      datos.beneficiarioTipo === 'PROVEEDOR'
+        ? datos.beneficiarioProveedorId ?? undefined
+        : undefined,
+    fechaVencimiento: datos.fechaVencimiento || undefined,
+    nivelUrgencia: datos.nivelUrgencia,
+    descripcion: descripcion || undefined,
+    finanzas: datos.detalles.map((d) => ({
+      monto: d.monto as number,
+      monedaId: d.monedaId as number,
+      formaPago: d.formaPago as string,
+    })),
+  };
 }

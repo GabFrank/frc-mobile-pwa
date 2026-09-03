@@ -3,7 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { forkJoin } from 'rxjs';
+import { Router } from '@angular/router';
+import { firstValueFrom, forkJoin } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
@@ -43,13 +44,20 @@ import {
   ConfigBuscadorPaginado,
 } from 'src/app/shared/buscador/buscador.component';
 import { CampoFechaComponent } from 'src/app/shared/campos/campo-fecha.component';
+import { CampoImporteComponent } from 'src/app/shared/campos/campo-importe.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
+import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { ImportePipe } from 'src/app/shared/importe/importe.pipe';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
 import { GastosService } from './gastos.service';
+import {
+  construirPreGastoInput,
+  faltaParaGuardar,
+  totalesPorMoneda,
+} from './gastos-solicitud.reglas';
 
 /** `NORMAL` por defecto, verbatim de `frc-mobile`. */
 const OPCIONES_URGENCIA: OpcionSeleccion[] = [
@@ -90,6 +98,8 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
     SeccionComponent,
     SelectorComponent,
     CampoFechaComponent,
+    CampoImporteComponent,
+    ImporteComponent,
     SkeletonComponent,
     EstadoErrorComponent,
     MatButtonModule,
@@ -188,6 +198,71 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
             />
           </mat-form-field>
         </frc-seccion>
+
+        <frc-seccion titulo="Detalle financiero" [panel]="true">
+          @for (detalle of detalles(); track $index) {
+            <div class="detalle">
+              <frc-campo-importe
+                etiqueta="Monto"
+                [moneda]="monedaTexto(detalle.monedaId)"
+                [simbolo]="monedaSimbolo(detalle.monedaId)"
+                [valor]="detalle.monto"
+                (valorChange)="cambiarDetalle($index, { monto: $event })"
+              />
+              <frc-selector
+                etiqueta="Moneda"
+                [opciones]="opcionesMoneda()"
+                [valor]="detalle.monedaId"
+                (valorChange)="cambiarDetalle($index, { monedaId: $event == null ? null : +$event })"
+              />
+              <frc-selector
+                etiqueta="Forma de pago"
+                [opciones]="opcionesFormaPago()"
+                [valor]="detalle.formaPago"
+                (valorChange)="cambiarFormaPago($index, $event)"
+              />
+              <button
+                matButton
+                type="button"
+                [disabled]="detalles().length <= 1"
+                (click)="quitarDetalle($index)"
+              >
+                Quitar
+              </button>
+            </div>
+          }
+          <button matButton="tonal" type="button" (click)="agregarDetalle()">
+            Agregar detalle
+          </button>
+
+          @if (totales().length) {
+            <div class="totales">
+              @for (total of totales(); track total.monedaId) {
+                <p class="dato">
+                  Total {{ total.denominacion }}:
+                  <frc-importe
+                    [valor]="total.total"
+                    [moneda]="total.denominacion"
+                    [simbolo]="total.simbolo"
+                  />
+                </p>
+              }
+            </div>
+          }
+        </frc-seccion>
+
+        @if (falta(); as mensajeFalta) {
+          <p class="error-resumen">{{ mensajeFalta }}</p>
+        }
+        <button
+          matButton="filled"
+          type="button"
+          class="boton-guardar"
+          [disabled]="falta() !== null || guardando()"
+          (click)="guardar()"
+        >
+          {{ guardando() ? 'Guardando…' : 'Guardar solicitud' }}
+        </button>
       }
     </frc-pagina>
   `,
@@ -208,6 +283,23 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
       font-size: var(--fs-caption);
       color: var(--danger);
     }
+    .detalle {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+      padding-bottom: var(--sp-2);
+      margin-bottom: var(--sp-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .totales {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      margin-top: var(--sp-2);
+      padding-top: var(--sp-2);
+      border-top: 1px solid var(--border);
+    }
+    .boton-guardar { width: 100%; margin-top: var(--sp-2); }
   `,
 })
 export class GastosSolicitudNuevaPage {
@@ -215,6 +307,7 @@ export class GastosSolicitudNuevaPage {
   private readonly sucursalServicio = inject(SucursalService);
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);
+  private readonly router = inject(Router);
 
   readonly opcionesUrgencia = OPCIONES_URGENCIA;
   readonly opcionesBeneficiarioTipo: OpcionSeleccion[] = [
@@ -234,6 +327,20 @@ export class GastosSolicitudNuevaPage {
 
   readonly opcionesSucursal = computed<OpcionSeleccion[]>(() =>
     this.sucursales().map((s) => ({ valor: s.id, texto: s.nombre ?? `Sucursal ${s.id}` })),
+  );
+  readonly opcionesMoneda = computed<OpcionSeleccion[]>(() =>
+    this.monedas()
+      .filter((m): m is Moneda & { id: number } => m.id != null)
+      .map((m) => ({
+        valor: m.id,
+        texto: m.denominacion ?? `Moneda ${m.id}`,
+        detalle: m.simbolo,
+      })),
+  );
+  readonly opcionesFormaPago = computed<OpcionSeleccion[]>(() =>
+    this.formasPago()
+      .filter((f) => f.descripcion != null)
+      .map((f) => ({ valor: String(f.descripcion), texto: String(f.descripcion) })),
   );
 
   // ────────────────────────────────────────────────────────── Formulario ──
@@ -266,14 +373,13 @@ export class GastosSolicitudNuevaPage {
 
   // ────────────────────────────────────────────────────── Detalle financiero ──
 
-  /**
-   * Forma mínima del detalle: un único renglón `{monto, monedaId, formaPago}`.
-   * Agregar/quitar filas y los totales por moneda son de la Task 9 — acá
-   * alcanza con tener dónde autocompletar y dónde no pisar lo ya cargado.
-   */
+  /** Arranca con un único renglón `{monto, monedaId, formaPago}`. */
   readonly detalles = signal<DetalleFinanciero[]>([
     { monto: null, monedaId: null, formaPago: null },
   ]);
+
+  /** Los totales que se piden, por moneda — `faltaParaGuardar` es quien impide repetir una. */
+  readonly totales = computed(() => totalesPorMoneda(this.detalles(), this.monedasParaResumen()));
 
   readonly beneficiarioTipo = signal<BeneficiarioTipo>('PROVEEDOR');
   readonly proveedor = signal<Proveedor | null>(null);
@@ -290,6 +396,21 @@ export class GastosSolicitudNuevaPage {
   readonly descripcion = signal('');
 
   readonly guardando = signal(false);
+
+  /** Lo que falta para poder guardar, o `null` si está todo — Task 4. */
+  readonly falta = computed(() =>
+    faltaParaGuardar({
+      sucursalId: this.sucursalId(),
+      responsableId: this.responsableId(),
+      tipoGastoId: this.tipoGastoId(),
+      moduloPadre: this.moduloPadre(),
+      enteId: this.enteId(),
+      beneficiarioTipo: this.beneficiarioTipo(),
+      beneficiarioPersonaId: this.beneficiarioPersonaId(),
+      beneficiarioProveedorId: this.beneficiarioProveedorId(),
+      detalles: this.detalles(),
+    }),
+  );
 
   constructor() {
     this.cargar();
@@ -539,6 +660,29 @@ export class GastosSolicitudNuevaPage {
     );
   }
 
+  agregarDetalle(): void {
+    this.detalles.update((lista) => [...lista, { monto: null, monedaId: null, formaPago: null }]);
+  }
+
+  /** No deja quitar el último renglón: siempre hay al menos un detalle para cargar. */
+  quitarDetalle(indice: number): void {
+    this.detalles.update((lista) =>
+      lista.length <= 1 ? lista : lista.filter((_, i) => i !== indice),
+    );
+  }
+
+  monedaTexto(monedaId: number | null): string | null {
+    return this.monedas().find((m) => m.id === monedaId)?.denominacion ?? null;
+  }
+
+  monedaSimbolo(monedaId: number | null): string | null {
+    return this.monedas().find((m) => m.id === monedaId)?.simbolo ?? null;
+  }
+
+  cambiarFormaPago(indice: number, valor: unknown): void {
+    this.cambiarDetalle(indice, { formaPago: valor == null ? null : String(valor) });
+  }
+
   // ─────────────────────────────────────────────────────────── Beneficiario ──
 
   cambiarUrgencia(valor: unknown): void {
@@ -591,6 +735,50 @@ export class GastosSolicitudNuevaPage {
     });
     if (elegido) {
       this.elegirPersona(elegido);
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────── Guardado ──
+
+  /**
+   * Crea la solicitud y navega a su detalle, donde está el QR de retiro.
+   *
+   * ⚠️ **Si falla, se queda en el formulario.** Navegar igual perdería una
+   * carga entera; `DatosService` ya muestra el error real del central, así
+   * que acá alcanza con no navegar.
+   */
+  async guardar(): Promise<void> {
+    if (this.falta()) {
+      return;
+    }
+
+    this.guardando.set(true);
+
+    const input = construirPreGastoInput({
+      sucursalId: this.sucursalId()!,
+      responsableId: this.responsableId()!,
+      tipoGastoId: this.tipoGastoId()!,
+      enteId: this.enteId(),
+      beneficiarioTipo: this.beneficiarioTipo(),
+      beneficiarioPersonaId: this.beneficiarioPersonaId(),
+      beneficiarioProveedorId: this.beneficiarioProveedorId(),
+      fechaVencimiento: this.fechaVencimiento() ?? '',
+      nivelUrgencia: this.nivelUrgencia(),
+      descripcion: this.descripcion(),
+      detalles: this.detalles(),
+    });
+
+    try {
+      const creado = await firstValueFrom(this.servicio.crearSolicitud(input));
+      this.guardando.set(false);
+      // Se resuelve por id **y** sucursal: sin los dos no encuentra la solicitud.
+      await this.router.navigate([
+        '/operaciones/gastos',
+        creado.id,
+        creado.sucursalId ?? this.sucursalId(),
+      ]);
+    } catch {
+      this.guardando.set(false);
     }
   }
 }

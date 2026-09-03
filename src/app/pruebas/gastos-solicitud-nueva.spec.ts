@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { NEVER, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -265,5 +265,102 @@ describe('Alta de solicitud — el activo imputado', () => {
     expect(fixture.componentInstance.beneficiarioProveedorId()).toBe(77);
     expect(texto(fixture)).toContain('ANDE S.A.');
     expect(texto(fixture)).not.toContain('PROVEEDOR ELEGIDO A MANO');
+  });
+});
+
+describe('Alta de solicitud — montos y guardado', () => {
+  const completar = (fixture: ReturnType<typeof montar>) => {
+    fixture.componentInstance.elegirTipoGasto(TIPOS[0]);
+    fixture.componentInstance.elegirProveedor({
+      id: 33,
+      persona: { nombre: 'DIST. ESTE' },
+    } as never);
+    fixture.componentInstance.cambiarDetalle(0, {
+      monto: 500000,
+      monedaId: 1,
+      formaPago: 'EFECTIVO',
+    });
+    fixture.detectChanges();
+  };
+
+  it('arranca con un detalle y deja agregar otro', () => {
+    const fixture = montar();
+    expect(fixture.componentInstance.detalles()).toHaveLength(1);
+
+    fixture.componentInstance.agregarDetalle();
+    expect(fixture.componentInstance.detalles()).toHaveLength(2);
+  });
+
+  it('no deja quitar el último detalle', () => {
+    const fixture = montar();
+    fixture.componentInstance.quitarDetalle(0);
+
+    expect(fixture.componentInstance.detalles()).toHaveLength(1);
+  });
+
+  it('muestra el total en guaraníes sin decimales', () => {
+    // El guaraní no lleva decimales, y la denominación es lo que lo decide.
+    const fixture = montar();
+    fixture.componentInstance.cambiarDetalle(0, {
+      monto: 1500000,
+      monedaId: 1,
+      formaPago: 'EFECTIVO',
+    });
+    fixture.detectChanges();
+
+    expect(texto(fixture)).toContain('1.500.000');
+    expect(texto(fixture)).not.toContain('1.500.000,00');
+  });
+
+  it('bloquea el guardado y dice qué falta', () => {
+    const fixture = montar();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.falta()).toBe('Seleccione un tipo de gasto');
+    expect(gastos['crearSolicitud']).not.toHaveBeenCalled();
+  });
+
+  it('avisa cuando se repite la moneda entre detalles', () => {
+    const fixture = montar();
+    completar(fixture);
+    fixture.componentInstance.agregarDetalle();
+    fixture.componentInstance.cambiarDetalle(1, {
+      monto: 100,
+      monedaId: 1,
+      formaPago: 'TRANSFERENCIA',
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.falta()).toBe(
+      'No repita la misma moneda en más de un detalle',
+    );
+  });
+
+  it('navega al detalle de la solicitud creada, donde está el QR', async () => {
+    const router = TestBed.inject(Router);
+    const navegar = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const fixture = montar();
+    completar(fixture);
+
+    await fixture.componentInstance.guardar();
+
+    // El detalle se resuelve por id **y** sucursal: sin los dos no encuentra
+    // la solicitud.
+    expect(navegar).toHaveBeenCalledWith(['/operaciones/gastos', 2338, 1]);
+  });
+
+  it('se queda en el formulario si el guardado falla', async () => {
+    // Navegar igual perdería una carga entera.
+    const router = TestBed.inject(Router);
+    const navegar = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    gastos['crearSolicitud'].mockReturnValue(throwError(() => new Error('rechazado')));
+    const fixture = montar();
+    completar(fixture);
+
+    await fixture.componentInstance.guardar();
+
+    expect(navegar).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.guardando()).toBe(false);
+    expect(fixture.componentInstance.detalles()[0].monto).toBe(500000);
   });
 });

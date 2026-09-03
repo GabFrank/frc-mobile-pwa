@@ -4978,6 +4978,19 @@ Operaciones entra al formulario.
 > cargado — datos concretos que hay que elegir consultando la base, no
 > inventar. No se consultó la base en esta tarea. Ver el detalle en cada
 > caso y en el hueco que dejan más abajo.
+>
+> **Criterio de las marcas:** un caso queda marcado como no ejecutado cuando
+> su «Esperado» depende de **qué entrada puntual del catálogo** se usó —un
+> módulo padre concreto (53.5, 53.6), o un activo con cuotas cargadas
+> (53.8, y lo que arrastra en 53.9/53.10)— porque hay que ir a elegir ese
+> dato contra la base antes de poder correrlo. 53.4 lleva una marca más
+> suave: cualquier tipo de `PERSONAS` u `OTRO` sirve, pero no se confirmó
+> que el catálogo de prueba tenga alguno. Un caso como **53.7 no necesita
+> ninguna marca**: le alcanza con **dos tipos de gasto cualesquiera** que
+> pidan activo, sin importar cuáles — y eso se puede confirmar en el momento,
+> abriendo el buscador de tipo de gasto y mirando si aparece la sección
+> «Activo imputado», sin haber consultado antes la base para saber qué
+> entrada tiene qué módulo padre.
 
 ### 55.1 · Entrar desde la lista
 1. Operaciones → **Caja chica** → **Nueva solicitud**
@@ -5035,14 +5048,19 @@ paginado; al pie de la primera página aparece **Cargar más**, y tocarlo
 > cargado en el central de prueba; no se consultó cuál.
 
 ### 55.7 · Cambiar de tipo de gasto limpia el activo elegido
-1. Elegir un tipo de gasto que pida activo (por ejemplo, uno de `VEHICULO`) y
-   elegir un activo.
-2. Cambiar a otro tipo de gasto, también con activo (por ejemplo, uno de
-   `MUEBLE` o `EQUIPOS`).
+1. Abrir el buscador de tipo de gasto y elegir **cualquiera** que, al
+   elegirlo, muestre la sección **Activo imputado** — no importa cuál. Elegir
+   ahí un activo cualquiera.
+2. Volver a elegir tipo de gasto y elegir **otro** que también muestre esa
+   sección — de nuevo, no importa cuál, mientras sea distinto del anterior.
 
 **Esperado:** el activo elegido, el texto que lo describe y la tarjeta de
-resumen financiero desaparecen. No queda el vehículo del paso 1 imputado a un
-tipo de gasto que ya no es el suyo.
+resumen financiero desaparecen al volver a elegir en el paso 2. No queda el
+activo del paso 1 imputado a un tipo de gasto que ya no es el suyo.
+
+> A diferencia de 53.5/53.6, este caso **no necesita un módulo padre
+> puntual**: cualquier par de tipos de gasto que pidan activo alcanza, y eso
+> se ve en el momento sin haber consultado antes la base.
 
 ### 55.8 · Un activo con plan de cuotas muestra la tarjeta de resumen
 1. Elegir un tipo de gasto que admita cuotas (`INMUEBLE`, `MUEBLE`,

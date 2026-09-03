@@ -152,9 +152,40 @@ describe('Conteo por zona, colapsado', () => {
     const f = montar();
 
     const texto = f.nativeElement.textContent;
-    expect(texto).toContain('Sistema: 70,00');
+    // Sin decimales: son cajas. `cantidadFisica` llega como Float igual, y
+    // «Sistema: 70,00» al lado de un contado «70» hace dudar de una diferencia
+    // que no existe.
+    expect(texto).toContain('Sistema: 70');
+    expect(texto).not.toContain('Sistema: 70,00');
     // 76 contados contra 70 del sistema: sobran 6.
     expect(texto).toContain('+6');
+  });
+
+  it('una diferencia grande lleva separador de miles', () => {
+    // Iba sin formatear, así que en la misma línea convivían «Sistema: -601.243»
+    // y una diferencia «+601253»: el mismo orden de magnitud escrito de dos
+    // formas distintas.
+    const f = montar();
+
+    f.componentInstance.cambiarContado(2, { target: { value: '5070' } } as unknown as Event);
+    f.detectChanges();
+
+    expect(f.nativeElement.textContent).toContain('+5.000');
+  });
+
+  it('una diferencia fraccionada no escupe el float crudo', () => {
+    // 70,1 − 70 no da 0,1 en punto flotante: da 0.10000000000000142. Armar el
+    // texto con `String(dif)` lo mostraba entero, y además con punto decimal
+    // inglés — el mismo problema de locale por el que el repo prohíbe el pipe
+    // `number`.
+    const f = montar();
+
+    f.componentInstance.cambiarContado(2, { target: { value: '70.1' } } as unknown as Event);
+    f.detectChanges();
+
+    const texto = f.nativeElement.textContent;
+    expect(texto).toContain('+0,1');
+    expect(texto).not.toContain('0.10000000000000142');
   });
 
   it('sin contar muestra un guion, no un cero', () => {

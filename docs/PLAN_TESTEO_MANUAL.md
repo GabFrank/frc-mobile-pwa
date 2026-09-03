@@ -4441,7 +4441,7 @@ primero que se necesita saber.
 
 ---
 
-## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo, sin probar)*
+## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo)* — **4/7 y uno parcial** (Franco + Claude en Chrome, alpha, 2026-09-03)
 
 **Por qué está acá:** `frc-mobile` mostraba en mayúsculas lo que se escribía en
 el login y en el buscador de productos (`text-transform: uppercase` sobre el
@@ -4453,50 +4453,154 @@ backend: el usuario se resuelve con `findByNicknameIgnoreCase`, la contraseña s
 compara con `toUpperCase()` de los dos lados, y la búsqueda de productos filtra
 con `UPPER(...) like UPPER(...)`.
 
-### 50.1 · El usuario se ve en mayúsculas
+### 50.1 · El usuario se ve en mayúsculas — ✅ PASÓ
 1. Abrir el login (si hay sesión, cerrarla).
 2. Escribir el usuario en minúsculas.
 
 **Esperado:** se ve en **MAYÚSCULAS** mientras se escribe. Entrar funciona
 igual, sin importar cómo se tipeó.
 
-### 50.2 · La contraseña también, con el ojo abierto
+### 50.2 · La contraseña también, con el ojo abierto — ✅ PASÓ
 1. En el login, escribir la contraseña.
 2. Tocar el ojo para mostrarla.
 
 **Esperado:** con el ojo cerrado se ven los puntos de siempre; al abrirlo, el
 texto aparece en mayúsculas. El login entra igual.
 
-### 50.3 · Con usuario recordado
+### 50.3 · Con usuario recordado — ✅ PASÓ
 1. Entrar con «Recordar usuario» activo, salir y volver al login.
 
 **Esperado:** el usuario precargado también se ve en mayúsculas, y el foco
 sigue arrancando en la contraseña.
 
-### 50.4 · El buscador de productos
+### 50.4 · El buscador de productos — ✅ PASÓ
 1. Pestaña **Buscar** → escribir parte de una descripción en minúsculas.
 
 **Esperado:** el campo se ve en mayúsculas y los resultados son los mismos que
 antes del cambio.
 
-### 50.5 · El código escaneado y el de balanza
+### 50.5 · El código escaneado y el de balanza — sin probar
 1. En **Buscar**, tocar el ícono y escanear un código de barras.
 2. Repetir con una etiqueta de balanza.
 
 **Esperado:** el código cargado en el campo se ve en mayúsculas, el producto
 aparece y el bloque de producto pesado sigue calculando igual.
 
-### 50.6 · El mismo buscador en las otras pantallas
+### 50.6 · El mismo buscador en las otras pantallas — parcial: ✅ desde el conteo de inventario (escrito «algilem», se ve «ALGILEM»); faltan devolución y transferencias
 1. Abrir el buscador de producto desde devolución, desde el conteo de
    inventario y desde transferencias.
 
 **Esperado:** en las tres se ve en mayúsculas — es el mismo componente
 compartido, no tres campos distintos.
 
-### 50.7 · Tema oscuro y tema claro
+### 50.7 · Tema oscuro y tema claro — sin probar
 1. Repetir 50.1 y 50.4 con cada tema.
 
 **Esperado:** solo cambia el color; el texto sigue en mayúsculas y legible.
+
+
+---
+
+## Bloque 51 — Cantidades en enteros, no en decimales *(nuevo)* — **9/10** (Claude en Chrome, alpha, usuario MAURO, 2026-09-03)
+
+**Por qué está acá:** el central devuelve las cantidades como `Float` aunque el
+producto se cuente por unidad —`movimiento_stock` y `cantidad_fisica` son
+columnas numéricas con decimales—, y cuatro pantallas las imprimían con dos
+decimales fijos. `-3,00` unidades se lee como si faltara una fracción de
+envase. Es el mismo defecto que el bloque de existencia por sucursal ya
+corrigió; estas cuatro quedaron afuera.
+
+**La regla la decide el valor, no el producto.** Ninguna de las cuatro
+consultas trae el `balanza` del producto —`ProductoSaldoDto` no tiene ese
+campo—, así que: entero sin decimales, fraccionado con ellos. En un pesable el
+decimal son kilos y en un producto por unidad es un ajuste mal cargado; los dos
+hay que verlos, no redondearlos.
+
+⚠️ **Diferencia con la ficha de producto:** ahí, sabiendo que el producto es de
+balanza, la existencia se muestra con 3 decimales fijos (`7,000`). Acá un
+pesable con kilos justos se ve `7`. Igualar las dos requiere agregar `balanza`
+al `ProductoSaldoDto` del central.
+
+### 51.1 · Control de inventario, saldo negativo — ✅ PASÓ
+1. **Inventario → Control de inventario**, reporte **Saldo negativo**.
+
+**Esperado:** los saldos se ven `-3`, `-12`, sin `,00`. El signo se conserva y
+el número sigue en rojo.
+
+### 51.2 · Control de inventario, saldo positivo — ✅ PASÓ
+1. Cambiar el reporte a **Saldo positivo**.
+
+**Esperado:** se ven `+7`, `+25`, sin decimales.
+
+### 51.3 · Un saldo fraccionado sí los muestra — sin probar **en esta pantalla**, y no por falta de intentos
+
+Consultada la base de alpha (`localhost:5553`) por SQL: en toda la instancia hay
+**un solo** producto con saldo fraccionado, `PLAN SLIM LINE C/60 SAQUITOS`
+(id 4354, sucursal 1), y vale `0,00000004768372` — residuo de punto flotante, no
+un pesable. Para verlo habría que llegar al final de «Saldo positivo» acotado a
+esa sucursal: **2.405 productos de a 15**, unas 161 tandas de «Cargar más». La
+pantalla no expone filtro por producto, aunque la query del central sí acepta
+`productoId`.
+
+La rama fraccionada de `formatearExistencia` **sí está verificada en la app**,
+por otras pantallas que la usan: la diferencia del conteo mostró `+0,10` y
+`-2,50`, y la presentación CAJA de ALGILEM GESIC mostró `-300.621,50`.
+
+⚠️ **Hallazgo menor:** ese producto se vería como `+0,00` — un saldo que no es
+cero pintado como cero. A efectos del negocio 4,7·10⁻⁸ **es** cero, así que no
+se cambió nada, pero queda anotado.
+1. Buscar un producto de balanza, o uno con un ajuste fraccionado, en
+   cualquiera de los dos reportes.
+
+**Esperado:** `2,5` — el decimal **no** se redondea. Si ves un saldo entero
+donde esperabas kilos, el producto tiene kilos justos, no es un error.
+
+### 51.4 · Carga del conteo: «Sistema» — ✅ PASÓ (toma #2338, zona b1: «Sistema: -601.243» y «Sistema: -5», sin `,00`)
+1. Abrir una toma, entrar a una zona con renglones ya cargados.
+2. Mirar la cabecera colapsada de cada tarjeta.
+
+**Esperado:** dice `Sistema: 70`, no `Sistema: 70,00`. Es lo que decide si vale
+la pena abrir la tarjeta, y con el contado al lado en entero los dos números se
+comparan de un vistazo.
+
+### 51.5 · La diferencia sigue calculándose igual — ✅ PASÓ (contado 10 contra -601.243 → `+601253`; sin contar, guion)
+1. En esa misma zona, escribir un contado distinto al del sistema.
+
+**Esperado:** la diferencia aparece como antes (`+6`, `-2`), y un renglón sin
+contar sigue mostrando el guion, no un cero.
+
+### 51.6 · Saldo del lote en el buscador de lotes — ✅ PASÓ (BANES FORTE, lote 5555: saldo `0`, no `0,00`)
+1. En el conteo, en un producto con control de lote, tocar **Buscar lote**.
+
+**Esperado:** el saldo de cada lote se ve `24`, no `24,00`.
+
+### 51.7 · Productos vencidos — ✅ PASÓ
+1. **Productos vencidos**, mirar la columna de unidades.
+
+**Esperado:** `3`, no `3,00`. Cuando la presentación es mayor a 1 sigue
+apareciendo el `(x6)` al lado.
+
+### 51.8 · Tema oscuro y tema claro — ✅ PASÓ (claro y oscuro: «Sistema: -601.243» legible, diferencia `-2,50` en rojo con coma decimal)
+1. Repetir 51.1 y 51.4 con cada tema.
+
+**Esperado:** solo cambia el color; los números siguen alineados por la
+tipografía tabular y sin decimales.
+
+
+### 51.9 · La diferencia también se formatea — ✅ PASÓ (contado -596.243 contra -601.243 → `+5.000`)
+1. En la carga del conteo, contar algo que dé una diferencia de miles
+   (por ejemplo 5.070 contra un sistema de 70).
+
+**Esperado:** dice `+5.000`, con separador de miles, igual que el «Sistema:»
+que tiene al lado. Antes salía `+5000`: el mismo número escrito de dos formas
+en la misma línea.
+
+### 51.10 · Una diferencia fraccionada no muestra el float crudo — ✅ PASÓ (contado -601.242,9 → `+0,10`, antes `+0.09999999999999432`)
+1. Contar `70,1` contra un sistema de `70`.
+
+**Esperado:** `+0,1`. Antes salía **`+0.09999999999999432`** —el punto flotante
+entero, y con punto decimal inglés—, que es exactamente el problema de locale
+por el que el repo prohíbe el pipe `number`.
 
 
 ---
@@ -4554,8 +4658,9 @@ compartido, no tres campos distintos.
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
-| 50 · Mayúsculas en login y búsqueda | 7 | | | |
-| **Total** | **426** | | | |
+| 50 · Mayúsculas en login y búsqueda | 7 | 4 | | |
+| 51 · Cantidades en enteros | 10 | 9 | | |
+| **Total** | **436** | | | |
 
 ### Los cinco que más importan
 

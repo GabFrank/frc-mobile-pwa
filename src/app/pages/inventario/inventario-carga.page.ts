@@ -20,7 +20,7 @@ import {
   InventarioProductoItem,
 } from 'src/app/domains/inventario/inventario.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
-import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
@@ -392,7 +392,10 @@ export class InventarioCargaPage {
         // zona, y en una zona hay más de un producto.
         etiqueta: String(item.presentacion?.producto?.descripcion ?? 'Producto'),
         presentacion: item.presentacion ? etiquetaPresentacion(item.presentacion) : 'Presentación',
-        sistema: formatearCantidad(sistema, 2),
+        // Sin decimales fijos: lo que el sistema dice llega como `Float`
+        // aunque se cuenten cajas, y «70,00» al lado de un contado «70» hace
+        // dudar de una diferencia que no existe. Ver `formatearExistencia`.
+        sistema: formatearExistencia(sistema),
         contado,
         // La diferencia se recalcula en vivo con lo que se está escribiendo,
         // que es lo que el operador necesita para decidir si recuenta.

@@ -4443,7 +4443,7 @@ primero que se necesita saber.
 
 ---
 
-## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo, sin probar)*
+## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo)* — **4/7 y dos parciales** (Franco + Claude en Chrome; alpha y central local, 2026-09-03)
 
 **Por qué está acá:** `frc-mobile` mostraba en mayúsculas lo que se escribía en
 el login y en el buscador de productos (`text-transform: uppercase` sobre el
@@ -4455,47 +4455,56 @@ backend: el usuario se resuelve con `findByNicknameIgnoreCase`, la contraseña s
 compara con `toUpperCase()` de los dos lados, y la búsqueda de productos filtra
 con `UPPER(...) like UPPER(...)`.
 
-### 50.1 · El usuario se ve en mayúsculas
+### 50.1 · El usuario se ve en mayúsculas — ✅ PASÓ
 1. Abrir el login (si hay sesión, cerrarla).
 2. Escribir el usuario en minúsculas.
 
 **Esperado:** se ve en **MAYÚSCULAS** mientras se escribe. Entrar funciona
 igual, sin importar cómo se tipeó.
 
-### 50.2 · La contraseña también, con el ojo abierto
+### 50.2 · La contraseña también, con el ojo abierto — ✅ PASÓ
 1. En el login, escribir la contraseña.
 2. Tocar el ojo para mostrarla.
 
 **Esperado:** con el ojo cerrado se ven los puntos de siempre; al abrirlo, el
 texto aparece en mayúsculas. El login entra igual.
 
-### 50.3 · Con usuario recordado
+### 50.3 · Con usuario recordado — ✅ PASÓ
 1. Entrar con «Recordar usuario» activo, salir y volver al login.
 
 **Esperado:** el usuario precargado también se ve en mayúsculas, y el foco
 sigue arrancando en la contraseña.
 
-### 50.4 · El buscador de productos
+### 50.4 · El buscador de productos — ✅ PASÓ
 1. Pestaña **Buscar** → escribir parte de una descripción en minúsculas.
 
 **Esperado:** el campo se ve en mayúsculas y los resultados son los mismos que
 antes del cambio.
 
-### 50.5 · El código escaneado y el de balanza
+### 50.5 · El código escaneado y el de balanza — sin probar
 1. En **Buscar**, tocar el ícono y escanear un código de barras.
 2. Repetir con una etiqueta de balanza.
 
 **Esperado:** el código cargado en el campo se ve en mayúsculas, el producto
 aparece y el bloque de producto pesado sigue calculando igual.
 
-### 50.6 · El mismo buscador en las otras pantallas
+### 50.6 · El mismo buscador en las otras pantallas — parcial: ✅ inventario y devolución; transferencias sin probar
+
+Verificado desde el conteo de inventario («algilem» → `ALGILEM`) y desde
+**Nueva devolución** («banes forte» → `BANES FORTE`). En **transferencias** el
+buscador solo aparece dentro de la etapa de preparación: llegar hasta él exige
+avanzar de etapa una transferencia real, así que no se probó.
 1. Abrir el buscador de producto desde devolución, desde el conteo de
    inventario y desde transferencias.
 
 **Esperado:** en las tres se ve en mayúsculas — es el mismo componente
 compartido, no tres campos distintos.
 
-### 50.7 · Tema oscuro y tema claro
+### 50.7 · Tema oscuro y tema claro — parcial: ✅ el buscador; el login sin probar
+
+Verificado en la pestaña **Buscar** contra el central local, con los dos temas:
+en claro «mandioca» → `MANDIOCA`, en oscuro «costilla» → `COSTILLA`, legible en
+los dos. El **login** no se probó: verlo exige cerrar la sesión.
 1. Repetir 50.1 y 50.4 con cada tema.
 
 **Esperado:** solo cambia el color; el texto sigue en mayúsculas y legible.

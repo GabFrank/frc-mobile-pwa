@@ -6,6 +6,7 @@ import { MatInputModule } from '@angular/material/input';
 import { InventarioProductoItem } from 'src/app/domains/inventario/inventario.model';
 import { ESTADO_LOTE_TEXTO, EstadoLote } from 'src/app/domains/lote/lote.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
+import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { CampoFechaComponent } from 'src/app/shared/campos/campo-fecha.component';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
@@ -498,7 +499,13 @@ export class InventarioItemCardComponent {
     if (dif == null) {
       return '—';
     }
-    return dif > 0 ? '+' + dif : String(dif);
+    // ⚠️ **No concatenar el número crudo.** `String(dif)` no lleva separador
+    // de miles —quedaba «+601253» pegado a un «Sistema: -601.243» que sí lo
+    // tiene— y en una diferencia fraccionada muestra el punto flotante entero
+    // y con punto decimal inglés: 70,1 − 70 salía «+0.09999999999999432».
+    // `formatearExistencia` resuelve las dos cosas con la misma regla que el
+    // resto del conteo.
+    return (dif > 0 ? '+' : '') + formatearExistencia(dif);
   });
 
   legible(fecha: string): string {

@@ -21,7 +21,10 @@ export interface ResumenFinancieroEnte {
   diasParaVencer?: number;
   estadoCuota?: string;
   monedaSimbolo?: string;
-  monedaId?: number;
+  // ⚠️ El schema declara `monedaId` como `ID`, que GraphQL serializa como
+  // string ("1", no 1). El tipo refleja las dos formas para no esconder el
+  // caso real detrás de un `number` que nunca es lo que llega.
+  monedaId?: number | string;
   proveedorNombre?: string;
   proveedorId?: number;
   situacionPago?: string;

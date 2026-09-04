@@ -113,6 +113,51 @@ describe('Alta de solicitud de caja chica', () => {
     expect(fixture.componentInstance.sucursales().map((s) => s.id)).toEqual([1, 9]);
   });
 
+  it('permite guardar con la sucursal SERVIDOR, que tiene id 0', () => {
+    // SERVIDOR es una sucursal real con id `0`, y `0` es "falsy" en JS. Con
+    // `!datos.sucursalId`, `faltaParaGuardar` decía «Seleccione una sucursal
+    // de retiro» aunque SERVIDOR estuviera elegida y visible en pantalla.
+    //
+    // `overrideProvider` no sirve acá: el módulo ya se instanció en el
+    // `beforeEach` al pedir `AuthService`. Se reconfigura entero, como el
+    // `beforeEach`, con la sucursal SERVIDOR como única opción.
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: GastosService, useValue: gastos },
+        {
+          provide: SucursalService,
+          useValue: {
+            todas: () => of([{ id: 0, nombre: 'SERVIDOR', activo: true, deposito: null }]),
+          },
+        },
+      ],
+    });
+    TestBed.inject(AuthService).establecerUsuario({
+      id: 7,
+      persona: { id: 41, nombre: 'MAURO LANDO' },
+      inicioSesion: { sucursal: SUCURSALES[0] },
+    } as never);
+    const fixture = montar();
+    fixture.componentInstance.elegirTipoGasto(TIPOS[0]);
+    fixture.componentInstance.elegirProveedor({
+      id: 33,
+      persona: { nombre: 'DIST. ESTE' },
+    } as never);
+    fixture.componentInstance.cambiarDetalle(0, {
+      monto: 500000,
+      monedaId: 1,
+      formaPago: 'EFECTIVO',
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.sucursalId()).toBe(0);
+    expect(fixture.componentInstance.falta()).toBeNull();
+  });
+
   it('muestra el responsable de la sesión y no lo deja elegir', () => {
     // El retiro se imputa a la persona, no al usuario.
     const fixture = montar();
@@ -341,6 +386,27 @@ describe('Alta de solicitud — montos y guardado', () => {
 
     expect(texto(fixture)).toContain('1.500.000');
     expect(texto(fixture)).not.toContain('1.500.000,00');
+  });
+
+  it('arma el total con la denominación aunque las monedas lleguen con id string', () => {
+    // GraphQL serializa `ID` como string: el central real devuelve
+    // `{ id: "1", denominacion: "GUARANI", simbolo: "Gs." }`. Con la
+    // comparación vieja (`m.id === monedaId`, número contra string) la fila
+    // de totales mostraba «Total : 5.000.000,00» — sin nombre de moneda y
+    // con decimales, porque no encontraba el guaraní.
+    gastos['monedas'].mockReturnValue(
+      of([{ id: '1', denominacion: 'GUARANI', simbolo: 'Gs.' }]),
+    );
+    const fixture = montar();
+    fixture.componentInstance.cambiarDetalle(0, {
+      monto: 5000000,
+      monedaId: 1,
+      formaPago: 'EFECTIVO',
+    });
+    fixture.detectChanges();
+
+    expect(texto(fixture)).toContain('Total GUARANI: Gs. 5.000.000');
+    expect(texto(fixture)).not.toContain('Total : Gs. 5.000.000,00');
   });
 
   it('bloquea el guardado y dice qué falta', () => {

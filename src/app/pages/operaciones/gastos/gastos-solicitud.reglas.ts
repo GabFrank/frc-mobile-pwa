@@ -32,15 +32,18 @@ export interface DatosSolicitud {
 
 /** Lo que falta para poder guardar, o `null` si está todo. */
 export function faltaParaGuardar(datos: DatosSolicitud): string | null {
-  if (!datos.sucursalId) {
+  // ⚠️ `== null` a propósito, no `!datos.sucursalId`: SERVIDOR tiene id `0`,
+  // que es un id válido y un valor "falsy". Con `!` la sucursal quedaba
+  // marcada como sin elegir aunque estuviera seleccionada y visible.
+  if (datos.sucursalId == null) {
     return 'Seleccione una sucursal de retiro';
   }
-  if (!datos.responsableId) {
+  if (datos.responsableId == null) {
     // El retiro se imputa a la persona, no al usuario. Sin persona asociada
     // es un problema de datos, no de pantalla.
     return 'No se encontró la persona del usuario en sesión';
   }
-  if (!datos.tipoGastoId) {
+  if (datos.tipoGastoId == null) {
     return 'Seleccione un tipo de gasto';
   }
   if (requiereEnteActivo(datos.moduloPadre) && !datos.enteId) {
@@ -108,7 +111,10 @@ export function totalesPorMoneda(
   }
 
   return [...porMoneda.entries()].map(([monedaId, total]) => {
-    const moneda = monedas.find((m) => m.id === monedaId);
+    // ⚠️ Mismo motivo que en `ente-financiero.reglas.ts`: el `ID` de GraphQL
+    // llega como string (`m.id === "1"`), así que comparar por `String()` no
+    // depende de si terminó siendo string o number.
+    const moneda = monedas.find((m) => String(m.id) === String(monedaId));
     return {
       monedaId,
       denominacion: moneda?.denominacion ?? '',

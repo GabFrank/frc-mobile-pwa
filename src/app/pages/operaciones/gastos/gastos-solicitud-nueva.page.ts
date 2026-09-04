@@ -692,12 +692,15 @@ export class GastosSolicitudNuevaPage {
     );
   }
 
+  // ⚠️ `Moneda.id` llega como string del GraphQL `ID`, aunque el modelo lo
+  // tipe `number`: comparar por `String()` no depende de la forma en que
+  // haya llegado cada lado.
   monedaTexto(monedaId: number | null): string | null {
-    return this.monedas().find((m) => m.id === monedaId)?.denominacion ?? null;
+    return this.monedas().find((m) => String(m.id) === String(monedaId))?.denominacion ?? null;
   }
 
   monedaSimbolo(monedaId: number | null): string | null {
-    return this.monedas().find((m) => m.id === monedaId)?.simbolo ?? null;
+    return this.monedas().find((m) => String(m.id) === String(monedaId))?.simbolo ?? null;
   }
 
   cambiarFormaPago(indice: number, valor: unknown): void {

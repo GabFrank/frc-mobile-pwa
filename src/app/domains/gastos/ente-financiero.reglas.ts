@@ -53,7 +53,10 @@ export function construirVistaResumen(
   resumen: ResumenFinancieroEnte,
   monedas: MonedaResumen[],
 ): VistaResumenEnte {
-  const moneda = monedas.find((m) => m.id === Number(resumen.monedaId));
+  // ⚠️ GraphQL serializa `ID` como string: `monedas` llega con `id: "1"`, no
+  // `id: 1`, aunque el modelo lo tipe `number`. Comparar por `String()` de los
+  // dos lados no depende de con qué forma haya llegado cada uno.
+  const moneda = monedas.find((m) => String(m.id) === String(resumen.monedaId));
   const mostrarCuotas = (resumen.cuotasTotales ?? 0) > 0;
   const cuotaActual = resumen.numeroCuotaActual ?? (resumen.cuotasPagadas ?? 0) + 1;
   const faltantes = resumen.cuotasFaltantes ?? 0;

@@ -46,6 +46,26 @@ describe('Vista del resumen del activo', () => {
     expect(vista.montoPendiente).toBe(642.25);
   });
 
+  it('encuentra la moneda aunque el id llegue como string, como lo devuelve el central', () => {
+    // GraphQL serializa `ID` como string: en vivo, `monedas` devuelve
+    // `{ id: "1", denominacion: "GUARANI", simbolo: "Gs." }` y
+    // `getEnteFinancialSummary.monedaId` llega también como string "1". Los
+    // mocks con `{ id: 1 }` numérico no reproducían este caso: con
+    // denominación vacía, el guaraní se mostraba con dos decimales.
+    const monedasComoLasDevuelveElCentral = [
+      { id: '1', denominacion: 'GUARANI', simbolo: 'Gs.' },
+      { id: '2', denominacion: 'Dólar', simbolo: 'US$' },
+    ];
+
+    const vista = construirVistaResumen(
+      { descripcion: 'CAMIONETA', montoTotal: 45000000, montoPendiente: 45000000, monedaId: '1' },
+      monedasComoLasDevuelveElCentral,
+    );
+
+    expect(vista.denominacion).toBe('GUARANI');
+    expect(vista.simbolo).toBe('Gs.');
+  });
+
   it('muestra el plan cuando hay cuotas', () => {
     const vista = construirVistaResumen(
       { cuotasTotales: 12, cuotasPagadas: 3, cuotasFaltantes: 9, monedaId: 1 },

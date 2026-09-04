@@ -45,6 +45,18 @@ describe('Qué falta para poder pedir la plata', () => {
     );
   });
 
+  it('acepta la sucursal SERVIDOR, con id 0', () => {
+    // SERVIDOR es una sucursal real con id `0`, y `0` es "falsy" en JS. Con
+    // `!datos.sucursalId` el operador la veía elegida en pantalla y el
+    // mensaje igual pedía «Seleccione una sucursal de retiro».
+    expect(faltaParaGuardar({ ...completo(), sucursalId: 0 })).toBeNull();
+  });
+
+  it('un id 0 de responsable o tipo de gasto tampoco cuenta como ausente', () => {
+    expect(faltaParaGuardar({ ...completo(), responsableId: 0 })).toBeNull();
+    expect(faltaParaGuardar({ ...completo(), tipoGastoId: 0 })).toBeNull();
+  });
+
   it('exige el activo cuando el módulo padre lo requiere, con su etiqueta', () => {
     expect(
       faltaParaGuardar({ ...completo(), moduloPadre: 'VEHICULO', enteId: null }),
@@ -171,6 +183,25 @@ describe('Totales por moneda', () => {
     expect(
       totalesPorMoneda([{ monto: null, monedaId: 1, formaPago: 'EFECTIVO' }], monedas),
     ).toEqual([]);
+  });
+
+  it('encuentra la moneda aunque el id llegue como string, como lo devuelve el central', () => {
+    // GraphQL serializa `ID` como string: el catálogo real trae
+    // `{ id: "1", ... }`, no `{ id: 1, ... }`. Sin esto la fila de totales
+    // mostraba «Total : 5.000.000,00» en vez de «Total GUARANI: 5.000.000».
+    const monedasComoLasDevuelveElCentral = [
+      { id: '1', denominacion: 'GUARANI', simbolo: 'Gs.' },
+      { id: '2', denominacion: 'Dólar', simbolo: 'US$' },
+    ];
+
+    const totales = totalesPorMoneda(
+      [{ monto: 5000000, monedaId: 1, formaPago: 'EFECTIVO' }],
+      monedasComoLasDevuelveElCentral,
+    );
+
+    expect(totales).toEqual([
+      { monedaId: 1, denominacion: 'GUARANI', simbolo: 'Gs.', total: 5000000 },
+    ]);
   });
 });
 

@@ -119,7 +119,10 @@ export interface DetalleFinanciero {
 
 /** Lo que se necesita de una moneda para formatear un importe. */
 export interface MonedaResumen {
-  id: number;
+  // ⚠️ GraphQL serializa el tipo `ID` como string: `monedas` devuelve
+  // `{ id: "1", ... }`, no `{ id: 1, ... }`. El tipo admite las dos formas
+  // para que comparar contra este `id` no asuma cuál llegó.
+  id: number | string;
   denominacion?: string;
   simbolo?: string;
 }

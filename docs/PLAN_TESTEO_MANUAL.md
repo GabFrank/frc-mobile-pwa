@@ -4968,6 +4968,133 @@ por el que el repo prohíbe el pipe `number`.
 
 ---
 
+## Bloque 55 — La sucursal de la marcación sale del GPS *(nuevo, sin probar)*
+
+**Por qué está acá:** se podía marcar entrada y salida **sin que la ubicación
+validara nada**. La sucursal se elegía en un desplegable —la última usada, si
+no la de la sesión, si no la primera de la lista— y el GPS entraba después,
+solo para medir la distancia **contra la sucursal ya elegida**. Alcanzaba con
+seleccionar la sucursal donde uno *dice* estar para que el aviso de «estás
+lejos» no apareciera nunca. Issue #15.
+
+Ahora la sucursal **se detecta sola** al abrir la pantalla, hay un botón
+**Recalcular**, y **sin ubicación no se marca**.
+
+⚠️ **Necesita un teléfono de verdad y salir a la calle.** Buena parte de estos
+casos no se puede probar desde el escritorio: hay que negar y dar el permiso
+de ubicación en el navegador del teléfono, y moverse físicamente. Para probar
+en un Android por USB: `adb reverse tcp:4300 tcp:4300` (y `tcp:8081` si el
+central es local) — `localhost` es contexto seguro y el GPS funciona.
+
+⚠️ **Antes de empezar, confirmá en el central que las sucursales que vas a
+usar tienen `localizacion` cargada** (`empresarial.sucursal.localizacion`, con
+el formato `lat,lng`). Sin eso todos los casos dan «No se pudo determinar la
+sucursal», que es correcto pero no es lo que se quiere probar.
+
+### 55.1 · Al abrir, la sucursal se detecta sola
+1. Parado dentro de una sucursal, entrar a **Mi trabajo → Marcación**.
+
+**Esperado:** la sección **Dónde estás** muestra primero el progreso del GPS y
+después el **nombre de la sucursal**, la **distancia** y la **precisión**.
+Nadie tocó nada.
+
+### 55.2 · Ya no hay desplegable
+1. En la misma pantalla, intentar tocar el nombre de la sucursal.
+
+**Esperado:** es texto, no un campo. **No** se abre ninguna lista de
+sucursales. No hay forma de elegir otra.
+
+### 55.3 · Recalcular vuelve a medir
+1. Tocar **Recalcular**.
+
+**Esperado:** vuelve al estado de búsqueda, pide la posición de nuevo y
+termina mostrando la sucursal y una distancia. El botón queda deshabilitado
+mientras busca.
+
+### 55.4 · Sin permiso de ubicación no se marca, y lo dice
+1. En la configuración del sitio del navegador, **denegar** la ubicación.
+2. Entrar a Marcación.
+
+**Esperado:** dice **«No se pudo obtener la ubicación»** con el motivo debajo,
+y el botón de marcar está **deshabilitado**. No aparece ningún nombre de
+sucursal. ⚠️ **Lo que no puede pasar:** que muestre la sucursal de tu usuario
+y te deje marcar igual — eso es exactamente el bug que esto corrige.
+
+### 55.5 · Dar el permiso y recalcular desbloquea
+1. Con la pantalla abierta del caso anterior, permitir la ubicación en el
+   navegador.
+2. Tocar **Recalcular**.
+
+**Esperado:** aparece la sucursal detectada y el botón de marcar se habilita.
+**No hace falta recargar la app.**
+
+### 55.6 · Parado en otra sucursal, detecta la otra
+1. Trasladarse a una segunda sucursal y abrir Marcación.
+
+**Esperado:** detecta **esa** sucursal, no la del usuario ni la de la vez
+anterior. Es el caso del funcionario que cubre en otro local.
+
+### 55.7 · Lejos de la sucursal avisa, pero deja marcar
+1. Desde un punto a más de 33 m de cualquier sucursal —la vereda de enfrente
+   alcanza— tocar el botón de marcar.
+
+**Esperado:** un diálogo **«Estás lejos de la sucursal»** con los metros, la
+sucursal y la precisión. Confirmando, **la marcación se registra**. La
+distancia avisa; no bloquea.
+
+### 55.8 · La sucursal virtual nunca se detecta
+1. Estando en la casa central —donde `SERVIDOR` y `COMPRAS` tienen sus
+   coordenadas— abrir Marcación.
+
+**Esperado:** detecta una sucursal **con depósito**. Nunca `SERVIDOR` ni
+`COMPRAS`, aunque estén más cerca.
+
+### 55.9 · Lo que se guarda es la posición del momento de marcar
+1. Abrir Marcación y esperar a que detecte.
+2. Esperar unos minutos sin salir de la pantalla, o caminar unos metros.
+3. Marcar.
+
+**Esperado:** el GPS se toma **otra vez** antes de guardar (se ve el progreso).
+Después, en la base: `latitud`, `longitud`, `precision_gps` y
+`distancia_sucursal` de esa marcación corresponden a **dónde estabas al
+marcar**, no a dónde estabas al abrir la pantalla.
+
+### 55.10 · Moverse entre abrir y marcar no marca contra la vieja
+1. Abrir Marcación dentro de una sucursal y esperar la detección.
+2. Sin cerrar la pantalla, trasladarse hasta quedar más cerca de otra.
+3. Tocar el botón de marcar.
+
+**Esperado:** **no se marca**. Avisa que ahora estás más cerca de la otra
+sucursal, la pantalla pasa a mostrar esa, y hay que volver a tocar el botón.
+⚠️ Es el caso más difícil de armar: necesita dos sucursales cercanas o mucha
+paciencia.
+
+### 55.11 · Si se pierde la ubicación al marcar, no se marca igual
+1. Abrir Marcación con permiso dado y esperar la detección.
+2. Apagar el GPS del teléfono (o poner modo avión) sin cerrar la pantalla.
+3. Tocar marcar.
+
+**Esperado:** después del paso del rostro, avisa que se perdió la ubicación y
+**no registra nada**. El botón vuelve a su texto normal — **no** se queda en
+«Marcando…».
+
+### 55.12 · Los tres estados
+1. Recorrer: pantalla cargando, sin permiso de ubicación, y con el central
+   caído.
+
+**Esperado:** carga con esqueleto; sin permiso, el vacío con su motivo y el
+botón **Recalcular** a mano; con el central caído, el estado de error con
+reintentar. Ninguno muestra una sucursal.
+
+### 55.13 · Tema oscuro y tema claro
+1. Ver la sección **Dónde estás** en los dos temas, en los estados «detectada»
+   y «sin ubicación».
+
+**Esperado:** el texto del vacío se lee en los dos, y el botón **Recalcular**
+tiene contraste suficiente.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -5026,7 +5153,8 @@ por el que el repo prohíbe el pipe `number`.
 | 52 · Elegir el lote al cargar un producto | 16 | | | |
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
 | 54 · Cantidades en enteros | 10 | 10 | | |
-| **Total** | **472** | | | |
+| 55 · La sucursal de la marcación sale del GPS | 13 | | | |
+| **Total** | **485** | | | |
 
 ### Los cinco que más importan
 

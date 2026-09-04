@@ -146,8 +146,8 @@ El historial de marcaciones también aparece en [`mis-rrhh`](mis-rrhh-y-finanzas
 | `/marcacion` | `MarcacionPage` |
 
 La cascada de rutas anidadas del repo anterior —tipo → ubicación →
-identificación— desaparece: sin paso facial queda **una sola pantalla** que
-muestra el estado del día, la sucursal y el botón que corresponda.
+identificación— desaparece: queda **una sola pantalla** que muestra el estado
+del día, la sucursal detectada y el botón que corresponda.
 
 ## El GPS se reimplementó, no se perdió
 
@@ -166,8 +166,54 @@ pide confirmación y se guarda igual — con `precisionGps` y
 calibrado dejaría gente sin poder marcar; guardar la evidencia permite
 recalibrarlo con datos reales, que es lo que el módulo ya hacía.
 
-Si no hay ubicación en absoluto, también se puede marcar confirmando: queda
-registrado sin GPS, que es un dato honesto.
+## La sucursal sale del GPS, no de una lista
+
+`deteccion-sucursal.util.ts` toma la posición y devuelve la **operable más
+cercana** con coordenadas cargadas, y a cuántos metros quedó. Corre sola al
+abrir la pantalla, y de nuevo con **Recalcular**. No hay selección manual.
+
+⚠️ **Hubo un desplegable, y era el agujero.** Mientras la sucursal se elegía a
+mano —la persistida, si no la de la sesión, si no la primera de la lista—, la
+distancia no medía nada: alcanzaba con seleccionar la sucursal donde uno
+*dice* estar y el aviso de «estás lejos» no aparecía nunca. Verificado en un
+Android real contra alpha el 2026-08-15. Ver la issue #15.
+
+**Sin posición no se marca**, y esto es deliberado: caer en silencio a la
+sucursal de la sesión reabriría el mismo agujero por la puerta de atrás —
+bastaría con negar el permiso de ubicación—. Los botones quedan
+deshabilitados y la pantalla dice por qué.
+
+⚠️ **«No pude preguntar» y «no hay contra qué comparar» son dos respuestas
+distintas**, y se dicen distinto:
+
+| Estado | Qué pasó | Qué hay que hacer |
+|---|---|---|
+| `sin-posicion` | No hubo posición: permiso negado, GPS apagado, tiempo agotado | Es del teléfono: dar el permiso y **Recalcular** |
+| `sin-coordenadas` | Hubo posición, pero ninguna sucursal operable tiene `localizacion` | Es del central: cargar las coordenadas |
+
+Juntarlas en un «no se pudo» genérico manda a revisar el permiso del teléfono
+cuando el que falta es un dato del central.
+
+⚠️ **El filtro por `soloOperables()` vive dentro de la util, no en quien la
+llama.** `SERVIDOR` y `COMPRAS` son virtuales y llevan las coordenadas del
+central: dejarlas competir les daría todas las marcaciones de quien esté cerca
+de la casa central. Que el filtro sea interno hace imposible olvidarlo.
+
+⚠️ **La util no aplica ningún radio.** Devuelve la más cercana aunque queden
+kilómetros; el corte lo decide la pantalla, que avisa y deja marcar. Recortar
+ahí convertiría un GPS malo —lo normal en un interior— en «no podés marcar».
+
+## La posición se toma dos veces, y es a propósito
+
+La de la **apertura** sirve para decir dónde estás y habilitar el botón. La
+del **momento de marcar** es la que viaja en `latitud`, `longitud`,
+`precisionGps` y `distanciaSucursalMetros`.
+
+Entre una y otra pueden pasar minutos. Guardar la de la apertura sería
+registrar como evidencia un lugar donde la persona ya no está.
+
+Si entre las dos la más cercana **cambió**, no se marca: se muestra la nueva y
+se avisa. Marcar contra la de la apertura afirmaría un lugar equivocado.
 
 ## Una sola acción a la vez
 
@@ -177,15 +223,17 @@ El backend dice qué corresponde (`accionPendiente`) y la pantalla ofrece
 `esSalidaAlmuerzo` viaja aparte del `tipo`: una salida de almuerzo es
 `SALIDA` pero **no cierra la jornada**.
 
-## La sucursal persistida, con su gotcha
+## La sucursal persistida se retiró
 
-Se guarda en `localStorage` con el patrón correcto del repo anterior —
-`removeItem`, no `setItem(clave, null)`, y `JSON.parse` en `try/catch` que
-limpia la clave si está corrupta.
+`MarcacionService` guardaba la última sucursal elegida en
+`localStorage['frc.marcacion.sucursal']`. Se fue entera con la issue #15: la
+sucursal ahora sale del GPS en cada marcación, y un valor guardado volvería a
+ganarle a lo que dice la posición.
 
-⚠️ **Se borra al cerrar sesión** (`auth.service.ts`): la sucursal es del
-funcionario, no del dispositivo. Sin eso, el próximo que entre en ese
-teléfono marca contra la sucursal del anterior.
+⚠️ **De paso apareció que nunca se limpiaba.** El comentario decía «se borra
+al cerrar sesión», pero `limpiarSucursal()` no lo llamaba nadie: la clave
+quedaba en el teléfono para siempre, así que el próximo usuario de ese aparato
+heredaba la sucursal del anterior. Dejó de importar al no haber más clave.
 
 ## Lo que falta
 
@@ -235,9 +283,14 @@ fijar el número en cinco.
 ## La ubicación sigue siendo un chequeo aparte
 
 El diálogo facial **no valida dónde está la persona**. Eso sigue en
-`MarcacionPage` con `GeoService`, y corre **después** del rostro. Son dos
-preguntas distintas —quién sos y dónde estás— y mezclarlas haría que aflojar
-una afloje la otra.
+`MarcacionPage` con `GeoService`. Son dos preguntas distintas —quién sos y
+dónde estás— y mezclarlas haría que aflojar una afloje la otra.
+
+⚠️ **El orden es: dónde estás, después quién sos, y de nuevo dónde estás.** La
+sucursal se detecta al abrir porque sin ella no hay nada que marcar; el rostro
+se pide al tocar el botón, antes del GPS del momento, porque es el paso que
+puede fallar por gusto del usuario —cancelar, no tener rostro cargado— y no
+tiene sentido esperar al GPS para descubrirlo.
 
 ## Los modelos no se commitean
 

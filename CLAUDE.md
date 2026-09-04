@@ -151,6 +151,35 @@ Lo que se carga solo para Safari va en un **chunk aparte**: el peso no lo paga A
 
 > ⚠️ Ya pasó una vez: el escáner se escribió sin fallback «porque hoy no hay iOS». Eso invierte el orden — el soporte de iOS es el requisito, no una consecuencia de tener usuarios de iOS.
 
+### 8 · Una issue que se resuelve se cierra
+
+**Resolver una issue incluye cerrarla.** Mientras siga abierta, para cualquiera
+que mire el tablero el problema sigue vivo: se vuelve a reportar, se vuelve a
+diagnosticar y se vuelve a discutir algo que ya está hecho.
+
+El cierre va **con el PR**, no después y no a mano desde la web: en el cuerpo
+del PR se escribe `Closes #<n>` (o `Closes GabFrank/<repo>#<n>` si la issue es
+de otro repositorio), así GitHub la cierra sola al mergear y queda enlazado
+**qué commit** la resolvió.
+
+Antes de cerrar, dos cosas:
+
+1. **Los criterios de aceptación de la issue, tildados uno por uno.** Si alguno
+   quedó afuera, no se cierra: se dice cuál y por qué, o se abre la issue que
+   lo cubre y se enlaza.
+2. **Un comentario de cierre** que diga qué se hizo, qué quedó sin verificar y
+   cuál es el bloque del plan de testeo manual que lo prueba — la regla 4.1 no
+   se salda con el merge.
+
+⚠️ **Si la solución necesita las dos mitades**, la issue de la PWA no se cierra
+hasta que el central esté publicado. Cerrarla antes afirma que el usuario tiene
+el arreglo, y contra un central viejo no lo tiene.
+
+**Una issue no se cierra por vieja, por dudosa ni por ordenar el tablero.** Se
+cierra porque está resuelta, o con un comentario que explique por qué se
+descarta. Cerrar sin decir nada borra el problema del tablero pero no de la
+app.
+
 ## Estructura
 
 ```
@@ -202,7 +231,7 @@ Al 2026-08-15, farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna de la
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **901 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **932 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 ⚠️ **`cantidad` es lo contado y `cantidadFisica` lo que dice el sistema**, al revés de lo que sugieren los nombres y de lo que `docs/modulos/inventario.md` afirmó hasta ahora. Lo fija `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La app las tuvo al derecho y la consecuencia era muda: lo contado desde el teléfono no entraba en el ajuste de stock. Corregido con test; ver el hallazgo #60 de [`docs/TODO_TECNICO.md`](docs/TODO_TECNICO.md).
 
@@ -223,3 +252,4 @@ Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.
 7. Escribir un token `--mdc-*`: Material 21 renombró toda esa familia a `--mat-*` y los nombres viejos **fallan en silencio** — la regla se aplica, la variable queda definida y el componente sigue con su valor por defecto. Hay un test que lo impide
 8. Escribir un backtick dentro de `template:` o `styles:` de un componente: rompe el literal y el error que sale no señala la causa
 9. Dejar una capacidad de dispositivo sin camino en Safari «porque hoy no hay iOS» — ver la regla 7
+10. Dar por resuelta una issue y dejarla abierta — el `Closes #<n>` va en el PR, ver la regla 8

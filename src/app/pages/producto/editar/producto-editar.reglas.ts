@@ -159,10 +159,18 @@ export function preciosADegradar(
   return precios.filter((p) => p.principal === true && p.id !== nuevoPrincipalId);
 }
 
-/** La misma regla, para el código principal de una presentación. */
-export function codigosADegradar(
-  codigos: Codigo[],
+/**
+ * La misma regla, para el código principal de una presentación.
+ *
+ * ⚠️ **Genérica a propósito.** `Codigo` es una clase con `toInput()`
+ * obligatorio, pero lo que llega de GraphQL —y lo que arma un test— es un
+ * objeto plano con estos dos campos, nunca una instancia real. Tipar el
+ * parámetro como `Codigo[]` a secas rechazaba esos objetos aunque la regla
+ * no mire nada más que `id` y `principal`.
+ */
+export function codigosADegradar<T extends { id?: number | null; principal?: boolean | null }>(
+  codigos: T[],
   nuevoPrincipalId: number | null,
-): Codigo[] {
+): T[] {
   return codigos.filter((c) => c.principal === true && c.id !== nuevoPrincipalId);
 }

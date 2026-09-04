@@ -1,3 +1,5 @@
+import type { Codigo } from 'src/app/domains/productos/codigo.model';
+import type { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
 import type { Producto, ProductoInput } from 'src/app/domains/productos/producto.model';
 
 /**
@@ -90,4 +92,77 @@ export function construirProductoInput(
   );
 
   return { ...base, ...cambiosDefinidos };
+}
+
+/**
+ * Un envase no tiene propiedades de mercadería.
+ *
+ * Marcar `isEnvase` apaga balanza, garantía, ingrediente, promoción,
+ * vencimiento y lote. Lo hace el escritorio en `producto.component.ts:291-297`,
+ * y no está escrito en ninguna documentación: una botella retornable no vence,
+ * no se pesa y no lleva lote.
+ *
+ * ⚠️ **Son seis, no siete.** El escritorio apaga además `esAlcoholico`, que no
+ * existe ni en `ProductoInput` ni en la entidad `Producto` del central: es un
+ * control de su formulario que no viaja a ningún lado, como `observacion`. Y
+ * **no** apaga `combo`, así que acá tampoco — apagarlo sería inventar una regla
+ * de negocio que nadie escribió.
+ */
+export function aplicarCascadaEnvase(
+  cambios: Partial<ProductoInput>,
+): Partial<ProductoInput> {
+  if (cambios.isEnvase !== true) {
+    return cambios;
+  }
+
+  return {
+    ...cambios,
+    balanza: false,
+    garantia: false,
+    ingrediente: false,
+    promocion: false,
+    vencimiento: false,
+    lote: false,
+  };
+}
+
+/**
+ * Lo que falta para poder guardar, o `null` si está todo.
+ *
+ * ⚠️ **La descripción no es opcional aunque el schema la declare `String`.**
+ * `ProductoService.java:312` hace `e.getDescripcion().toUpperCase()` sin
+ * guard: un input sin descripción no da un error de validación, tira un
+ * `NullPointerException` en el central.
+ */
+export function faltaParaGuardarProducto(input: ProductoInput): string | null {
+  if (input.descripcion == null || input.descripcion.trim() === '') {
+    return 'La descripción es obligatoria';
+  }
+  return null;
+}
+
+/**
+ * Los precios que hay que degradar para que quede uno solo principal.
+ *
+ * El escritorio lo hace en `adicionar-precio-dialog.component.ts:226-244`:
+ * antes de guardar el nuevo principal, apaga el `principal` de los demás de
+ * esa presentación. Sin esto quedan dos y cuál gana lo decide el orden en que
+ * el central devuelva la lista, que no está garantizado.
+ *
+ * `nuevoPrincipalId` es `null` cuando el que se está marcando todavía no
+ * existe en la base.
+ */
+export function preciosADegradar(
+  precios: PrecioPorSucursal[],
+  nuevoPrincipalId: number | null,
+): PrecioPorSucursal[] {
+  return precios.filter((p) => p.principal === true && p.id !== nuevoPrincipalId);
+}
+
+/** La misma regla, para el código principal de una presentación. */
+export function codigosADegradar(
+  codigos: Codigo[],
+  nuevoPrincipalId: number | null,
+): Codigo[] {
+  return codigos.filter((c) => c.principal === true && c.id !== nuevoPrincipalId);
 }

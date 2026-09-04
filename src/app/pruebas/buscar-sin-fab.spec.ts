@@ -51,7 +51,15 @@ describe('Buscar · sin botón flotante', () => {
         // Sucursal con depósito: es la que decide si se pide el stock, y no
         // tiene nada que ver con el FAB. Se fija para que el montaje no
         // dependa del estado de la sesión.
-        { provide: AuthService, useValue: { sucursal: signal({ id: 1, deposito: true, activo: true }) } },
+        {
+          provide: AuthService,
+          useValue: {
+            sucursal: signal({ id: 1, deposito: true, activo: true }),
+            // Buscar ofrece el alta de producto a quien tenga el rol, así que
+            // el mock necesita responder qué roles tiene la sesión.
+            roles: signal([]),
+          },
+        },
       ],
     });
   });

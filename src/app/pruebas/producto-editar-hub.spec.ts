@@ -18,6 +18,19 @@ describe('Rutas de la edición de producto', () => {
       .toBeDefined();
   });
 
+  it('nuevo va antes que :id', () => {
+    // Con el orden invertido el router leería «nuevo» como identificador y el
+    // detalle intentaría cargar el producto NaN.
+    const iNuevo = rutasProducto.findIndex((r) => r.path === 'nuevo');
+    const iId = rutasProducto.findIndex((r) => r.path === ':id');
+    expect(iNuevo).toBeGreaterThanOrEqual(0);
+    expect(iNuevo).toBeLessThan(iId);
+  });
+
+  it('el alta está guardada por el mismo rol que la edición', () => {
+    expect(ruta('nuevo')?.canActivate).toBeDefined();
+  });
+
   it('vencidos sigue antes que :id', () => {
     // Con el orden invertido el router resuelve «vencidos» como identificador
     // y el detalle intenta cargar el producto NaN.

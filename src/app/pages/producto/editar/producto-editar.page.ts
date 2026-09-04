@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
@@ -9,7 +18,7 @@ import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component'
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 
-import { etiquetaCategoria } from './producto-editar.reglas';
+import { etiquetaCategoria, faltaParaActivar } from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /** Una fila del hub. */
@@ -42,7 +51,31 @@ interface Seccion {
         <frc-skeleton [cantidad]="5" />
       } @else if (estado.error()) {
         <frc-estado-error [detalle]="estado.error()!" (reintentar)="recargar()" />
-      } @else if (estado.producto()) {
+      } @else if (estado.producto(); as p) {
+        @if (p.activo === false) {
+          <frc-seccion [panel]="true">
+            <p class="inactivo-titulo">Este producto está inactivo</p>
+            @if (faltaParaActivar().length > 0) {
+              <p class="inactivo-detalle">
+                No se puede vender todavía. Falta {{ faltaParaActivar().join(' y ') }}.
+              </p>
+            } @else {
+              <p class="inactivo-detalle">
+                Ya tiene presentación, código y precio: se puede activar.
+              </p>
+              <button
+                matButton="filled"
+                type="button"
+                class="boton-activar"
+                [disabled]="activando()"
+                (click)="activar()"
+              >
+                {{ activando() ? 'Activando…' : 'Activar producto' }}
+              </button>
+            }
+          </frc-seccion>
+        }
+
         <frc-seccion [panel]="true">
           @for (s of secciones(); track s.clave) {
             <button
@@ -64,6 +97,17 @@ interface Seccion {
   `,
   styles: [
     `
+      .inactivo-titulo {
+        margin: 0 0 var(--sp-1);
+        font-weight: var(--fw-medium);
+        color: var(--warn);
+      }
+      .inactivo-detalle {
+        margin: 0 0 var(--sp-2);
+        color: var(--text-soft);
+        font-size: var(--fs-label);
+      }
+      .boton-activar { width: 100%; }
       .fila {
         display: flex;
         align-items: center;
@@ -111,6 +155,36 @@ export class ProductoEditarPage {
   private readonly puedePrecios = computed(() =>
     this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.productoPrecios),
   );
+
+  readonly activando = signal(false);
+
+  /**
+   * Lo que le falta al producto para poder activarse.
+   *
+   * Solo importa mientras está inactivo: un producto dado de alta desde el
+   * teléfono nace así y no se puede vender hasta tener presentación, código y
+   * precio. Ver `faltaParaActivar()`.
+   */
+  readonly faltaParaActivar = computed<string[]>(() => {
+    const p = this.estado.producto();
+    return p == null ? [] : faltaParaActivar(p);
+  });
+
+  /**
+   * Pone el producto en venta.
+   *
+   * Va por `guardarCabecera`, que arma el `ProductoInput` completo desde el
+   * producto hidratado: mandar solo `{id, activo}` borraría todo lo demás,
+   * porque `saveProducto` reemplaza el registro entero.
+   */
+  activar(): void {
+    if (this.faltaParaActivar().length > 0) return;
+    this.activando.set(true);
+    this.estado.guardarCabecera({ activo: true }).subscribe({
+      next: () => this.activando.set(false),
+      error: () => this.activando.set(false),
+    });
+  }
 
   readonly secciones = computed<Seccion[]>(() => {
     const p = this.estado.producto();

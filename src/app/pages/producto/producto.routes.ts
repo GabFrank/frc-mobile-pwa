@@ -14,6 +14,17 @@ import { rolGuard } from 'src/app/core/auth/rol.guard';
  */
 export const rutasProducto: Routes = [
   {
+    /**
+     * ⚠️ Va **antes** que `:id`, como `vencidos`: con el orden invertido el
+     * router leería «nuevo» como identificador y el detalle intentaría cargar
+     * el producto NaN.
+     */
+    path: 'nuevo',
+    canActivate: [rolGuard('productoEdicion')],
+    loadComponent: () =>
+      import('./editar/producto-nuevo.page').then((m) => m.ProductoNuevoPage),
+  },
+  {
     path: 'vencidos',
     loadComponent: () =>
       import('./productos-vencidos.page').then((m) => m.ProductosVencidosPage),

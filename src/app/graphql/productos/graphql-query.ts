@@ -488,3 +488,22 @@ export const tipoPreciosQuery = gql`
     }
   }
 `;
+
+/**
+ * `true` si ya existe un producto con esa descripción exacta.
+ *
+ * Existe en el central desde siempre y no la usaba nadie. Sirve para avisar en
+ * el alta, **no para bloquearla**: hay homónimos legítimos —el mismo artículo
+ * en presentaciones que se cargan como productos distintos—, y un bloqueo duro
+ * empuja al operador a inventar variantes del nombre para esquivarlo, que es
+ * peor que el duplicado.
+ *
+ * ⚠️ **Compara exacto y el central guarda en mayúsculas**
+ * (`ProductoService.java:312`). Mandar la descripción tal como se tipeó no
+ * encuentra nada: hay que mandarla en mayúsculas, como va a quedar guardada.
+ */
+export const productoDescripcionExistsQuery = gql`
+  query ($descripcion: String) {
+    data: productoDescripcionExists(descripcion: $descripcion)
+  }
+`;

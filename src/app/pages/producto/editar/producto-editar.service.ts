@@ -112,9 +112,20 @@ export class ProductoEditarService {
   }
 
   /** Vuelve a pedir el producto al central. Lo usan las subpantallas al volver. */
+  /**
+   * Vuelve a pedir el producto al central. Lo usan las subpantallas al volver.
+   *
+   * ⚠️ **El id se convierte a número a propósito.** `Producto.id` es `ID` en el
+   * schema y GraphQL lo serializa como **string**, aunque el modelo TS diga
+   * `number`. El guard de `cargar()` usa `Number.isFinite`, que **no** coerce:
+   * con el string crudo daba `false`, el servicio creía que la ruta estaba rota
+   * y la pantalla pintaba «No se pudieron cargar los datos» justo después de un
+   * guardado exitoso. Reintentar arreglaba la vista porque ese camino toma el
+   * id del parámetro de ruta, ya convertido.
+   */
   recargar(): void {
-    const id = this._producto()?.id;
-    if (id != null) {
+    const id = Number(this._producto()?.id);
+    if (Number.isFinite(id) && id > 0) {
       this.cargar(id);
     }
   }

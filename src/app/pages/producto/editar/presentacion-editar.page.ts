@@ -129,7 +129,11 @@ function construirPresentacionInput(
         <frc-seccion titulo="Datos" [panel]="true">
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
             <mat-label>Descripción</mat-label>
-            <input matInput [ngModel]="descripcion()" (ngModelChange)="descripcion.set($event)" />
+            <input
+              matInput
+              [ngModel]="descripcion()"
+              (ngModelChange)="descripcion.set(($event ?? '').toUpperCase())"
+            />
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
             <mat-label>Cantidad</mat-label>

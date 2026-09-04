@@ -124,7 +124,7 @@ Doce operaciones nuevas de la edición en la PWA, todas en `src/app/graphql/prod
 > **Estado:** implementados la **búsqueda**, la **ficha** (`/producto/:id`),
 > el **modo kiosco** (`/kiosco`), el **reporte de vencidos**
 > (`/producto/vencidos`) y la **edición** (`/producto/:id/editar`), detrás del
-> rol `EDITAR PRODUCTOS`. Falta el **alta**, que va a exigir el mismo rol —
+> rol `EDITAR PRODUCTOS`, y el **alta** (`/producto/nuevo`), con el mismo rol —
 > no `NUEVO-PRODUCTO`, que no existe en `personas.role`.
 
 ## Pantallas
@@ -212,7 +212,7 @@ El inventario completo, función por función, está en
 | ~~**Detalle de producto**~~ | ✅ `/producto/:id`. Todos los códigos y todos los tipos de precio |
 | ~~**Modo kiosco**~~ | ✅ `/kiosco`, fuera del shell |
 | ~~**Edición**~~ | ✅ `/producto/:id/editar`, rol `EDITAR PRODUCTOS` (+ `EDITAR PRECIOS` para la sección de precios). Ver «La edición» |
-| **Alta** | Sigue pendiente. Segunda entrega: reusa las secciones de la edición ya probadas contra el central |
+| ~~**Alta**~~ | ✅ `/producto/nuevo`, rol `EDITAR PRODUCTOS`. Ver «El alta» |
 
 
 ---
@@ -412,3 +412,67 @@ activo, que es la pregunta real de quien instala la tablet.
 
 La opción se deshabilita y explica por qué. Elegirla dejaría el kiosco **mudo**:
 sin lector no entra nada por el campo, y no habría de dónde leer.
+
+
+---
+
+# El alta
+
+`/producto/nuevo` pide **solo tres cosas** —descripción, familia y subfamilia— y
+manda al hub de la edición, donde las pantallas que ya existen cargan
+presentaciones, códigos y precios. No hay un formulario largo que junte todo: el
+central guarda en mutations separadas y **sin transacción**, así que un «guardar
+todo» dejaría el producto a medias igual, pero además haciéndole creer al
+operador que no se guardó nada.
+
+**Se entra desde Buscar**, no desde el estado vacío del buscador compartido: ese
+componente lo usan devolución, inventario y transferencias, donde ofrecer «creá
+un producto» en medio del flujo no tiene sentido.
+
+## Los tres campos son obligatorios, y no por prolijidad
+
+| Campo | Por qué |
+|---|---|
+| Descripción | Sin ella el central **revienta**: `ProductoService.java:312` hace `.toUpperCase()` sin guard |
+| Familia | Es el paso previo a la subfamilia; sin ella no hay lista que mostrar |
+| Subfamilia | De ella cuelga la notificación de producto creado que el central dispara al dar de alta (`ProductoGraphQL.java:370`). Sin subfamilia, **nadie se entera de que el producto existe** |
+
+## Nace inactivo
+
+Un producto nuevo se crea con `activo = false`, `iva = 10` y `stock = true`. El
+hub muestra qué le falta y ofrece **«Activar producto»** solo cuando ya se puede
+vender: **una presentación que tenga a la vez un código y un precio**, ambos
+activos. Ver `faltaParaActivar()`.
+
+> ⚠️ **Las tres cosas van en la MISMA presentación.** Un código en la unidad y
+> un precio en la caja no alcanzan: el código escaneado resuelve la
+> presentación, y es esa la que tiene que tener precio.
+
+La alternativa —nacer activo y aceptar productos incompletos, como el borrador
+de transferencia— se descartó: un producto sin precio ni código aparece en el
+buscador y en la caja, donde no se puede cobrar. Un alta abandonada deja basura
+invisible en vez de algo roto que alguien intenta vender.
+
+## Detalles que salieron de usarlo
+
+> **La descripción se escribe en MAYÚSCULAS, no se convierte al guardar.** El
+> central la convierte igual; mostrarla en minúsculas era enseñarle al operador
+> un texto distinto del que iba a quedar guardado.
+
+> **La descripción de factura acompaña a la descripción hasta que alguien la
+> edita.** En la enorme mayoría de los productos es el mismo texto. Al abrir un
+> producto cuya descripción de factura **ya difiere**, la pantalla asume que se
+> eligió a propósito y no vuelve a pisarla.
+
+> **El duplicado avisa, no bloquea.** `productoDescripcionExists` estaba en el
+> central sin usar. Se consulta **en mayúsculas**, porque así queda guardada y
+> la comparación es exacta. No bloquea porque hay homónimos legítimos, y un
+> bloqueo duro empuja a inventar variantes del nombre para esquivarlo.
+
+> ⚠️ **El selector de tipo de precio solo ofrece los `activo = true`.** En la
+> base local se activaron los seis el 2026-09-04, pero **en alpha, beta y
+> producción `UNITARIO`, `FRIO`, `NATURAL` y `FUNCIONARIOS` siguen inactivos**
+> —y son los que usan 10.844 de los 11.415 precios cargados—. Ahí el selector
+> ofrece solo `EXPO` y `EXPO-DEPOSITO`, y un producto nuevo no puede recibir su
+> precio normal desde el teléfono. **No es una falla de la pantalla: es el
+> dato.** El escritorio no filtra, así que no lo nota.

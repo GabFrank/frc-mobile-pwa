@@ -1,6 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 
+import { Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
+import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { esSucursalOperable } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { BuscadorProductoComponent } from 'src/app/shared/producto/buscador-producto.component';
@@ -22,7 +27,7 @@ import { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/bus
 @Component({
   selector: 'frc-buscar-page',
   standalone: true,
-  imports: [PaginaComponent, BuscadorProductoComponent],
+  imports: [PaginaComponent, BuscadorProductoComponent, MatButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!--
@@ -42,10 +47,38 @@ import { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/bus
         [codigoInicial]="codigo()"
         (seleccion)="alElegir($event)"
       />
+
+      <!--
+        El alta cuelga de acá y no del estado vacío del buscador compartido:
+        ese componente es compartido con devolución, inventario y
+        transferencias, donde ofrecer "crear un producto" en medio del flujo no
+        tiene sentido. Buscar es la pantalla donde alguien descubre que el
+        producto no existe.
+      -->
+      @if (puedeCrear()) {
+        <button matButton type="button" class="alta" (click)="nuevoProducto()">
+          ¿No lo encontrás? Cargá un producto nuevo
+        </button>
+      }
     </frc-pagina>
+  `,
+  styles: `
+    .alta { display: block; width: 100%; margin-top: var(--sp-3); }
   `,
 })
 export class BuscarPage {
+  private readonly roles = inject(RoleService);
+  private readonly router = inject(Router);
+
+  /** El alta pide el mismo rol que la edición. */
+  readonly puedeCrear = computed(() =>
+    this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.productoEdicion),
+  );
+
+  nuevoProducto(): void {
+    this.router.navigate(['/producto', 'nuevo']);
+  }
+
   private readonly auth = inject(AuthService);
 
   /**

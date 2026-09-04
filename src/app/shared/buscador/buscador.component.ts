@@ -10,6 +10,7 @@ import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/materia
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { comparatorLike } from 'src/app/generic/utils/string-utils';
+import { EstadoErrorComponent } from '../estados-ui/estado-error.component';
 import { EstadoVacioComponent } from '../estados-ui/estado-vacio.component';
 import { SkeletonComponent } from '../estados-ui/skeleton.component';
 
@@ -57,6 +58,7 @@ export type ConfigBuscador<T> = ConfigBuscadorLocal<T> | ConfigBuscadorPaginado<
     MatButtonModule,
     SkeletonComponent,
     EstadoVacioComponent,
+    EstadoErrorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -82,6 +84,12 @@ export type ConfigBuscador<T> = ConfigBuscadorLocal<T> | ConfigBuscadorPaginado<
 
       @if (cargando()) {
         <frc-skeleton [cantidad]="4" />
+      } @else if (error()) {
+        <frc-estado-error
+          titulo="No se pudo consultar"
+          detalle="Revisá la conexión y probá de nuevo."
+          (reintentar)="reintentar()"
+        />
       } @else if (resultados().length === 0) {
         <frc-estado-vacio
           titulo="Sin resultados"
@@ -155,6 +163,7 @@ export class BuscadorComponent<T> {
   readonly resultados = signal<T[]>([]);
   readonly cargando = signal(false);
   readonly hayMas = signal(false);
+  readonly error = signal(false);
 
   private pagina = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -203,11 +212,16 @@ export class BuscadorComponent<T> {
     this.cargarPagina(this.pagina + 1, false);
   }
 
+  reintentar(): void {
+    this.buscar();
+  }
+
   private cargarPagina(pagina: number, reemplazar: boolean): void {
     if (this.config.modo !== 'paginado') {
       return;
     }
     this.cargando.set(reemplazar);
+    this.error.set(false);
     this.config
       .cargarPagina(this.consulta(), pagina)
       .then(({ items, hayMas }) => {
@@ -216,7 +230,10 @@ export class BuscadorComponent<T> {
         this.hayMas.set(hayMas);
       })
       .catch(() => {
-        this.resultados.set([]);
+        // ⚠️ Un fallo NO es una lista vacía. Vaciar los resultados acá haría
+        // que el diálogo dijera «Sin resultados», o sea que el dato no
+        // existe — cuando lo único cierto es que no se pudo preguntar.
+        this.error.set(true);
         this.hayMas.set(false);
       })
       .finally(() => this.cargando.set(false));

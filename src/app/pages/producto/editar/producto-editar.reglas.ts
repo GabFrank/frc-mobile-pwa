@@ -318,3 +318,16 @@ export function faltaParaActivar(producto: Producto): string[] {
   // vender, y hay que decir las dos cosas.
   return falta.length > 0 ? falta : ['un código', 'un precio'];
 }
+
+/**
+ * Enumera en castellano: «a», «a y b», «a, b y c».
+ *
+ * Existe porque un `join(' y ')` produce «una presentación y un código y un
+ * precio», que se lee como una lista mal escrita justo en el cartel que le
+ * explica al operador por qué no puede vender el producto.
+ */
+export function enumerarEnEspanol(items: string[]): string {
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  return `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`;
+}

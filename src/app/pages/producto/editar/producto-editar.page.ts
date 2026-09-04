@@ -18,7 +18,11 @@ import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component'
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 
-import { etiquetaCategoria, faltaParaActivar } from './producto-editar.reglas';
+import {
+  enumerarEnEspanol,
+  etiquetaCategoria,
+  faltaParaActivar,
+} from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /** Una fila del hub. */
@@ -57,7 +61,7 @@ interface Seccion {
             <p class="inactivo-titulo">Este producto está inactivo</p>
             @if (faltaParaActivar().length > 0) {
               <p class="inactivo-detalle">
-                No se puede vender todavía. Falta {{ faltaParaActivar().join(' y ') }}.
+                No se puede vender todavía. Falta {{ faltaTexto() }}.
               </p>
             } @else {
               <p class="inactivo-detalle">
@@ -157,6 +161,9 @@ export class ProductoEditarPage {
   );
 
   readonly activando = signal(false);
+
+  /** Lo que falta, escrito como una lista en castellano. */
+  readonly faltaTexto = computed(() => enumerarEnEspanol(this.faltaParaActivar()));
 
   /**
    * Lo que le falta al producto para poder activarse.

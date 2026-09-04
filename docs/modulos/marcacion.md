@@ -461,12 +461,31 @@ de margen sería inventar el número que la medición existe para averiguar: hac
 falta ver qué margen dan estas caras, estas cámaras y esta luz. Cuando haya
 datos, es una línea en `validarIdentificacion()`.
 
-⚠️ **Las dos mitades se publican juntas.** Contra un central sin `V216.5` los
-campos nuevos hacen fallar la mutation entera, y la marcación deja de
-funcionar. Y la migración **tiene que correr también en las filiales**:
-`administrativo.marcacion` se replica en las dos direcciones, así que una
-columna que exista solo en el central corta la replicación hacia la filial que
-no la tenga.
+⚠️ **Son tres mitades, no dos.** Hay una migración por repositorio y el orden
+importa:
+
+| Repo | Migración | Cuándo |
+|---|---|---|
+| `franco-system-backend-filial` | `V91.5` | **Primero**, en todas las filiales |
+| `franco-system-backend-servidor` | `V216.5` | Después |
+| `frc-mobile-pwa` | — | Con el central, o después |
+
+Contra un central sin `V216.5` los campos nuevos hacen fallar la mutation
+entera y **la marcación deja de funcionar**, no solo los campos nuevos.
+
+Y la de la filial va **antes** que el deploy del central, no después. La
+replicación lógica **no propaga DDL**, y `administrativo.marcacion` viaja en
+las dos direcciones: las publicaciones `central_filialN_pub` no llevan lista
+de columnas, así que el publisher manda todas. Si el central gana una columna
+que una filial no tiene, en cuanto alguien marque el apply worker de esa
+filial muere con `is missing replicated column`, entra en crash-loop y **la
+bajada central→filial queda cortada** con el WAL creciendo.
+
+No es hipotético: es el mismo modo de falla del incidente del 2026-08-20 con
+el enum `tipo_dispositivo` (`V90.7` de la filial), cambiando el enum por una
+columna. Sin `out-of-order`, además, una filial que ya pasó ese
+`installed_rank` **saltea la migración en silencio**: hay que confirmar
+`flyway_schema_history` filial por filial.
 
 ## Dos cosas que se apartan de gourmet, a propósito
 

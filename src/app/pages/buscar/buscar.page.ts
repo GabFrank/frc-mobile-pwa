@@ -57,7 +57,7 @@ import { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/bus
       -->
       @if (puedeCrear()) {
         <button matButton type="button" class="alta" (click)="nuevoProducto()">
-          ¿No está? Dar de alta un producto
+          ¿No lo encontrás? Cargá un producto nuevo
         </button>
       }
     </frc-pagina>

@@ -14,8 +14,12 @@ import { APOLLO_DE_PRUEBA } from './apollo-de-prueba';
 // clases del dominio (ver `buscar-producto.spec.ts`).
 const codigo = (extra: Partial<Codigo>): Codigo => Object.assign(new Codigo(), extra);
 
-const producto = (): Producto => ({
-  id: 51,
+// ⚠️ Los ids van como STRING, que es lo que manda el central: en el schema son
+// `ID` y GraphQL los serializa así, aunque el modelo TS diga `number`. Con
+// fixtures numéricos los tests pasan mientras la app se rompe.
+const producto = (): Producto =>
+  ({
+  id: '51',
   descripcion: 'ALGILEM GESIC',
   iva: 10,
   activo: true,
@@ -31,7 +35,7 @@ const producto = (): Producto => ({
     },
     { id: 2, cantidad: 12, codigos: [codigo({ id: 12, codigo: '781' })], precios: [] },
   ],
-});
+  }) as unknown as Producto;
 
 describe('ProductoEditarService', () => {
   let datos: { porId: ReturnType<typeof vi.fn>; guardar: ReturnType<typeof vi.fn> };
@@ -54,6 +58,22 @@ describe('ProductoEditarService', () => {
     servicio.cargar(51);
     expect(servicio.totalCodigos()).toBe(3);
     expect(servicio.totalPrecios()).toBe(1);
+  });
+
+  it('recarga con el id que vino del central, que es un string', () => {
+    // ⚠️ `Producto.id` es `ID` en el schema y GraphQL lo serializa como
+    // STRING, aunque el modelo TS diga `number`. `Number.isFinite('51')` es
+    // `false` —no coerce—, así que pasar el id crudo al guard de `cargar()`
+    // hacía que el servicio creyera que la ruta estaba rota y pintara «No se
+    // pudieron cargar los datos» justo después de guardar. Reintentar
+    // funcionaba porque ahí el id sale del parámetro de ruta, ya convertido.
+    servicio.cargar(51);
+    expect(datos.porId).toHaveBeenCalledTimes(1);
+
+    servicio.recargar();
+
+    expect(datos.porId).toHaveBeenCalledTimes(2);
+    expect(servicio.error()).toBeNull();
   });
 
   it('rechaza un id inválido sin llamar al central', () => {

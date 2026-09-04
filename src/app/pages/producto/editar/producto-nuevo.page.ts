@@ -86,7 +86,7 @@ interface PaginaCatalogo<T> {
           <input
             matInput
             [ngModel]="descripcion()"
-            (ngModelChange)="descripcion.set($event)"
+            (ngModelChange)="descripcion.set(($event ?? '').toUpperCase())"
             (blur)="verificarDuplicado()"
           />
         </mat-form-field>
@@ -341,10 +341,19 @@ export class ProductoNuevoPage {
   crear(): void {
     if (this.falta() !== null) return;
 
+    const descripcion = this.descripcion().trim().toUpperCase();
     const input = construirProductoInput({} as Producto, {
-      descripcion: this.descripcion().trim(),
+      descripcion,
+      // Arranca igual que la descripción: en la enorme mayoría de los productos
+      // es el mismo texto, y quien necesite otra la edita después en Datos
+      // generales, donde deja de espejarse.
+      descripcionFactura: descripcion,
       subfamiliaId: this.subfamiliaId(),
       iva: IVA_POR_DEFECTO,
+      // Controla existencia salvo que alguien lo apague: es lo normal en un
+      // producto de góndola, y un producto sin control de stock no aparece en
+      // inventarios ni en transferencias.
+      stock: true,
       // Nace inactivo: se activa desde el hub cuando ya se puede vender.
       activo: false,
     });

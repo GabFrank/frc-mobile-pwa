@@ -85,14 +85,14 @@ const OPCIONES_TIPO_CONSERVACION: OpcionSeleccion[] = [
         <frc-seccion titulo="Identificación" [panel]="true">
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
             <mat-label>Descripción</mat-label>
-            <input matInput [ngModel]="descripcion()" (ngModelChange)="descripcion.set($event)" />
+            <input matInput [ngModel]="descripcion()" (ngModelChange)="alEscribirDescripcion($event)" />
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
             <mat-label>Descripción de factura</mat-label>
             <input
               matInput
               [ngModel]="descripcionFactura()"
-              (ngModelChange)="descripcionFactura.set($event)"
+              (ngModelChange)="alEscribirFactura($event)"
             />
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
@@ -132,7 +132,7 @@ const OPCIONES_TIPO_CONSERVACION: OpcionSeleccion[] = [
           }
         </frc-seccion>
 
-        <frc-seccion titulo="Banderas" [panel]="true">
+        <frc-seccion titulo="Características" [panel]="true">
           <div class="fila-toggle">
             <span>Balanza</span>
             <mat-slide-toggle
@@ -226,6 +226,36 @@ export class DatosGeneralesPage {
 
   readonly opcionesTipoConservacion = OPCIONES_TIPO_CONSERVACION;
 
+  /**
+   * `true` en cuanto el operador edita la descripción de factura a mano.
+   * Desde ese momento deja de espejar la descripción del producto: la eligió
+   * él, y pisársela sería descartar lo que escribió.
+   */
+  private facturaEditadaAMano = false;
+
+  /**
+   * La descripción va en MAYÚSCULAS mientras se escribe, no al guardar.
+   *
+   * El central la convierte igual (`ProductoService.java:312`), así que
+   * mostrarla en minúsculas era enseñarle al operador un texto distinto del
+   * que iba a quedar guardado.
+   */
+  alEscribirDescripcion(valor: string): void {
+    const enMayusculas = (valor ?? '').toUpperCase();
+    this.descripcion.set(enMayusculas);
+    // La de factura acompaña hasta que alguien la edite: en la enorme mayoría
+    // de los productos es el mismo texto, y escribirlo dos veces es trabajo
+    // que la pantalla puede ahorrarse.
+    if (!this.facturaEditadaAMano) {
+      this.descripcionFactura.set(enMayusculas);
+    }
+  }
+
+  alEscribirFactura(valor: string): void {
+    this.facturaEditadaAMano = true;
+    this.descripcionFactura.set((valor ?? '').toUpperCase());
+  }
+
   readonly descripcion = signal('');
   readonly descripcionFactura = signal('');
   readonly iva = signal<number | null>(null);
@@ -265,6 +295,11 @@ export class DatosGeneralesPage {
 
       this.descripcion.set(p.descripcion ?? '');
       this.descripcionFactura.set(p.descripcionFactura ?? '');
+      // Un producto guardado con una descripción de factura distinta ya tiene
+      // una elegida a mano: no se la vuelve a pisar al editar la descripción.
+      this.facturaEditadaAMano =
+        (p.descripcionFactura ?? '') !== '' &&
+        (p.descripcionFactura ?? '') !== (p.descripcion ?? '');
       this.iva.set(p.iva ?? null);
       this.activo.set(p.activo ?? true);
       this.isEnvase.set(p.isEnvase ?? false);

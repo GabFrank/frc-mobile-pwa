@@ -143,6 +143,55 @@ export function faltaParaGuardarProducto(input: ProductoInput): string | null {
 }
 
 /**
+ * Compara dos ids sin caer en el bug que rompió presentaciones, códigos y
+ * precios en el central real.
+ *
+ * El schema declara estos ids como `ID` (`Presentacion`, `Codigo`,
+ * `PrecioPorSucursal`, `Sucursal` en los `.graphqls` de `productos/producto`
+ * y `empresarial/sucursal`), y GraphQL serializa `ID` como **string** en el
+ * JSON de la respuesta. Los modelos de este repo declaran `id?: number`, así
+ * que TypeScript nunca se queja — pero en tiempo de ejecución uno de los dos
+ * lados de un `===` suele ser el string `"261"` y el otro el number `261`, y
+ * la comparación estricta es `false` siempre. Con fixtures de test que arman
+ * los ids como number, esto pasa 1079 tests y falla en cada tap real: es
+ * justo lo que hizo que tocar una presentación en la lista mostrara "No se
+ * encontró esa presentación" para una que el propio listado acababa de
+ * mostrar.
+ *
+ * Por eso ningún sitio de este módulo compara ids con `===` a secas: todos
+ * pasan por acá, que coerciona los dos lados a number antes de comparar. No
+ * se resuelve aflojando a `==`: eso compara con coerción de JS, que iguala
+ * cosas que no deberían serlo (`"" == 0`, `null == undefined`) y no filtra
+ * `NaN` ni ids ausentes, que acá deben dar `false`.
+ */
+export function mismoId(
+  a: number | string | null | undefined,
+  b: number | string | null | undefined,
+): boolean {
+  if (a == null || b == null) return false;
+  const na = Number(a);
+  const nb = Number(b);
+  return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+}
+
+/**
+ * La etiqueta a mostrar de una familia o subfamilia.
+ *
+ * ⚠️ **`nombre` únicamente, sin fallback a `descripcion`.** Confirmado por
+ * el dueño del producto: `descripcion` no es una etiqueta, es una reseña
+ * libre — la de la familia 1 es "Cervezas, gaseosas, lacteos, jugos, aguas,
+ * energizantes, vinos, espumantes, whiskys, vodkas, cachaças, licores.".
+ * Las 8 familias y las 73 subfamilias de la base tienen `nombre` cargado:
+ * un fallback a `descripcion` sería código muerto hoy y, el día que
+ * dispare, pondría un párrafo donde va una etiqueta — el mismo bug que esta
+ * función existe para evitar. Sin `nombre`, se muestra el mismo placeholder
+ * neutro que el resto del repo usa para un valor ausente.
+ */
+export function etiquetaCategoria(c: { nombre?: string }): string {
+  return c.nombre ?? '—';
+}
+
+/**
  * Los precios que hay que degradar para que quede uno solo principal.
  *
  * El escritorio lo hace en `adicionar-precio-dialog.component.ts:226-244`:
@@ -157,7 +206,7 @@ export function preciosADegradar(
   precios: PrecioPorSucursal[],
   nuevoPrincipalId: number | null,
 ): PrecioPorSucursal[] {
-  return precios.filter((p) => p.principal === true && p.id !== nuevoPrincipalId);
+  return precios.filter((p) => p.principal === true && !mismoId(p.id, nuevoPrincipalId));
 }
 
 /**
@@ -169,11 +218,13 @@ export function preciosADegradar(
  * parámetro como `Codigo[]` a secas rechazaba esos objetos aunque la regla
  * no mire nada más que `id` y `principal`.
  */
-export function codigosADegradar<T extends { id?: number | null; principal?: boolean | null }>(
+export function codigosADegradar<
+  T extends { id?: number | string | null; principal?: boolean | null },
+>(
   codigos: T[],
   nuevoPrincipalId: number | null,
 ): T[] {
-  return codigos.filter((c) => c.principal === true && c.id !== nuevoPrincipalId);
+  return codigos.filter((c) => c.principal === true && !mismoId(c.id, nuevoPrincipalId));
 }
 
 /**
@@ -193,7 +244,7 @@ export function presentacionesADegradar(
   presentaciones: Presentacion[],
   nuevoPrincipalId: number | null,
 ): Presentacion[] {
-  return presentaciones.filter((p) => p.principal === true && p.id !== nuevoPrincipalId);
+  return presentaciones.filter((p) => p.principal === true && !mismoId(p.id, nuevoPrincipalId));
 }
 
 /** `true` si el parámetro de ruta no es ni `valorEspecial` ni un id positivo. */

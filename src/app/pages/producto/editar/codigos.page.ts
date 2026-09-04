@@ -30,7 +30,7 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 
-import { codigosADegradar, esIdDeRutaInvalido, idDeRutaNum } from './producto-editar.reglas';
+import { codigosADegradar, esIdDeRutaInvalido, idDeRutaNum, mismoId } from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /** El input de `saveCodigo` para un código de esta presentación. */
@@ -250,7 +250,7 @@ export class CodigosPage {
   readonly presentacion = computed(() => {
     const n = this.presentacionIdNum();
     if (n == null) return null;
-    return this.estado.presentaciones().find((p) => p.id === n) ?? null;
+    return this.estado.presentaciones().find((p) => mismoId(p.id, n)) ?? null;
   });
 
   readonly codigos = computed<Codigo[]>(() => this.presentacion()?.codigos ?? []);

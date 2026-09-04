@@ -17,8 +17,12 @@ describe('Editar un precio', () => {
   });
 
   it('solo es editable el precio de la sucursal de la sesión', () => {
-    expect(esPrecioEditable({ sucursal: { id: 3 } }, 3)).toBe(true);
-    expect(esPrecioEditable({ sucursal: { id: 7 } }, 3)).toBe(false);
+    // El `id` de `Sucursal` viaja como string (`ID` en el schema): un
+    // fixture con ids `number` de los dos lados dejaría pasar un
+    // `===` roto. `sucursalSesionId` sigue siendo number porque así lo
+    // tipa la firma de `esPrecioEditable`.
+    expect(esPrecioEditable({ sucursal: { id: '3' } }, 3)).toBe(true);
+    expect(esPrecioEditable({ sucursal: { id: '7' } }, 3)).toBe(false);
   });
 
   it('un precio sin sucursal no es editable', () => {
@@ -28,9 +32,9 @@ describe('Editar un precio', () => {
 
   it('degrada el principal anterior de esa presentación', () => {
     const precios = [
-      { id: 1, precio: 12000, principal: true },
-      { id: 2, precio: 11000, principal: false },
-    ];
-    expect(preciosADegradar(precios, 2).map((p) => p.id)).toEqual([1]);
+      { id: '1', precio: 12000, principal: true },
+      { id: '2', precio: 11000, principal: false },
+    ] as unknown as Parameters<typeof preciosADegradar>[0];
+    expect(preciosADegradar(precios, 2).map((p) => p.id)).toEqual(['1']);
   });
 });

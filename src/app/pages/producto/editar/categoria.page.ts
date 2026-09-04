@@ -18,6 +18,7 @@ import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component'
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 
+import { etiquetaCategoria, mismoId } from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /** Tamaño de página para el buscador de familias. */
@@ -65,14 +66,14 @@ interface PaginaCatalogo<T> {
         <frc-estado-error [detalle]="estado.error()!" (reintentar)="recargar()" />
       } @else if (estado.producto()) {
         <frc-seccion titulo="Familia" [panel]="true">
-          <p class="dato">{{ familia()?.descripcion ?? 'Sin elegir' }}</p>
+          <p class="dato">{{ familia() ? etiquetaCategoria(familia()!) : 'Sin elegir' }}</p>
           <button matButton="tonal" type="button" (click)="abrirBuscadorFamilia()">
             Elegir familia
           </button>
         </frc-seccion>
 
         @if (familia(); as f) {
-          <frc-seccion [titulo]="'Subfamilia de ' + (f.descripcion ?? '')" [panel]="true">
+          <frc-seccion [titulo]="'Subfamilia de ' + etiquetaCategoria(f)" [panel]="true">
             @if (cargandoSubfamilias()) {
               <frc-skeleton [cantidad]="3" />
             } @else if (errorSubfamilias()) {
@@ -92,10 +93,10 @@ interface PaginaCatalogo<T> {
                     <button
                       type="button"
                       class="fila"
-                      [class.elegida]="s.id === subfamiliaId()"
+                      [class.elegida]="mismoId(s.id, subfamiliaId())"
                       (click)="elegirSubfamilia(s)"
                     >
-                      {{ s.descripcion }}
+                      {{ etiquetaCategoria(s) }}
                     </button>
                   </li>
                 }
@@ -156,6 +157,10 @@ export class CategoriaPage {
   private readonly subfamiliaSearchGQL = inject(SubfamiliaSearchGQL);
   private readonly router = inject(Router);
 
+  /** Expuestas para el template. */
+  protected readonly etiquetaCategoria = etiquetaCategoria;
+  protected readonly mismoId = mismoId;
+
   readonly familia = signal<Familia | null>(null);
   readonly subfamiliaId = signal<number | null>(null);
 
@@ -187,7 +192,7 @@ export class CategoriaPage {
 
       this.subfamiliaId.set(sub.id ?? null);
       if (sub.familia) {
-        this.familia.set({ id: sub.familia.id, descripcion: sub.familia.descripcion });
+        this.familia.set({ id: sub.familia.id, nombre: sub.familia.nombre });
         this.cargarSubfamilias();
       }
     });
@@ -207,7 +212,7 @@ export class CategoriaPage {
       titulo: 'Elegir familia',
       placeholder: 'Buscar familia',
       cargarPagina: (texto, pagina) => this.buscarFamilias(texto, pagina),
-      texto: (f) => f.descripcion ?? `Familia ${f.id}`,
+      texto: (f) => etiquetaCategoria(f),
       id: (f) => f.id,
     });
     if (elegida) {

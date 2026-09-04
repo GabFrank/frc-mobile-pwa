@@ -29,12 +29,16 @@ describe('Marcar un código principal', () => {
   let notificacion: { danger: ReturnType<typeof vi.fn> };
   let orden: string[];
 
+  // Ids como string: así los manda el central (`ID` en el schema de
+  // `Presentacion` y `Codigo`). Con esto el test ejercita también la
+  // búsqueda de `presentacion()` contra el id de ruta — que es number, por
+  // `idDeRutaNum` — y hubiera quedado `null` sin `mismoId()`.
   const presentacion = () => ({
-    id: 10,
+    id: '10',
     cantidad: 1,
     codigos: [
-      { id: 1, codigo: '779', principal: true, activo: true },
-      { id: 2, codigo: '780', principal: false, activo: true },
+      { id: '1', codigo: '779', principal: true, activo: true },
+      { id: '2', codigo: '780', principal: false, activo: true },
     ],
   });
 
@@ -84,18 +88,18 @@ describe('Marcar un código principal', () => {
     };
     const f = montar();
 
-    const nuevo = f.componentInstance.codigos()[1]; // id 2, no principal
+    const nuevo = f.componentInstance.codigos()[1]; // id '2', no principal
     f.componentInstance.marcarPrincipal(nuevo);
 
     expect(orden).toEqual(['degradar', 'promover']);
 
     // El código degradado es el que era principal, no el nuevo.
     const inputDegradado = datos.guardar.mock.calls[0][1];
-    expect(inputDegradado.id).toBe(1);
+    expect(inputDegradado.id).toBe('1');
     expect(inputDegradado.principal).toBe(false);
 
     const inputPromovido = datos.guardar.mock.calls[1][1];
-    expect(inputPromovido.id).toBe(2);
+    expect(inputPromovido.id).toBe('2');
     expect(inputPromovido.principal).toBe(true);
   });
 

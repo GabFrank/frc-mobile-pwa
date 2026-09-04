@@ -9,6 +9,7 @@ import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component'
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 
+import { etiquetaCategoria } from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /** Una fila del hub. */
@@ -116,7 +117,7 @@ export class ProductoEditarPage {
     if (p == null) return [];
 
     const categoria = p.subfamilia
-      ? `${p.subfamilia.familia?.descripcion ?? '—'} / ${p.subfamilia.descripcion ?? '—'}`
+      ? `${etiquetaCategoria(p.subfamilia.familia ?? {})} / ${etiquetaCategoria(p.subfamilia)}`
       : 'Sin categoría';
 
     return [

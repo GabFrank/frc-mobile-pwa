@@ -31,7 +31,7 @@ import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 
-import { esIdDeRutaInvalido, idDeRutaNum, preciosADegradar } from './producto-editar.reglas';
+import { esIdDeRutaInvalido, idDeRutaNum, mismoId, preciosADegradar } from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /**
@@ -72,10 +72,10 @@ export function construirPrecioInput(
  * sucursal es no equivale a que sea de la propia.
  */
 export function esPrecioEditable(
-  precio: { sucursal?: { id?: number } },
+  precio: { sucursal?: { id?: number | string } },
   sucursalSesionId: number,
 ): boolean {
-  return precio.sucursal?.id != null && precio.sucursal.id === sucursalSesionId;
+  return mismoId(precio.sucursal?.id, sucursalSesionId);
 }
 
 /**
@@ -204,7 +204,7 @@ export function esPrecioEditable(
                         <span class="badge-inactivo">Inactivo</span>
                       }
                     </span>
-                    @if (edicionId() === p.id) {
+                    @if (mismoId(edicionId(), p.id)) {
                       <frc-campo-importe
                         etiqueta="Precio"
                         moneda="Guaraní"
@@ -217,7 +217,7 @@ export function esPrecioEditable(
                     }
                   </div>
                   <div class="acciones-precio">
-                    @if (edicionId() === p.id) {
+                    @if (mismoId(edicionId(), p.id)) {
                       <button
                         matButton="tonal"
                         type="button"
@@ -354,6 +354,8 @@ export class PreciosPage {
   readonly presentacionId = input<string>();
 
   protected readonly estado = inject(ProductoEditarService);
+  /** Expuesta para el template. */
+  protected readonly mismoId = mismoId;
   private readonly auth = inject(AuthService);
   private readonly datos = inject(DatosService);
   private readonly dialogo = inject(DialogoService);
@@ -384,7 +386,7 @@ export class PreciosPage {
   readonly presentacion = computed(() => {
     const n = this.presentacionIdNum();
     if (n == null) return null;
-    return this.estado.presentaciones().find((p) => p.id === n) ?? null;
+    return this.estado.presentaciones().find((p) => mismoId(p.id, n)) ?? null;
   });
 
   readonly precios = computed<PrecioPorSucursal[]>(() => this.presentacion()?.precios ?? []);

@@ -23,10 +23,12 @@ describe('Guardar un código', () => {
   });
 
   it('degrada el principal anterior al marcar uno nuevo', () => {
+    // Ids como string: así los manda el central (`Codigo.id` es `ID` en el
+    // schema).
     const codigos = [
-      { id: 1, codigo: '779', principal: true },
-      { id: 2, codigo: '780', principal: false },
+      { id: '1', codigo: '779', principal: true },
+      { id: '2', codigo: '780', principal: false },
     ];
-    expect(codigosADegradar(codigos, 2).map((c) => c.id)).toEqual([1]);
+    expect(codigosADegradar(codigos, 2).map((c) => c.id)).toEqual(['1']);
   });
 });

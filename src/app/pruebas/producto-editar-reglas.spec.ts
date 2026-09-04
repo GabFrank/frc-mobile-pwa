@@ -9,6 +9,7 @@ import {
   esIdDeRutaInvalido,
   faltaParaGuardarProducto,
   idDeRutaNum,
+  mismoId,
   preciosADegradar,
   presentacionesADegradar,
 } from '../pages/producto/editar/producto-editar.reglas';
@@ -60,55 +61,102 @@ describe('Qué falta para poder guardar el producto', () => {
   });
 });
 
+/**
+ * ⚠️ Los ids de estos fixtures son **strings**, a propósito: `Presentacion`,
+ * `Codigo` y `PrecioPorSucursal` declaran `id: ID` en el schema del central,
+ * y GraphQL serializa `ID` como string en el JSON de la respuesta — nunca
+ * como number, aunque el modelo TypeScript diga `id?: number`. Un fixture
+ * con ids `number` deja pasar un `p.id !== nuevoPrincipalId` roto: con
+ * strings, si alguien revierte `preciosADegradar`/`codigosADegradar`/
+ * `presentacionesADegradar` a comparar con `===` en vez de `mismoId()`, la
+ * comparación `'3' !== 3` da `true` y **nada se degrada nunca** — este test
+ * lo agarra.
+ */
 describe('Un solo principal por presentación', () => {
-  const precios = (): PrecioPorSucursal[] => [
-    { id: 1, precio: 12000, principal: true },
-    { id: 2, precio: 11000, principal: false },
-    { id: 3, precio: 10000, principal: true },
-  ];
+  const precios = () =>
+    [
+      { id: '1', precio: 12000, principal: true },
+      { id: '2', precio: 11000, principal: false },
+      { id: '3', precio: 10000, principal: true },
+    ] as unknown as PrecioPorSucursal[];
 
   it('devuelve los principales anteriores, sin el nuevo', () => {
     // adicionar-precio-dialog.component.ts:226-244 del escritorio. Sin esto
     // quedan dos principales y cuál gana lo decide el orden de la lista.
-    expect(preciosADegradar(precios(), 3).map((p) => p.id)).toEqual([1]);
+    // `nuevoPrincipalId` llega como number (así lo tipa la firma), pero los
+    // ids de la lista son strings, como los manda el central: sin
+    // `mismoId()` este `3` nunca matchea el `'3'` y el precio 3 se degrada
+    // a sí mismo también.
+    expect(preciosADegradar(precios(), 3).map((p) => p.id)).toEqual(['1']);
   });
 
   it('devuelve todos los principales cuando el nuevo es uno recién creado', () => {
-    expect(preciosADegradar(precios(), null).map((p) => p.id)).toEqual([1, 3]);
+    expect(preciosADegradar(precios(), null).map((p) => p.id)).toEqual(['1', '3']);
   });
 
   it('no devuelve nada si no había ningún principal', () => {
-    expect(preciosADegradar([{ id: 9, precio: 1, principal: false }], 9)).toEqual([]);
+    expect(
+      preciosADegradar(
+        [{ id: '9', precio: 1, principal: false }] as unknown as PrecioPorSucursal[],
+        9,
+      ),
+    ).toEqual([]);
   });
 
-  it('la misma regla vale para los códigos', () => {
+  it('la misma regla vale para los códigos, con el id como string', () => {
     // `Codigo` es una clase con `toInput()` obligatorio: un objeto literal
     // no la satisface, hace falta una instancia real.
-    const codigos: Codigo[] = [
-      Object.assign(new Codigo(), { id: 4, codigo: '779', principal: true }),
-      Object.assign(new Codigo(), { id: 5, codigo: '780', principal: false }),
-    ];
-    expect(codigosADegradar(codigos, 5).map((c) => c.id)).toEqual([4]);
+    const codigos = [
+      Object.assign(new Codigo(), { id: '4', codigo: '779', principal: true }),
+      Object.assign(new Codigo(), { id: '5', codigo: '780', principal: false }),
+    ] as unknown as Codigo[];
+    expect(codigosADegradar(codigos, 5).map((c) => c.id)).toEqual(['4']);
   });
 
   it('la misma regla vale para las presentaciones, sin dimensión de sucursal', () => {
     // presentacion-editar.page.ts:358: marcar "Caja x12" principal sin
     // degradar "Unidad" deja dos presentaciones con principal = true, y
     // `presentacionPorCodigo()` desempata por orden de lista.
-    const presentaciones: Presentacion[] = [
-      { id: 1, principal: true },
-      { id: 2, principal: false },
-      { id: 3, principal: true },
-    ];
-    expect(presentacionesADegradar(presentaciones, 3).map((p) => p.id)).toEqual([1]);
+    const presentaciones = [
+      { id: '1', principal: true },
+      { id: '2', principal: false },
+      { id: '3', principal: true },
+    ] as unknown as Presentacion[];
+    expect(presentacionesADegradar(presentaciones, 3).map((p) => p.id)).toEqual(['1']);
   });
 
   it('presentaciones: devuelve todas las principales cuando la nueva es recién creada', () => {
-    const presentaciones: Presentacion[] = [
-      { id: 1, principal: true },
-      { id: 2, principal: true },
-    ];
-    expect(presentacionesADegradar(presentaciones, null).map((p) => p.id)).toEqual([1, 2]);
+    const presentaciones = [
+      { id: '1', principal: true },
+      { id: '2', principal: true },
+    ] as unknown as Presentacion[];
+    expect(presentacionesADegradar(presentaciones, null).map((p) => p.id)).toEqual(['1', '2']);
+  });
+});
+
+/**
+ * `mismoId()` es el fix del bug: la comparación estricta entre el `number`
+ * que declara el modelo y el `string` que manda GraphQL para un campo `ID`
+ * es siempre `false`. Ver el aviso en `producto-editar.reglas.ts`.
+ */
+describe('mismoId compara un ID de GraphQL (string) contra un number', () => {
+  it('compara igual un string y un number equivalentes', () => {
+    expect(mismoId('261', 261)).toBe(true);
+    expect(mismoId(261, '261')).toBe(true);
+  });
+
+  it('da false si son distintos', () => {
+    expect(mismoId('261', 262)).toBe(false);
+  });
+
+  it('da false si cualquiera de los dos es null o undefined', () => {
+    expect(mismoId(null, 261)).toBe(false);
+    expect(mismoId(261, undefined)).toBe(false);
+    expect(mismoId(null, undefined)).toBe(false);
+  });
+
+  it('da false ante algo que no es un número, en vez de reventar', () => {
+    expect(mismoId('abc', 1)).toBe(false);
   });
 });
 

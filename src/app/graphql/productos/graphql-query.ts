@@ -120,10 +120,10 @@ export const productoPorIdQuery = gql`
       isEnvase
       subfamilia {
         id
-        descripcion
+        nombre
         familia {
           id
-          descripcion
+          nombre
         }
       }
       envase {
@@ -438,7 +438,7 @@ export const familiaSearchQuery = gql`
     data: familiaSearch(texto: $texto, page: $page, size: $size) {
       getContent {
         id
-        descripcion
+        nombre
       }
       hasNext
     }
@@ -457,10 +457,10 @@ export const subfamiliaSearchQuery = gql`
     data: subfamiliaSearch(familiaId: $familiaId, texto: $texto, page: $page, size: $size) {
       getContent {
         id
-        descripcion
+        nombre
         familia {
           id
-          descripcion
+          nombre
         }
       }
       hasNext

@@ -29,7 +29,7 @@ const completo = (): Producto => ({
   activo: true,
   propagado: true,
   tipoConservacion: 'NO_ENFRIABLE',
-  subfamilia: { id: 7, descripcion: 'ANALGESICOS' },
+  subfamilia: { id: 7, nombre: 'ANALGESICOS' },
   isEnvase: false,
   envase: undefined,
 });

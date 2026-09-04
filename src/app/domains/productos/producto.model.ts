@@ -43,7 +43,11 @@ export class Producto {
   envase?: Producto;
   activo?: boolean;
   propagado?: boolean;
-  subfamilia?: { id?: number; descripcion?: string; familia?: { id?: number; descripcion?: string } };
+  subfamilia?: {
+    id?: number;
+    nombre?: string;
+    familia?: { id?: number; nombre?: string };
+  };
 }
 
 /**

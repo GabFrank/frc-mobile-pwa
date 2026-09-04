@@ -33,7 +33,12 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
 
-import { esIdDeRutaInvalido, idDeRutaNum, presentacionesADegradar } from './producto-editar.reglas';
+import {
+  esIdDeRutaInvalido,
+  idDeRutaNum,
+  mismoId,
+  presentacionesADegradar,
+} from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /** El input de `savePresentacion` para una presentación de este producto. */
@@ -281,7 +286,7 @@ export class PresentacionEditarPage {
   readonly presentacionActual = computed<Presentacion | null>(() => {
     const n = this.presentacionIdNum();
     if (n == null) return null;
-    return this.estado.presentaciones().find((p) => p.id === n) ?? null;
+    return this.estado.presentaciones().find((p) => mismoId(p.id, n)) ?? null;
   });
 
   readonly codigosCount = computed(() => this.presentacionActual()?.codigos?.length ?? 0);

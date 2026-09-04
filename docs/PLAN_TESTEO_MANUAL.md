@@ -5162,149 +5162,75 @@ abría el detalle a comprobarlo.
 
 ---
 
-## Bloque 56 — Edición de producto *(nuevo)*
+## Bloque 56 — La foto del producto en el buscador *(nuevo)*
 
-> Datos reales de `bodega`, consultados el 2026-09-04:
->
-> - **Producto 2 — PILSEN CLASICA LATA 269 ML** (`vencimiento = true`,
->   `activo = true`) para el caso 56.1. Ningún producto de `bodega` ni de
->   `general-farma` tiene hoy `lote = true` —las 8.386 filas de `bodega` y las
->   13.046 de `general-farma` traen `lote = false`—, así que el caso verifica
->   solo `vencimiento`, que es donde ya se probó el defecto de §1 del diseño.
->   Si en el futuro aparece un producto con `lote = true`, repetir el caso con
->   ese producto para cubrir también esa bandera.
-> - **Producto 238 — EISENBAHN AMERICAN IPA LATA 350ML**, presentación **262**
->   (cantidad 11), sucursal **1 · SUC. CENTRAL**, para el caso 56.5. Esa
->   presentación tiene hoy **dos precios marcados como `principal = true`** en
->   la misma sucursal —id 562 (tipo `FRIO`, ₲ 50.000) e id 563 (tipo `NATURAL`,
->   ₲ 50.000)—: es exactamente la anomalía de «dos principales» que el diseño
->   existe para no seguir produciendo, ya presente en la base real.
+**Por qué está acá:** la card del buscador mostraba siempre el ícono de caja,
+nunca la foto, aunque `imagenPrincipal` ya venía en la consulta desde el
+principio. Era el pendiente «Ver imagen del producto» de
+[`modulos/producto.md`](modulos/producto.md).
 
-### 56.1 · La regresión silenciosa — ⚠️ *crítico*
-1. Entrar a la ficha del producto **2 — PILSEN CLASICA LATA 269 ML**
-   (`/producto/2`) y confirmar que **Vencimiento** figura activo.
-2. Menú `⋮` → **Editar producto** → **Datos generales**.
-3. Cambiar **solo la descripción** (por ejemplo, agregar un espacio y una
-   letra al final) y guardar.
-4. Volver a `/producto/2`.
+**Cómo llega la foto:** el central no manda una URL sino la imagen entera
+codificada, `data:image/jpg;base64,…` (`ImageService.fileToBase64`). Va derecho
+al `src` — no hay un segundo pedido de red que pueda fallar, y la foto o
+llegó con la búsqueda o no está. Es lo mismo que hacía el `ion-avatar` de
+`frc-mobile`.
 
-**Esperado:** la descripción cambió **y** la ficha sigue mostrando
-**Vencimiento** activo. *Por qué:* `saveProducto` reemplaza el registro
-entero (`ProductoService.java:297-325`); si el input que arma la pantalla no
-llevara `vencimiento` hidratado, esta edición lo apagaría en silencio —la
-mutation responde OK igual— y con él la carga de vencimiento en cada
-recepción e inventario de este producto. Es la falla que este módulo existe
-para evitar.
+⚠️ **Lo que hay que mirar además de que se vea: cuánto tarda la búsqueda.**
+`frc-mobile` mostraba la **miniatura** de 250×250 que el central genera al
+subir la foto (`PresentacionResolver`); la consulta de la PWA pasa por
+`ProductoResolver`, que devuelve el **original**, del tamaño que salió del
+celular. Con 10 resultados por tanda, eso puede ser varios MB en una sola
+respuesta. Esos bytes ya se transferían antes de este cambio —la consulta
+pedía el campo y la card lo tiraba—, así que **no es una regresión**, pero si
+el caso 56.5 se siente lento, la corrección es del backend: un campo de
+miniatura, no sacar la foto de la card.
 
-> Dejar la descripción como estaba (o anotar el valor original) antes de
-> seguir con el resto del bloque, para no ensuciar el catálogo real.
+### 56.1 · Un producto con foto la muestra
+1. Ir a la pestaña **Buscar**.
+2. Buscar un producto que tenga foto cargada (probar con los de mayor
+   rotación: gaseosas, lácteos).
 
-### 56.2 · La descripción vuelve en mayúsculas
-1. En **Datos generales** del mismo producto, escribir la descripción en
-   minúsculas y guardar.
+**Esperado:** en el recuadro de la izquierda de la fila se ve **la foto**, no
+el ícono de caja. Ocupa el recuadro entero, recortada y centrada, sin
+deformarse ni dejar franjas de fondo a los costados.
 
-**Esperado:** la pantalla de edición muestra el texto en **mayúsculas** al
-volver a cargar, igual que la ficha — lo pone el central
-(`ProductoService.java:312`), no el cliente.
+### 56.2 · Un producto sin foto sigue mostrando el ícono
+1. En la misma lista, mirar un producto sin foto cargada.
 
-### 56.3 · Descripción vacía no llega al central
-1. En **Datos generales**, borrar la descripción por completo e intentar
-   guardar.
+**Esperado:** el ícono de caja de siempre. **No** un recuadro gris vacío ni
+un ícono de imagen rota: el central devuelve «sin foto», y esa es la
+representación correcta, no un error.
 
-**Esperado:** mensaje **«La descripción es obligatoria»** y **ninguna llamada
-al central** (verificar en la pestaña Red del navegador que no sale ninguna
-mutation). *Por qué:* sin este guard, `ProductoService.java:312` hace
-`.toUpperCase()` sobre `null` y tira `NullPointerException` en el central.
+### 56.3 · La foto no se corre al expandir la card
+1. Tocar una fila con foto para desplegar sus presentaciones.
+2. Volver a tocarla para cerrarla.
 
-### 56.4 · Cascada del envase
-1. En **Datos generales** de un producto con **Vencimiento** activo, marcar
-   **Es envase**.
+**Esperado:** la foto queda en su lugar, del mismo tamaño, y la fila no salta
+al abrir ni al cerrar. Las presentaciones se despliegan como antes.
 
-**Esperado:** las siete banderas relacionadas (balanza, garantía,
-ingrediente, alcohólico, promoción, vencimiento y lote) se apagan y quedan
-**deshabilitadas** mientras «Es envase» siga marcado. `combo` no se apaga —el
-escritorio tampoco lo hace.
+### 56.4 · La foto cambia al cambiar la búsqueda
+1. Buscar algo que devuelva productos **con** foto.
+2. Sin salir de la pestaña, buscar otra cosa que devuelva productos
+   **sin** foto.
+3. Volver a buscar lo primero.
 
-### 56.5 · Un solo precio principal
-1. Entrar a `/producto/238/editar/presentaciones` → presentación **262**
-   (cantidad 11) → **Precios**.
-2. Confirmar que **hay dos precios marcados como principal** en la sucursal
-   propia (si la sesión no es de SUC. CENTRAL, este caso no se puede ejercitar
-   ahí — cambiar de sucursal o repetir con un producto de la sucursal propia).
-3. Marcar como principal el que todavía no lo era.
-4. Salir de la pantalla y volver a entrar.
+**Esperado:** cada lista muestra lo suyo — fotos en la primera, íconos en la
+segunda, y fotos otra vez en la tercera. Ninguna fila se queda con la foto de
+un producto de la búsqueda anterior.
 
-**Esperado:** el que era principal antes queda degradado, y al volver a
-entrar hay **uno solo** marcado como principal. *Por qué:* el escritorio
-degrada al anterior antes de guardar el nuevo (`adicionar-precio-dialog.
-component.ts:226-244`); sin eso, cuál gana lo decide el orden en que el
-central devuelve la lista, que no está garantizado.
+### 56.5 · Cuánto tarda con muchos resultados
+1. Buscar un texto amplio, de los que llenan la tanda de 10 (`coca`, `leche`).
+2. Tocar **Cargar más** un par de veces.
 
-### 56.6 · El precio va a la sucursal propia
-1. En **Precios** de una presentación con precio en más de una sucursal,
-   editar el monto del precio de la **sucursal propia** y guardar.
-2. Ver la ficha del producto (`/producto/:id`), que lista el precio de todas
-   las sucursales.
+**Esperado:** los resultados aparecen en un tiempo parecido al de antes del
+cambio. **Anotar si se siente más lento** — ver el aviso del encabezado de
+este bloque: se corrige en el central, con una miniatura.
 
-**Esperado:** cambió el precio de la sucursal de la sesión y **ninguno de los
-otros**. `savePrecioPorSucursal` nunca recibe una sucursal distinta a la
-propia (`construirPrecioInput`) — no hay forma de escribir en otra desde esta
-pantalla.
+### 56.6 · Tema oscuro y tema claro
+1. Repetir 56.1 y 56.2 en los dos temas.
 
-### 56.7 · Sin `EDITAR PRECIOS`
-1. Con un usuario que tenga `EDITAR PRODUCTOS` pero no `EDITAR PRECIOS`,
-   entrar al hub de edición de un producto.
-2. Escribir a mano la URL de precios de una presentación
-   (`/producto/:id/editar/presentacion/:presentacionId/precios`).
-
-**Esperado:** en el hub, la fila **Precios** aparece **deshabilitada** con el
-motivo escrito («necesitás el permiso EDITAR PRECIOS»); escribir la URL a
-mano **tampoco entra** — el guard de ruta rebota antes de mostrar la
-pantalla.
-
-### 56.8 · Sin `EDITAR PRODUCTOS`
-1. Con un usuario sin `EDITAR PRODUCTOS`, abrir la ficha de un producto.
-2. Escribir a mano `/producto/:id/editar`.
-
-**Esperado:** el botón **Editar producto** no aparece en el menú `⋮` de la
-ficha, y la URL escrita a mano rebota a Inicio con el aviso de permiso — el
-mismo patrón que el resto de los guards de rol del repo.
-
-### 56.9 · Código por escaneo y código interno *(sin probar contra un
-dispositivo real — ver más abajo)*
-1. En **Códigos** de una presentación, agregar un código escaneando con la
-   cámara.
-2. Agregar otro con **Generar código interno**.
-
-**Esperado:** el código escaneado se guarda tal cual lo lee la cámara; el
-generado empieza con **`2199`** y tiene **13 dígitos** — es un EAN-13 interno
-que `generarCodigoInterno` calcula sin persistirlo, y lo persiste recién
-`saveCodigo`.
-
-### 56.10 · Los tres estados, en las seis pantallas
-1. Recorrer el hub, datos generales, familia/subfamilia, presentaciones,
-   códigos y precios: una vez con datos, una vez sin datos (por ejemplo, un
-   producto sin presentaciones para la pantalla de presentaciones) y una vez
-   con el central caído (apagarlo, o apuntar a un servidor inexistente desde
-   *Mi cuenta → Servidor*).
-
-**Esperado:** cada pantalla distingue **carga**, **vacío** y **error** — «no
-hay» y «no se pudo consultar» son mensajes distintos, nunca la misma pantalla
-en blanco.
-
-**Sin verificar en esta entrega:**
-
-- **El escaneo de códigos y `generarCodigoInterno` contra un central real,
-  en un dispositivo real.** El caso 56.9 no se ejecutó contra la cámara de un
-  teléfono ni contra el central — el número de secuencia y el dígito
-  verificador que arma el central no se confirmaron con una llamada real.
-- **Todo guardado de ida y vuelta contra el central** (56.1 a 56.8): la lógica
-  se verificó por SQL directo contra `bodega` y por lectura de código, no
-  ejecutando las mutations desde la app corriendo.
-- **El alta de producto** — no entra en esta entrega, va en una segunda.
-- **La imagen del producto** — fuera de alcance, va en su propia entrega.
-- **El comportamiento en Safari/iOS del escaneo** dentro de la pantalla de
-  códigos — no hay un iPhone en la flota para probarlo hoy.
+**Esperado:** en los dos, la foto se ve nítida y el ícono de los productos sin
+foto queda legible sobre el fondo hundido del recuadro.
 
 ---
 
@@ -5367,16 +5293,8 @@ en blanco.
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
 | 54 · Cantidades en enteros | 10 | 10 | | |
 | 55 · Alta de solicitud de caja chica | 16 | | | |
-| 56 · Edición de producto | 10 | | | |
-| **Total** | **508** | | | |
-
-> El total se recalculó el 2026-09-04 sumando la columna «Casos» de las 56
-> filas, en vez de arrastrar el número anterior: la tabla venía con **488**
-> desde antes de esta rama, cuando los bloques 1 a 55 ya sumaban **498** por
-> su cuenta — un desvío de 10 casos preexistente que esta corrección expone.
-> Sumar el bloque 56 (10 casos) a ese 488 daba 498, un número que parecía
-> correcto por casualidad. Las columnas ✅/⚠️/❌ no llevan total: no hay nada
-> que recalcular ahí.
+| 56 · La foto del producto en el buscador | 6 | | | |
+| **Total** | **494** | | | |
 
 ### Los cinco que más importan
 

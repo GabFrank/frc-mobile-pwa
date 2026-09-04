@@ -167,10 +167,12 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
                       Marcar principal
                     </button>
                   }
-                  <button matButton type="button" (click)="toggleActivo(c)">
+                  <button matButton type="button" [disabled]="guardando()" (click)="toggleActivo(c)">
                     {{ c.activo === false ? 'Activar' : 'Desactivar' }}
                   </button>
-                  <button matButton type="button" (click)="eliminarCodigo(c)">Eliminar</button>
+                  <button matButton type="button" [disabled]="guardando()" (click)="eliminarCodigo(c)">
+                    Eliminar
+                  </button>
                 </span>
               </div>
             }
@@ -317,9 +319,13 @@ export class CodigosPage {
       { id: c.id ?? null, codigo: c.codigo ?? '', principal: c.principal === true, activo: !estaActivo },
       presentacionId,
     );
+    this.guardando.set(true);
     this.datos.guardar<Codigo>(this.saveCodigo, input).subscribe({
-      next: () => this.estado.recargar(),
-      error: () => undefined,
+      next: () => {
+        this.estado.recargar();
+        this.guardando.set(false);
+      },
+      error: () => this.guardando.set(false),
     });
   }
 
@@ -385,9 +391,13 @@ export class CodigosPage {
     const ok = await this.dialogo.confirmarEliminacion(`el código ${c.codigo ?? ''}`);
     if (!ok) return;
 
+    this.guardando.set(true);
     this.datos.eliminar(this.deleteCodigo, c.id).subscribe({
-      next: () => this.estado.recargar(),
-      error: () => undefined,
+      next: () => {
+        this.estado.recargar();
+        this.guardando.set(false);
+      },
+      error: () => this.guardando.set(false),
     });
   }
 

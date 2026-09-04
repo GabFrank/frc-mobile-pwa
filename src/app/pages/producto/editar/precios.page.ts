@@ -184,72 +184,74 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
               </button>
             }
           </frc-seccion>
-        }
 
-        <frc-seccion titulo="Precios de esta sucursal" [panel]="true">
-          @if (preciosPropios().length === 0) {
-            <frc-estado-vacio
-              titulo="No hay precios en esta sucursal"
-              detalle="Agregá uno con el formulario de arriba."
-            />
-          } @else {
-            @for (p of preciosPropios(); track p.id) {
-              <div class="fila-precio" [class.inactivo]="p.activo === false">
-                <div class="info-precio">
-                  <span class="tipo-precio">
-                    {{ p.tipoPrecio?.descripcion ?? 'Sin tipo' }}
-                    @if (p.principal) {
-                      <span class="badge">Principal</span>
+          <frc-seccion titulo="Precios de esta sucursal" [panel]="true">
+            @if (preciosPropios().length === 0) {
+              <frc-estado-vacio
+                titulo="No hay precios en esta sucursal"
+                detalle="Agregá uno con el formulario de arriba."
+              />
+            } @else {
+              @for (p of preciosPropios(); track p.id) {
+                <div class="fila-precio" [class.inactivo]="p.activo === false">
+                  <div class="info-precio">
+                    <span class="tipo-precio">
+                      {{ p.tipoPrecio?.descripcion ?? 'Sin tipo' }}
+                      @if (p.principal) {
+                        <span class="badge">Principal</span>
+                      }
+                      @if (p.activo === false) {
+                        <span class="badge-inactivo">Inactivo</span>
+                      }
+                    </span>
+                    @if (edicionId() === p.id) {
+                      <frc-campo-importe
+                        etiqueta="Precio"
+                        moneda="Guaraní"
+                        simbolo="₲"
+                        [ngModel]="edicionValor()"
+                        (ngModelChange)="edicionValor.set($event)"
+                      />
+                    } @else {
+                      <frc-importe [valor]="p.precio ?? 0" moneda="Guaraní" simbolo="₲" />
                     }
-                    @if (p.activo === false) {
-                      <span class="badge-inactivo">Inactivo</span>
-                    }
-                  </span>
-                  @if (edicionId() === p.id) {
-                    <frc-campo-importe
-                      etiqueta="Precio"
-                      moneda="Guaraní"
-                      simbolo="₲"
-                      [ngModel]="edicionValor()"
-                      (ngModelChange)="edicionValor.set($event)"
-                    />
-                  } @else {
-                    <frc-importe [valor]="p.precio ?? 0" moneda="Guaraní" simbolo="₲" />
-                  }
-                </div>
-                <div class="acciones-precio">
-                  @if (edicionId() === p.id) {
-                    <button
-                      matButton="tonal"
-                      type="button"
-                      [disabled]="edicionValor() == null || guardando()"
-                      (click)="guardarEdicion(p)"
-                    >
-                      Guardar
-                    </button>
-                    <button matButton type="button" (click)="cancelarEdicion()">Cancelar</button>
-                  } @else {
-                    <button matButton type="button" (click)="iniciarEdicion(p)">Editar</button>
-                    @if (!p.principal && p.activo !== false) {
+                  </div>
+                  <div class="acciones-precio">
+                    @if (edicionId() === p.id) {
                       <button
-                        matButton
+                        matButton="tonal"
                         type="button"
-                        [disabled]="guardando()"
-                        (click)="marcarPrincipal(p)"
+                        [disabled]="edicionValor() == null || guardando()"
+                        (click)="guardarEdicion(p)"
                       >
-                        Marcar principal
+                        Guardar
+                      </button>
+                      <button matButton type="button" (click)="cancelarEdicion()">Cancelar</button>
+                    } @else {
+                      <button matButton type="button" (click)="iniciarEdicion(p)">Editar</button>
+                      @if (!p.principal && p.activo !== false) {
+                        <button
+                          matButton
+                          type="button"
+                          [disabled]="guardando()"
+                          (click)="marcarPrincipal(p)"
+                        >
+                          Marcar principal
+                        </button>
+                      }
+                      <button matButton type="button" [disabled]="guardando()" (click)="toggleActivo(p)">
+                        {{ p.activo === false ? 'Activar' : 'Desactivar' }}
+                      </button>
+                      <button matButton type="button" [disabled]="guardando()" (click)="eliminarPrecio(p)">
+                        Eliminar
                       </button>
                     }
-                    <button matButton type="button" (click)="toggleActivo(p)">
-                      {{ p.activo === false ? 'Activar' : 'Desactivar' }}
-                    </button>
-                    <button matButton type="button" (click)="eliminarPrecio(p)">Eliminar</button>
-                  }
+                  </div>
                 </div>
-              </div>
+              }
             }
-          }
-        </frc-seccion>
+          </frc-seccion>
+        }
 
         @if (preciosAjenos().length > 0) {
           <frc-seccion titulo="Precios de otras sucursales" [panel]="true">
@@ -432,13 +434,21 @@ export class PreciosPage {
     const presentacionId = this.presentacionIdNum();
     const sucursalId = this.sucursalSesionId();
     const monto = this.edicionValor();
-    if (presentacionId == null || sucursalId == null || p.id == null || monto == null) return;
+    const tipoPrecioId = p.tipoPrecio?.id;
+    if (
+      presentacionId == null ||
+      sucursalId == null ||
+      p.id == null ||
+      monto == null ||
+      tipoPrecioId == null
+    )
+      return;
 
     const input = construirPrecioInput(
       {
-        id: p.id ?? null,
+        id: p.id,
         precio: monto,
-        tipoPrecioId: p.tipoPrecio?.id ?? 0,
+        tipoPrecioId,
         principal: p.principal === true,
         activo: p.activo !== false,
       },
@@ -483,23 +493,28 @@ export class PreciosPage {
   toggleActivo(p: PrecioPorSucursal): void {
     const presentacionId = this.presentacionIdNum();
     const sucursalId = this.sucursalSesionId();
-    if (presentacionId == null || sucursalId == null || p.id == null) return;
+    const tipoPrecioId = p.tipoPrecio?.id;
+    if (presentacionId == null || sucursalId == null || p.id == null || tipoPrecioId == null) return;
 
     const estaActivo = p.activo !== false;
     const input = construirPrecioInput(
       {
-        id: p.id ?? null,
+        id: p.id,
         precio: p.precio ?? 0,
-        tipoPrecioId: p.tipoPrecio?.id ?? 0,
+        tipoPrecioId,
         principal: p.principal === true,
         activo: !estaActivo,
       },
       presentacionId,
       sucursalId,
     );
+    this.guardando.set(true);
     this.datos.guardar<PrecioPorSucursal>(this.savePrecioPorSucursal, input).subscribe({
-      next: () => this.estado.recargar(),
-      error: () => undefined,
+      next: () => {
+        this.estado.recargar();
+        this.guardando.set(false);
+      },
+      error: () => this.guardando.set(false),
     });
   }
 
@@ -511,9 +526,18 @@ export class PreciosPage {
   marcarPrincipal(p: PrecioPorSucursal): void {
     const presentacionId = this.presentacionIdNum();
     const sucursalId = this.sucursalSesionId();
-    if (presentacionId == null || sucursalId == null || p.id == null) return;
+    const tipoPrecioId = p.tipoPrecio?.id;
+    if (presentacionId == null || sucursalId == null || p.id == null || tipoPrecioId == null) return;
 
     const aDegradar = preciosADegradar(this.preciosPropios(), p.id);
+
+    // `savePrecioPorSucursal` REEMPLAZA la fila: un `tipoPrecioId` inventado
+    // (por ejemplo, un `0` de relleno) no falla, persiste una clave ajena.
+    // Antes que eso, se corta la cadena entera y se avisa.
+    if (aDegradar.some((viejo) => viejo.tipoPrecio?.id == null)) {
+      this.notificacion.danger('No se pudo marcar el precio como principal.');
+      return;
+    }
 
     this.guardando.set(true);
     from(aDegradar)
@@ -525,7 +549,7 @@ export class PreciosPage {
               {
                 id: viejo.id ?? null,
                 precio: viejo.precio ?? 0,
-                tipoPrecioId: viejo.tipoPrecio?.id ?? 0,
+                tipoPrecioId: viejo.tipoPrecio!.id!,
                 principal: false,
                 activo: viejo.activo !== false,
               },
@@ -548,7 +572,7 @@ export class PreciosPage {
               {
                 id: p.id ?? null,
                 precio: p.precio ?? 0,
-                tipoPrecioId: p.tipoPrecio?.id ?? 0,
+                tipoPrecioId,
                 principal: true,
                 activo: p.activo !== false,
               },
@@ -583,9 +607,13 @@ export class PreciosPage {
     );
     if (!ok) return;
 
+    this.guardando.set(true);
     this.datos.eliminar(this.deletePrecioPorSucursal, p.id).subscribe({
-      next: () => this.estado.recargar(),
-      error: () => undefined,
+      next: () => {
+        this.estado.recargar();
+        this.guardando.set(false);
+      },
+      error: () => this.guardando.set(false),
     });
   }
 }

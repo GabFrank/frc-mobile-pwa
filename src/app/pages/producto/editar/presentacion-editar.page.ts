@@ -81,13 +81,23 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
           detalle="Volvé a la lista de presentaciones e intentá de nuevo."
           (reintentar)="volver()"
         />
+      } @else if (!estado.producto()) {
+        <!--
+          Primer frame: el effect que llama a cargar() corre después del
+          primer change-detection. Sin este chequeo antes de "no se encontró
+          la presentación", esa rama se pinta un instante en cada navegación
+          normal —porque presentacionActual() también está vacío hasta que
+          carga el producto—, y un error que parpadea en el camino feliz
+          enseña a ignorar los errores.
+        -->
+        <frc-skeleton [cantidad]="4" />
       } @else if (!esNueva() && presentacionActual() == null) {
         <frc-estado-error
           titulo="No se encontró esa presentación"
           detalle="Puede que ya se haya eliminado."
           (reintentar)="volver()"
         />
-      } @else if (estado.producto()) {
+      } @else {
         <frc-seccion titulo="Datos" [panel]="true">
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
             <mat-label>Descripción</mat-label>

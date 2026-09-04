@@ -43,7 +43,14 @@ import { ProductoEditarService } from './producto-editar.service';
         <frc-skeleton [cantidad]="4" />
       } @else if (estado.error()) {
         <frc-estado-error [detalle]="estado.error()!" (reintentar)="recargar()" />
-      } @else if (estado.producto()) {
+      } @else if (!estado.producto()) {
+        <!--
+          Primer frame: el effect que llama a cargar() corre después del
+          primer change-detection, así que sin esto la pantalla queda en
+          blanco un instante antes de que cargando() pase a true.
+        -->
+        <frc-skeleton [cantidad]="4" />
+      } @else {
         @if (presentaciones().length === 0) {
           <frc-estado-vacio
             titulo="Este producto no tiene presentaciones"

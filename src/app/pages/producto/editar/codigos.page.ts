@@ -16,6 +16,7 @@ import { concatMap, toArray } from 'rxjs/operators';
 
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
 import { FORMATOS_PRODUCTO } from 'src/app/core/dispositivo/escaner.types';
 import { Codigo } from 'src/app/domains/productos/codigo.model';
@@ -91,6 +92,15 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
         <frc-skeleton [cantidad]="3" />
       } @else if (estado.error()) {
         <frc-estado-error [detalle]="estado.error()!" (reintentar)="recargar()" />
+      } @else if (!estado.producto()) {
+        <!--
+          Primer frame: el effect que llama a cargar() corre después del
+          primer change-detection, así que sin esto acá se alcanza a pintar
+          "No se encontró esa presentación" durante un instante en cada
+          navegación normal —un error que parpadea en el camino feliz enseña
+          a ignorar los errores—.
+        -->
+        <frc-skeleton [cantidad]="3" />
       } @else if (rutaInvalida()) {
         <frc-estado-error
           titulo="No se entiende qué presentación abrir"
@@ -226,6 +236,7 @@ export class CodigosPage {
   protected readonly estado = inject(ProductoEditarService);
   private readonly datos = inject(DatosService);
   private readonly dialogo = inject(DialogoService);
+  private readonly notificacion = inject(NotificacionService);
   private readonly escaner = inject(EscanerService);
   private readonly saveCodigo = inject(SaveCodigoGQL);
   private readonly deleteCodigo = inject(DeleteCodigoGQL);
@@ -333,6 +344,10 @@ export class CodigosPage {
               presentacionId,
             ),
             undefined,
+            // Sin toast individual por degradación: si hay varias, no
+            // queremos uno por cada una. El toast pasa a estar en el
+            // `error` del `subscribe()` de abajo, uno solo, para lo que sea
+            // que haya fallado en la cadena.
             { mostrarCarga: false, notificarError: false },
           ),
         ),
@@ -352,7 +367,15 @@ export class CodigosPage {
           this.estado.recargar();
           this.guardando.set(false);
         },
-        error: () => this.guardando.set(false),
+        error: () => {
+          // Con `notificarError: false` en las degradaciones, este es el
+          // ÚNICO lugar que avisa si la cadena falla. Sin este toast, un
+          // guardado que corta a mitad de camino queda mudo: el botón
+          // parpadea, nada cambia, y no hay ningún mensaje en ningún lado —
+          // justo la falla que `codigosADegradar()` existe para evitar.
+          this.notificacion.danger('No se pudo marcar el código como principal.');
+          this.guardando.set(false);
+        },
       });
   }
 

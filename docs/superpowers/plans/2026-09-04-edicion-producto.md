@@ -782,7 +782,7 @@ git commit -m "feat(producto): port the desktop's product editing business rules
 
 ### Task 4: La capa de datos de escritura y los catálogos
 
-Trece operaciones GraphQL. Todas existen en el central: **no hace falta promover nada ni agregar ningún método con sufijo `Mobile`.**
+Doce operaciones GraphQL. Todas existen en el central: **no hace falta promover nada ni agregar ningún método con sufijo `Mobile`.**
 
 **Files:**
 - Modify: `src/app/graphql/productos/graphql-query.ts` (agregar los documentos al final)

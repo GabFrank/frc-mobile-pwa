@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Codigo } from '../domains/productos/codigo.model';
+import { Codigo } from '../domains/productos/codigo.model';
 import type { PrecioPorSucursal } from '../domains/productos/precio-por-sucursal.model';
 import {
   aplicarCascadaEnvase,
@@ -78,9 +78,11 @@ describe('Un solo principal por presentación', () => {
   });
 
   it('la misma regla vale para los códigos', () => {
+    // `Codigo` es una clase con `toInput()` obligatorio: un objeto literal
+    // no la satisface, hace falta una instancia real.
     const codigos: Codigo[] = [
-      { id: 4, codigo: '779', principal: true },
-      { id: 5, codigo: '780', principal: false },
+      Object.assign(new Codigo(), { id: 4, codigo: '779', principal: true }),
+      Object.assign(new Codigo(), { id: 5, codigo: '780', principal: false }),
     ];
     expect(codigosADegradar(codigos, 5).map((c) => c.id)).toEqual([4]);
   });

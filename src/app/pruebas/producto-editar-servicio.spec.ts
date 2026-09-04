@@ -3,9 +3,16 @@ import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DatosService } from '../core/graphql/datos.service';
+import { Codigo } from '../domains/productos/codigo.model';
 import type { Producto } from '../domains/productos/producto.model';
 import { ProductoEditarService } from '../pages/producto/editar/producto-editar.service';
 import { APOLLO_DE_PRUEBA } from './apollo-de-prueba';
+
+// `Codigo` es una clase con `toInput()` obligatorio: un objeto literal
+// `{ id, codigo }` no la satisface. `Object.assign(new Codigo(), {...})` es
+// el mismo idioma que ya usan otros específs del repo para fixtures de
+// clases del dominio (ver `buscar-producto.spec.ts`).
+const codigo = (extra: Partial<Codigo>): Codigo => Object.assign(new Codigo(), extra);
 
 const producto = (): Producto => ({
   id: 51,
@@ -19,10 +26,10 @@ const producto = (): Producto => ({
     {
       id: 1,
       cantidad: 1,
-      codigos: [{ id: 10, codigo: '779' }, { id: 11, codigo: '780' }],
+      codigos: [codigo({ id: 10, codigo: '779' }), codigo({ id: 11, codigo: '780' })],
       precios: [{ id: 20, precio: 12000 }],
     },
-    { id: 2, cantidad: 12, codigos: [{ id: 12, codigo: '781' }], precios: [] },
+    { id: 2, cantidad: 12, codigos: [codigo({ id: 12, codigo: '781' })], precios: [] },
   ],
 });
 

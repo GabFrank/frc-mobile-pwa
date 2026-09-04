@@ -38,10 +38,8 @@ interface Marca {
  * códigos de cada presentación, todos los tipos de precio —no solo el
  * principal—, el stock en cada sucursal y las marcas del producto.
  *
- * Es **de solo lectura**. El alta y la edición exigen rol `NUEVO-PRODUCTO`
- * y son del escritorio: cambiar un precio o un código desde el salón, sin
- * el contexto de costos ni de márgenes, es de donde salen los precios mal
- * cargados que después hay que rastrear.
+ * Es **de solo lectura**. La edición vive en `/producto/:id/editar` y exige
+ * el rol `EDITAR PRODUCTOS`; la sección de precios, además, `EDITAR PRECIOS`.
  */
 @Component({
   selector: 'frc-producto-detalle',

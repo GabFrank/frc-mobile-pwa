@@ -91,7 +91,7 @@ Permite apuntar el kiosco a un servidor concreto. Escribe `serverIp`, `serverPor
 
 ## Permisos
 
-`NUEVO-PRODUCTO` habilita el alta. Es uno de los strings de rol inline (ver el gotcha de roles inconsistentes en [`../arquitectura/routing-navegacion.md`](../arquitectura/routing-navegacion.md)).
+`EDITAR PRODUCTOS` habilita la edición; `EDITAR PRECIOS`, la sección de precios. `NUEVO-PRODUCTO`, que este documento nombraba, **no existe en `personas.role`**.
 
 ## Al trabajar en este módulo
 
@@ -194,7 +194,7 @@ El inventario completo, función por función, está en
 | **Modo inventario** — cantidad, vencimiento, estado | Con **inventario**, en su propia pantalla: es un formulario, no un selector |
 | ~~**Detalle de producto**~~ | ✅ `/producto/:id`. Todos los códigos y todos los tipos de precio |
 | ~~**Modo kiosco**~~ | ✅ `/kiosco`, fuera del shell |
-| **Edición y alta**, rol `NUEVO-PRODUCTO` | Sigue pendiente. Es del escritorio: cambiar un precio desde el salón, sin costos ni márgenes a la vista, es de donde salen los precios mal cargados |
+| **Edición y alta** | Sigue pendiente. Cambiar un precio desde el salón, sin costos ni márgenes a la vista, es de donde salen los precios mal cargados |
 
 
 ---

@@ -5162,6 +5162,78 @@ abría el detalle a comprobarlo.
 
 ---
 
+## Bloque 56 — La foto del producto en el buscador *(nuevo)*
+
+**Por qué está acá:** la card del buscador mostraba siempre el ícono de caja,
+nunca la foto, aunque `imagenPrincipal` ya venía en la consulta desde el
+principio. Era el pendiente «Ver imagen del producto» de
+[`modulos/producto.md`](modulos/producto.md).
+
+**Cómo llega la foto:** el central no manda una URL sino la imagen entera
+codificada, `data:image/jpg;base64,…` (`ImageService.fileToBase64`). Va derecho
+al `src` — no hay un segundo pedido de red que pueda fallar, y la foto o
+llegó con la búsqueda o no está. Es lo mismo que hacía el `ion-avatar` de
+`frc-mobile`.
+
+⚠️ **Lo que hay que mirar además de que se vea: cuánto tarda la búsqueda.**
+`frc-mobile` mostraba la **miniatura** de 250×250 que el central genera al
+subir la foto (`PresentacionResolver`); la consulta de la PWA pasa por
+`ProductoResolver`, que devuelve el **original**, del tamaño que salió del
+celular. Con 10 resultados por tanda, eso puede ser varios MB en una sola
+respuesta. Esos bytes ya se transferían antes de este cambio —la consulta
+pedía el campo y la card lo tiraba—, así que **no es una regresión**, pero si
+el caso 56.5 se siente lento, la corrección es del backend: un campo de
+miniatura, no sacar la foto de la card.
+
+### 56.1 · Un producto con foto la muestra
+1. Ir a la pestaña **Buscar**.
+2. Buscar un producto que tenga foto cargada (probar con los de mayor
+   rotación: gaseosas, lácteos).
+
+**Esperado:** en el recuadro de la izquierda de la fila se ve **la foto**, no
+el ícono de caja. Ocupa el recuadro entero, recortada y centrada, sin
+deformarse ni dejar franjas de fondo a los costados.
+
+### 56.2 · Un producto sin foto sigue mostrando el ícono
+1. En la misma lista, mirar un producto sin foto cargada.
+
+**Esperado:** el ícono de caja de siempre. **No** un recuadro gris vacío ni
+un ícono de imagen rota: el central devuelve «sin foto», y esa es la
+representación correcta, no un error.
+
+### 56.3 · La foto no se corre al expandir la card
+1. Tocar una fila con foto para desplegar sus presentaciones.
+2. Volver a tocarla para cerrarla.
+
+**Esperado:** la foto queda en su lugar, del mismo tamaño, y la fila no salta
+al abrir ni al cerrar. Las presentaciones se despliegan como antes.
+
+### 56.4 · La foto cambia al cambiar la búsqueda
+1. Buscar algo que devuelva productos **con** foto.
+2. Sin salir de la pestaña, buscar otra cosa que devuelva productos
+   **sin** foto.
+3. Volver a buscar lo primero.
+
+**Esperado:** cada lista muestra lo suyo — fotos en la primera, íconos en la
+segunda, y fotos otra vez en la tercera. Ninguna fila se queda con la foto de
+un producto de la búsqueda anterior.
+
+### 56.5 · Cuánto tarda con muchos resultados
+1. Buscar un texto amplio, de los que llenan la tanda de 10 (`coca`, `leche`).
+2. Tocar **Cargar más** un par de veces.
+
+**Esperado:** los resultados aparecen en un tiempo parecido al de antes del
+cambio. **Anotar si se siente más lento** — ver el aviso del encabezado de
+este bloque: se corrige en el central, con una miniatura.
+
+### 56.6 · Tema oscuro y tema claro
+1. Repetir 56.1 y 56.2 en los dos temas.
+
+**Esperado:** en los dos, la foto se ve nítida y el ícono de los productos sin
+foto queda legible sobre el fondo hundido del recuadro.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -5221,7 +5293,8 @@ abría el detalle a comprobarlo.
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
 | 54 · Cantidades en enteros | 10 | 10 | | |
 | 55 · Alta de solicitud de caja chica | 16 | | | |
-| **Total** | **488** | | | |
+| 56 · La foto del producto en el buscador | 6 | | | |
+| **Total** | **494** | | | |
 
 ### Los cinco que más importan
 

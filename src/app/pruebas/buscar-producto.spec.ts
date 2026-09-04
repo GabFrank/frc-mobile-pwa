@@ -367,6 +367,58 @@ describe('Buscador de producto', () => {
     });
   });
 
+  describe('la foto del producto', () => {
+    // El central manda imagenPrincipal como data:image/jpg;base64,… — no una
+    // URL—, así que la card lo pone tal cual en el src. Ver ImageService.
+    const FOTO = 'data:image/jpg;base64,/9j/4AAQSkZJRg==';
+
+    const miniaturas = (f: { nativeElement: HTMLElement }) =>
+      Array.from(f.nativeElement.querySelectorAll<HTMLImageElement>('.thumb img'));
+
+    it('muestra la foto cuando el producto la trae', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto({ imagenPrincipal: FOTO })]));
+      const f = montar();
+      buscarPor(f, 'coca');
+
+      expect(miniaturas(f).map((i) => i.getAttribute('src'))).toEqual([FOTO]);
+    });
+
+    it('sin foto deja el ícono, no una imagen vacía', () => {
+      // Un src="" hace que el navegador vuelva a pedir la página actual como
+      // si fuera una imagen, así que la cadena vacía tiene que caer al ícono
+      // igual que el null.
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(
+        of([producto(), producto({ id: 2, imagenPrincipal: '   ' })]),
+      );
+      const f = montar();
+      buscarPor(f, 'coca');
+
+      expect(miniaturas(f)).toHaveLength(0);
+      expect(f.nativeElement.querySelectorAll('.thumb svg')).toHaveLength(2);
+    });
+
+    it('una foto rota no apaga la del producto que ocupe esa fila después', () => {
+      // @for reusa la instancia de la card entre búsquedas: sin reponer el
+      // estado al cambiar de producto, el primer error dejaba sin foto a
+      // todos los siguientes.
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(
+        of([producto({ id: 1, imagenPrincipal: 'data:image/jpg;base64,rota' })]),
+      );
+      const f = montar();
+      buscarPor(f, 'coca');
+      miniaturas(f)[0].dispatchEvent(new Event('error'));
+      f.detectChanges();
+      expect(miniaturas(f)).toHaveLength(0);
+
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(
+        of([producto({ id: 2, imagenPrincipal: FOTO })]),
+      );
+      buscarPor(f, 'pepsi');
+
+      expect(miniaturas(f).map((i) => i.getAttribute('src'))).toEqual([FOTO]);
+    });
+  });
+
   it('propaga el error al estado de error', () => {
     busqueda.buscarPorCodigoOTexto.mockReturnValue(throwError(() => new Error('sin conexión')));
     const f = montar();

@@ -188,7 +188,7 @@ El inventario completo, función por función, está en
 |---|---|
 | **Abrirlo como diálogo selector** — `(seleccion)` ya emite, falta el envoltorio | Con **devolución**, el primer consumidor real |
 | **Foco automático en el campo** | Con el modo diálogo. En una pestaña, robar el foco levanta el teclado sin que nadie lo pida |
-| **Ver imagen del producto** — `imagenPrincipal` viene en la query, la card muestra un ícono | Con el detalle de producto |
+| ~~**Ver imagen del producto**~~ | ✅ La card muestra `imagenPrincipal` —un `data:` base64 que arma el central, no una URL— y cae al ícono cuando el producto no tiene foto. ⚠️ Es el **original**, no la miniatura de 250×250 que consumía `frc-mobile`: si el buscador se pone lento, el arreglo es un campo de miniatura en el central |
 | **FAB «subir»** | Si las listas se vuelven largas. Con 10 por tanda no hace falta |
 | **Stock de origen y destino** en la card | Con **transferencias** |
 | **Modo inventario** — cantidad, vencimiento, estado | Con **inventario**, en su propia pantalla: es un formulario, no un selector |

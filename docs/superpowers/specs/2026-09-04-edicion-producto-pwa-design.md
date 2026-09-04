@@ -12,7 +12,15 @@ tipos de precio. Lo que no puede hacer es **corregir** nada. Una descripción ma
 escrita, un código que falta, una presentación con la cantidad equivocada o un
 precio desactualizado obligan a ir a una computadora.
 
-Esta entrega pone la edición en el teléfono, detrás del rol `NUEVO-PRODUCTO`.
+Esta entrega pone la edición en el teléfono, detrás del rol `EDITAR PRODUCTOS`.
+
+> ⚠️ **`NUEVO-PRODUCTO` no existe.** El issue #10 lo nombra, y de ahí lo
+> copiaron `docs/modulos/producto.md` y `producto-detalle.page.ts:41`. No está
+> en `personas.role` —consultado el 2026-09-04 contra `bodega`, 492 usuarios—,
+> ni en `frc-mobile`, ni en el escritorio. Guardar la ruta con ese nombre haría
+> que el chequeo diera siempre falso y entrara **solo ADMIN**: el mismo caso
+> `DIRECTIVO` ya documentado en `permisos.ts`. Los tres archivos que lo
+> repiten hay que corregirlos.
 
 **No hay port posible.** `edit-producto` en `frc-mobile` es un scaffold vacío del
 CLI: existe el directorio y nada más. La referencia es el formulario del
@@ -40,7 +48,9 @@ presentaciones.
 
 | Decisión | Elegido | Por qué |
 |---|---|---|
-| Alcance de precios | **Paridad completa**: el precio se edita | Decisión explícita del 2026-09-04. Ver «La objeción que queda sin mitigar». |
+| Alcance de precios | **El precio se edita**, sin costo ni margen a la vista | Decisión explícita del 2026-09-04. Ver «Lo que queda sin mitigar». |
+| Rol del módulo | **`EDITAR PRODUCTOS`** (32 usuarios) + `ADMIN` (38) | Es el rol que existe en la base y el que el escritorio ya usa para habilitar el alta (`list-producto.component.ts:494`). |
+| Rol de la sección de precios | **`EDITAR PRECIOS`** (26 usuarios) + `ADMIN` | El modelo de roles del sistema ya separa editar un producto de editar su precio, con 6 personas de diferencia. El escritorio declara el rol y no lo aplica — el mismo patrón que `CREAR TRANSFERENCIA` en `frc-mobile`, que esta PWA sí terminó aplicando. |
 | Orden de entrega | **Edición primero, alta después** | Rinde valor antes; el alta hereda secciones ya probadas contra el central. |
 | Forma de la pantalla | **Hub + subpantallas**, cada una guarda al confirmar | Mapea 1 a 1 con cómo guarda el central: cada confirmación es una mutation completa, así que nada queda a medias. Y es la forma del caso real —se entra a corregir una cosa, no a revisar treinta campos. |
 | Sucursal del precio | **Solo la de la sesión** | Es lo que hace el escritorio, sin alternativa: `adicionar-precio-dialog.component.ts:265` fija `sucursalId = mainService.sucursalActual.id`. Escribir en todas serían ~18 mutations sin transacción, o una mutation nueva en el central. |
@@ -90,10 +100,24 @@ hoy **9 campos de cabecera** de los **21** que acepta `ProductoInput`. Faltan:
 | `activo` | **Se desactiva el producto** |
 | `subfamilia` | Se cae de su categoría y de los reportes por familia |
 | `tipoConservacion` | Se pierde si es refrigerable o congelable |
-| `observacion`, `unidadPorCaja`, `propagado` | Datos de cabecera |
+| `unidadPorCaja`, `propagado` | Datos de cabecera |
 
 Además, `precios` en esa query no pide `sucursal`, que hace falta para mostrar
 los precios de las otras sucursales como solo lectura.
+
+### Dos campos que no se pueden salvar
+
+`observacion` y `creadoEn` están en la entidad `Producto` (`Producto.java:70` y
+`:97`) pero **`ProductoInput` no los acepta** —`creadoEn` figura como `String`
+contra un `LocalDateTime`, y la entidad no tiene `@PrePersist` ni
+`@CreationTimestamp`—. No hay forma de preservarlos desde el cliente: cada
+`saveProducto` los deja en `null`.
+
+**Ya le pasa al escritorio**, que llama la misma mutation y hasta tiene un
+control `observacion` en su formulario (`producto.component.ts:443`). No es una
+regresión que introduzca la PWA: es un defecto preexistente que hereda. Se
+documenta, **no se arregla acá** —el arreglo va en el central y este diseño
+decidió no tocarlo— y se anota en `docs/TODO_TECNICO.md`.
 
 **Primer cambio del módulo: extender `productoPorIdQuery`.** Sin eso, la primera
 edición de descripción borra la mitad de la ficha.
@@ -157,8 +181,13 @@ una vez, cada sección lee de él y, al guardar, arma el `ProductoInput` complet
 desde ese estado con solo los campos tocados cambiados. Es lo que hace
 cumplible la regla de §1 sin repetirla en cada pantalla.
 
-**Entrada:** menú `⋮` de la ficha, con guard de ruta por rol `NUEVO-PRODUCTO`
+**Entrada:** menú `⋮` de la ficha, con guard de ruta por `EDITAR PRODUCTOS`
 **además** de ocultar la acción. Ocultar el botón no es un control de acceso.
+
+**La sección de precios pide `EDITAR PRECIOS`**, con su propio guard de ruta.
+Quien no lo tenga ve la fila «Precios» en el hub —el conteo es información, no
+una acción— pero deshabilitada y con el motivo escrito; los precios siguen
+visibles en la ficha, que es de lectura y no lleva rol.
 
 ---
 
@@ -167,6 +196,13 @@ cumplible la regla de §1 sin repetirla en cada pantalla.
 `src/app/graphql/productos/` tiene hoy nueve operaciones y **todas son de
 lectura**. `docs/modulos/producto.md` afirma que `saveProducto.ts` está portado;
 **no lo está**, y hay que corregir esa tabla.
+
+> ⚠️ **La clase `ProductoInput` de `producto.model.ts` está mal tipada** y hay
+> que corregirla antes de usarla: `tiempoGarantia` es `boolean` cuando el
+> schema dice `Int`, `ingredientes` no existe —el campo es `ingrediente`— y
+> faltan `activo`, `lote` y `propagado`. Nunca se usó, así que el error no
+> molestó a nadie; con la regla de §1 encima, `activo` faltante significa
+> **desactivar el producto en cada guardado**.
 
 Falta portar:
 
@@ -245,25 +281,37 @@ test.
   silenciosa.
 - **Actualizar `docs/modulos/producto.md`**: la tabla de operaciones GraphQL, el
   estado del módulo, y la fila «Edición y alta» de «Lo que falta».
+- **Corregir `NUEVO-PRODUCTO` en los tres lugares que lo repiten**:
+  `docs/modulos/producto.md` (dos veces), `producto-detalle.page.ts:41` y el
+  texto del issue #10. Un rol que no existe, escrito con la autoridad de estar
+  versionado, es lo que hace que el próximo lo copie.
+- **Anotar en `docs/TODO_TECNICO.md`** que `saveProducto` pierde `observacion` y
+  `creadoEn`, con el alcance real: afecta también al escritorio.
 
 ---
 
-## La objeción que queda sin mitigar
+## Lo que queda sin mitigar
 
 El issue #10 dice, sobre este mismo ítem:
 
 > Es discutible que vaya acá: cambiar un precio desde el salón, sin costos ni
 > márgenes a la vista, es de donde salen los precios mal cargados.
 
-**La objeción es correcta y este diseño no la mitiga.** Se evaluaron tres
-caminos —dejar los precios fuera de la PWA; habilitarlos solo con el rol
-`VER PRECIO COSTO` (que ya existe en `roles.enum.ts:50`) mostrando costo y
-margen junto al campo; o exigir autorización de un segundo usuario— y el
-2026-09-04 se decidió **paridad completa**: el precio se edita desde el
-teléfono, sin rol adicional y sin costo ni margen a la vista.
+La objeción tiene dos mitades y este diseño resuelve una.
+
+**Resuelta — «desde el salón».** La sección de precios pide `EDITAR PRECIOS`,
+un rol que ya existe y que tienen 26 de los 492 usuarios. No es cualquiera con
+el teléfono en la mano: es el mismo conjunto de gente al que la empresa ya le
+confió los precios. La decisión de aplicarlo se tomó el 2026-09-04, después de
+verificar en la base que el rol existe y está repartido.
+
+**Sin resolver — «sin costos ni márgenes a la vista».** Se evaluó mostrar el
+costo y el margen resultante junto al campo, para los 24 usuarios con
+`VER PRECIO COSTO` (`roles.enum.ts:50`; el tipo `CostoPorProducto` ya está en
+el schema del central, así que tampoco requeriría tocarlo). **Se decidió no
+incluirlo** en esta entrega.
 
 Queda escrito para que se lea como **una elección tomada con la objeción sobre
-la mesa**, y no como algo que se pasó por alto. Si aparecen precios mal
-cargados, el rol `VER PRECIO COSTO` es la palanca que ya está puesta: habilitar
-la sección solo para quien lo tiene y mostrar el margen resultante no requiere
-tocar el central.
+la mesa**, y no como algo que se pasó por alto. La palanca está puesta y
+enchufada: sumar costo y margen es traer un campo más en la query y leer un
+rol que ya se consulta.

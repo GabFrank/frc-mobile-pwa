@@ -8,10 +8,14 @@ import {
   signal,
 } from '@angular/core';
 
+import { Router } from '@angular/router';
+
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { soloOperables } from 'src/app/domains/empresarial/sucursal/sucursal.util';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
+import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
@@ -66,6 +70,9 @@ interface Marca {
           <frc-dato etiqueta="Código principal" [valor]="p.codigoPrincipal ?? '—'" />
           @if (p.isEnvase && p.envase?.descripcion) {
             <frc-dato etiqueta="Envase" [valor]="p.envase!.descripcion!" />
+          }
+          @if (puedeEditar()) {
+            <button type="button" class="editar" (click)="editar()">Editar producto</button>
           }
         </frc-seccion>
 
@@ -165,12 +172,26 @@ interface Marca {
     }
     /* Un código dado de baja sigue estando pegado a cajas viejas. */
     .codigo.inactivo { text-decoration: line-through; color: var(--text-mute); }
+
+    .editar {
+      align-self: flex-start;
+      margin-top: var(--sp-2);
+      padding: var(--sp-2) var(--sp-4);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text);
+      font-weight: var(--fw-medium);
+      cursor: pointer;
+    }
   `,
 })
 export class ProductoDetallePage {
   private readonly busqueda = inject(ProductoBusquedaService);
   private readonly sucursales = inject(SucursalService);
   private readonly auth = inject(AuthService);
+  private readonly roles = inject(RoleService);
+  private readonly router = inject(Router);
 
   /** Del router. Opcional: se asigna después de construir (NG0950). */
   readonly id = input<string>();
@@ -186,6 +207,14 @@ export class ProductoDetallePage {
   private readonly listaSucursales = signal<Sucursal[]>([]);
 
   readonly titulo = computed(() => this.producto()?.descripcion ?? 'Producto');
+
+  /**
+   * Condiciona el botón, no reemplaza al guard de `/producto/:id/editar`:
+   * esconder el botón no es control de acceso.
+   */
+  readonly puedeEditar = computed(() =>
+    this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.productoEdicion),
+  );
 
   readonly presentaciones = computed(() => this.producto()?.presentaciones ?? []);
 
@@ -303,6 +332,10 @@ export class ProductoDetallePage {
         this.cargandoStock.set(false);
       },
     });
+  }
+
+  editar(): void {
+    this.router.navigate(['/producto', this.id(), 'editar']);
   }
 
   etiqueta(p: Presentacion): string {

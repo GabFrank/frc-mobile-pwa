@@ -806,9 +806,9 @@ Del lado del cliente, la confirmación de *Finalizar* ahora dice cuántos ítems
 
 ---
 
-### 66. 🟢 `ProductoInput` no puede preservar `observacion`, `creadoEn` ni `imagenes` — y es a propósito en dos de los tres
+### 66. 🟢 `saveProducto`/`saveCodigo`/`savePresentacion` reemplazan y pierden `creadoEn` — `observacion` e `imagenes` de `ProductoInput` es a propósito
 
-**Dónde:** `src/app/domains/productos/producto.model.ts` (`ProductoInput`), `productos.graphqls` en el central.
+**Dónde:** `src/app/domains/productos/producto.model.ts` (`ProductoInput`), `productos.graphqls` en el central; `ProductoService.java:297-325`, `CodigoService.java:93-115` y el equivalente de `Presentacion`.
 
 Tres campos que `saveProducto` puede tocar y que `construirProductoInput()` no hidrata, cada uno por una razón distinta:
 
@@ -818,7 +818,17 @@ Tres campos que `saveProducto` puede tocar y que `construirProductoInput()` no h
 
 **Evidencia de la pérdida ya existente:** al 2026-09-04, **8086 de 8386** productos de `bodega` ya tienen `creado_en` en `NULL`, escrito así por el escritorio (que llama la misma mutation sin este campo). No es una regresión que introduzca este módulo.
 
-**Fix propuesto:** pertenece al central — agregar `@CreationTimestamp` (o completar `creadoEn` en el `@PrePersist` de `Producto`) para que deje de depender de que algún cliente lo mande a mano, y agregar `observacion` al input si alguna vez hace falta preservarlo desde afuera del escritorio.
+**El mismo defecto se extiende a `saveCodigo` y `savePresentacion` — mismo patrón de reemplazo, mismo campo perdido.** `CodigoService.java:93-115` mapea el input a una entidad `Codigo` nueva igual que `ProductoService`, y la presentación sigue el mismo esquema. `creado_en` ya está en `NULL` en la base, escrito así antes de que existiera esta app:
+
+| Tabla | Filas con `creado_en` NULL | Total |
+|---|---|---|
+| `productos.producto` | 8.086 | 8.386 |
+| `productos.codigo` | 9.798 | 10.148 |
+| `productos.presentacion` | 1.232 | 10.732 |
+
+Verificado el 2026-09-04 contra `bodega`. Es deuda preexistente, escrita por el escritorio; ningún cliente puede completarla mientras el central no lo resuelva.
+
+**Fix propuesto:** pertenece al central — agregar `@CreationTimestamp` (o completar `creadoEn` en el `@PrePersist`) a `Producto`, `Codigo` y `Presentacion`, para que deje de depender de que algún cliente lo mande a mano, y agregar `observacion` al input de `Producto` si alguna vez hace falta preservarlo desde afuera del escritorio.
 
 ---
 

@@ -1,5 +1,6 @@
 import type { Codigo } from 'src/app/domains/productos/codigo.model';
 import type { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
+import type { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import type { Producto, ProductoInput } from 'src/app/domains/productos/producto.model';
 
 /**
@@ -173,4 +174,44 @@ export function codigosADegradar<T extends { id?: number | null; principal?: boo
   nuevoPrincipalId: number | null,
 ): T[] {
   return codigos.filter((c) => c.principal === true && c.id !== nuevoPrincipalId);
+}
+
+/**
+ * La misma regla, para la presentación principal de un producto.
+ *
+ * ⚠️ **Sin dimensión de sucursal.** A diferencia de los precios, las
+ * presentaciones de un producto son todas de ese producto: no hay que filtrar
+ * por sucursal antes de degradar, como sí hace `preciosADegradar()`.
+ *
+ * Sin esto, marcar «Caja x12» como principal cuando «Unidad» ya lo era deja
+ * dos presentaciones con `principal = true`, y `presentacionPorCodigo()`
+ * (`presentacion.util.ts`) resuelve el empate por orden de lista, no por
+ * ninguna regla de negocio: un código que no matchea ningún código propio
+ * puede terminar cobrando el precio de la presentación equivocada.
+ */
+export function presentacionesADegradar(
+  presentaciones: Presentacion[],
+  nuevoPrincipalId: number | null,
+): Presentacion[] {
+  return presentaciones.filter((p) => p.principal === true && p.id !== nuevoPrincipalId);
+}
+
+/** `true` si el parámetro de ruta no es ni `valorEspecial` ni un id positivo. */
+export function esIdDeRutaInvalido(raw: string | undefined, valorEspecial?: string): boolean {
+  if (raw === undefined || raw === valorEspecial) {
+    return false;
+  }
+  const n = Number(raw);
+  // `Number('')` es 0, no NaN: sin el guard completo una ruta vacía se
+  // leería como "id cero" en vez de como una ruta rota.
+  return !Number.isFinite(n) || n <= 0;
+}
+
+/** El id numérico de un parámetro de ruta, o `null` si no es válido. */
+export function idDeRutaNum(raw: string | undefined, valorEspecial?: string): number | null {
+  if (raw === undefined || raw === valorEspecial) {
+    return null;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }

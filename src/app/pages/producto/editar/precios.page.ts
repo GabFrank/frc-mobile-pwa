@@ -31,7 +31,7 @@ import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 
-import { preciosADegradar } from './producto-editar.reglas';
+import { esIdDeRutaInvalido, idDeRutaNum, preciosADegradar } from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /**
@@ -78,13 +78,6 @@ export function esPrecioEditable(
   return precio.sucursal?.id != null && precio.sucursal.id === sucursalSesionId;
 }
 
-/** `true` si el parámetro de ruta no es un id positivo. */
-function esIdDeRutaInvalido(raw: string | undefined): boolean {
-  if (raw === undefined) return false;
-  const n = Number(raw);
-  return !Number.isFinite(n) || n <= 0;
-}
-
 /**
  * Precios de una presentación, agrupados por sucursal.
  *
@@ -124,6 +117,12 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
         <frc-skeleton [cantidad]="3" />
       } @else if (estado.error()) {
         <frc-estado-error [detalle]="estado.error()!" (reintentar)="recargar()" />
+      } @else if (rutaInvalida()) {
+        <frc-estado-error
+          titulo="No se entiende qué presentación abrir"
+          detalle="Volvé a la lista de presentaciones e intentá de nuevo."
+          (reintentar)="recargar()"
+        />
       } @else if (!estado.producto()) {
         <!--
           Primer frame: el effect que llama a cargar() corre después del
@@ -132,12 +131,6 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
           navegación normal.
         -->
         <frc-skeleton [cantidad]="3" />
-      } @else if (rutaInvalida()) {
-        <frc-estado-error
-          titulo="No se entiende qué presentación abrir"
-          detalle="Volvé a la lista de presentaciones e intentá de nuevo."
-          (reintentar)="recargar()"
-        />
       } @else if (presentacion() == null) {
         <frc-estado-error
           titulo="No se encontró esa presentación"
@@ -153,7 +146,14 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
           />
         } @else {
           <frc-seccion titulo="Agregar precio" [panel]="true">
-            @if (tiposPrecioDisponibles().length === 0) {
+            @if (cargandoTipos()) {
+              <p class="ayuda">Cargando tipos de precio…</p>
+            } @else if (errorTipos()) {
+              <p class="ayuda error">
+                No se pudieron cargar los tipos de precio.
+                <button matButton type="button" (click)="cargarTipos()">Reintentar</button>
+              </p>
+            } @else if (tiposPrecioDisponibles().length === 0) {
               <p class="ayuda">Ya hay un precio cargado para todos los tipos, en esta sucursal.</p>
             } @else {
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
@@ -228,7 +228,14 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
                       </button>
                       <button matButton type="button" (click)="cancelarEdicion()">Cancelar</button>
                     } @else {
-                      <button matButton type="button" (click)="iniciarEdicion(p)">Editar</button>
+                      <button
+                        matButton
+                        type="button"
+                        [disabled]="guardando()"
+                        (click)="iniciarEdicion(p)"
+                      >
+                        Editar
+                      </button>
                       @if (!p.principal && p.activo !== false) {
                         <button
                           matButton
@@ -284,6 +291,7 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
       color: var(--text-mute);
       font-size: var(--fs-label);
     }
+    .ayuda.error { color: var(--danger); }
     .fila-precio {
       display: flex;
       align-items: center;
@@ -361,18 +369,17 @@ export class PreciosPage {
   readonly edicionValor = signal<number | null>(null);
 
   private readonly tiposPrecio = signal<TipoPrecio[]>([]);
+  readonly cargandoTipos = signal(false);
+  readonly errorTipos = signal(false);
 
   readonly rutaInvalida = computed(() => esIdDeRutaInvalido(this.presentacionId()));
 
   /** La sucursal de la sesión: la única en la que esta pantalla escribe. */
   readonly sucursalSesionId = computed<number | null>(() => this.auth.sucursal()?.id ?? null);
 
-  private readonly presentacionIdNum = computed<number | null>(() => {
-    const raw = this.presentacionId();
-    if (raw === undefined) return null;
-    const n = Number(raw);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  });
+  private readonly presentacionIdNum = computed<number | null>(() =>
+    idDeRutaNum(this.presentacionId()),
+  );
 
   readonly presentacion = computed(() => {
     const n = this.presentacionIdNum();
@@ -410,14 +417,33 @@ export class PreciosPage {
       }
     });
 
-    this.datos.paginado<TipoPrecio[]>(this.tipoPreciosGQL, 0, 200).subscribe({
-      next: (lista) => this.tiposPrecio.set(lista ?? []),
-      error: () => undefined,
-    });
+    this.cargarTipos();
   }
 
   recargar(): void {
     this.estado.cargar(Number(this.id()));
+  }
+
+  /**
+   * Trae los tipos de precio. Con `cargandoTipos` / `errorTipos` y su
+   * Reintentar, igual que `presentacion-editar.page.ts` con los tipos de
+   * presentación: sin esto, un fallo del central se confundía con «ya hay un
+   * precio cargado para todos los tipos», que es una respuesta distinta y
+   * falsa.
+   */
+  cargarTipos(): void {
+    this.cargandoTipos.set(true);
+    this.errorTipos.set(false);
+    this.datos.paginado<TipoPrecio[]>(this.tipoPreciosGQL, 0, 200).subscribe({
+      next: (lista) => {
+        this.tiposPrecio.set(lista ?? []);
+        this.cargandoTipos.set(false);
+      },
+      error: () => {
+        this.errorTipos.set(true);
+        this.cargandoTipos.set(false);
+      },
+    });
   }
 
   iniciarEdicion(p: PrecioPorSucursal): void {

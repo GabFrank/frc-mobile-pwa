@@ -89,4 +89,22 @@ describe('ProductoEditarService', () => {
     servicio.guardarCabecera({ descripcion: '  ' }).subscribe({ error: () => undefined });
     expect(datos.guardar).not.toHaveBeenCalled();
   });
+
+  it('refetchea el producto entero después de guardar, en vez de mezclarlo a mano', () => {
+    // Un merge superficial (`{...actual, ...cambios, ...guardado}`) deja
+    // claves con forma de input —`subfamiliaId`— pisando un `Producto`, que
+    // se queda con el `subfamilia` viejo. El refetch lo evita: la segunda
+    // llamada a `porId` siempre trae la versión servida por el central.
+    const refrescado: Producto = { ...producto(), descripcion: 'REFRESCADO' };
+    datos.porId.mockReturnValueOnce(of(producto())).mockReturnValueOnce(of(refrescado));
+
+    servicio.cargar(51);
+
+    let emitido: Producto | undefined;
+    servicio.guardarCabecera({ descripcion: 'algo' }).subscribe((p) => (emitido = p));
+
+    expect(datos.porId).toHaveBeenCalledTimes(2);
+    expect(emitido?.descripcion).toBe('REFRESCADO');
+    expect(servicio.producto()?.descripcion).toBe('REFRESCADO');
+  });
 });

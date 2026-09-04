@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { Observable, tap, throwError } from 'rxjs';
+import { Observable, switchMap, tap, throwError } from 'rxjs';
 
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { ProductoPorIdGQL } from 'src/app/graphql/productos/productoPorId';
@@ -72,16 +72,29 @@ export class ProductoEditarService {
   /**
    * Guarda la cabecera con `cambios` aplicado encima del producto hidratado.
    *
-   * El input sale completo siempre. La respuesta se vuelve a poner en el
-   * estado porque el central **devuelve la descripción en mayúsculas**
-   * (`ProductoService.java:312`): mostrar lo que se tipeó dejaría al operador
-   * viendo una cosa distinta de la que quedó guardada.
+   * El input sale completo siempre. Después de guardar, **se vuelve a pedir
+   * el producto entero al central** en vez de mezclar la respuesta a mano con
+   * el que ya estaba en memoria: un merge superficial deja claves con forma
+   * de input (`subfamiliaId`, `envaseId`) pisando un `Producto`, que se queda
+   * con el `subfamilia` viejo y sin la cascada de `aplicarCascadaEnvase()`. Es
+   * inofensivo mientras cada pantalla navegue después de guardar —la próxima
+   * `cargar()` refresca todo—, pero un segundo guardado sin navegar de por
+   * medio hidrataría `subfamiliaId` del objeto viejo y revertiría en
+   * silencio un cambio de categoría. El refetch también preserva la
+   * mayúscula que pone el central en la descripción
+   * (`ProductoService.java:312`), que es lo que el merge a mano perseguía.
+   *
+   * ⚠️ **A propósito, sí: esto es una mutation y una query por cada Guardar,
+   * no una.** No lo "optimices" volviendo al merge a mano — pasa cuando una
+   * persona toca el botón, no en un loop, y la corrección vale más que un
+   * request de más.
    */
   guardarCabecera(cambios: Partial<ProductoInput>): Observable<Producto> {
     const actual = this._producto();
-    if (actual == null) {
+    if (actual == null || actual.id == null) {
       return throwError(() => new Error('No hay producto cargado.'));
     }
+    const productoId = actual.id;
 
     const input = construirProductoInput(actual, aplicarCascadaEnvase(cambios));
 
@@ -93,12 +106,8 @@ export class ProductoEditarService {
     return this.datos
       .guardar<Producto>(this.saveProducto, input as unknown as Record<string, unknown>)
       .pipe(
-        tap((guardado) => {
-          // El cast es necesario: `cambios` tipa sus campos opcionales con
-          // `| null`, y eso ensancha el tipo del spread aunque en runtime
-          // `guardado` (la respuesta del central) siempre gana.
-          this._producto.set({ ...actual, ...cambios, ...guardado } as Producto);
-        }),
+        switchMap(() => this.datos.porId<Producto>(this.productoPorId, productoId)),
+        tap((refrescado) => this._producto.set(refrescado)),
       );
   }
 

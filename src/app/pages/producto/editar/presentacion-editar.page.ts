@@ -13,10 +13,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router } from '@angular/router';
+import { from } from 'rxjs';
+import { concatMap, toArray } from 'rxjs/operators';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
 import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
@@ -30,17 +33,30 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
 
+import { esIdDeRutaInvalido, idDeRutaNum, presentacionesADegradar } from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
-/** `true` si el parámetro de ruta no es ni `nueva` ni un id positivo. */
-function esIdDeRutaInvalido(raw: string | undefined): boolean {
-  if (raw === undefined || raw === 'nueva') {
-    return false;
-  }
-  const n = Number(raw);
-  // `Number('')` es 0, no NaN: sin el guard completo una ruta vacía se
-  // leería como "presentación cero" en vez de como una ruta rota.
-  return !Number.isFinite(n) || n <= 0;
+/** El input de `savePresentacion` para una presentación de este producto. */
+function construirPresentacionInput(
+  presentacion: {
+    id: number | null;
+    descripcion: string;
+    cantidad: number | null;
+    tipoPresentacionId: number | null;
+    principal: boolean;
+    activo: boolean;
+  },
+  productoId: number,
+) {
+  return {
+    id: presentacion.id,
+    descripcion: presentacion.descripcion,
+    cantidad: presentacion.cantidad,
+    tipoPresentacionId: presentacion.tipoPresentacionId,
+    principal: presentacion.principal,
+    activo: presentacion.activo,
+    productoId,
+  };
 }
 
 /**
@@ -52,6 +68,13 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
  *
  * `presentacionId = 'nueva'` es el modo alta: no hay id todavía, así que los
  * accesos a códigos y precios quedan deshabilitados hasta el primer guardado.
+ *
+ * Al marcar «Principal» se degrada primero, con `concatMap` —nunca en
+ * paralelo—, a las que devuelve `presentacionesADegradar()`: a diferencia de
+ * los precios, las presentaciones de un producto no tienen dimensión de
+ * sucursal, así que se degradan todas las que hoy son principales. Un fallo
+ * en la degradación avisa siempre, con un único toast — silenciarlo es lo que
+ * vuelve invisible justo este bug.
  */
 @Component({
   selector: 'frc-presentacion-editar',
@@ -223,6 +246,7 @@ export class PresentacionEditarPage {
   protected readonly estado = inject(ProductoEditarService);
   private readonly datos = inject(DatosService);
   private readonly dialogo = inject(DialogoService);
+  private readonly notificacion = inject(NotificacionService);
   private readonly auth = inject(AuthService);
   private readonly roles = inject(RoleService);
   private readonly router = inject(Router);
@@ -248,14 +272,11 @@ export class PresentacionEditarPage {
   );
 
   readonly esNueva = computed(() => this.presentacionId() === 'nueva');
-  readonly rutaInvalida = computed(() => esIdDeRutaInvalido(this.presentacionId()));
+  readonly rutaInvalida = computed(() => esIdDeRutaInvalido(this.presentacionId(), 'nueva'));
 
-  private readonly presentacionIdNum = computed<number | null>(() => {
-    const raw = this.presentacionId();
-    if (raw === undefined || raw === 'nueva') return null;
-    const n = Number(raw);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  });
+  private readonly presentacionIdNum = computed<number | null>(() =>
+    idDeRutaNum(this.presentacionId(), 'nueva'),
+  );
 
   readonly presentacionActual = computed<Presentacion | null>(() => {
     const n = this.presentacionIdNum();
@@ -344,24 +365,71 @@ export class PresentacionEditarPage {
     this.tipoPresentacionId.set(valor == null ? null : Number(valor));
   }
 
+  /**
+   * Si se está marcando «Principal», degrada primero, en orden, a las que
+   * devuelve `presentacionesADegradar()` y recién después guarda esta. Ver el
+   * aviso de la clase.
+   */
   guardar(): void {
     const productoId = Number(this.id());
     if (!Number.isFinite(productoId) || productoId <= 0) return;
 
+    const nueva = {
+      id: this.presentacionIdNum(),
+      descripcion: this.descripcion(),
+      cantidad: this.cantidad(),
+      tipoPresentacionId: this.tipoPresentacionId(),
+      principal: this.principal(),
+      activo: this.activo(),
+    };
+
+    const aDegradar = this.principal()
+      ? presentacionesADegradar(this.estado.presentaciones(), this.presentacionIdNum())
+      : [];
+
     this.guardando.set(true);
-    this.datos
-      .guardar<Presentacion>(this.savePresentacion, {
-        id: this.presentacionIdNum(),
-        descripcion: this.descripcion(),
-        cantidad: this.cantidad(),
-        tipoPresentacionId: this.tipoPresentacionId(),
-        principal: this.principal(),
-        activo: this.activo(),
-        productoId,
-      })
+    from(aDegradar)
+      .pipe(
+        concatMap((vieja) =>
+          this.datos.guardar<Presentacion>(
+            this.savePresentacion,
+            construirPresentacionInput(
+              {
+                id: vieja.id ?? null,
+                descripcion: vieja.descripcion ?? '',
+                cantidad: vieja.cantidad ?? null,
+                tipoPresentacionId: vieja.tipoPresentacion?.id ?? null,
+                principal: false,
+                activo: vieja.activo !== false,
+              },
+              productoId,
+            ),
+            undefined,
+            // Sin toast individual por degradación: si hay varias, no
+            // queremos uno por cada una. El toast pasa a estar en el
+            // `error` del `subscribe()` de abajo, uno solo, para lo que sea
+            // que haya fallado en la cadena.
+            { mostrarCarga: false, notificarError: false },
+          ),
+        ),
+        toArray(),
+        concatMap(() =>
+          this.datos.guardar<Presentacion>(
+            this.savePresentacion,
+            construirPresentacionInput(nueva, productoId),
+          ),
+        ),
+      )
       .subscribe({
         next: () => this.volverYRecargar(),
-        error: () => this.guardando.set(false),
+        error: () => {
+          // Con `notificarError: false` en las degradaciones, este es el
+          // ÚNICO lugar que avisa si la cadena falla. Sin este toast, un
+          // guardado que corta a mitad de camino queda mudo — justo la falla
+          // que `presentacionesADegradar()` existe para evitar.
+          this.notificacion.danger('No se pudo guardar la presentación.');
+          this.guardando.set(false);
+        },
       });
   }
 

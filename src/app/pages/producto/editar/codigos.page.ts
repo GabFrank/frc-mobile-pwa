@@ -30,7 +30,7 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 
-import { codigosADegradar } from './producto-editar.reglas';
+import { codigosADegradar, esIdDeRutaInvalido, idDeRutaNum } from './producto-editar.reglas';
 import { ProductoEditarService } from './producto-editar.service';
 
 /** El input de `saveCodigo` para un código de esta presentación. */
@@ -45,13 +45,6 @@ export function construirCodigoInput(
     activo: codigo.activo,
     presentacionId,
   };
-}
-
-/** `true` si el parámetro de ruta no es un id positivo. */
-function esIdDeRutaInvalido(raw: string | undefined): boolean {
-  if (raw === undefined) return false;
-  const n = Number(raw);
-  return !Number.isFinite(n) || n <= 0;
 }
 
 /**
@@ -92,6 +85,12 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
         <frc-skeleton [cantidad]="3" />
       } @else if (estado.error()) {
         <frc-estado-error [detalle]="estado.error()!" (reintentar)="recargar()" />
+      } @else if (rutaInvalida()) {
+        <frc-estado-error
+          titulo="No se entiende qué presentación abrir"
+          detalle="Volvé a la lista de presentaciones e intentá de nuevo."
+          (reintentar)="recargar()"
+        />
       } @else if (!estado.producto()) {
         <!--
           Primer frame: el effect que llama a cargar() corre después del
@@ -101,12 +100,6 @@ function esIdDeRutaInvalido(raw: string | undefined): boolean {
           a ignorar los errores—.
         -->
         <frc-skeleton [cantidad]="3" />
-      } @else if (rutaInvalida()) {
-        <frc-estado-error
-          titulo="No se entiende qué presentación abrir"
-          detalle="Volvé a la lista de presentaciones e intentá de nuevo."
-          (reintentar)="recargar()"
-        />
       } @else if (presentacion() == null) {
         <frc-estado-error
           titulo="No se encontró esa presentación"
@@ -250,12 +243,9 @@ export class CodigosPage {
 
   readonly rutaInvalida = computed(() => esIdDeRutaInvalido(this.presentacionId()));
 
-  private readonly presentacionIdNum = computed<number | null>(() => {
-    const raw = this.presentacionId();
-    if (raw === undefined) return null;
-    const n = Number(raw);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  });
+  private readonly presentacionIdNum = computed<number | null>(() =>
+    idDeRutaNum(this.presentacionId()),
+  );
 
   readonly presentacion = computed(() => {
     const n = this.presentacionIdNum();

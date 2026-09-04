@@ -5368,7 +5368,15 @@ en blanco.
 | 54 · Cantidades en enteros | 10 | 10 | | |
 | 55 · Alta de solicitud de caja chica | 16 | | | |
 | 56 · Edición de producto | 10 | | | |
-| **Total** | **498** | | | |
+| **Total** | **508** | | | |
+
+> El total se recalculó el 2026-09-04 sumando la columna «Casos» de las 56
+> filas, en vez de arrastrar el número anterior: la tabla venía con **488**
+> desde antes de esta rama, cuando los bloques 1 a 55 ya sumaban **498** por
+> su cuenta — un desvío de 10 casos preexistente que esta corrección expone.
+> Sumar el bloque 56 (10 casos) a ese 488 daba 498, un número que parecía
+> correcto por casualidad. Las columnas ✅/⚠️/❌ no llevan total: no hay nada
+> que recalcular ahí.
 
 ### Los cinco que más importan
 

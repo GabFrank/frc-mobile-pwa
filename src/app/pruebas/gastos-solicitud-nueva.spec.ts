@@ -113,14 +113,17 @@ describe('Alta de solicitud de caja chica', () => {
     expect(fixture.componentInstance.sucursales().map((s) => s.id)).toEqual([1, 9]);
   });
 
-  it('permite guardar con la sucursal SERVIDOR, que tiene id 0', () => {
-    // SERVIDOR es una sucursal real con id `0`, y `0` es "falsy" en JS. Con
-    // `!datos.sucursalId`, `faltaParaGuardar` decía «Seleccione una sucursal
-    // de retiro» aunque SERVIDOR estuviera elegida y visible en pantalla.
+  it('no ofrece la sucursal SERVIDOR, que tiene id 0', () => {
+    // El central rechaza `sucursalId <= 0` al guardar (`PreGastoGraphQL.java`:
+    // «Debe indicar una sucursal válida para registrar la solicitud.»).
+    // Antes la pantalla la dejaba elegir —`faltaParaGuardar` la aceptaba
+    // porque `0` es "falsy" y el chequeo usa `== null`— y el operador recién
+    // se enteraba del rechazo después de llenar todo el formulario y tocar
+    // Guardar. Ahora ni aparece en el selector.
     //
     // `overrideProvider` no sirve acá: el módulo ya se instanció en el
     // `beforeEach` al pedir `AuthService`. Se reconfigura entero, como el
-    // `beforeEach`, con la sucursal SERVIDOR como única opción.
+    // `beforeEach`, con SERVIDOR como única sucursal que devuelve el central.
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
@@ -142,20 +145,13 @@ describe('Alta de solicitud de caja chica', () => {
       inicioSesion: { sucursal: SUCURSALES[0] },
     } as never);
     const fixture = montar();
-    fixture.componentInstance.elegirTipoGasto(TIPOS[0]);
-    fixture.componentInstance.elegirProveedor({
-      id: 33,
-      persona: { nombre: 'DIST. ESTE' },
-    } as never);
-    fixture.componentInstance.cambiarDetalle(0, {
-      monto: 500000,
-      monedaId: 1,
-      formaPago: 'EFECTIVO',
-    });
-    fixture.detectChanges();
 
-    expect(fixture.componentInstance.sucursalId()).toBe(0);
-    expect(fixture.componentInstance.falta()).toBeNull();
+    // Sin sucursales ofrecibles, no hay valor por defecto y el formulario
+    // queda pidiendo una — el mismo mensaje que si el central no devolviera
+    // ninguna sucursal.
+    expect(fixture.componentInstance.sucursales()).toEqual([]);
+    expect(fixture.componentInstance.sucursalId()).toBeNull();
+    expect(fixture.componentInstance.falta()).toBe('Seleccione una sucursal de retiro');
   });
 
   it('muestra el responsable de la sesión y no lo deja elegir', () => {

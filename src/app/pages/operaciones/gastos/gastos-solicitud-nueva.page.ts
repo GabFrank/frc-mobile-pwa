@@ -86,6 +86,14 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
  * que mueve stock, y una caja chica se retira igual en una sucursal sin
  * depósito — `COMPRAS`, por ejemplo.
  *
+ * ⚠️ **Sí se filtra por id > 0**, y es una razón distinta a la de arriba: no
+ * es que SERVIDOR no tenga depósito, es que el central rechaza de plano
+ * cualquier solicitud con `sucursalId <= 0` (`PreGastoGraphQL.java`). No
+ * ofrecerla evita que el operador llene el formulario entero para recibir
+ * recién en Guardar un error que la pantalla ya sabía. Ver
+ * `gastos-solicitud.reglas.ts#faltaParaGuardar`, que rechaza ese id también
+ * si llegara a colarse por otra vía.
+ *
  * ⚠️ **El responsable sale de la sesión y no se elige.** El retiro se imputa
  * a la persona del usuario logueado, no al usuario en sí.
  */
@@ -446,7 +454,10 @@ export class GastosSolicitudNuevaPage {
         this.monedas.set(monedas ?? []);
         this.formasPago.set(formasPago ?? []);
 
-        const lista = sucursales ?? [];
+        // ⚠️ id > 0, no `soloOperables()`: se excluye SERVIDOR porque el
+        // central rechaza `sucursalId <= 0` al guardar, no porque le falte
+        // depósito. Una sucursal sin depósito sigue en la lista.
+        const lista = (sucursales ?? []).filter((s) => s.id != null && Number(s.id) > 0);
         this.sucursales.set(lista);
 
         // Valor por defecto: la sucursal de la sesión, si sigue en la lista.

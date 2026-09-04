@@ -32,11 +32,21 @@ export interface DatosSolicitud {
 
 /** Lo que falta para poder guardar, o `null` si está todo. */
 export function faltaParaGuardar(datos: DatosSolicitud): string | null {
-  // ⚠️ `== null` a propósito, no `!datos.sucursalId`: SERVIDOR tiene id `0`,
-  // que es un id válido y un valor "falsy". Con `!` la sucursal quedaba
+  // ⚠️ `== null` a propósito, no `!datos.sucursalId`: un id `0` es un id
+  // válido y un valor "falsy". Con `!` una sucursal con id `0` quedaba
   // marcada como sin elegir aunque estuviera seleccionada y visible.
   if (datos.sucursalId == null) {
     return 'Seleccione una sucursal de retiro';
+  }
+  // ⚠️ El central rechaza cualquier sucursal con id ≤ 0 al guardar
+  // (`PreGastoGraphQL.java`: "Debe indicar una sucursal válida para
+  // registrar la solicitud."). SERVIDOR es esa sucursal — id `0`, virtual,
+  // sin lugar físico de retiro. La pantalla ya no la ofrece en el selector
+  // (ver `gastos-solicitud-nueva.page.ts`), pero esta regla queda acá
+  // también: es la fuente de verdad de qué sucursal "vale", y sin ella un
+  // `sucursalId` de `0` colado por otra vía volvería a llegar a Guardar.
+  if (datos.sucursalId <= 0) {
+    return 'Esa sucursal no puede recibir solicitudes de caja chica';
   }
   if (datos.responsableId == null) {
     // El retiro se imputa a la persona, no al usuario. Sin persona asociada

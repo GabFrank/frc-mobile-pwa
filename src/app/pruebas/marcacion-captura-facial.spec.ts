@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CapturaFacial, ReconocimientoFacialService } from '../core/dispositivo/reconocimiento-facial.service';
 import { DatosService } from '../core/graphql/datos.service';
 import { GaleriaFacialGQL } from '../graphql/personas/usuario/graphql/galeriaFacial';
+import { UsuarioPorEmbeddingGQL } from '../graphql/personas/usuario/graphql/usuarioPorEmbedding';
 import { VerificacionFacialDialogComponent } from '../pages/marcacion/verificacion-facial-dialog.component';
 
 /**
@@ -61,10 +62,14 @@ describe('Verificación facial con cuenta regresiva', () => {
         { provide: MAT_DIALOG_DATA, useValue: { usuarioId: 42 } },
         { provide: MatDialogRef, useValue: { close: cerrar } },
         { provide: GaleriaFacialGQL, useValue: {} },
+        { provide: UsuarioPorEmbeddingGQL, useValue: {} },
         {
           provide: DatosService,
           useValue: {
             porId: () => of({ persona: { embeddingFacial: galeriaGuardada } }),
+            // La segunda opinión del central: acá coincide con la sesión, así
+            // que no cambia nada de lo que estos casos prueban.
+            consultar: () => of({ usuario: { id: 42 }, similitud: 0.9 }),
           },
         },
         {
@@ -113,9 +118,18 @@ describe('Verificación facial con cuenta regresiva', () => {
     f.detectChanges();
   };
 
-  /** Monta, deja lista la cámara y los modelos, y devuelve el fixture. */
+  /**
+   * Monta, deja lista la cámara y los modelos, y devuelve el fixture.
+   *
+   * ⚠️ **Dos tandas antes de `terminarCarga`, no una.** La galería llega
+   * primero, recién ahí se monta la cámara, y recién cuando `getUserMedia`
+   * resuelve se llama a `cargar()` — que es lo que deja `terminarCarga` en
+   * pie. Con una sola tanda estos casos pasaban usando el `terminarCarga`
+   * que había dejado el test anterior, así que dependían del orden.
+   */
   const listo = async () => {
     const f = crear();
+    await asentar(f);
     await asentar(f);
     terminarCarga();
     await asentar(f);
@@ -136,6 +150,9 @@ describe('Verificación facial con cuenta regresiva', () => {
     cerrar = vi.fn();
     detener = vi.fn();
     galeriaGuardada = GALERIA;
+    terminarCarga = () => {
+      throw new Error('cargar() todavía no se llamó: falta dejar correr la cámara');
+    };
     detectar = vi.fn(() => Promise.resolve(captura()));
     getUserMedia = vi.fn(() => Promise.resolve(streamFalso()));
 
@@ -331,5 +348,203 @@ describe('Verificación facial con cuenta regresiva', () => {
     f.destroy();
 
     expect(detener).toHaveBeenCalled();
+  });
+});
+
+/**
+ * La segunda opinión del central, en el teléfono personal.
+ *
+ * ⚠️ **El 1:1 sigue siendo la puerta, y corre primero.** Recién cuando la
+ * persona pasó contra su propia galería se le pregunta al central quién es.
+ * El orden importa por dos cosas: no se manda ningún rostro al servidor en
+ * los intentos fallidos —hoy no sale nada del dispositivo salvo que la
+ * verificación haya pasado—, y la regla de aceptación no se toca.
+ *
+ * Lo que agrega el 1:N acá es el caso que el 1:1 no puede ver: un rostro que
+ * se parece lo suficiente a **tu** galería, pero que el central reconoce como
+ * de otra persona. Ver el alcance A de la issue #17.
+ */
+describe('Verificación facial: la segunda opinión del central', () => {
+  const ROSTRO = [1, 0, 0, 0, 0, 0, 0, 0];
+  const GALERIA = JSON.stringify({
+    master: ROSTRO,
+    gallery: [{ pose: 'front', embedding: ROSTRO, score: 0.9 }],
+  });
+
+  const captura = (cambios: Partial<CapturaFacial> = {}): CapturaFacial => ({
+    embedding: ROSTRO,
+    score: 0.9,
+    real: 0.9,
+    live: 0.9,
+    box: [0, 0, 10, 10],
+    ...cambios,
+  });
+
+  let cerrar: ReturnType<typeof vi.fn>;
+  let detectar: ReturnType<typeof vi.fn>;
+  let consultar: ReturnType<typeof vi.fn>;
+  let identificado: unknown;
+  let terminarCarga: () => void;
+
+  const original = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+
+  const microtareas = async () => {
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+  };
+
+  const crear = () => {
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { usuarioId: 42 } },
+        { provide: MatDialogRef, useValue: { close: cerrar } },
+        { provide: GaleriaFacialGQL, useValue: {} },
+        { provide: UsuarioPorEmbeddingGQL, useValue: {} },
+        {
+          provide: DatosService,
+          useValue: {
+            porId: () => of({ persona: { embeddingFacial: GALERIA } }),
+            consultar,
+          },
+        },
+        {
+          provide: ReconocimientoFacialService,
+          useValue: {
+            cargar: () => new Promise<void>((r) => (terminarCarga = r)),
+            detectar,
+            liberar: vi.fn(),
+          },
+        },
+      ],
+    });
+    const f = TestBed.createComponent(VerificacionFacialDialogComponent);
+    f.detectChanges();
+    return f;
+  };
+
+  const asentar = async (f: { detectChanges: () => void }) => {
+    await microtareas();
+    await vi.advanceTimersByTimeAsync(0);
+    await microtareas();
+    f.detectChanges();
+  };
+
+  const listo = async () => {
+    const f = crear();
+    // Tres tandas y no una: la galería llega, recién ahí se monta la cámara,
+    // y recién cuando `getUserMedia` resuelve se llama a `cargar()` — que es
+    // lo que deja `terminarCarga` en pie.
+    await asentar(f);
+    await asentar(f);
+    terminarCarga();
+    await asentar(f);
+    return f;
+  };
+
+  const sacarFoto = async (f: { detectChanges: () => void }) => {
+    await vi.advanceTimersByTimeAsync(3000);
+    await vi.advanceTimersByTimeAsync(600);
+    await microtareas();
+    f.detectChanges();
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    cerrar = vi.fn();
+    detectar = vi.fn(() => Promise.resolve(captura()));
+    terminarCarga = () => {
+      throw new Error('cargar() todavía no se llamó: falta dejar correr la cámara');
+    };
+    // Por defecto, el central coincide: es el mismo usuario de la sesión.
+    identificado = { usuario: { id: 42, persona: { embeddingFacial: GALERIA } }, similitud: 0.9, margen: 0.31 };
+    consultar = vi.fn(() => of(identificado));
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop: vi.fn() }] }) },
+      configurable: true,
+    });
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(HTMLMediaElement.prototype, 'readyState', {
+      get: () => 4,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (original) {
+      Object.defineProperty(navigator, 'mediaDevices', original);
+    } else {
+      delete (navigator as unknown as Record<string, unknown>)['mediaDevices'];
+    }
+  });
+
+  it('no se le pregunta al central hasta que el 1:1 pasó', async () => {
+    detectar.mockResolvedValue(null);
+    const f = await listo();
+
+    await sacarFoto(f);
+
+    // Un intento fallido no manda ningún rostro a ningún lado.
+    expect(consultar).not.toHaveBeenCalled();
+  });
+
+  it('si el central reconoce a otra persona, no verifica', async () => {
+    identificado = { usuario: { id: 7, persona: { embeddingFacial: GALERIA } }, similitud: 0.92 };
+    const f = await listo();
+
+    await sacarFoto(f);
+
+    expect(cerrar).not.toHaveBeenCalled();
+    expect(f.componentInstance.fase()).toBe('fallo');
+  });
+
+  it('no dice de quién es el rostro que reconoció', async () => {
+    identificado = {
+      usuario: { id: 7, nickname: 'FULANO', persona: { nombre: 'Fulano de Tal', embeddingFacial: GALERIA } },
+      similitud: 0.92,
+    };
+    const f = await listo();
+
+    await sacarFoto(f);
+
+    // Nombrarlo revelaría quién más está enrolado, a cualquiera que apunte la
+    // cámara a una foto.
+    expect(f.componentInstance.motivo()).not.toContain('Fulano');
+  });
+
+  it('si coincide con la sesión, verifica y devuelve la similitud del central', async () => {
+    const f = await listo();
+
+    await sacarFoto(f);
+
+    expect(cerrar).toHaveBeenCalledTimes(1);
+    const resultado = cerrar.mock.calls[0][0];
+    expect(resultado.similitudCentral).toBeCloseTo(0.9);
+    expect(resultado.margen).toBeCloseTo(0.31);
+  });
+
+  it('si el central no contesta, no bloquea: el 1:1 ya pasó', async () => {
+    consultar = vi.fn(() => {
+      throw new Error('sin red');
+    });
+    const f = await listo();
+
+    await sacarFoto(f);
+
+    // Quedarse sin marcar por un problema de red sería peor que perder la
+    // segunda opinión, que es justamente una segunda opinión.
+    expect(cerrar).toHaveBeenCalledTimes(1);
+    expect(cerrar.mock.calls[0][0].similitudCentral).toBeUndefined();
+  });
+
+  it('si el central no reconoce a nadie, tampoco bloquea', async () => {
+    identificado = null;
+    const f = await listo();
+
+    await sacarFoto(f);
+
+    expect(cerrar).toHaveBeenCalledTimes(1);
   });
 });

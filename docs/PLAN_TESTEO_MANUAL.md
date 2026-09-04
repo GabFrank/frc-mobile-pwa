@@ -5323,6 +5323,95 @@ funciona. ⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
 
 ---
 
+## Bloque 58 — Método, similitud y margen de cada marcación *(nuevo, sin probar)*
+
+**Por qué está acá:** la marcación guardaba buena evidencia de **dónde** y
+ninguna de **cómo se identificó a la persona**. Con el kiosco 1:N eso deja de
+ser un detalle: un falso positivo registra asistencia a nombre de quien no
+estuvo, y sin estas columnas es indistinguible de un olvido. Issue #217 del
+central.
+
+⚠️ **Las dos mitades se publican juntas.** Contra un central **sin la
+migración `V216.5`** la mutation falla entera y **la marcación deja de
+funcionar**, no solo los campos nuevos. Antes de probar, confirmá que la
+instancia tenga `V216.5` aplicada.
+
+⚠️ **Y la migración tiene que estar también en las filiales.**
+`administrativo.marcacion` se replica en las dos direcciones: si la columna
+existe solo en el central, la replicación hacia la filial que no la tenga se
+corta con «logical replication target relation is missing replicated column».
+**Revisar `flyway_schema_history` de cada filial**, no solo la del central —
+sin `out-of-order`, una filial puede saltearla en silencio.
+
+Este bloque se verifica **en la base**, no en la pantalla: la app no muestra
+ninguno de estos campos.
+
+### 58.1 · Marcar con rostro desde el teléfono
+1. Marcar entrada pasando la verificación facial.
+2. `SELECT metodo_registro, similitud_facial, margen_segundo_candidato FROM administrativo.marcacion ORDER BY id DESC LIMIT 1;`
+
+**Esperado:** `metodo_registro = 'FACIAL_1A1'` y `similitud_facial` con un
+valor entre 0 y 1.
+
+### 58.2 · Marcar sin rostro
+1. Cancelar la verificación facial y confirmar «Marcar igual».
+
+**Esperado:** `metodo_registro = 'MANUAL'`, y `similitud_facial` y
+`margen_segundo_candidato` en `NULL`. ⚠️ **No pueden venir en 0**: cero es una
+medición, `NULL` es «no hubo».
+
+### 58.3 · Marcar desde el kiosco
+1. Marcar desde el kiosco identificando a una persona.
+
+**Esperado:** `metodo_registro = 'FACIAL_1AN_KIOSCO'`, con similitud y —si hay
+más de un enrolado— margen.
+
+### 58.4 · El margen aparece cuando hay con quién comparar
+1. Con **al menos dos** personas enroladas, marcar desde el kiosco.
+
+**Esperado:** `margen_segundo_candidato` con valor. Es la similitud del
+reconocido menos la del siguiente candidato.
+
+### 58.5 · Con un solo enrolado no se inventa un margen
+1. En una instancia con **una sola** persona enrolada, marcar desde el kiosco.
+
+**Esperado:** `margen_segundo_candidato` en `NULL`. ⚠️ **Ni 0 ni 1**: no había
+contra quién comparar, y decir «margen 1» afirmaría una certeza que nadie
+midió.
+
+### 58.6 · La similitud guardada es la del central
+1. Marcar con rostro desde el teléfono con el central **caído** o sin red
+   justo en ese paso.
+
+**Esperado:** la marcación se registra igual, con `metodo_registro =
+'FACIAL_1A1'` y `similitud_facial` en `NULL`. La similitud calculada en el
+teléfono **no** se usa para rellenar la columna: son medidas distintas y
+mezclarlas la volvería inservible.
+
+### 58.7 · El desktop sigue marcando sin enterarse
+1. Registrar una marcación desde el **desktop**.
+
+**Esperado:** se guarda normalmente, con las tres columnas en `NULL`. Los
+campos son opcionales; el desktop usa el mismo `saveMarcacion` y no los manda.
+
+### 58.8 · La replicación no se cortó
+1. Después de aplicar `V216.5`, marcar en una filial y en el central.
+2. Revisar que las filas aparezcan del otro lado.
+
+**Esperado:** siguen replicando en las dos direcciones. ⚠️ Si una filial dejó
+de recibir, revisá que tenga la migración: es el modo de falla más probable de
+este cambio.
+
+### 58.9 · La segunda opinión rechaza a otra persona
+1. Con dos personas enroladas, que **la otra** se ponga frente a la cámara con
+   tu sesión abierta en el teléfono.
+
+**Esperado:** dice **«El rostro reconocido no es el tuyo.»** y no marca. ⚠️ **No
+tiene que decir de quién era el rostro**: nombrarlo revelaría quién más está
+enrolado.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -5384,7 +5473,8 @@ funciona. ⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
 | 55 · La sucursal de la marcación sale del GPS | 13 | | | |
 | 56 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
 | 57 · Kiosco de marcación | 15 | | | |
-| **Total** | **514** | | | |
+| 58 · Método, similitud y margen | 9 | | | |
+| **Total** | **523** | | | |
 
 ### Los cinco que más importan
 

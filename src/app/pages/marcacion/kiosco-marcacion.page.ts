@@ -19,6 +19,7 @@ import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
   MarcacionInput,
+  MetodoMarcacion,
   TipoMarcacion,
 } from 'src/app/domains/marcacion/marcacion.model';
 import { UsuarioPorEmbeddingGQL } from 'src/app/graphql/personas/usuario/graphql/usuarioPorEmbedding';
@@ -375,6 +376,9 @@ export class KioscoMarcacionPage {
       precisionGps: posicion.precision,
       distanciaSucursalMetros: this.det.distancia() ?? undefined,
       deviceInfo: navigator.userAgent,
+      metodoRegistro: MetodoMarcacion.FACIAL_1AN_KIOSCO,
+      similitudFacial: identificacion.similitudCentral,
+      margenSegundoCandidato: identificacion.margen ?? undefined,
     };
 
     this.servicio.guardar(input).subscribe({

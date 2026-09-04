@@ -14,6 +14,7 @@ import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
   MarcacionInput,
+  MetodoMarcacion,
 } from '../domains/marcacion/marcacion.model';
 import { PERMISOS } from '../domains/personas/roles/permisos';
 import { ROLES } from '../domains/personas/roles/roles.enum';
@@ -71,7 +72,7 @@ describe('Kiosco de marcación', () => {
 
   let guardado: MarcacionInput | undefined;
   let servicio: { estado: ReturnType<typeof vi.fn>; guardar: ReturnType<typeof vi.fn> };
-  let identificado: { usuario?: unknown; similitud?: number } | null;
+  let identificado: { usuario?: unknown; similitud?: number; margen?: number } | null;
   let estadoDevuelto: EstadoMarcacionUsuario;
   let posicion: { latitud: number; longitud: number; precision: number; lecturas: number } | null;
   let sucursales: unknown[];
@@ -332,6 +333,37 @@ describe('Kiosco de marcación', () => {
     // haya pedido. El central manda los dos flags justamente para desambiguar.
     expect(servicio.guardar).not.toHaveBeenCalled();
     expect(texto(f)).toContain('almorzar');
+  });
+
+  it('la marcación del kiosco queda registrada como 1:N', async () => {
+    const f = await listo();
+
+    await tocar(f, 'Marcar');
+    await sacarFoto(f);
+
+    expect(guardado?.metodoRegistro).toBe(MetodoMarcacion.FACIAL_1AN_KIOSCO);
+    expect(guardado?.similitudFacial).toBeCloseTo(0.9);
+  });
+
+  it('guarda el margen contra el segundo candidato', async () => {
+    identificado = { usuario: FULANO, similitud: 0.9, margen: 0.21 };
+    const f = await listo();
+
+    await tocar(f, 'Marcar');
+    await sacarFoto(f);
+
+    // Es el dato que dice si el 1:N fue sólido o una moneda al aire.
+    expect(guardado?.margenSegundoCandidato).toBeCloseTo(0.21);
+  });
+
+  it('contra un central sin el margen, el campo queda vacío en vez de inventarse', async () => {
+    identificado = { usuario: FULANO, similitud: 0.9 };
+    const f = await listo();
+
+    await tocar(f, 'Marcar');
+    await sacarFoto(f);
+
+    expect(guardado?.margenSegundoCandidato).toBeUndefined();
   });
 
   it('elegida la salida, marca con el flag que corresponde', async () => {

@@ -13,6 +13,7 @@ import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
   MarcacionInput,
+  MetodoMarcacion,
 } from '../domains/marcacion/marcacion.model';
 import { Usuario } from '../domains/personas/usuario.model';
 import { MarcacionPage } from '../pages/marcacion/marcacion.page';
@@ -393,5 +394,135 @@ describe('Marcación: la sucursal sale del GPS', () => {
     // se queda en «Marcando…» para siempre y hay que recargar la app.
     expect(f.componentInstance.marcando()).toBe(false);
     expect(f.componentInstance.deteccion()).toBe('sin-posicion');
+  });
+});
+
+/**
+ * Con qué método se registró cada marcación.
+ *
+ * ⚠️ **Sin esto la apuesta del 1:N no se puede evaluar nunca.** Cuando
+ * aparezca un caso raro no habrá con qué distinguir un falso positivo de un
+ * olvido. Ver `GabFrank/franco-system-backend-servidor#217`.
+ */
+describe('La marcación registra cómo se identificó a la persona', () => {
+  const ROTONDA = {
+    id: 3,
+    nombre: 'SUC. ROTONDA',
+    deposito: true,
+    activo: true,
+    localizacion: '-25.5,-54.6',
+  };
+
+  const enJornada: EstadoMarcacionUsuario = {
+    accionPendiente: AccionMarcacionPendiente.ENTRADA,
+    estaEnJornada: false,
+    puedeMarcarEntrada: true,
+    puedeMarcarSalida: false,
+    puedeMarcarSalidaAlmuerzo: false,
+    puedeMarcarEntradaAlmuerzo: false,
+  };
+
+  let guardado: MarcacionInput | undefined;
+  let verificacion: unknown;
+
+  const asentar = async (f: { detectChanges: () => void }) => {
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      f.detectChanges();
+    }
+  };
+
+  const marcar = async () => {
+    const f = TestBed.createComponent(MarcacionPage);
+    f.detectChanges();
+    await asentar(f);
+    const raiz = f.nativeElement as HTMLElement;
+    const boton = Array.from(raiz.querySelectorAll<HTMLButtonElement>('[acciones] button'))[0];
+    boton.click();
+    await asentar(f);
+    return f;
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    guardado = undefined;
+    verificacion = { embedding: [1, 0], score: 0.9, similitud: 0.93, similitudCentral: 0.88, margen: 0.26 };
+    const haversine = new GeoService();
+
+    TestBed.configureTestingModule({
+      imports: APOLLO_DE_PRUEBA,
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: MarcacionService,
+          useValue: {
+            estado: () => of(enJornada),
+            guardar: (input: MarcacionInput) => {
+              guardado = input;
+              return of({});
+            },
+          },
+        },
+        { provide: SucursalService, useValue: { todas: () => of([ROTONDA]) } },
+        {
+          provide: DialogoService,
+          useValue: {
+            abrir: () => Promise.resolve(verificacion),
+            confirmar: () => Promise.resolve(true),
+          },
+        },
+        {
+          provide: GeoService,
+          useValue: {
+            posicionActual: () =>
+              Promise.resolve({ latitud: -25.5, longitud: -54.6, precision: 4, lecturas: 3 }),
+            distanciaMetros: haversine.distanciaMetros.bind(haversine),
+          },
+        },
+      ],
+    });
+    TestBed.inject(AuthService).establecerUsuario(Object.assign(new Usuario(), { id: 42 }));
+  });
+
+  it('con rostro verificado, queda como facial 1:1', async () => {
+    await marcar();
+
+    expect(guardado?.metodoRegistro).toBe(MetodoMarcacion.FACIAL_1A1);
+  });
+
+  it('guarda la similitud que informó el central, no la calculada acá', async () => {
+    await marcar();
+
+    // Las dos son medidas distintas. Mezclarlas en la misma columna la
+    // volvería inservible: nadie sabría después cuál está mirando.
+    expect(guardado?.similitudFacial).toBeCloseTo(0.88);
+  });
+
+  it('guarda el margen contra el segundo candidato', async () => {
+    await marcar();
+
+    expect(guardado?.margenSegundoCandidato).toBeCloseTo(0.26);
+  });
+
+  it('sin verificación facial, queda como manual', async () => {
+    verificacion = null;
+
+    await marcar();
+
+    expect(guardado?.metodoRegistro).toBe(MetodoMarcacion.MANUAL);
+    expect(guardado?.similitudFacial).toBeUndefined();
+    expect(guardado?.margenSegundoCandidato).toBeUndefined();
+  });
+
+  it('si el central no informó similitud, no se inventa con la local', async () => {
+    verificacion = { embedding: [1, 0], score: 0.9, similitud: 0.93 };
+
+    await marcar();
+
+    expect(guardado?.metodoRegistro).toBe(MetodoMarcacion.FACIAL_1A1);
+    expect(guardado?.similitudFacial).toBeUndefined();
   });
 });

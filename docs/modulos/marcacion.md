@@ -257,15 +257,28 @@ embedding consolidado, y solo si pasó.
 En el teléfono personal la pregunta es otra —*¿sos vos?*, no *¿quién sos?*—,
 así que se compara contra la galería propia.
 
-⚠️ **Es una decisión, no una etapa pendiente.** La issue #17 pedía 1:N también
-acá, y se resolvió que **si identifica a otra persona, no se marca**. Con esa
-regla, el 1:N en el teléfono queda funcionalmente idéntico al 1:1: lo único
-que compraría es un mensaje mejor, y lo pagaría mandando el embedding al
-central **en cada intento, incluidos los fallidos** — hoy no sale nada del
-dispositivo salvo que la verificación haya pasado. El alcance A de #17 quedó
-deliberadamente sin hacer, y está dicho en el cierre de la issue.
+**El 1:N entra como segunda opinión, después del 1:1 y no en su lugar.**
 
-El 1:N que **sí** marca por otra persona vive solo en el kiosco, que es el
+⚠️ **El orden es lo que preserva la privacidad.** Primero corre el 1:1 contra
+la galería propia; recién cuando pasó se le manda al central el embedding
+consolidado para preguntarle quién es. Así, en un intento fallido **no sale
+ningún rostro del dispositivo** — que era la propiedad que la #16 pedía no
+perder. Hacer el 1:N primero, como se lee literalmente el alcance A de #17,
+mandaría el rostro en cada intento.
+
+**Qué agrega, entonces.** Justo el caso que el 1:1 no puede ver: un rostro que
+se parece lo suficiente a *tu* galería pero que el central reconoce como de
+otra persona. El 1:1 solo sabe decir «se parece a la galería con la que
+comparé»; no sabe si se parece más a la de otro. Si el central identifica a
+alguien distinto del de la sesión, **no se verifica**.
+
+⚠️ **No se dice de quién era el rostro.** Nombrarlo revelaría quién más está
+enrolado a cualquiera que apunte la cámara a una foto.
+
+⚠️ **Si el central no contesta, no bloquea.** El 1:1 ya pasó; quedarse sin
+poder marcar por un problema de red sería peor que perder una segunda opinión.
+
+El 1:N que **sí marca por otra persona** vive solo en el kiosco, que es el
 dispositivo compartido donde hace falta.
 
 ## Los umbrales no se bajaron, y no se bajan
@@ -397,13 +410,14 @@ logueada como ADMIN *era* el kiosco. Acá es una pantalla aparte con su ruta.
 
 ## El doble control, y por qué hace falta
 
-`usuarioPorEmbedding` resuelve el 1:N contra la caché en memoria del central y
-devuelve **el mejor match y nada más**: `findBestMatch()` calcula el máximo y
-descarta el resto, y `UsuarioSimilitudResult` solo lleva `usuario` y
-`similitud`.
+`usuarioPorEmbedding` resuelve el 1:N contra la caché en memoria del central.
+Devolvía **el mejor match y nada más**: `findBestMatch()` calculaba el máximo y
+descartaba el resto.
 
-⚠️ **Un `0.71` contra un segundo candidato de `0.69` llega indistinguible de
-un `0.71` contra un `0.45`**, y el primero es una moneda al aire. Por eso
+⚠️ **Hasta `V216.5` un `0.71` contra un segundo candidato de `0.69` llegaba
+indistinguible de un `0.71` contra un `0.45`**, y el primero es una moneda al
+aire. Ahora `usuarioPorEmbedding` devuelve también `similitudSegundo` y
+`margen` — pero el margen se **registra**, no se usa para rechazar. Por eso
 `validarIdentificacion()` recalcula la similitud **en el dispositivo** contra
 la galería que vino en la respuesta, y exige las dos:
 
@@ -422,19 +436,37 @@ asistencia.
 central: quedarse con un solo control es justamente lo que la función existe
 para evitar.
 
-## El riesgo asumido, y por qué todavía no se puede medir
+## El riesgo asumido, y con qué se mide
 
 Un falso positivo en el kiosco **marca por otra persona**, y eso queda en el
 registro de asistencia como un hecho. En 1:1 el peor caso era que alguien no
 pudiera marcar.
 
-⚠️ **Hoy no hay forma de verlo en los datos.** La marcación no guarda con qué
-método se registró, con qué similitud, ni —lo que más importa— **el margen
-contra el segundo candidato**. Eso es
-`GabFrank/franco-system-backend-servidor#217`, y **queda abierto**: hasta que
-esté, si aparece un caso raro no habrá con qué distinguir un falso positivo de
-un olvido. El doble control del párrafo anterior es lo único que se puede
-hacer sin tocar el central, y es una compensación parcial.
+**Ahora queda registrado.** `administrativo.marcacion` guarda desde `V216.5`:
+
+| Columna | Qué es |
+|---|---|
+| `metodo_registro` | `MANUAL` · `FACIAL_1A1` · `FACIAL_1AN_KIOSCO` |
+| `similitud_facial` | La que informó **el central**, 0..1 |
+| `margen_segundo_candidato` | Cuánto le sacó al segundo |
+
+⚠️ **`similitud_facial` es siempre la del central, nunca la calculada en el
+dispositivo.** Son medidas distintas —una contra la caché del central, otra
+contra la galería propia— y mezclarlas en la misma columna la vuelve
+inservible: nadie sabría después cuál está mirando. Si el central no contestó,
+queda vacía.
+
+⚠️ **El margen se registra pero todavía no decide nada.** Poner hoy un umbral
+de margen sería inventar el número que la medición existe para averiguar: hace
+falta ver qué margen dan estas caras, estas cámaras y esta luz. Cuando haya
+datos, es una línea en `validarIdentificacion()`.
+
+⚠️ **Las dos mitades se publican juntas.** Contra un central sin `V216.5` los
+campos nuevos hacen fallar la mutation entera, y la marcación deja de
+funcionar. Y la migración **tiene que correr también en las filiales**:
+`administrativo.marcacion` se replica en las dos direcciones, así que una
+columna que exista solo en el central corta la replicación hacia la filial que
+no la tenga.
 
 ## Dos cosas que se apartan de gourmet, a propósito
 

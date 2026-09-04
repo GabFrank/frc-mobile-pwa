@@ -21,6 +21,9 @@ export interface UsuarioIdentificable {
 export interface RespuestaIdentificacion {
   usuario?: UsuarioIdentificable | null;
   similitud?: number | null;
+  similitudSegundo?: number | null;
+  /** Cuánto le sacó al segundo. `undefined` contra un central sin el campo. */
+  margen?: number | null;
 }
 
 export interface Identificacion {
@@ -29,6 +32,15 @@ export interface Identificacion {
   similitudCentral: number;
   /** Lo recalculado acá contra la galería que vino en la respuesta. */
   similitudLocal: number;
+  /**
+   * Cuánto le sacó al segundo candidato, si el central lo informa.
+   *
+   * ⚠️ **Se registra, no se usa para decidir.** Poner un umbral de margen hoy
+   * sería inventar el número que la medición existe para averiguar: hace
+   * falta ver qué margen dan estas caras, estas cámaras y esta luz. Cuando
+   * haya datos, es una línea.
+   */
+  margen: number | null;
   /** Si las dos superan su umbral. Solo con esto en `true` se marca. */
   confiable: boolean;
 }
@@ -41,9 +53,11 @@ export interface Identificacion {
  * match y nada más**: `findBestMatch()` calcula el máximo y descarta el resto,
  * y `UsuarioSimilitudResult` solo lleva `usuario` y `similitud`. Un `0.71`
  * contra un segundo candidato de `0.69` llega **indistinguible** de un `0.71`
- * contra un `0.45`, y el primero es una moneda al aire. Mientras el central no
- * informe ese margen —`GabFrank/franco-system-backend-servidor#217`—,
- * recalcular acá contra la galería que vino es lo único que queda.
+ * contra un `0.45`, y el primero es una moneda al aire. Desde `V216.5` el
+ * central informa `margen`, que se **registra** con la marcación; el umbral
+ * sobre ese margen no se fija todavía, porque el número tiene que salir de los
+ * datos de esta población y no de una suposición. Mientras tanto, el control
+ * que decide es recalcular acá contra la galería que vino.
  *
  * ⚠️ **El umbral local es el de verificación (`0.75`), no el de búsqueda
  * (`0.55`).** `frc-mobile` acepta con `0.55` en las dos puntas
@@ -78,6 +92,7 @@ export function validarIdentificacion(
     usuario,
     similitudCentral,
     similitudLocal,
+    margen: respuesta?.margen ?? null,
     confiable: similitudCentral >= UMBRAL_SIMILITUD_FACIAL && similitudLocal >= umbralLocal,
   };
 }

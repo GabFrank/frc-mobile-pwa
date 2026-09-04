@@ -237,7 +237,9 @@ Al 2026-08-15, farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna de la
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **971 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **985 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+
+⚠️ **La marcación con rostro necesita un central con la migración `V216.5`.** Desde el kiosco 1:N y desde la marcación personal viajan `metodoRegistro`, `similitudFacial` y `margenSegundoCandidato`; contra un central que no los conozca **la mutation falla entera y no se registra ninguna marcación**, no solo los campos nuevos. Las dos mitades se publican juntas. Y la migración **tiene que correr también en las filiales**: `administrativo.marcacion` se replica en las dos direcciones, así que una columna que exista solo en el central corta la replicación hacia la filial que no la tenga. Ver [`docs/modulos/marcacion.md`](docs/modulos/marcacion.md).
 
 ⚠️ **`cantidad` es lo contado y `cantidadFisica` lo que dice el sistema**, al revés de lo que sugieren los nombres y de lo que `docs/modulos/inventario.md` afirmó hasta ahora. Lo fija `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La app las tuvo al derecho y la consecuencia era muda: lo contado desde el teléfono no entraba en el ajuste de stock. Corregido con test; ver el hallazgo #60 de [`docs/TODO_TECNICO.md`](docs/TODO_TECNICO.md).
 

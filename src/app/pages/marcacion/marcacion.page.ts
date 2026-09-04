@@ -17,6 +17,7 @@ import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
   MarcacionInput,
+  MetodoMarcacion,
   TipoMarcacion,
 } from 'src/app/domains/marcacion/marcacion.model';
 import { convertMsToTime, fechaLegible } from 'src/app/generic/utils/dateUtils';
@@ -444,11 +445,18 @@ export class MarcacionPage {
       accion === AccionMarcacionPendiente.SALIDA ||
       accion === AccionMarcacionPendiente.SALIDA_DEFINITIVA;
 
+    // Con qué método se identificó a la persona. Es lo que después permite
+    // distinguir un falso positivo de un olvido; ver el #217 del central.
+    const verificacion = this.verificacion();
+
     const input: MarcacionInput = {
       usuarioId,
       sucursalId: Number(sucursal.id),
       tipo: esSalida ? TipoMarcacion.SALIDA : TipoMarcacion.ENTRADA,
       esSalidaAlmuerzo,
+      metodoRegistro: verificacion ? MetodoMarcacion.FACIAL_1A1 : MetodoMarcacion.MANUAL,
+      similitudFacial: verificacion?.similitudCentral,
+      margenSegundoCandidato: verificacion?.margen ?? undefined,
       latitud: posicion.latitud,
       longitud: posicion.longitud,
       precisionGps: posicion.precision,

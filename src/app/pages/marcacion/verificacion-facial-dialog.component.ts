@@ -19,7 +19,9 @@ import {
   parsearGaleriaFacial,
 } from 'src/app/domains/marcacion/embedding-galeria.util';
 import { GaleriaFacialGQL, UsuarioConGaleria } from 'src/app/graphql/personas/usuario/graphql/galeriaFacial';
+import { UsuarioPorEmbeddingGQL } from 'src/app/graphql/personas/usuario/graphql/usuarioPorEmbedding';
 import { CapturaFacialComponent } from './captura-facial.component';
+import { RespuestaIdentificacion } from './identificacion.util';
 
 /** Lo que hay que decirle al diálogo. */
 export interface DatosVerificacion {
@@ -30,7 +32,12 @@ export interface DatosVerificacion {
 export interface ResultadoVerificacion {
   embedding: number[];
   score: number;
+  /** La calculada en el dispositivo contra la galería propia. */
   similitud: number;
+  /** La que dijo el central al identificar. Vacía si no contestó. */
+  similitudCentral?: number;
+  /** Cuánto le sacó al segundo candidato, si el central lo informa. */
+  margen?: number | null;
 }
 
 /** En qué punto está la verificación. */
@@ -117,6 +124,7 @@ const MINIMO_VIDA = 0.5;
 export class VerificacionFacialDialogComponent {
   private readonly datos = inject(DatosService);
   private readonly galeriaGQL = inject(GaleriaFacialGQL);
+  private readonly porEmbeddingGQL = inject(UsuarioPorEmbeddingGQL);
   private readonly ref =
     inject<MatDialogRef<VerificacionFacialDialogComponent, ResultadoVerificacion | null>>(
       MatDialogRef,
@@ -142,11 +150,13 @@ export class VerificacionFacialDialogComponent {
   readonly overlay = signal<string | null>(null);
 
   private galeria: EmbeddingGaleria | null = null;
+  private usuarioId = 0;
   private intentos = 0;
   private reloj: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     const datos = inject<DatosVerificacion>(MAT_DIALOG_DATA);
+    this.usuarioId = datos.usuarioId;
     void this.iniciar(datos.usuarioId);
     inject(DestroyRef).onDestroy(() => this.detenerReloj());
   }
@@ -269,7 +279,64 @@ export class VerificacionFacialDialogComponent {
       return;
     }
 
-    this.ref.close(resultado);
+    // ⚠️ **La segunda opinión va acá, después de pasar el 1:1 y no antes.**
+    // El orden es lo que hace que en un intento fallido no salga ningún
+    // rostro del dispositivo: hoy lo único que se manda es el embedding
+    // consolidado de alguien que ya se verificó contra su propia galería.
+    const segunda = await this.segundaOpinion(resultado.embedding);
+    if (segunda?.otraPersona) {
+      this.fallar('El rostro reconocido no es el tuyo.');
+      return;
+    }
+
+    this.ref.close({
+      ...resultado,
+      similitudCentral: segunda?.similitud,
+      margen: segunda?.margen,
+    });
+  }
+
+  /**
+   * Le pregunta al central quién es el rostro que ya pasó el 1:1.
+   *
+   * ⚠️ **Es el caso que el 1:1 no puede ver**: un rostro que se parece lo
+   * suficiente a *tu* galería pero que el central reconoce como de otra
+   * persona. El 1:1 solo sabe decir «se parece a la galería con la que
+   * comparé»; no sabe si se parece más a la de otro.
+   *
+   * ⚠️ **No bloquea si el central no contesta.** El 1:1 ya pasó: quedarse sin
+   * poder marcar por un problema de red sería peor que perder una segunda
+   * opinión, que es exactamente lo que es.
+   *
+   * ⚠️ **No se dice de quién era el rostro.** Nombrarlo revelaría quién más
+   * está enrolado a cualquiera que apunte la cámara a una foto.
+   */
+  private async segundaOpinion(
+    embedding: number[],
+  ): Promise<{ otraPersona: boolean; similitud?: number; margen?: number | null } | null> {
+    try {
+      const respuesta = await this.datos
+        .consultar<RespuestaIdentificacion>(
+          this.porEmbeddingGQL,
+          { embedding, excludeIds: [] },
+          { mostrarCarga: false, notificarError: false },
+        )
+        .toPromise();
+
+      const id = respuesta?.usuario?.id;
+      if (id == null) {
+        // El central no reconoció a nadie. Tampoco bloquea: puede ser que la
+        // galería del usuario todavía no esté en su caché.
+        return null;
+      }
+      return {
+        otraPersona: String(id) !== String(this.usuarioId),
+        similitud: respuesta?.similitud ?? undefined,
+        margen: respuesta?.margen ?? null,
+      };
+    } catch {
+      return null;
+    }
   }
 
   private fallar(motivo: string): void {

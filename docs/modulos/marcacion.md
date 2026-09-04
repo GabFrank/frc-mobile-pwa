@@ -251,12 +251,22 @@ marcar. Todo ocurre **en el dispositivo**: no se manda una foto a ningún lado
 ni se le pregunta al servidor quién es la persona. Lo único que sale es el
 embedding consolidado, y solo si pasó.
 
-## Es verificación 1:1, no identificación 1:N
+## En el teléfono 1:1; el 1:N vive en el kiosco
 
 `frc-mobile` **busca** contra todas las galerías (`buscarYValidarUsuario`).
-Acá el usuario ya está en sesión, así que la pregunta es otra: *¿sos vos?*, no
-*¿quién sos?*. Se compara contra la galería propia, que además es más barato y
-más difícil de confundir.
+En el teléfono personal la pregunta es otra —*¿sos vos?*, no *¿quién sos?*—,
+así que se compara contra la galería propia.
+
+⚠️ **Es una decisión, no una etapa pendiente.** La issue #17 pedía 1:N también
+acá, y se resolvió que **si identifica a otra persona, no se marca**. Con esa
+regla, el 1:N en el teléfono queda funcionalmente idéntico al 1:1: lo único
+que compraría es un mensaje mejor, y lo pagaría mandando el embedding al
+central **en cada intento, incluidos los fallidos** — hoy no sale nada del
+dispositivo salvo que la verificación haya pasado. El alcance A de #17 quedó
+deliberadamente sin hacer, y está dicho en el cierre de la issue.
+
+El 1:N que **sí** marca por otra persona vive solo en el kiosco, que es el
+dispositivo compartido donde hace falta.
 
 ## Los umbrales no se bajaron, y no se bajan
 
@@ -359,3 +369,89 @@ galería** y no da ningún error: simplemente deja de reconocer a la gente.
 
 Se sirven desde `/face-models` y `ngsw-config.json` los declara como asset
 group **lazy**: quien nunca marca con rostro no los descarga.
+
+
+---
+
+# El kiosco de marcación
+
+`/marcacion/kiosco` — `KioscoMarcacionPage`. Un dispositivo compartido en la
+puerta: la persona toca **Marcar**, cuenta de 3 s, la foto se toma sola, el
+central dice quién es y la marcación queda **a nombre de quien la cámara
+reconoció**. Es el flujo del `fichaje-facial` de `frc-gourmet`.
+
+`inicio` → `contando` → `capturando` → (`eligiendo`) → `exito` → vuelve solo a
+`inicio` a los 5 s, que es lo que hace falta con una fila en la puerta.
+
+## Lleva rol, y la marcación propia no
+
+`permisos.ts` dice que Marcación **no** lleva rol porque es autoservicio: el
+filtro es la persona en sesión. **El kiosco rompe esa premisa** —marca por
+otros—, así que pide `kioscoMarcacion` = `[ADMIN, RRHH GESTIONAR]`.
+
+`frc-mobile` protege la pantalla equivalente comparando
+`nickname === 'ADMIN'` (`AdminIngresoPersonaGuard`), que además de frágil no
+se puede delegar a nadie. De hecho ese guard **redirige** `/marcacion` a
+`ingreso-persona` cuando el usuario es ADMIN: en el repo viejo, la tablet
+logueada como ADMIN *era* el kiosco. Acá es una pantalla aparte con su ruta.
+
+## El doble control, y por qué hace falta
+
+`usuarioPorEmbedding` resuelve el 1:N contra la caché en memoria del central y
+devuelve **el mejor match y nada más**: `findBestMatch()` calcula el máximo y
+descarta el resto, y `UsuarioSimilitudResult` solo lleva `usuario` y
+`similitud`.
+
+⚠️ **Un `0.71` contra un segundo candidato de `0.69` llega indistinguible de
+un `0.71` contra un `0.45`**, y el primero es una moneda al aire. Por eso
+`validarIdentificacion()` recalcula la similitud **en el dispositivo** contra
+la galería que vino en la respuesta, y exige las dos:
+
+| Control | Umbral | Por qué ese |
+|---|---|---|
+| Central | `0.55` (`UMBRAL_SIMILITUD_FACIAL`) | Es el de búsqueda, el que usa su caché |
+| Local | `0.75` (`UMBRAL_SIMILITUD_VERIFICACION`) | **Más estricto que el `0.55` de `frc-mobile`** |
+
+`frc-mobile` acepta con `0.55` en las dos puntas, pero lo usa para **elegir** a
+quién marcar en una pantalla donde después hay una verificación 1:1. Acá el
+1:N es la única puerta: un rechazo de más cuesta un reintento, un falso
+positivo deja una marcación a nombre de otra persona en el registro de
+asistencia.
+
+⚠️ **Sin galería en la respuesta no se marca.** No se cae al veredicto del
+central: quedarse con un solo control es justamente lo que la función existe
+para evitar.
+
+## El riesgo asumido, y por qué todavía no se puede medir
+
+Un falso positivo en el kiosco **marca por otra persona**, y eso queda en el
+registro de asistencia como un hecho. En 1:1 el peor caso era que alguien no
+pudiera marcar.
+
+⚠️ **Hoy no hay forma de verlo en los datos.** La marcación no guarda con qué
+método se registró, con qué similitud, ni —lo que más importa— **el margen
+contra el segundo candidato**. Eso es
+`GabFrank/franco-system-backend-servidor#217`, y **queda abierto**: hasta que
+esté, si aparece un caso raro no habrá con qué distinguir un falso positivo de
+un olvido. El doble control del párrafo anterior es lo único que se puede
+hacer sin tocar el central, y es una compensación parcial.
+
+## Dos cosas que se apartan de gourmet, a propósito
+
+**No se ofrece ENTRADA/SALIDA al principio.** Gourmet arranca preguntando; acá
+lo decide el central con `estadoMarcacionUsuario(usuarioId)` **de la persona
+identificada**. Ofrecer las dos permite dos entradas seguidas, que es
+justamente lo que el estado del backend existe para impedir. La única
+pregunta que queda es la ambigua a propósito —salida de almuerzo o cierre del
+día—, cuando el central habilita las dos.
+
+**No hay cola offline.** Gourmet encola en `localStorage` y reintenta al
+reconectar. Este repo no tiene ese patrón en ningún módulo y agregarlo acá es
+un subsistema entero —conflictos, reintentos, orden—; queda fuera y dicho.
+
+## La posición es la de la detección, no la de cada marcación
+
+A diferencia de la marcación personal, que **vuelve a tomar el GPS al marcar**,
+el kiosco usa la posición con la que detectó la sucursal. El dispositivo está
+fijo en una pared: volver a tomarla por persona agregaría hasta 6 s a cada una
+de una fila, para registrar la misma coordenada.

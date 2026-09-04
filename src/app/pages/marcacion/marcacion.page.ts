@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
-import { GeoService, PRECISION_MAXIMA_M, Posicion, ProgresoGeo } from 'src/app/core/dispositivo/geo.service';
+import { PRECISION_MAXIMA_M, Posicion } from 'src/app/core/dispositivo/geo.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { IncorporarEmbeddingMarcacionGQL } from 'src/app/graphql/personas/usuario/graphql/incorporarEmbeddingMarcacion';
 import {
@@ -13,8 +13,6 @@ import {
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
-import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
-import { soloOperables } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
@@ -29,19 +27,8 @@ import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component'
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { detectarSucursal } from './deteccion-sucursal.util';
+import { DeteccionSucursalService } from './deteccion-sucursal.service';
 import { MarcacionService } from './marcacion.service';
-
-/**
- * En qué punto está la detección de la sucursal.
- *
- * ⚠️ **`sin-posicion` y `sin-coordenadas` son dos respuestas distintas** y hay
- * que decirlas distinto: una es «no pude preguntar dónde estás», la otra es
- * «pregunté, pero ninguna sucursal tiene coordenadas para comparar». Juntarlas
- * en un «no se pudo» genérico manda a revisar el permiso del teléfono cuando
- * el que falta es un dato del central.
- */
-type EstadoDeteccion = 'buscando' | 'ok' | 'sin-posicion' | 'sin-coordenadas';
 
 /** Qué texto lleva el botón según lo que el backend diga que falta. */
 const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
@@ -171,14 +158,13 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
 })
 export class MarcacionPage {
   private readonly servicio = inject(MarcacionService);
-  private readonly geo = inject(GeoService);
+  private readonly det = inject(DeteccionSucursalService);
 
   private readonly datos = inject(DatosService);
   private readonly incorporarGQL = inject(IncorporarEmbeddingMarcacionGQL);
 
   /** Lo que devolvió la verificación facial de esta marcación, si hubo. */
   private readonly verificacion = signal<ResultadoVerificacion | null>(null);
-  private readonly sucursalesService = inject(SucursalService);
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
@@ -186,12 +172,11 @@ export class MarcacionPage {
   readonly ETIQUETAS = ETIQUETAS;
 
   readonly estado = signal<EstadoMarcacionUsuario | null>(null);
-  /** Las operables, que son las únicas contra las que se mide. */
-  readonly sucursales = signal<Sucursal[]>([]);
-  readonly deteccion = signal<EstadoDeteccion>('buscando');
-  readonly sucursalDetectada = signal<Sucursal | null>(null);
-  readonly progreso = signal<ProgresoGeo | null>(null);
-  readonly distancia = signal<number | null>(null);
+  /** Dónde está el dispositivo. La regla vive en el servicio, no acá. */
+  readonly deteccion = this.det.estado;
+  readonly sucursalDetectada = this.det.sucursal;
+  readonly progreso = this.det.progreso;
+  readonly distancia = this.det.distancia;
   readonly cargando = signal(true);
   readonly marcando = signal(false);
   /**
@@ -292,61 +277,12 @@ export class MarcacionPage {
   }
 
   private cargarSucursales(): void {
-    this.sucursalesService.todas().subscribe({
-      next: (todas) => {
-        this.sucursales.set(soloOperables(todas ?? []));
-        void this.detectar();
-      },
-      error: () => {
-        this.deteccion.set('sin-coordenadas');
-        this.notificacion.warn('No se pudieron cargar las sucursales.');
-      },
-    });
+    this.det.cargar(() => this.notificacion.warn('No se pudieron cargar las sucursales.'));
   }
 
-  /**
-   * Toma la posición y resuelve en qué sucursal se está.
-   *
-   * Corre sola al abrir la pantalla y de nuevo con **Recalcular**. No hay
-   * elección manual: si esto no resuelve, no se marca.
-   */
-  async detectar(): Promise<void> {
-    this.deteccion.set('buscando');
-    this.sucursalDetectada.set(null);
-    this.distancia.set(null);
-
-    const posicion = await this.geo.posicionActual((p) => this.progreso.set(p));
-    this.aplicarPosicion(posicion);
-  }
-
-  /**
-   * Deja la pantalla contando lo que la posición permite afirmar.
-   *
-   * Devuelve la sucursal y los metros cuando se pudo, o `null` cuando no —así
-   * lo usa {@link marcar} para decidir si sigue, sin repetir el desarme.
-   */
-  private aplicarPosicion(posicion: Posicion | null): { sucursal: Sucursal; metros: number } | null {
-    if (!posicion) {
-      this.deteccion.set('sin-posicion');
-      this.sucursalDetectada.set(null);
-      this.distancia.set(null);
-      return null;
-    }
-
-    const detectada = detectarSucursal(this.sucursales(), posicion, (latA, lngA, latB, lngB) =>
-      this.geo.distanciaMetros(latA, lngA, latB, lngB),
-    );
-    if (!detectada) {
-      this.deteccion.set('sin-coordenadas');
-      this.sucursalDetectada.set(null);
-      this.distancia.set(null);
-      return null;
-    }
-
-    this.sucursalDetectada.set(detectada.sucursal);
-    this.distancia.set(detectada.metros);
-    this.deteccion.set('ok');
-    return detectada;
+  /** **Recalcular**: vuelve a tomar la posición. */
+  detectar(): Promise<unknown> {
+    return this.det.detectar();
   }
 
   hora(valor: string | undefined): string {
@@ -428,10 +364,10 @@ export class MarcacionPage {
     // decir dónde estás y habilitar el botón; entre eso y el toque pueden
     // pasar minutos. Lo que se guarda como evidencia tiene que ser del
     // momento en que se marcó, no de cuando se abrió la pantalla.
-    const posicion = await this.geo.posicionActual((p) => this.progreso.set(p));
-    const ahora = this.aplicarPosicion(posicion);
+    const ahora = await this.det.detectar();
+    const posicion = this.det.posicion();
 
-    if (!ahora) {
+    if (!ahora || !posicion) {
       this.marcando.set(false);
       this.enCurso.set(null);
       this.notificacion.warn('Se perdió la ubicación. No se marcó nada; tocá Recalcular.');
@@ -453,7 +389,7 @@ export class MarcacionPage {
     if (ahora.metros > PRECISION_MAXIMA_M) {
       const seguir = await this.dialogo.confirmar({
         titulo: 'Estás lejos de la sucursal',
-        mensaje: `La ubicación da ${Math.round(ahora.metros)} m de distancia de ${this.nombreDetectada()}, con una precisión de ±${Math.round(posicion!.precision)} m. La marcación queda registrada con esos datos.`,
+        mensaje: `La ubicación da ${Math.round(ahora.metros)} m de distancia de ${this.nombreDetectada()}, con una precisión de ±${Math.round(posicion.precision)} m. La marcación queda registrada con esos datos.`,
         confirmar: 'Marcar igual',
       });
       if (!seguir) {
@@ -463,7 +399,7 @@ export class MarcacionPage {
       }
     }
 
-    this.enviar(usuarioId, accion, ahora.sucursal, posicion!, ahora.metros, esSalidaAlmuerzo);
+    this.enviar(usuarioId, accion, ahora.sucursal, posicion, ahora.metros, esSalidaAlmuerzo);
   }
 
   /**

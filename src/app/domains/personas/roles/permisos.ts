@@ -109,6 +109,22 @@ export const PERMISOS = {
    * puede dar**.
    */
   aprobacionesRrhh: [ROLES.ADMIN, ROLES.RRHH_APROBAR],
+
+  /**
+   * Kiosco de marcación: la tablet de la puerta.
+   *
+   * ⚠️ **Marcación no lleva rol y el kiosco sí**, y no es una inconsistencia.
+   * La marcación propia es autoservicio: el filtro es la persona en sesión y
+   * cada uno ve lo suyo. El kiosco **marca por otros** —identifica un rostro
+   * y registra la asistencia de quien reconoció—, así que esa premisa no lo
+   * cubre. Dejarlo sin rol pondría en manos de cualquiera con sesión el
+   * registro de asistencia de todo el personal.
+   *
+   * `RRHH GESTIONAR` es quien administra la asistencia. `frc-mobile` protege
+   * la pantalla equivalente comparando `nickname === 'ADMIN'`, que además de
+   * frágil no se puede delegar a nadie.
+   */
+  kioscoMarcacion: [ROLES.ADMIN, ROLES.RRHH_GESTIONAR],
 } as const satisfies Record<string, readonly ROLES[]>;
 
 export type AreaProtegida = keyof typeof PERMISOS;

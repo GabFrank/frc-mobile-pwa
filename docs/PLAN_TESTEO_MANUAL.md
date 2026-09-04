@@ -5203,6 +5203,126 @@ motivo del fallo tiene contraste suficiente en los dos.
 
 ---
 
+## Bloque 57 — Kiosco de marcación *(nuevo, sin probar)*
+
+**Por qué está acá:** una tablet en la puerta para que todos marquen, sin
+sesión personal. Identifica el rostro contra **todas** las galerías (1:N) y
+registra la marcación **a nombre de quien reconoció**. Issue #17.
+
+⚠️ **Acá está el riesgo más caro de todo el módulo.** Un falso positivo marca
+por otra persona, y eso queda en el registro de asistencia como un hecho.
+**Probá el 57.6 y el 57.7 con gente de verdad**, no solo con vos mismo.
+
+⚠️ **Y hoy no se puede auditar.** La marcación no guarda el método, la
+similitud ni el margen contra el segundo candidato: eso es el #217 del
+central, que sigue abierto. Si en la prueba aparece un reconocimiento
+equivocado, **anotá quién, cuándo y contra quién**, porque en la base no va a
+quedar rastro.
+
+Hace falta: una tablet o teléfono con cámara, un usuario con rol **ADMIN** o
+**RRHH GESTIONAR**, y al menos **tres personas con el rostro enrolado**.
+
+### 57.1 · Solo entra quien tiene el rol
+1. Con un usuario **sin** `ADMIN` ni `RRHH GESTIONAR`, buscar «Kiosco de
+   marcación» en Inicio, y después escribir `/marcacion/kiosco` a mano.
+
+**Esperado:** en Inicio **no aparece**, y la URL a mano avisa «No tenés
+permiso» y rebota a Inicio. ⚠️ Que no aparezca en el menú no alcanza: probá la
+URL.
+
+### 57.2 · Detecta la sucursal sola
+1. Entrar al kiosco con el rol correcto.
+
+**Esperado:** muestra la sucursal detectada y la distancia, igual que la
+marcación personal. El botón **Marcar** está habilitado.
+
+### 57.3 · Sin ubicación no se puede marcar
+1. Denegar el permiso de ubicación y entrar.
+
+**Esperado:** dice que no se pudo obtener la ubicación y **Marcar** queda
+deshabilitado.
+
+### 57.4 · Identifica y marca por la persona reconocida
+1. Con la sesión de la tablet abierta como encargado, que **otra** persona
+   —con rostro enrolado— toque **Marcar** y se ponga frente a la cámara.
+
+**Esperado:** la saluda **por su nombre** y registra su marcación. En la base,
+`marcacion.usuario_id` es **el de esa persona**, no el del encargado logueado
+en la tablet. ⚠️ **Verificalo en la base**, no solo en la pantalla.
+
+### 57.5 · Vuelve solo, listo para el siguiente
+1. Después del saludo, no tocar nada y esperar.
+
+**Esperado:** a los ~5 segundos vuelve solo a la pantalla de **Marcar**. Con
+una fila en la puerta nadie va a tocar «listo».
+
+### 57.6 · A quien no está enrolado no lo reconoce
+1. Que alguien **sin** rostro registrado toque Marcar.
+
+**Esperado:** **«No te reconocimos. ¿Tenés el rostro registrado?»** y **no**
+marca nada. ⚠️ **Lo que no puede pasar:** que lo confunda con otra persona
+enrolada. Si pasa, es un hallazgo grave — anotá con quién lo confundió.
+
+### 57.7 · Personas parecidas
+1. Si hay hermanos, parientes o gente de rasgos similares enrolados, que
+   marquen uno después del otro.
+
+**Esperado:** cada uno queda a su nombre. ⚠️ **Este es el caso que decide si
+el 1:N es viable en esta población.** Anotá cualquier confusión con detalle.
+
+### 57.8 · Una foto no marca
+1. Poner delante de la cámara la foto de un funcionario enrolado, en la
+   pantalla de otro teléfono.
+
+**Esperado:** **«Tiene que ser un rostro real, no una foto.»** ⚠️ En un kiosco
+esto importa más que en el teléfono personal: cualquiera puede acercar una
+foto.
+
+### 57.9 · Con las dos salidas, pregunta cuál
+1. Que alguien con entrada marcada y sin salida de almuerzo toque Marcar.
+
+**Esperado:** después de reconocerlo, pregunta **«¿salís a almorzar o terminás
+el día?»** con los dos botones. No elige por la persona.
+
+### 57.10 · Elegir «Salir a almorzar» no cierra la jornada
+1. Elegir **Salir a almorzar**.
+
+**Esperado:** queda registrada como salida de almuerzo y la jornada **sigue
+abierta**: al volver, el kiosco le ofrece el retorno.
+
+### 57.11 · «Intentar de nuevo» tras un fallo
+1. Tapar la cámara, dejar que falle, y tocar **Intentar de nuevo**.
+
+**Esperado:** vuelve a contar 3 y a sacar la foto sola. **Cancelar** vuelve a
+la pantalla inicial.
+
+### 57.12 · Recalcular
+1. Tocar **Recalcular** en la sección de ubicación.
+
+**Esperado:** vuelve a tomar la posición. Es lo que hay que usar si mueven la
+tablet de sucursal.
+
+### 57.13 · Varias marcaciones seguidas
+1. Que tres personas marquen una detrás de otra sin recargar la app.
+
+**Esperado:** las tres quedan bien, cada una a su nombre. La cámara no se
+traba y la ubicación **no** se vuelve a pedir en cada una — el dispositivo
+está fijo, y esperar el GPS por persona haría la fila insoportable.
+
+### 57.14 · Safari en iPhone
+1. Abrir el kiosco en Safari sobre iOS y repetir 57.4.
+
+**Esperado:** el video se ve dentro de la tarjeta y la identificación
+funciona. ⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
+
+### 57.15 · Tema oscuro y tema claro
+1. Ver el kiosco en los dos temas: inicio, cuenta, saludo y fallo.
+
+**Esperado:** el saludo y el motivo del fallo se leen en los dos, y el botón
+**Marcar** tiene contraste suficiente.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -5263,7 +5383,8 @@ motivo del fallo tiene contraste suficiente en los dos.
 | 54 · Cantidades en enteros | 10 | 10 | | |
 | 55 · La sucursal de la marcación sale del GPS | 13 | | | |
 | 56 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
-| **Total** | **499** | | | |
+| 57 · Kiosco de marcación | 15 | | | |
+| **Total** | **514** | | | |
 
 ### Los cinco que más importan
 

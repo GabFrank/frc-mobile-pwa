@@ -2677,7 +2677,7 @@ Para que no se reporte como falla:
 | Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
 | Transferencias: **elegir el lote en la preparación** | No portado. Elegir el lote al **cargar** el producto sí (bloque 52). El escritorio deja reasignarlo también mientras se prepara la mercadería (`etapaAsignacionLote: PREPARACION`); acá esa etapa sigue resolviéndose por FEFO o por lo que se eligió al cargar |
 | Transferencias: **repartir un renglón entre varios lotes** | No portado, y el escritorio tampoco lo hace. El central lo acepta; acá se carga el producto dos veces |
-| Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
+| Producto: **alta** | No portada. Detalle, modo kiosco, vencidos y **edición** ya están (bloques 25 a 27 y 56) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
 | Recibir push (FCM) | No portado — la bandeja sí |
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |

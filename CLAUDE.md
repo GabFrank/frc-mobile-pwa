@@ -189,7 +189,24 @@ detalle financiero multi-moneda y los datos del retiro. Con esto,
 la galería del sistema de diseño, y sus primeros tests — antes un fallo de
 red en ese modo se presentaba igual que «Sin resultados».
 
-Pendiente: de **inventario**, arrastrar el conteo de una toma anterior; de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; y el **transporte WebSocket** para suscripciones.
+Sumado en la sexta: de **producto**, la **edición** (`/producto/:id/editar`,
+rol `EDITAR PRODUCTOS`) — un hub con una fila por sección (datos generales,
+familia/subfamilia, presentaciones, códigos y precios), cada una con su
+propia pantalla que guarda al confirmar. **Códigos y precios cuelgan de la
+presentación**, no del producto, así que se editan desde ahí; la sección de
+**precios** pide además `EDITAR PRECIOS`, con su propio guard de ruta, y solo
+escribe en la sucursal de la sesión. La regla que gobierna todo el módulo:
+`saveProducto` **reemplaza el registro entero**, no lo parchea
+(`ProductoService.java:297-325`), así que la pantalla siempre manda un
+`ProductoInput` completo —hidratado y con solo los campos tocados
+cambiados— aunque el formulario visible edite un subconjunto; sin eso,
+corregir una descripción apagaría en silencio el control de vencimiento y
+lote del producto, con la mutation respondiendo OK. Ver
+[`docs/modulos/producto.md`](docs/modulos/producto.md), sección «La edición».
+**Es la primera entrega de este repo que no depende de promover el
+central** — todas las mutations y queries ya existían en el schema.
+
+Pendiente: de **inventario**, arrastrar el conteo de una toma anterior; de **producto**, el **alta** con rol `EDITAR PRODUCTOS` — la edición ya está; y el **transporte WebSocket** para suscripciones.
 
 La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
@@ -211,7 +228,7 @@ Al 2026-08-15, farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna de la
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **988 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **88 archivos de test, 1.067 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 ⚠️ **`cantidad` es lo contado y `cantidadFisica` lo que dice el sistema**, al revés de lo que sugieren los nombres y de lo que `docs/modulos/inventario.md` afirmó hasta ahora. Lo fija `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La app las tuvo al derecho y la consecuencia era muda: lo contado desde el teléfono no entraba en el ajuste de stock. Corregido con test; ver el hallazgo #60 de [`docs/TODO_TECNICO.md`](docs/TODO_TECNICO.md).
 

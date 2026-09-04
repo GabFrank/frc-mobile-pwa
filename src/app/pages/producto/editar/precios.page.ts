@@ -204,6 +204,18 @@ export function esPrecioEditable(
                         <span class="badge-inactivo">Inactivo</span>
                       }
                     </span>
+                    @if (p.tipoPrecio?.id == null) {
+                      <!--
+                        18 de 11.415 precios reales no tienen tipo. No se
+                        pueden editar acá sin inventar una clave ajena (ver
+                        el aviso de guardarEdicion), así que se avisa por qué
+                        las acciones de esta fila están deshabilitadas en vez
+                        de dejar que el operador las toque y no pase nada.
+                      -->
+                      <p class="ayuda error">
+                        Sin tipo de precio asignado: hay que asignarle uno antes de poder editarlo acá.
+                      </p>
+                    }
                     @if (mismoId(edicionId(), p.id)) {
                       <frc-campo-importe
                         etiqueta="Precio"
@@ -231,7 +243,7 @@ export function esPrecioEditable(
                       <button
                         matButton
                         type="button"
-                        [disabled]="guardando()"
+                        [disabled]="guardando() || p.tipoPrecio?.id == null"
                         (click)="iniciarEdicion(p)"
                       >
                         Editar
@@ -240,13 +252,18 @@ export function esPrecioEditable(
                         <button
                           matButton
                           type="button"
-                          [disabled]="guardando()"
+                          [disabled]="guardando() || p.tipoPrecio?.id == null"
                           (click)="marcarPrincipal(p)"
                         >
                           Marcar principal
                         </button>
                       }
-                      <button matButton type="button" [disabled]="guardando()" (click)="toggleActivo(p)">
+                      <button
+                        matButton
+                        type="button"
+                        [disabled]="guardando() || p.tipoPrecio?.id == null"
+                        (click)="toggleActivo(p)"
+                      >
                         {{ p.activo === false ? 'Activar' : 'Desactivar' }}
                       </button>
                       <button matButton type="button" [disabled]="guardando()" (click)="eliminarPrecio(p)">
@@ -404,7 +421,19 @@ export class PreciosPage {
     return this.precios().filter((p) => sucId == null || !esPrecioEditable(p, sucId));
   });
 
-  /** Tipos de precio sin cargar todavía en la sucursal propia. */
+  /**
+   * Tipos de precio sin cargar todavía en la sucursal propia — el combo de
+   * «Agregar precio», no la lista de precios ya cargados.
+   *
+   * ⚠️ El filtro por `activo` solo importa acá, para no ofrecer un tipo
+   * inactivo en un precio **nuevo**. No hay que extenderlo a la lista de
+   * precios ya guardados: en datos reales, `UNITARIO` está marcado inactivo
+   * y lo usan 9.035 precios, `NATURAL` 1.072 y `FRIO` 730 — filtrar por
+   * `activo` ahí dejaría al operador sin poder editar un precio normal. El
+   * `usados` de arriba ya los saca de este combo apenas la sucursal tiene
+   * uno cargado, así que en la práctica el filtro por `activo` casi nunca
+   * se ejerce sobre esos tres tipos.
+   */
   readonly tiposPrecioDisponibles = computed<TipoPrecio[]>(() => {
     const usados = new Set(this.preciosPropios().map((p) => p.tipoPrecio?.id));
     return this.tiposPrecio().filter((t) => t.id != null && !usados.has(t.id) && t.activo !== false);
@@ -463,14 +492,18 @@ export class PreciosPage {
     const sucursalId = this.sucursalSesionId();
     const monto = this.edicionValor();
     const tipoPrecioId = p.tipoPrecio?.id;
-    if (
-      presentacionId == null ||
-      sucursalId == null ||
-      p.id == null ||
-      monto == null ||
-      tipoPrecioId == null
-    )
+    if (tipoPrecioId == null) {
+      // Precio sin tipo: `savePrecioPorSucursal` reemplaza la fila entera, y
+      // mandar un tipo inventado persistiría una clave ajena. Antes esto
+      // cortaba en silencio: el botón guardaba el texto nuevo en pantalla
+      // pero no mandaba nada, y la fila quedaba en edición para siempre.
+      this.cancelarEdicion();
+      this.notificacion.danger(
+        'Este precio no tiene tipo asignado y no se puede editar desde acá. Asignale un tipo primero.',
+      );
       return;
+    }
+    if (presentacionId == null || sucursalId == null || p.id == null || monto == null) return;
 
     const input = construirPrecioInput(
       {
@@ -522,7 +555,13 @@ export class PreciosPage {
     const presentacionId = this.presentacionIdNum();
     const sucursalId = this.sucursalSesionId();
     const tipoPrecioId = p.tipoPrecio?.id;
-    if (presentacionId == null || sucursalId == null || p.id == null || tipoPrecioId == null) return;
+    if (tipoPrecioId == null) {
+      this.notificacion.danger(
+        'Este precio no tiene tipo asignado y no se puede editar desde acá. Asignale un tipo primero.',
+      );
+      return;
+    }
+    if (presentacionId == null || sucursalId == null || p.id == null) return;
 
     const estaActivo = p.activo !== false;
     const input = construirPrecioInput(
@@ -555,7 +594,13 @@ export class PreciosPage {
     const presentacionId = this.presentacionIdNum();
     const sucursalId = this.sucursalSesionId();
     const tipoPrecioId = p.tipoPrecio?.id;
-    if (presentacionId == null || sucursalId == null || p.id == null || tipoPrecioId == null) return;
+    if (tipoPrecioId == null) {
+      this.notificacion.danger(
+        'Este precio no tiene tipo asignado y no se puede editar desde acá. Asignale un tipo primero.',
+      );
+      return;
+    }
+    if (presentacionId == null || sucursalId == null || p.id == null) return;
 
     const aDegradar = preciosADegradar(this.preciosPropios(), p.id);
 

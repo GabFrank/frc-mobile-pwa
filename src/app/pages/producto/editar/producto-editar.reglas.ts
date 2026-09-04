@@ -266,3 +266,55 @@ export function idDeRutaNum(raw: string | undefined, valorEspecial?: string): nu
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
+
+/**
+ * Lo que le falta a un producto para poder activarse, o `[]` si está listo.
+ *
+ * Un producto dado de alta desde el teléfono **nace inactivo** y solo se activa
+ * cuando se puede vender: hace falta una presentación que tenga a la vez un
+ * código —para que el lector lo encuentre— y un precio —para que la caja lo
+ * pueda cobrar—. Activarlo antes pone en góndola algo que al escanearse no se
+ * puede cobrar, que es peor que no tenerlo.
+ *
+ * ⚠️ **Las tres cosas tienen que estar en la MISMA presentación.** Un código en
+ * la unidad y un precio en la caja no alcanzan: el código escaneado resuelve la
+ * presentación, y es esa la que tiene que tener precio. Ver
+ * `presentacion.util.ts`.
+ *
+ * ⚠️ **Los inactivos no cuentan.** Un código inactivo sigue pegado a cajas
+ * viejas en el depósito pero no sirve para vender hoy, y un precio inactivo no
+ * lo cobra la caja.
+ *
+ * Alcanza con que **una** presentación esté completa: un producto puede tener
+ * la unidad lista para vender y la caja todavía a medias.
+ */
+export function faltaParaActivar(producto: Producto): string[] {
+  const presentaciones = producto.presentaciones ?? [];
+  if (presentaciones.length === 0) {
+    return ['una presentación', 'un código', 'un precio'];
+  }
+
+  const vigentes = <T extends { activo?: boolean | null }>(lista: T[] | undefined) =>
+    (lista ?? []).filter((x) => x.activo !== false);
+
+  const hayCompleta = presentaciones.some(
+    (p) => vigentes(p.codigos).length > 0 && vigentes(p.precios).length > 0,
+  );
+  if (hayCompleta) {
+    return [];
+  }
+
+  // Ninguna presentación sirve entera. Se nombra lo que falta mirando el
+  // conjunto, para no decirle al operador «un código» cuando además no hay
+  // ningún precio en ninguna parte.
+  const falta: string[] = [];
+  if (!presentaciones.some((p) => vigentes(p.codigos).length > 0)) {
+    falta.push('un código');
+  }
+  if (!presentaciones.some((p) => vigentes(p.precios).length > 0)) {
+    falta.push('un precio');
+  }
+  // Los tiene repartidos entre presentaciones distintas: ninguna se puede
+  // vender, y hay que decir las dos cosas.
+  return falta.length > 0 ? falta : ['un código', 'un precio'];
+}

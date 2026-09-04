@@ -5234,6 +5234,251 @@ foto queda legible sobre el fondo hundido del recuadro.
 
 ---
 
+## Bloque 57 — Edición de producto *(nuevo)*
+
+> Datos reales de `bodega`, consultados el 2026-09-04:
+>
+> - **Producto 2 — PILSEN CLASICA LATA 269 ML** (`vencimiento = true`,
+>   `activo = true`) para el caso 56.1. Ningún producto de `bodega` ni de
+>   `general-farma` tiene hoy `lote = true` —las 8.386 filas de `bodega` y las
+>   13.046 de `general-farma` traen `lote = false`—, así que el caso verifica
+>   solo `vencimiento`, que es donde ya se probó el defecto de §1 del diseño.
+>   Si en el futuro aparece un producto con `lote = true`, repetir el caso con
+>   ese producto para cubrir también esa bandera.
+> - **Producto 238 — EISENBAHN AMERICAN IPA LATA 350ML**, presentación **262**
+>   (cantidad 11), sucursal **1 · SUC. CENTRAL**, para el caso 56.5. Esa
+>   presentación tiene hoy **dos precios marcados como `principal = true`** en
+>   la misma sucursal —id 562 (tipo `FRIO`, ₲ 50.000) e id 563 (tipo `NATURAL`,
+>   ₲ 50.000)—: es exactamente la anomalía de «dos principales» que el diseño
+>   existe para no seguir produciendo, ya presente en la base real.
+
+### 57.1 · La regresión silenciosa — ⚠️ *crítico*
+1. Entrar a la ficha del producto **2 — PILSEN CLASICA LATA 269 ML**
+   (`/producto/2`) y confirmar que **Vencimiento** figura activo.
+2. Menú `⋮` → **Editar producto** → **Datos generales**.
+3. Cambiar **solo la descripción** (por ejemplo, agregar un espacio y una
+   letra al final) y guardar.
+4. Volver a `/producto/2`.
+
+**Esperado:** la descripción cambió **y** la ficha sigue mostrando
+**Vencimiento** activo. *Por qué:* `saveProducto` reemplaza el registro
+entero (`ProductoService.java:297-325`); si el input que arma la pantalla no
+llevara `vencimiento` hidratado, esta edición lo apagaría en silencio —la
+mutation responde OK igual— y con él la carga de vencimiento en cada
+recepción e inventario de este producto. Es la falla que este módulo existe
+para evitar.
+
+> Dejar la descripción como estaba (o anotar el valor original) antes de
+> seguir con el resto del bloque, para no ensuciar el catálogo real.
+
+### 57.2 · La descripción vuelve en mayúsculas
+1. En **Datos generales** del mismo producto, escribir la descripción en
+   minúsculas y guardar.
+
+**Esperado:** la pantalla de edición muestra el texto en **mayúsculas** al
+volver a cargar, igual que la ficha — lo pone el central
+(`ProductoService.java:312`), no el cliente.
+
+### 57.3 · Descripción vacía no llega al central
+1. En **Datos generales**, borrar la descripción por completo e intentar
+   guardar.
+
+**Esperado:** mensaje **«La descripción es obligatoria»** y **ninguna llamada
+al central** (verificar en la pestaña Red del navegador que no sale ninguna
+mutation). *Por qué:* sin este guard, `ProductoService.java:312` hace
+`.toUpperCase()` sobre `null` y tira `NullPointerException` en el central.
+
+### 57.4 · Cascada del envase
+1. En **Datos generales** de un producto con **Vencimiento** activo, marcar
+   **Es envase**.
+
+**Esperado:** las siete banderas relacionadas (balanza, garantía,
+ingrediente, alcohólico, promoción, vencimiento y lote) se apagan y quedan
+**deshabilitadas** mientras «Es envase» siga marcado. `combo` no se apaga —el
+escritorio tampoco lo hace.
+
+### 57.5 · Un solo precio principal
+1. Entrar a `/producto/238/editar/presentaciones` → presentación **262**
+   (cantidad 11) → **Precios**.
+2. Confirmar que **hay dos precios marcados como principal** en la sucursal
+   propia (si la sesión no es de SUC. CENTRAL, este caso no se puede ejercitar
+   ahí — cambiar de sucursal o repetir con un producto de la sucursal propia).
+3. Marcar como principal el que todavía no lo era.
+4. Salir de la pantalla y volver a entrar.
+
+**Esperado:** el que era principal antes queda degradado, y al volver a
+entrar hay **uno solo** marcado como principal. *Por qué:* el escritorio
+degrada al anterior antes de guardar el nuevo (`adicionar-precio-dialog.
+component.ts:226-244`); sin eso, cuál gana lo decide el orden en que el
+central devuelve la lista, que no está garantizado.
+
+### 57.6 · El precio va a la sucursal propia
+1. En **Precios** de una presentación con precio en más de una sucursal,
+   editar el monto del precio de la **sucursal propia** y guardar.
+2. Ver la ficha del producto (`/producto/:id`), que lista el precio de todas
+   las sucursales.
+
+**Esperado:** cambió el precio de la sucursal de la sesión y **ninguno de los
+otros**. `savePrecioPorSucursal` nunca recibe una sucursal distinta a la
+propia (`construirPrecioInput`) — no hay forma de escribir en otra desde esta
+pantalla.
+
+### 57.7 · Sin `EDITAR PRECIOS`
+1. Con un usuario que tenga `EDITAR PRODUCTOS` pero no `EDITAR PRECIOS`,
+   entrar al hub de edición de un producto.
+2. Escribir a mano la URL de precios de una presentación
+   (`/producto/:id/editar/presentacion/:presentacionId/precios`).
+
+**Esperado:** en el hub, la fila **Precios** aparece **deshabilitada** con el
+motivo escrito («necesitás el permiso EDITAR PRECIOS»); escribir la URL a
+mano **tampoco entra** — el guard de ruta rebota antes de mostrar la
+pantalla.
+
+### 57.8 · Sin `EDITAR PRODUCTOS`
+1. Con un usuario sin `EDITAR PRODUCTOS`, abrir la ficha de un producto.
+2. Escribir a mano `/producto/:id/editar`.
+
+**Esperado:** el botón **Editar producto** no aparece en el menú `⋮` de la
+ficha, y la URL escrita a mano rebota a Inicio con el aviso de permiso — el
+mismo patrón que el resto de los guards de rol del repo.
+
+### 57.9 · Código por escaneo y código interno *(sin probar contra un
+dispositivo real — ver más abajo)*
+1. En **Códigos** de una presentación, agregar un código escaneando con la
+   cámara.
+2. Agregar otro con **Generar código interno**.
+
+**Esperado:** el código escaneado se guarda tal cual lo lee la cámara; el
+generado empieza con **`2199`** y tiene **13 dígitos** — es un EAN-13 interno
+que `generarCodigoInterno` calcula sin persistirlo, y lo persiste recién
+`saveCodigo`.
+
+### 57.10 · Los tres estados, en las seis pantallas
+1. Recorrer el hub, datos generales, familia/subfamilia, presentaciones,
+   códigos y precios: una vez con datos, una vez sin datos (por ejemplo, un
+   producto sin presentaciones para la pantalla de presentaciones) y una vez
+   con el central caído (apagarlo, o apuntar a un servidor inexistente desde
+   *Mi cuenta → Servidor*).
+
+**Esperado:** cada pantalla distingue **carga**, **vacío** y **error** — «no
+hay» y «no se pudo consultar» son mensajes distintos, nunca la misma pantalla
+en blanco.
+
+**Sin verificar en esta entrega:**
+
+- **El escaneo de códigos y `generarCodigoInterno` contra un central real,
+  en un dispositivo real.** El caso 56.9 no se ejecutó contra la cámara de un
+  teléfono ni contra el central — el número de secuencia y el dígito
+  verificador que arma el central no se confirmaron con una llamada real.
+- **Todo guardado de ida y vuelta contra el central** (56.1 a 56.8): la lógica
+  se verificó por SQL directo contra `bodega` y por lectura de código, no
+  ejecutando las mutations desde la app corriendo.
+- **El alta de producto** — no entra en esta entrega, va en una segunda.
+- **La imagen del producto** — fuera de alcance, va en su propia entrega.
+- **El comportamiento en Safari/iOS del escaneo** dentro de la pantalla de
+  códigos — no hay un iPhone en la flota para probarlo hoy.
+
+---
+
+## Bloque 58 — Alta de producto *(nuevo)*
+
+Cierra el circuito: hasta ahora un producto nuevo solo nacía en el escritorio.
+
+> ⚠️ **Los tipos de precio pueden estar inactivos en la instancia que pruebes.**
+> El desplegable de «Tipo de precio» solo ofrece los que tienen `activo = true`.
+> En la base local se activaron los seis el 2026-09-04, pero **en alpha, beta y
+> producción `UNITARIO`, `FRIO`, `NATURAL` y `FUNCIONARIOS` siguen inactivos**,
+> así que ahí el selector ofrece solo `EXPO` y `EXPO-DEPOSITO`. **No es una
+> falla de la pantalla: es el dato.** Con eso, un producto nuevo no puede
+> recibir su precio normal desde el teléfono hasta que esos tipos se reactiven.
+
+### 58.1 · La entrada
+1. Ir a la pestaña **Buscar**.
+
+**Esperado:** abajo aparece **«¿No lo encontrás? Cargá un producto nuevo»**. Con
+un usuario **sin** `EDITAR PRODUCTOS`, no aparece — y escribir `/producto/nuevo`
+a mano tampoco entra.
+
+### 58.2 · Todo en mayúsculas
+1. Abrir el alta y escribir la descripción **en minúsculas**.
+
+**Esperado:** se ve en MAYÚSCULAS mientras se escribe. *Por qué:* el central la
+convierte igual (`ProductoService.java:312`); mostrarla en minúsculas sería
+enseñar un texto distinto del que va a quedar guardado.
+
+### 58.3 · Aviso de duplicado, no bloqueo
+1. Escribir la descripción de un producto que ya exista —por ejemplo
+   `pilsen clasica lata 269 ml`, en minúsculas— y salir del campo.
+
+**Esperado:** avisa que ya existe **y deja continuar igual**. *Por qué:* hay
+homónimos legítimos, y un bloqueo duro empuja a inventar variantes del nombre
+para esquivarlo. Que lo encuentre escribiendo en minúsculas es parte de la
+prueba: la consulta va en mayúsculas porque así está guardado.
+
+### 58.4 · Falta lo obligatorio
+1. Con la descripción cargada pero sin familia, mirar el pie.
+
+**Esperado:** dice **«Falta la familia.»** y **Crear producto** está
+deshabilitado. Al elegir familia pasa a pedir la subfamilia.
+
+### 58.5 · Familia y subfamilia por nombre
+1. **Elegir familia** → buscar y elegir una.
+
+**Esperado:** el diálogo lista las familias por **nombre** (BEBIDAS, GENERAL…),
+no por su descripción larga, y la lista de subfamilias tampoco tiene filas en
+blanco. Cambiar de familia **limpia** la subfamilia elegida antes.
+
+### 58.6 · Nace inactivo — ⚠️ *el caso que define el diseño*
+1. Completar los tres campos y tocar **Crear producto**.
+
+**Esperado:** cae en el hub de edición del producto recién creado, con el aviso
+**«Este producto está inactivo · No se puede vender todavía. Falta una
+presentación, un código y un precio.»** *Por qué:* un alta abandonada a mitad
+deja un producto invisible, no uno roto que la caja no puede cobrar. Verificar
+también que la lista dice **una presentación, un código y un precio** —con
+comas y una sola «y»—, no «y … y …».
+
+### 58.7 · Los valores por defecto
+1. Sobre el producto recién creado, entrar a **Datos generales**.
+
+**Esperado:** **IVA 10**, **Controla stock activado**, **Activo apagado**, y la
+**Descripción de factura ya cargada con el mismo texto** que la descripción.
+
+### 58.8 · La descripción de factura se despega
+1. En **Datos generales**, editar la **descripción de factura** y guardar.
+2. Volver a entrar y cambiar la **descripción del producto**.
+
+**Esperado:** la de factura **conserva lo que se escribió** y no vuelve a
+copiar la descripción. Antes de tocarla, en cambio, acompaña sola.
+
+### 58.9 · Activar
+1. Cargar una presentación, un código y un precio.
+2. Volver al hub.
+
+**Esperado:** el aviso pasa a **«Ya tiene presentación, código y precio: se
+puede activar»** y aparece **Activar producto**. Al tocarlo, el aviso
+desaparece. Comprobar en la ficha que **el IVA y la subfamilia siguen como
+estaban**: activar pasa por el mismo camino que todo lo demás y manda el
+`ProductoInput` completo.
+
+### 58.10 · Nada de errores fantasma — ⚠️ *regresión*
+1. En **Códigos**, tocar **Generar interno**.
+2. Marcar ese código como **principal**.
+3. En **Precios**, agregar uno.
+
+**Esperado:** las tres cosas ocurren **sin que aparezca «No se pudieron cargar
+los datos»**. *Por qué:* las tres recargan el producto al terminar, y el id que
+devuelve el central es un **string**; pasarlo al guard de `cargar()`, que usa
+`Number.isFinite`, hacía que la pantalla mostrara un error justo después de un
+guardado exitoso. Reintentar lo tapaba.
+
+> El código generado empieza con **2199** y tiene 13 dígitos.
+
+**Qué queda sin verificar en este bloque:** el escaneo con cámara para cargar un
+código, y todo el flujo en Safari/iOS.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -5294,7 +5539,17 @@ foto queda legible sobre el fondo hundido del recuadro.
 | 54 · Cantidades en enteros | 10 | 10 | | |
 | 55 · Alta de solicitud de caja chica | 16 | | | |
 | 56 · La foto del producto en el buscador | 6 | | | |
-| **Total** | **494** | | | |
+| 57 · Edición de producto | 10 | | | |
+| 58 · Alta de producto | 10 | | | |
+| **Total** | **524** | | | |
+
+> El total se recalcula **sumando la columna «Casos»**, no arrastrando el
+> número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las
+> filas sumaban **504**: sumarle un bloque nuevo a ese número daba otro
+> resultado que parecía correcto por casualidad. Los bloques 57 y 58 son de
+> esta tanda; el 57 **existía y se perdió** al resolver un conflicto de merge
+> en `feat/foto-producto-buscador` (commit `75d0a59`), y se restauró desde el
+> merge del PR #42.
 
 ### Los cinco que más importan
 

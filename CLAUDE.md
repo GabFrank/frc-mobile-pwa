@@ -206,7 +206,15 @@ lote del producto, con la mutation respondiendo OK. Ver
 **Es la primera entrega de este repo que no depende de promover el
 central** — todas las mutations y queries ya existían en el schema.
 
-Pendiente: de **inventario**, arrastrar el conteo de una toma anterior; de **producto**, el **alta** con rol `EDITAR PRODUCTOS` — la edición ya está; y el **transporte WebSocket** para suscripciones.
+Sumado en la séptima: de **producto**, el **alta** (`/producto/nuevo`, rol
+`EDITAR PRODUCTOS`) — pide solo descripción, familia y subfamilia, y manda al
+hub de la edición para el resto. **Nace inactivo** y se activa recién cuando
+tiene una presentación con código y precio: un alta abandonada deja un producto
+invisible, no uno roto que la caja no puede cobrar. Con esto **crear un producto
+dejó de ser del escritorio**, y el issue #10 de paridad queda cerrado salvo el
+transporte WebSocket.
+
+Pendiente: de **inventario**, arrastrar el conteo de una toma anterior; y el **transporte WebSocket** para suscripciones. De **producto** ya no queda nada: la edición y el alta están.
 
 La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
@@ -228,7 +236,7 @@ Al 2026-08-15, farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna de la
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **88 archivos de test, 1.067 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **92 archivos de test, 1.106 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 ⚠️ **`cantidad` es lo contado y `cantidadFisica` lo que dice el sistema**, al revés de lo que sugieren los nombres y de lo que `docs/modulos/inventario.md` afirmó hasta ahora. Lo fija `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La app las tuvo al derecho y la consecuencia era muda: lo contado desde el teléfono no entraba en el ajuste de stock. Corregido con test; ver el hallazgo #60 de [`docs/TODO_TECNICO.md`](docs/TODO_TECNICO.md).
 

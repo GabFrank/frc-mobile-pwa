@@ -80,26 +80,60 @@ export const productoSearchQuery = gql`
   }
 `;
 
-/** Detalle completo, para cuando la búsqueda por texto no trae presentaciones. */
+/**
+ * Ficha del producto, y la fuente de hidratación de la edición.
+ *
+ * ⚠️ **Pide más campos de los que la ficha muestra, a propósito.** La edición
+ * arma el `ProductoInput` desde este resultado, y `saveProducto` reemplaza la
+ * fila en vez de parchearla: un campo que esta query no traiga se guarda en
+ * `null` la próxima vez que alguien corrija una descripción. `iva`, `activo`,
+ * `garantia` y `stock` están acá por eso, no porque se dibujen.
+ *
+ * `producto-input-completo.spec.ts` falla si el input acepta un campo que
+ * esta query no pide.
+ */
 export const productoPorIdQuery = gql`
   query ($id: ID!) {
     data: producto(id: $id) {
       id
+      propagado
       descripcion
+      descripcionFactura
+      iva
+      unidadPorCaja
+      unidadPorCajaSecundaria
       balanza
+      garantia
+      tiempoGarantia
+      ingrediente
+      combo
+      stock
+      promocion
       vencimiento
       diasVencimiento
       lote
       cambiable
+      activo
+      tipoConservacion
       imagenPrincipal
-      isEnvase
       codigoPrincipal
+      isEnvase
+      subfamilia {
+        id
+        descripcion
+        familia {
+          id
+          descripcion
+        }
+      }
       envase {
         id
         descripcion
       }
       presentaciones {
         id
+        descripcion
+        activo
         principal
         cantidad
         codigos {
@@ -121,6 +155,10 @@ export const productoPorIdQuery = gql`
           precio
           principal
           activo
+          sucursal {
+            id
+            nombre
+          }
           tipoPrecio {
             id
             descripcion

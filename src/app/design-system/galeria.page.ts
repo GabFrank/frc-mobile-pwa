@@ -74,6 +74,7 @@ import type { ConfigBuscadorLocal } from '../shared/buscador/buscador.component'
       <frc-seccion titulo="Botones">
         <div class="fila">
           <button matButton="filled">Guardar</button>
+          <button matButton="tonal">Elegir tipo de gasto</button>
           <button matButton="outlined">Cancelar</button>
           <button matButton>Ver detalle</button>
           <button matButton="filled" class="destructivo">Eliminar</button>

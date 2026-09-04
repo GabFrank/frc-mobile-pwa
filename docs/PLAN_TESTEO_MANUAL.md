@@ -1210,8 +1210,9 @@ en mayúsculas con guion bajo ni vacía.
 
 ## Bloque 17 — Caja chica *(nuevo)*
 
-> Las solicitudes se crean hoy desde el desktop: la PWA todavía no las da de
-> alta. Para probar hace falta al menos una solicitud existente.
+> El alta de la solicitud está en el bloque 53
+> (`/operaciones/gastos/nueva`). Para los casos de acá alcanza con al menos
+> una solicitud existente, creada desde ahí o desde el desktop.
 
 ### 17.1 · Lista
 1. Operaciones → **Caja chica**
@@ -2670,7 +2671,6 @@ Para que no se reporte como falla:
 
 | Área | Estado |
 |---|---|
-| Operaciones | De caja chica, **el alta** de la solicitud. La rendición ya está (bloque 28) |
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: agregar un producto que la toma no incluye | No portado. Abrir la toma (bloque 39), agregarle zonas (bloque 40), contar (bloque 29), revisar (35) y finalizar sí. Sumar a una zona una presentación que no está necesita el buscador paginado y el alta de ítem |
@@ -4965,6 +4965,200 @@ en la misma línea.
 entero, y con punto decimal inglés—, que es exactamente el problema de locale
 por el que el repo prohíbe el pipe `number`.
 
+## Bloque 55 — Alta de solicitud de caja chica *(nuevo, parcialmente probado)*
+
+`/operaciones/gastos/nueva`. Cierra lo que faltaba del bloque 17: hasta ahora
+las solicitudes solo se veían, se retiraban y se rendían; acá se **crean**.
+**Sin rol** — como el resto de `caja chica`, cualquiera con acceso a
+Operaciones entra al formulario.
+
+> ⚠️ **Ejecución parcial.** Los casos 55.5, 55.6 y 55.8 no se corrieron:
+> piden un tipo de gasto real de un módulo padre puntual (`VEHICULO` o un
+> servicio continuo como `ANDE`) y, el 55.8, un activo con plan de cuotas
+> cargado — datos concretos que hay que elegir consultando la base, no
+> inventar. No se consultó la base en esta tarea. Ver el detalle en cada
+> caso y en el hueco que dejan más abajo.
+>
+> **Criterio de las marcas:** un caso queda marcado como no ejecutado cuando
+> su «Esperado» depende de **qué entrada puntual del catálogo** se usó —un
+> módulo padre concreto (55.5, 55.6), o un activo con cuotas cargadas
+> (55.8, y lo que arrastra en 55.9/55.10)— porque hay que ir a elegir ese
+> dato contra la base antes de poder correrlo. 55.4 lleva una marca más
+> suave: cualquier tipo de `PERSONAS` u `OTRO` sirve, pero no se confirmó
+> que el catálogo de prueba tenga alguno. Un caso como **55.7 no necesita
+> ninguna marca**: le alcanza con **dos tipos de gasto cualesquiera** que
+> pidan activo, sin importar cuáles — y eso se puede confirmar en el momento,
+> abriendo el buscador de tipo de gasto y mirando si aparece la sección
+> «Activo imputado», sin haber consultado antes la base para saber qué
+> entrada tiene qué módulo padre.
+
+### 55.1 · Entrar desde la lista
+1. Operaciones → **Caja chica** → **Nueva solicitud**
+
+**Esperado:** abre `/operaciones/gastos/nueva`. Mientras cargan los catálogos
+(tipos de gasto, monedas, formas de pago y sucursales) se ve el esqueleto.
+
+### 55.2 · Los tres estados de la carga inicial
+1. Con el central caído (o cortando la red), entrar a la pantalla.
+
+**Esperado:** estado de error con **Reintentar**, no un formulario con
+selectores vacíos. Tocar **Reintentar** repite la carga de los cuatro
+catálogos.
+
+### 55.3 · La sucursal de retiro
+1. Mirar la sección **Retiro** al entrar.
+2. Cambiarla por otra.
+
+**Esperado:** viene preseleccionada la sucursal de la sesión, y se puede
+elegir cualquier otra de la lista — **no se filtra por `soloOperables()`**:
+una caja chica se retira igual en una sucursal sin depósito, como `COMPRAS`.
+
+### 55.4 · Un tipo de gasto de `PERSONAS` no pide activo
+1. Elegir un tipo de gasto cuyo módulo padre sea `PERSONAS` (o `OTRO`).
+
+**Esperado:** no aparece la sección del activo imputado. El formulario sigue
+directo a **Retiro** y **Detalle financiero**.
+
+> ⚪ **No verificado contra un dato real.** Hace falta un tipo de gasto con
+> `moduloPadre = PERSONAS` (o `OTRO`) cargado en el central de prueba; no se
+> consultó cuál.
+
+### 55.5 · Un tipo de gasto de `VEHICULO` pide un vehículo, y el buscador pagina
+1. Elegir un tipo de gasto con `moduloPadre = VEHICULO`.
+2. Tocar **Elegir Vehículo** y, en el buscador, tipear algo con más de diez
+   resultados.
+
+**Esperado:** la sección se titula **Vehículo**. El buscador abre en modo
+paginado; al pie de la primera página aparece **Cargar más**, y tocarlo
+**agrega** resultados a la lista en vez de reemplazarla.
+
+> ⚪ **No ejecutado.** Hace falta un tipo de gasto con `moduloPadre = VEHICULO`
+> y, para la parte de paginación, un texto de búsqueda que traiga más de una
+> página de vehículos en el central de prueba. No se consultó la base para
+> elegir ninguno de los dos.
+
+### 55.6 · Un tipo de gasto de `ANDE` pide un inmueble
+1. Elegir un tipo de gasto con `moduloPadre = ANDE`.
+
+**Esperado:** la sección se titula **Inmueble (ANDE)**, no solo «Inmueble»:
+`ANDE` es uno de los siete servicios continuos que se imputan a un
+`INMUEBLE` aunque su módulo padre diga otra cosa.
+
+> ⚪ **No ejecutado.** Hace falta un tipo de gasto con `moduloPadre = ANDE`
+> cargado en el central de prueba; no se consultó cuál.
+
+### 55.7 · Cambiar de tipo de gasto limpia el activo elegido
+1. Abrir el buscador de tipo de gasto y elegir **cualquiera** que, al
+   elegirlo, muestre la sección **Activo imputado** — no importa cuál. Elegir
+   ahí un activo cualquiera.
+2. Volver a elegir tipo de gasto y elegir **otro** que también muestre esa
+   sección — de nuevo, no importa cuál, mientras sea distinto del anterior.
+
+**Esperado:** el activo elegido, el texto que lo describe y la tarjeta de
+resumen financiero desaparecen al volver a elegir en el paso 2. No queda el
+activo del paso 1 imputado a un tipo de gasto que ya no es el suyo.
+
+> A diferencia de 55.5/55.6, este caso **no necesita un módulo padre
+> puntual**: cualquier par de tipos de gasto que pidan activo alcanza, y eso
+> se ve en el momento sin haber consultado antes la base.
+
+### 55.8 · Un activo con plan de cuotas muestra la tarjeta de resumen
+1. Elegir un tipo de gasto que admita cuotas (`INMUEBLE`, `MUEBLE`,
+   `VEHICULO` o `EQUIPOS`) y, como activo, uno que tenga un plan de cuotas
+   cargado.
+
+**Esperado:** aparece la tarjeta con el pendiente (formateado según su
+moneda), el texto de cuota (`Cuota N/Total`) y las cuotas que faltan; si el
+vencimiento está cerca, un aviso aparte. Si el activo no tiene plan de
+cuotas, en cambio, la tarjeta muestra el resto de los datos sin esa parte, o
+«No se pudo consultar el activo» si la consulta al central falla.
+
+> ⚪ **No ejecutado — necesita un dato concreto en la base.** Hace falta un
+> `Ente` (vehículo, mueble, inmueble o equipo) que tenga un plan de cuotas
+> activo cargado en el central de prueba, con al menos una cuota pendiente.
+> No se consultó la base para elegir uno; sin ese dato puntual, este caso no
+> se puede correr — compilar y que el resto de la pantalla funcione **no**
+> es evidencia de que la tarjeta se arma bien con cuotas reales.
+
+### 55.9 · El monto sugerido entra en el primer detalle vacío
+1. Elegir un activo cuyo resumen financiero traiga un monto sugerido, con el
+   detalle financiero todavía vacío.
+
+**Esperado:** el primer detalle se completa solo con ese monto (y su
+moneda, si el resumen la trae). El operador no tiene que tipearlo.
+
+> Depende del mismo dato que 55.8 — un activo con plan de cuotas y monto
+> sugerido en el central de prueba. No ejecutado por el mismo motivo.
+
+### 55.10 · Con un monto ya cargado, elegir otro activo no lo pisa
+1. Escribir un monto a mano en el primer detalle.
+2. Elegir un activo distinto (uno cuyo resumen traiga monto sugerido).
+
+**Esperado:** el monto tipeado a mano **sigue ahí**, sin reemplazarse.
+`frc-mobile` pisaba el primer detalle cada vez que se elegía un activo; acá
+no se pisa lo que el operador ya cargó.
+
+> Depende de un activo con monto sugerido, igual que 55.8 y 55.9. No
+> ejecutado por el mismo motivo.
+
+### 55.11 · Dos detalles en la misma moneda no dejan guardar
+1. Agregar un segundo detalle con **Agregar detalle**.
+2. Cargar monto, moneda y forma de pago en los dos, repitiendo la moneda.
+
+**Esperado:** el botón **Guardar solicitud** queda deshabilitado y aparece el
+mensaje **«No repita la misma moneda en más de un detalle»**.
+
+### 55.12 · Dos detalles en monedas distintas guardan
+1. Con dos detalles cargados en monedas distintas (y el resto del formulario
+   completo), tocar **Guardar solicitud**.
+
+**Esperado:** guarda sin el mensaje de moneda repetida.
+
+### 55.13 · El total en guaraníes sale sin decimales
+1. Cargar un detalle en guaraníes con centavos en el cálculo (por ejemplo,
+   dos detalles en guaraníes agregados y quitados hasta dejar uno con un
+   monto no redondo).
+
+**Esperado:** el total de la moneda guaraní se muestra **sin decimales**; el
+de cualquier otra moneda, con dos. Es la regla de `moneda.util.ts`
+(`generic/utils/`): el guaraní no lleva decimales en ningún lado de la app.
+
+### 55.14 · Guardar lleva al detalle, con el QR visible
+1. Completar el formulario entero y tocar **Guardar solicitud**.
+
+**Esperado:** navega a `/operaciones/gastos/{id}/{sucursalId}` — el detalle
+de la solicitud recién creada, con el QR de retiro visible ahí.
+
+### 55.15 · El QR sirve para retirar en la caja
+1. Con la solicitud recién creada, mostrar su QR de retiro (bloque 17,
+   caso 17.3) y confirmar el retiro desde otra sesión o usuario con acceso a
+   la caja.
+
+**Esperado:** el retiro se confirma igual que con una solicitud creada desde
+el escritorio — el `qrToken` que trae la solicitud nueva es válido para
+`confirmarRetiroFuncionario`.
+
+> ⚠️ **En una solicitud multi-moneda, la lista muestra solo la moneda del
+> primer detalle.** El central arma `montoSolicitado` y `moneda` de la
+> cabecera a partir del **primer** `PreGastoDetalleFinanzas` que llega en
+> `finanzas` (`PreGastoGraphQL.java:232-243`) — no suma ni convierte los
+> demás. No es un bug de la PWA ni del central: es cómo se resume la
+> cabecera cuando hay más de un detalle. Al probar 55.12 (dos detalles en
+> monedas distintas), no esperes ver el total combinado en la lista —
+> confirmá el resto de los importes en el detalle, donde sí aparecen todos.
+
+### 55.16 · El detalle muestra lo que se cargó al guardar
+1. Completar el formulario con un **vencimiento** cargado a mano, una
+   **urgencia** distinta de la que trae por defecto, un **beneficiario**
+   puntual y una **descripción**, y tocar **Guardar solicitud**.
+2. En el detalle al que navega, revisar esos cuatro datos.
+
+**Esperado:** el vencimiento, la urgencia, el beneficiario y la descripción
+que se cargaron en el formulario aparecen en el detalle, sin ninguno vacío
+o distinto de lo tipeado. Es el caso que hubiera atajado el defecto del
+vencimiento que el central descartaba en silencio: la mutation respondía OK
+mientras el campo se perdía entero, y ningún caso anterior de este bloque
+abría el detalle a comprobarlo.
 
 ---
 

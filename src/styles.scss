@@ -87,6 +87,13 @@ html {
   --mat-sys-on-primary-container: var(--brand-text);
   --mat-sys-inverse-primary: var(--brand-text);
 
+  // `matButton="tonal"` (buscadores, "agregar detalle", etc.) pinta con
+  // `secondary-container`. Sin reasignar, Material generaba su propio par
+  // desde `mat.$red-palette` —otro rojo, ajeno a la marca—, aunque el
+  // contraste diera bien. Mismo par que `primary-container`.
+  --mat-sys-secondary-container: var(--danger-bg);
+  --mat-sys-on-secondary-container: var(--brand-text);
+
   // Semántica de error
   --mat-sys-error: var(--danger-fill);
   --mat-sys-on-error: var(--on-tono);

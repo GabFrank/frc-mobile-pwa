@@ -267,9 +267,63 @@ la ruta del import.
 ⚠️ Si en la práctica cuesta pasar, el problema es el **enrolamiento** —pocas
 poses, mala luz—, no el umbral. Aflojarlo convierte esto en un teatro.
 
-⚠️ **Los aciertos tienen que ser consecutivos.** Un fallo reinicia la cuenta y
-descarta los frames: acumular aciertos sueltos permitiría insistir un rato
-frente a la cámara con la foto de otro.
+⚠️ **Los frames salen de una sola foto, no de un rato frente a la cámara.**
+Antes había un bucle a 12 fps que acumulaba aciertos consecutivos; ahora la
+tanda entera dura ~320 ms y se acepta o se rechaza como un bloque. Insistir
+tiene un costo visible —hay que tocar «Tomar otra foto»— y un límite.
+
+## Cuenta regresiva, foto sola y reintento
+
+El flujo es el de la PWA de gourmet, que ya estaba pedido: se abre el diálogo,
+cuenta **3 segundos**, la foto **se toma sola**, y si no pasa se ofrece
+**Tomar otra foto**. Ver la issue #16.
+
+| Fase | Qué pasa |
+|---|---|
+| `preparando` | Se busca la galería y se enciende la cámara |
+| `contando` | 3 · 2 · 1 sobre el video, en grande |
+| `capturando` | La tanda de frames y la decisión |
+| `fallo` | El motivo, con **Tomar otra foto** |
+| `error` | Sin rostro enrolado, o la cámara no se pudo abrir |
+
+⚠️ **La cuenta arranca con el evento `listo` de la cámara, no al abrir el
+diálogo.** Si arrancara al abrir, correría mientras se bajan los 10 MB de
+modelos y la foto saldría de una pantalla negra. Es lo mismo que hace gourmet
+con su `onCaptureReady()`.
+
+⚠️ **La cámara no se monta hasta saber que hay galería.** Pedir permiso de
+cámara para después decir que no había con qué comparar gasta el permiso: una
+vez denegado, el navegador no vuelve a preguntar.
+
+⚠️ **Una foto sola no puede pasar `confirmarVerificacionFinal`**, que exige
+`FRAMES_MINIMOS_VERIFICACION` = 3. Por eso «la foto» son **5 frames en ~320
+ms**: para la persona es una foto, y la regla queda intacta. La alternativa
+era relajar la regla, que es justo lo que la issue prohíbe.
+
+**Los motivos de rechazo se distinguen** porque llevan a cosas distintas:
+
+| Motivo | Qué hacer |
+|---|---|
+| No se detectó tu rostro | Acercarse, más luz |
+| Tiene que ser tu rostro real, no una foto | No se arregla: es `antispoof`/`liveness` |
+| No te reconocimos | Luz, de frente — o el enrolamiento es pobre |
+
+**Tres intentos.** Al tercero el diálogo cierra como cancelado y la marcación
+sigue por el camino de «sin verificación facial», que pregunta si se quiere
+marcar igual y lo deja registrado. Insistir para siempre dejaría a alguien sin
+poder marcar por una cámara mala, que es un problema distinto.
+
+## `captura-facial.component.ts`, la cámara sin criterio
+
+Enciende la cámara, carga los modelos y saca tandas de frames. **No decide
+nada**: no compara contra ninguna galería, no habla con el central y no guarda
+nada. El `overlay` es el número grande de la cuenta.
+
+Es el `face-capture` de `frc-gourmet` portado, incluido su `overlayText`.
+
+⚠️ **Vive en `pages/marcacion/`, no en `shared/`.** Lo usan dos pantallas del
+mismo módulo, y la regla de tres del repo pide tres pantallas de módulos
+distintos.
 
 ## Cinco capturas libres, como `frc-gourmet`
 

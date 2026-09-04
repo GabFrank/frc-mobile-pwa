@@ -5095,6 +5095,114 @@ tiene contraste suficiente.
 
 ---
 
+## Bloque 56 — Marcación facial: cuenta regresiva, foto sola y reintento *(nuevo, sin probar)*
+
+**Por qué está acá:** el diálogo facial hacía **verificación continua** —un
+bucle a 12 frames por segundo esperando a que la persona pasara los tres
+controles—, sin final visible: no se sabía si faltaba un segundo o si nunca
+iba a pasar, y el reintento no existía como tal. Ahora es el flujo de la PWA
+de gourmet: cuenta de 3 s, la foto se toma sola, y si no pasa hay **Tomar otra
+foto**. Issue #16.
+
+⚠️ **Necesita cámara y un rostro enrolado.** Antes de empezar, registrá el
+rostro desde **Mi cuenta → Mi rostro**. Sin eso, todos los casos dan «No tenés
+rostro registrado», que es el caso 56.9 y nada más.
+
+⚠️ **Sigue siendo 1:1**: verifica que sos vos, no busca quién sos. La
+identificación 1:N y el kiosco son la issue #17.
+
+### 56.1 · La cuenta espera a la cámara
+1. Con la app recién instalada —o después de limpiar la caché, para que los
+   modelos no estén descargados— tocar el botón de marcar.
+
+**Esperado:** primero «Preparando el reconocimiento…» y el video encendido.
+La cuenta **no arranca** hasta que la cámara se ve. ⚠️ **Lo que no puede
+pasar:** que cuente sobre una pantalla negra y saque la foto antes de tiempo.
+
+### 56.2 · Cuenta 3, 2, 1
+1. Mirar el número grande sobre el video.
+
+**Esperado:** 3 · 2 · 1, un segundo cada uno, centrado y legible sobre la
+imagen. El rostro **no** queda tapado por un velo mientras uno se acomoda.
+
+### 56.3 · La foto se toma sola
+1. No tocar nada y esperar a que la cuenta termine.
+
+**Esperado:** la foto se toma sola, aparece «Verificando…» y —si sos vos— el
+diálogo cierra y la marcación sigue. **No hay botón de disparo.**
+
+### 56.4 · No queda mirando frames
+1. Después de una verificación buena, observar el consumo del teléfono.
+
+**Esperado:** el diálogo cierra y la cámara se apaga. No queda un bucle
+analizando frames de fondo. Se nota en que el teléfono no se calienta.
+
+### 56.5 · Sin rostro en la foto, lo dice y ofrece otra
+1. Tapar la cámara con el dedo y dejar que la cuenta llegue a cero.
+
+**Esperado:** **«No se detectó tu rostro. Acercate y buscá mejor luz.»**, con
+los botones **Tomar otra foto** y **Cancelar**. El diálogo **no** cierra.
+
+### 56.6 · Una foto de una foto no pasa
+1. Poner delante de la cámara una foto tuya en la pantalla de otro teléfono.
+
+**Esperado:** **«Tiene que ser tu rostro real, no una foto.»** Es `antispoof`
+y `liveness`. ⚠️ Si esto pasa, es un hallazgo grave: anotalo.
+
+### 56.7 · Otra persona no pasa
+1. Que otro funcionario —con rostro enrolado o sin él— se ponga frente a la
+   cámara con tu sesión abierta.
+
+**Esperado:** **«No te reconocimos. Probá de frente y con más luz.»**
+
+### 56.8 · «Tomar otra foto» reinicia la cuenta
+1. Desde un fallo, tocar **Tomar otra foto**.
+
+**Esperado:** la cuenta vuelve a **3** y la foto se toma sola de nuevo. No hay
+que tocar nada más.
+
+### 56.9 · Los intentos se acaban
+1. Fallar tres veces seguidas, tapando la cámara.
+
+**Esperado:** al tercero el diálogo cierra solo y la marcación pregunta
+**«Sin verificación facial · ¿Querés marcar igual?»**. Confirmando, la
+marcación se registra. No se puede quedar reintentando para siempre.
+
+### 56.10 · Sin rostro registrado no se pide la cámara
+1. Con un usuario **sin** rostro enrolado, tocar marcar.
+
+**Esperado:** dice que hay que registrarlo desde **Mi cuenta**, y el navegador
+**no** pide permiso de cámara. ⚠️ Importa: un permiso denegado no se vuelve a
+preguntar, así que gastarlo para nada deja al usuario peor.
+
+### 56.11 · Cancelar
+1. Tocar **Cancelar** durante la cuenta.
+
+**Esperado:** el diálogo cierra, la cámara se apaga, y la marcación ofrece
+marcar sin verificación facial.
+
+### 56.12 · Safari en iPhone
+1. Repetir 56.2, 56.3 y 56.5 en Safari sobre iOS.
+
+**Esperado:** el video se ve **dentro** de la tarjeta, no a pantalla completa
+—es lo que dan `playsinline` y `muted`— y la foto se toma sola igual.
+⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
+
+### 56.13 · Los modelos se bajan una sola vez
+1. Marcar con rostro, cerrar la app, volver a marcar sin conexión.
+
+**Esperado:** la segunda vez la cámara queda lista mucho más rápido y funciona
+**sin conexión**: los modelos los cachea el service worker como asset group
+lazy.
+
+### 56.14 · Tema oscuro y tema claro
+1. Ver el diálogo en los dos temas, en cuenta y en fallo.
+
+**Esperado:** el número de la cuenta se lee sobre cualquier imagen, y el
+motivo del fallo tiene contraste suficiente en los dos.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -5154,7 +5262,8 @@ tiene contraste suficiente.
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
 | 54 · Cantidades en enteros | 10 | 10 | | |
 | 55 · La sucursal de la marcación sale del GPS | 13 | | | |
-| **Total** | **485** | | | |
+| 56 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
+| **Total** | **499** | | | |
 
 ### Los cinco que más importan
 

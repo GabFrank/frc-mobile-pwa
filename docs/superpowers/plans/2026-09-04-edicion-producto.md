@@ -278,7 +278,7 @@ describe('El ProductoInput viaja completo', () => {
     // borra ese campo en cada guardado, en silencio.
     const cuerpo = productoPorIdQuery.loc!.source.body;
 
-    const sinEquivalenteEnLaQuery = ['id', 'usuarioId', 'imagenes', 'creadoEn'];
+    const sinEquivalenteEnLaQuery = ['id', 'usuarioId', 'imagenes'];
     const porNombreDistinto: Record<string, string> = {
       subfamiliaId: 'subfamilia',
       envaseId: 'envase',
@@ -597,8 +597,8 @@ import {
 } from '../pages/producto/editar/producto-editar.reglas';
 
 describe('Un envase no tiene propiedades de mercadería', () => {
-  it('apaga las siete banderas al marcar isEnvase', () => {
-    // producto.component.ts:287-297 del escritorio.
+  it('apaga las seis banderas al marcar isEnvase', () => {
+    // producto.component.ts:291-297 del escritorio.
     const r = aplicarCascadaEnvase({ isEnvase: true, balanza: true, lote: true });
 
     expect(r.balanza).toBe(false);
@@ -607,7 +607,13 @@ describe('Un envase no tiene propiedades de mercadería', () => {
     expect(r.promocion).toBe(false);
     expect(r.vencimiento).toBe(false);
     expect(r.lote).toBe(false);
-    expect(r.combo).toBe(false);
+  });
+
+  it('no toca combo', () => {
+    // El escritorio NO lo apaga. Un combo-envase será raro, pero apagarlo
+    // sería inventar una regla que nadie escribió.
+    const r = aplicarCascadaEnvase({ isEnvase: true, combo: true });
+    expect(r.combo).toBe(true);
   });
 
   it('no toca nada si isEnvase no se está marcando', () => {
@@ -675,19 +681,29 @@ Expected: FAIL — las cuatro funciones no existen.
 
 - [ ] **Step 3: Escribir las cuatro reglas**
 
-Agregar al final de `src/app/pages/producto/editar/producto-editar.reglas.ts`:
+Los dos `import type` van **arriba del archivo**, fusionados con la línea de import que ya dejó la Task 2 — no al final, aunque el resto del bloque sí se agregue al final:
 
 ```ts
 import type { Codigo } from 'src/app/domains/productos/codigo.model';
 import type { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
+```
 
+Y el resto, al final de `src/app/pages/producto/editar/producto-editar.reglas.ts`:
+
+```ts
 /**
  * Un envase no tiene propiedades de mercadería.
  *
  * Marcar `isEnvase` apaga balanza, garantía, ingrediente, promoción,
- * vencimiento, lote y combo. Lo hace el escritorio en
- * `producto.component.ts:287-297`, y no está escrito en ninguna
- * documentación: una botella retornable no vence, no se pesa y no lleva lote.
+ * vencimiento y lote. Lo hace el escritorio en `producto.component.ts:291-297`,
+ * y no está escrito en ninguna documentación: una botella retornable no vence,
+ * no se pesa y no lleva lote.
+ *
+ * ⚠️ **Son seis, no siete.** El escritorio apaga además `esAlcoholico`, que no
+ * existe ni en `ProductoInput` ni en la entidad `Producto` del central: es un
+ * control de su formulario que no viaja a ningún lado, como `observacion`. Y
+ * **no** apaga `combo`, así que acá tampoco — apagarlo sería inventar una regla
+ * de negocio que nadie escribió.
  */
 export function aplicarCascadaEnvase(
   cambios: Partial<ProductoInput>,
@@ -704,7 +720,6 @@ export function aplicarCascadaEnvase(
     promocion: false,
     vencimiento: false,
     lote: false,
-    combo: false,
   };
 }
 
@@ -1716,7 +1731,7 @@ import { aplicarCascadaEnvase } from '../pages/producto/editar/producto-editar.r
 import { camposDeshabilitadosPorEnvase } from '../pages/producto/editar/datos-generales.page';
 
 describe('Datos generales', () => {
-  it('deshabilita las siete banderas cuando el producto es envase', () => {
+  it('deshabilita las seis banderas cuando el producto es envase', () => {
     // Que el formulario las apague no alcanza: si siguen tocables, el
     // operador las prende y el guardado las vuelve a apagar sin decir nada.
     expect(camposDeshabilitadosPorEnvase(true)).toEqual([
@@ -1726,7 +1741,6 @@ describe('Datos generales', () => {
       'promocion',
       'vencimiento',
       'lote',
-      'combo',
     ]);
   });
 
@@ -1769,7 +1783,7 @@ Exportar, junto al componente:
  */
 export function camposDeshabilitadosPorEnvase(esEnvase: boolean): string[] {
   return esEnvase
-    ? ['balanza', 'garantia', 'ingrediente', 'promocion', 'vencimiento', 'lote', 'combo']
+    ? ['balanza', 'garantia', 'ingrediente', 'promocion', 'vencimiento', 'lote']
     : [];
 }
 ```

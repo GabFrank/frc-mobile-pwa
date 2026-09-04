@@ -157,10 +157,16 @@ Lo que se carga solo para Safari va en un **chunk aparte**: el peso no lo paga A
 que mire el tablero el problema sigue vivo: se vuelve a reportar, se vuelve a
 diagnosticar y se vuelve a discutir algo que ya está hecho.
 
-El cierre va **con el PR**, no después y no a mano desde la web: en el cuerpo
-del PR se escribe `Closes #<n>` (o `Closes GabFrank/<repo>#<n>` si la issue es
-de otro repositorio), así GitHub la cierra sola al mergear y queda enlazado
-**qué commit** la resolvió.
+**El `Closes #<n>` va en el cuerpo del PR** —`Closes GabFrank/<repo>#<n>` si la
+issue es de otro repositorio—, así queda enlazado **qué commit** la resolvió.
+Un PR que cierra varias issues las lista todas.
+
+⚠️ **Una rama puede acumular varias issues.** Cuando un tema se ataca de a
+varias —marcación, por ejemplo—, se trabaja todo en una rama y va **un solo
+PR** al final. En ese caso la issue **se cierra a mano al terminarla**, sin
+esperar al merge, y su comentario de cierre dice en qué rama quedó el trabajo.
+El PR igual lleva el `Closes` de todas: no cambia nada que ya estén cerradas, y
+deja el enlace al commit.
 
 Antes de cerrar, dos cosas:
 
@@ -172,8 +178,8 @@ Antes de cerrar, dos cosas:
    se salda con el merge.
 
 ⚠️ **Si la solución necesita las dos mitades**, la issue de la PWA no se cierra
-hasta que el central esté publicado. Cerrarla antes afirma que el usuario tiene
-el arreglo, y contra un central viejo no lo tiene.
+hasta que el central esté publicado — ni siquiera a mano. Cerrarla antes afirma
+que el usuario tiene el arreglo, y contra un central viejo no lo tiene.
 
 **Una issue no se cierra por vieja, por dudosa ni por ordenar el tablero.** Se
 cierra porque está resuelta, o con un comentario que explique por qué se
@@ -252,4 +258,4 @@ Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.
 7. Escribir un token `--mdc-*`: Material 21 renombró toda esa familia a `--mat-*` y los nombres viejos **fallan en silencio** — la regla se aplica, la variable queda definida y el componente sigue con su valor por defecto. Hay un test que lo impide
 8. Escribir un backtick dentro de `template:` o `styles:` de un componente: rompe el literal y el error que sale no señala la causa
 9. Dejar una capacidad de dispositivo sin camino en Safari «porque hoy no hay iOS» — ver la regla 7
-10. Dar por resuelta una issue y dejarla abierta — el `Closes #<n>` va en el PR, ver la regla 8
+10. Dar por resuelta una issue y dejarla abierta — ver la regla 8

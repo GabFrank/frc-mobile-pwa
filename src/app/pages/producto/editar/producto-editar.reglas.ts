@@ -81,5 +81,13 @@ export function construirProductoInput(
     lote: producto.lote ?? null,
   };
 
-  return { ...base, ...cambios };
+  // `undefined` explícito en `cambios` no debe pisar el valor hidratado: un
+  // `{ descripcion: undefined }` armado desde un signal a medio llenar no es
+  // lo mismo que "borrar la descripción". Filtrado, no un `??` por campo,
+  // porque `cambios` puede traer cualquier subconjunto de los 25 campos.
+  const cambiosDefinidos = Object.fromEntries(
+    Object.entries(cambios).filter(([, valor]) => valor !== undefined),
+  );
+
+  return { ...base, ...cambiosDefinidos };
 }

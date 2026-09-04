@@ -54,10 +54,22 @@ export class Producto {
  * todo campo ausente se persiste en `null`. Armalo con
  * `construirProductoInput()`, nunca a mano.
  *
- * ⚠️ **`observacion` y `creadoEn` no están acá y no es un olvido**: el schema
- * del central no los acepta, así que cada guardado los deja en `null` y no hay
- * forma de evitarlo desde el cliente. Ya le pasa al escritorio, que llama la
- * misma mutation. Anotado en `docs/TODO_TECNICO.md`.
+ * ⚠️ **`observacion` y `creadoEn` no están acá, cada uno por su propia razón:**
+ * - `observacion` no existe en `input ProductoInput` del central — no hay
+ *   forma de preservarlo desde ningún cliente.
+ * - `creadoEn` SÍ está en el schema (`productos.graphqls:62`, tipo `String`),
+ *   pero la entidad lo tiene como `LocalDateTime` sin `@PrePersist` ni
+ *   `@CreationTimestamp` (`Producto.java:96-97`). El central mapea con
+ *   `ModelMapper` en modo STRICT: un `String` no convertible tira excepción en
+ *   el guardado ENTERO, no solo en ese campo. Mandarlo sería arriesgar el save
+ *   completo para preservar una fecha — se decide no mandarlo nunca.
+ *
+ * `imagenes` sí está en esta clase, pero se manda siempre `null` a propósito:
+ * el central lo reescribe a la ruta literal `/productos`, que es lo que ya
+ * tienen las 8386 filas de `bodega` — no hay nada que preservar.
+ *
+ * Detalle completo, con los números de `bodega`, en `docs/TODO_TECNICO.md`
+ * hallazgo #66.
  */
 export class ProductoInput {
   id?: number | null;

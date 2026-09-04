@@ -75,10 +75,27 @@ describe('El ProductoInput viaja completo', () => {
     expect(input.balanza).toBe(true);
   });
 
-  it('la query pide todos los campos que el input puede pisar', () => {
+  it('un cambio en undefined no pisa el valor hidratado', () => {
+    // La regresión que habilita el módulo de edición: un signal a medio
+    // llenar puede mandar `{ descripcion: undefined }` sin querer borrar
+    // nada. Si `undefined` pisara, Apollo omite la variable y el central
+    // persiste `null`.
+    const input = construirProductoInput(completo(), { descripcion: undefined });
+    expect(input.descripcion).toBe('ALGILEM GESIC 20 COMPRIMIDOS');
+  });
+
+  it('la query pide todos los campos que el input puede pisar, en el nivel superior', () => {
     // Sin esto, agregar un campo al schema del central y no traerlo acá
     // borra ese campo en cada guardado, en silencio.
+    //
+    // ⚠️ Tiene que mirar SOLO la selección de nivel superior de
+    // `producto(id: $id)`. Buscar contra el cuerpo entero es vacuo para
+    // campos como `activo` o `descripcion`, que también aparecen anidados
+    // bajo `codigos`, `presentaciones`, `precios`, `subfamilia`, `familia`,
+    // `envase` y `tipoPresentacion`/`tipoPrecio`: borrar el campo de arriba
+    // y el test seguiría pasando por el anidado.
     const cuerpo = productoPorIdQuery.loc!.source.body;
+    const nivelSuperior = seleccionDeNivelSuperior(cuerpo, 'producto(id: $id)');
 
     const sinEquivalenteEnLaQuery = ['id', 'usuarioId', 'imagenes'];
     const porNombreDistinto: Record<string, string> = {
@@ -89,9 +106,58 @@ describe('El ProductoInput viaja completo', () => {
     for (const campo of CAMPOS_PRODUCTO_INPUT) {
       if (sinEquivalenteEnLaQuery.includes(campo)) continue;
       const buscado = porNombreDistinto[campo] ?? campo;
-      expect(cuerpo, `la query no pide ${buscado}`).toMatch(
+      expect(nivelSuperior, `la query no pide ${buscado} en el nivel superior`).toMatch(
         new RegExp(`\\b${buscado}\\b`),
       );
     }
   });
 });
+
+/**
+ * Recorta el cuerpo de una query GraphQL a los nombres de campo de nivel
+ * superior de `campo(...)`, con los bloques anidados quitados por completo.
+ *
+ * 1. Ubica la selección de `campo(...) { ... }` contando llaves, para no
+ *    cortar en la primera que cierra.
+ * 2. Le quita, de adentro hacia afuera, todo bloque `{ ... }` anidado —así
+ *    `subfamilia { id descripcion }` queda en `subfamilia` y ya no aporta
+ *    `descripcion` ni `id` a la búsqueda.
+ *
+ * Sin el paso 2, `activo` o `descripcion` aparecen igual porque están
+ * repetidos dentro de `codigos`, `presentaciones`, `precios`, `subfamilia`,
+ * `familia`, `envase`, `tipoPresentacion` y `tipoPrecio` — borrar el campo de
+ * arriba no haría fallar nada.
+ */
+function seleccionDeNivelSuperior(cuerpo: string, campo: string): string {
+  const inicioCampo = cuerpo.indexOf(campo);
+  if (inicioCampo === -1) {
+    throw new Error(`no se encontró "${campo}" en la query`);
+  }
+  const inicioLlave = cuerpo.indexOf('{', inicioCampo);
+  let profundidad = 0;
+  let seleccion: string | undefined;
+  for (let i = inicioLlave; i < cuerpo.length; i++) {
+    if (cuerpo[i] === '{') profundidad++;
+    else if (cuerpo[i] === '}') {
+      profundidad--;
+      if (profundidad === 0) {
+        seleccion = cuerpo.slice(inicioLlave + 1, i);
+        break;
+      }
+    }
+  }
+  if (seleccion === undefined) {
+    throw new Error(`no se encontró el cierre de "${campo}" en la query`);
+  }
+
+  // Quita bloques anidados de adentro hacia afuera hasta que no quede
+  // ninguno: cada pasada elimina los que ya no tienen llaves adentro.
+  let sinAnidados = seleccion;
+  let anterior: string;
+  do {
+    anterior = sinAnidados;
+    sinAnidados = sinAnidados.replace(/\{[^{}]*\}/g, '');
+  } while (sinAnidados !== anterior);
+
+  return sinAnidados;
+}

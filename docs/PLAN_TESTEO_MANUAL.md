@@ -5923,6 +5923,66 @@ enrolado.
 
 ---
 
+## Bloque 63 — El ícono de la app es el de Bodega Franco *(nuevo, sin probar)*
+
+**Por qué está acá:** `public/favicon.ico` seguía siendo el que deja el
+schematic de Angular, así que la pestaña mostraba el logo del framework en una
+app que en todo lo demás es Bodega Franco. Los íconos de `public/icons/` ya
+eran los correctos — el problema era solo ese archivo.
+
+⚠️ **El favicon se cachea con mucha insistencia.** Chrome lo guarda en una base
+aparte que un `Ctrl+Shift+R` no siempre limpia, y encima acá hay un service
+worker en el medio. Si después de desplegar seguís viendo el logo de Angular,
+**no asumas que el deploy falló**: probá primero en una ventana de incógnito,
+que es el único camino que no toca ninguno de los dos cachés. Es la diferencia
+entre un bug y una pestaña vieja.
+
+Este bloque **no se prueba en `ng serve`**: se prueba contra el deploy, porque
+lo que se está verificando es justamente lo que viaja al servidor.
+
+### 63.1 · La pestaña del navegador
+
+1. Abrir la app desplegada en una ventana de **incógnito**.
+2. Mirar el ícono de la pestaña.
+
+**Esperado:** el cuadrado rojo de Bodega Franco. **No** la «A» de Angular. A
+16 px el texto no se lee —es una marca roja—, y está bien: es el mismo aspecto
+que tiene el ícono de la PWA instalada.
+
+### 63.2 · El camino directo, sin pasar por el HTML
+
+1. En la misma ventana, abrir `https://<puerta>/favicon.ico` a mano.
+
+**Esperado:** se descarga un `.ico` con el logo rojo. Este caso existe porque
+el navegador pide esa ruta **por su cuenta, sin mirar el `index.html`**: si
+acá sale la «A» de Angular, el arreglo está a medias aunque 63.1 haya pasado.
+
+### 63.3 · La PWA instalada en Android
+
+1. Instalar la app desde el prompt del navegador.
+2. Mirar el ícono en el cajón de aplicaciones y en la pantalla de inicio.
+
+**Esperado:** el logo de Bodega Franco. Esto ya andaba —sale del manifest— y
+se prueba para confirmar que **no se rompió**.
+
+### 63.4 · «Añadir a inicio» en un iPhone *(necesita dispositivo)*
+
+1. En Safari, «Compartir → Añadir a pantalla de inicio».
+2. Mirar el ícono que propone el diálogo, y el que queda en la pantalla.
+
+**Esperado:** el logo de Bodega Franco, **no una captura de la pantalla en la
+que estabas**. Es lo que agrega el `apple-touch-icon`, que hasta ahora no
+existía. Sin un iPhone no hay forma de probarlo: Safari en Mac no usa esta
+etiqueta.
+
+### 63.5 · Sin internet, el ícono sigue
+
+1. Con la PWA instalada y ya abierta una vez, cortar la red.
+2. Abrirla de nuevo.
+
+**Esperado:** el ícono se sigue viendo. La imagen entra en el grupo `assets`
+de `ngsw.json`, así que el service worker la tiene cacheada.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -5989,7 +6049,8 @@ enrolado.
 | 60 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
 | 61 · Kiosco de marcación | 15 | | | |
 | 62 · Método, similitud y margen | 9 | | | |
-| **Total** | **575** | | | |
+| 63 · El ícono de la app | 5 | | | |
+| **Total** | **580** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

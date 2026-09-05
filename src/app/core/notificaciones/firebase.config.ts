@@ -14,7 +14,16 @@
  * (`FCMInitializer`), y ese no vive en este repo.
  *
  * A la `apiKey` la protege la **restricción por sitio** en Google Cloud
- * Console (Credenciales → `Browser key` → Sitios web), no el esconderla.
+ * Console (Credenciales → `Browser key` → Sitios web), no el esconderla. Ya
+ * está puesta: `https://*.app.frcsuite.com/*` y `http://localhost:4300/*`. Un
+ * dominio nuevo de la PWA que no cuelgue de `app.frcsuite.com` hay que
+ * agregarlo ahí, o el token no se acuña.
+ *
+ * ⚠️ **Esta `apiKey` es de la PWA y de nadie más.** El proyecto
+ * `bodega-franco-frc` tiene otra clave de navegador para el desktop
+ * (`frc-sistemas-integrados-angular`) y una de Android. Restringir o rotar la
+ * que no es rompe una app que nadie estaba mirando; el detalle está en
+ * `docs/arquitectura/web-push.md`.
  *
  * ⚠️ **Si alguno de los tres últimos queda vacío, la app no ofrece activar las
  * notificaciones** y dice que no están configuradas. Lo que no hace es pedir

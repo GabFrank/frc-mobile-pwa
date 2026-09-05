@@ -271,7 +271,7 @@ Al 2026-08-15, farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna de la
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **985 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **96 archivos de test, 1.182 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
 
 ⚠️ **La marcación con rostro necesita un central con `V216.5` y las filiales con `V91.5`.** Desde el kiosco 1:N y desde la marcación personal viajan `metodoRegistro`, `similitudFacial` y `margenSegundoCandidato`; contra un central que no los conozca **la mutation falla entera y no se registra ninguna marcación**, no solo los campos nuevos. **El orden es filial → central → PWA**: `administrativo.marcacion` se replica en las dos direcciones y la replicación lógica no propaga DDL, así que una columna que exista solo en el central deja al apply worker de la filial en crash-loop y corta la bajada central→filial. Es el mismo modo de falla del incidente del enum `tipo_dispositivo`. Ver [`docs/modulos/marcacion.md`](docs/modulos/marcacion.md).
 

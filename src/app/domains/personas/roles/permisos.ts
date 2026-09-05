@@ -125,6 +125,40 @@ export const PERMISOS = {
    * frágil no se puede delegar a nadie.
    */
   kioscoMarcacion: [ROLES.ADMIN, ROLES.RRHH_GESTIONAR],
+
+  /**
+   * Editar un producto: descripción, categoría, presentaciones y códigos.
+   *
+   * ⚠️ **El rol NO es `NUEVO-PRODUCTO`.** Ese nombre solo existe en el texto
+   * del issue #10, de donde lo copiaron `docs/modulos/producto.md` y el
+   * comentario de la ficha. `personas.role` no lo tiene —consultado el
+   * 2026-09-04 contra `bodega`, 492 usuarios—, así que guardar con ese
+   * nombre dejaría entrar solo a ADMIN: el mismo caso `DIRECTIVO` de
+   * `aprobacionesRrhh`, unas líneas más arriba.
+   *
+   * `EDITAR PRODUCTOS` (32 usuarios) sí existe, y es el que el escritorio ya
+   * usa para habilitar el alta (`list-producto.component.ts:494`).
+   */
+  productoEdicion: [ROLES.ADMIN, ROLES.EDITAR_PRODUCTOS],
+
+  /**
+   * Editar el precio de una presentación.
+   *
+   * ⚠️ **Más restrictivo que `productoEdicion`, a propósito.** El modelo de
+   * roles del sistema ya separa editar un producto (32 usuarios) de editar su
+   * precio (26): son conjuntos distintos, y la diferencia es exactamente la
+   * gente a la que la empresa no le confió los precios.
+   *
+   * El escritorio declara `EDITAR PRECIOS` en su enum y en el menú lateral, y
+   * **no lo aplica en ningún lado** del módulo de productos — el mismo patrón
+   * que `CREAR TRANSFERENCIA` en `frc-mobile`. Acá se aplica.
+   *
+   * Esto atiende la mitad «desde el salón» de la objeción del issue #10. La
+   * otra mitad —costo y margen a la vista, para los 24 usuarios con
+   * `VER PRECIO COSTO`— quedó fuera de esta entrega por decisión del
+   * 2026-09-04. Ver la spec.
+   */
+  productoPrecios: [ROLES.ADMIN, ROLES.EDITAR_PRECIOS],
 } as const satisfies Record<string, readonly ROLES[]>;
 
 export type AreaProtegida = keyof typeof PERMISOS;

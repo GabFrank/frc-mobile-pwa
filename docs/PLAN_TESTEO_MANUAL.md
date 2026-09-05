@@ -5162,7 +5162,324 @@ abría el detalle a comprobarlo.
 
 ---
 
-## Bloque 55 — La sucursal de la marcación sale del GPS *(nuevo, sin probar)*
+## Bloque 56 — La foto del producto en el buscador *(nuevo)*
+
+**Por qué está acá:** la card del buscador mostraba siempre el ícono de caja,
+nunca la foto, aunque `imagenPrincipal` ya venía en la consulta desde el
+principio. Era el pendiente «Ver imagen del producto» de
+[`modulos/producto.md`](modulos/producto.md).
+
+**Cómo llega la foto:** el central no manda una URL sino la imagen entera
+codificada, `data:image/jpg;base64,…` (`ImageService.fileToBase64`). Va derecho
+al `src` — no hay un segundo pedido de red que pueda fallar, y la foto o
+llegó con la búsqueda o no está. Es lo mismo que hacía el `ion-avatar` de
+`frc-mobile`.
+
+⚠️ **Lo que hay que mirar además de que se vea: cuánto tarda la búsqueda.**
+`frc-mobile` mostraba la **miniatura** de 250×250 que el central genera al
+subir la foto (`PresentacionResolver`); la consulta de la PWA pasa por
+`ProductoResolver`, que devuelve el **original**, del tamaño que salió del
+celular. Con 10 resultados por tanda, eso puede ser varios MB en una sola
+respuesta. Esos bytes ya se transferían antes de este cambio —la consulta
+pedía el campo y la card lo tiraba—, así que **no es una regresión**, pero si
+el caso 56.5 se siente lento, la corrección es del backend: un campo de
+miniatura, no sacar la foto de la card.
+
+### 56.1 · Un producto con foto la muestra
+1. Ir a la pestaña **Buscar**.
+2. Buscar un producto que tenga foto cargada (probar con los de mayor
+   rotación: gaseosas, lácteos).
+
+**Esperado:** en el recuadro de la izquierda de la fila se ve **la foto**, no
+el ícono de caja. Ocupa el recuadro entero, recortada y centrada, sin
+deformarse ni dejar franjas de fondo a los costados.
+
+### 56.2 · Un producto sin foto sigue mostrando el ícono
+1. En la misma lista, mirar un producto sin foto cargada.
+
+**Esperado:** el ícono de caja de siempre. **No** un recuadro gris vacío ni
+un ícono de imagen rota: el central devuelve «sin foto», y esa es la
+representación correcta, no un error.
+
+### 56.3 · La foto no se corre al expandir la card
+1. Tocar una fila con foto para desplegar sus presentaciones.
+2. Volver a tocarla para cerrarla.
+
+**Esperado:** la foto queda en su lugar, del mismo tamaño, y la fila no salta
+al abrir ni al cerrar. Las presentaciones se despliegan como antes.
+
+### 56.4 · La foto cambia al cambiar la búsqueda
+1. Buscar algo que devuelva productos **con** foto.
+2. Sin salir de la pestaña, buscar otra cosa que devuelva productos
+   **sin** foto.
+3. Volver a buscar lo primero.
+
+**Esperado:** cada lista muestra lo suyo — fotos en la primera, íconos en la
+segunda, y fotos otra vez en la tercera. Ninguna fila se queda con la foto de
+un producto de la búsqueda anterior.
+
+### 56.5 · Cuánto tarda con muchos resultados
+1. Buscar un texto amplio, de los que llenan la tanda de 10 (`coca`, `leche`).
+2. Tocar **Cargar más** un par de veces.
+
+**Esperado:** los resultados aparecen en un tiempo parecido al de antes del
+cambio. **Anotar si se siente más lento** — ver el aviso del encabezado de
+este bloque: se corrige en el central, con una miniatura.
+
+### 56.6 · Tema oscuro y tema claro
+1. Repetir 56.1 y 56.2 en los dos temas.
+
+**Esperado:** en los dos, la foto se ve nítida y el ícono de los productos sin
+foto queda legible sobre el fondo hundido del recuadro.
+
+---
+
+## Bloque 57 — Edición de producto *(nuevo)*
+
+> Datos reales de `bodega`, consultados el 2026-09-04:
+>
+> - **Producto 2 — PILSEN CLASICA LATA 269 ML** (`vencimiento = true`,
+>   `activo = true`) para el caso 56.1. Ningún producto de `bodega` ni de
+>   `general-farma` tiene hoy `lote = true` —las 8.386 filas de `bodega` y las
+>   13.046 de `general-farma` traen `lote = false`—, así que el caso verifica
+>   solo `vencimiento`, que es donde ya se probó el defecto de §1 del diseño.
+>   Si en el futuro aparece un producto con `lote = true`, repetir el caso con
+>   ese producto para cubrir también esa bandera.
+> - **Producto 238 — EISENBAHN AMERICAN IPA LATA 350ML**, presentación **262**
+>   (cantidad 11), sucursal **1 · SUC. CENTRAL**, para el caso 56.5. Esa
+>   presentación tiene hoy **dos precios marcados como `principal = true`** en
+>   la misma sucursal —id 562 (tipo `FRIO`, ₲ 50.000) e id 563 (tipo `NATURAL`,
+>   ₲ 50.000)—: es exactamente la anomalía de «dos principales» que el diseño
+>   existe para no seguir produciendo, ya presente en la base real.
+
+### 57.1 · La regresión silenciosa — ⚠️ *crítico*
+1. Entrar a la ficha del producto **2 — PILSEN CLASICA LATA 269 ML**
+   (`/producto/2`) y confirmar que **Vencimiento** figura activo.
+2. Menú `⋮` → **Editar producto** → **Datos generales**.
+3. Cambiar **solo la descripción** (por ejemplo, agregar un espacio y una
+   letra al final) y guardar.
+4. Volver a `/producto/2`.
+
+**Esperado:** la descripción cambió **y** la ficha sigue mostrando
+**Vencimiento** activo. *Por qué:* `saveProducto` reemplaza el registro
+entero (`ProductoService.java:297-325`); si el input que arma la pantalla no
+llevara `vencimiento` hidratado, esta edición lo apagaría en silencio —la
+mutation responde OK igual— y con él la carga de vencimiento en cada
+recepción e inventario de este producto. Es la falla que este módulo existe
+para evitar.
+
+> Dejar la descripción como estaba (o anotar el valor original) antes de
+> seguir con el resto del bloque, para no ensuciar el catálogo real.
+
+### 57.2 · La descripción vuelve en mayúsculas
+1. En **Datos generales** del mismo producto, escribir la descripción en
+   minúsculas y guardar.
+
+**Esperado:** la pantalla de edición muestra el texto en **mayúsculas** al
+volver a cargar, igual que la ficha — lo pone el central
+(`ProductoService.java:312`), no el cliente.
+
+### 57.3 · Descripción vacía no llega al central
+1. En **Datos generales**, borrar la descripción por completo e intentar
+   guardar.
+
+**Esperado:** mensaje **«La descripción es obligatoria»** y **ninguna llamada
+al central** (verificar en la pestaña Red del navegador que no sale ninguna
+mutation). *Por qué:* sin este guard, `ProductoService.java:312` hace
+`.toUpperCase()` sobre `null` y tira `NullPointerException` en el central.
+
+### 57.4 · Cascada del envase
+1. En **Datos generales** de un producto con **Vencimiento** activo, marcar
+   **Es envase**.
+
+**Esperado:** las siete banderas relacionadas (balanza, garantía,
+ingrediente, alcohólico, promoción, vencimiento y lote) se apagan y quedan
+**deshabilitadas** mientras «Es envase» siga marcado. `combo` no se apaga —el
+escritorio tampoco lo hace.
+
+### 57.5 · Un solo precio principal
+1. Entrar a `/producto/238/editar/presentaciones` → presentación **262**
+   (cantidad 11) → **Precios**.
+2. Confirmar que **hay dos precios marcados como principal** en la sucursal
+   propia (si la sesión no es de SUC. CENTRAL, este caso no se puede ejercitar
+   ahí — cambiar de sucursal o repetir con un producto de la sucursal propia).
+3. Marcar como principal el que todavía no lo era.
+4. Salir de la pantalla y volver a entrar.
+
+**Esperado:** el que era principal antes queda degradado, y al volver a
+entrar hay **uno solo** marcado como principal. *Por qué:* el escritorio
+degrada al anterior antes de guardar el nuevo (`adicionar-precio-dialog.
+component.ts:226-244`); sin eso, cuál gana lo decide el orden en que el
+central devuelve la lista, que no está garantizado.
+
+### 57.6 · El precio va a la sucursal propia
+1. En **Precios** de una presentación con precio en más de una sucursal,
+   editar el monto del precio de la **sucursal propia** y guardar.
+2. Ver la ficha del producto (`/producto/:id`), que lista el precio de todas
+   las sucursales.
+
+**Esperado:** cambió el precio de la sucursal de la sesión y **ninguno de los
+otros**. `savePrecioPorSucursal` nunca recibe una sucursal distinta a la
+propia (`construirPrecioInput`) — no hay forma de escribir en otra desde esta
+pantalla.
+
+### 57.7 · Sin `EDITAR PRECIOS`
+1. Con un usuario que tenga `EDITAR PRODUCTOS` pero no `EDITAR PRECIOS`,
+   entrar al hub de edición de un producto.
+2. Escribir a mano la URL de precios de una presentación
+   (`/producto/:id/editar/presentacion/:presentacionId/precios`).
+
+**Esperado:** en el hub, la fila **Precios** aparece **deshabilitada** con el
+motivo escrito («necesitás el permiso EDITAR PRECIOS»); escribir la URL a
+mano **tampoco entra** — el guard de ruta rebota antes de mostrar la
+pantalla.
+
+### 57.8 · Sin `EDITAR PRODUCTOS`
+1. Con un usuario sin `EDITAR PRODUCTOS`, abrir la ficha de un producto.
+2. Escribir a mano `/producto/:id/editar`.
+
+**Esperado:** el botón **Editar producto** no aparece en el menú `⋮` de la
+ficha, y la URL escrita a mano rebota a Inicio con el aviso de permiso — el
+mismo patrón que el resto de los guards de rol del repo.
+
+### 57.9 · Código por escaneo y código interno *(sin probar contra un
+dispositivo real — ver más abajo)*
+1. En **Códigos** de una presentación, agregar un código escaneando con la
+   cámara.
+2. Agregar otro con **Generar código interno**.
+
+**Esperado:** el código escaneado se guarda tal cual lo lee la cámara; el
+generado empieza con **`2199`** y tiene **13 dígitos** — es un EAN-13 interno
+que `generarCodigoInterno` calcula sin persistirlo, y lo persiste recién
+`saveCodigo`.
+
+### 57.10 · Los tres estados, en las seis pantallas
+1. Recorrer el hub, datos generales, familia/subfamilia, presentaciones,
+   códigos y precios: una vez con datos, una vez sin datos (por ejemplo, un
+   producto sin presentaciones para la pantalla de presentaciones) y una vez
+   con el central caído (apagarlo, o apuntar a un servidor inexistente desde
+   *Mi cuenta → Servidor*).
+
+**Esperado:** cada pantalla distingue **carga**, **vacío** y **error** — «no
+hay» y «no se pudo consultar» son mensajes distintos, nunca la misma pantalla
+en blanco.
+
+**Sin verificar en esta entrega:**
+
+- **El escaneo de códigos y `generarCodigoInterno` contra un central real,
+  en un dispositivo real.** El caso 56.9 no se ejecutó contra la cámara de un
+  teléfono ni contra el central — el número de secuencia y el dígito
+  verificador que arma el central no se confirmaron con una llamada real.
+- **Todo guardado de ida y vuelta contra el central** (56.1 a 56.8): la lógica
+  se verificó por SQL directo contra `bodega` y por lectura de código, no
+  ejecutando las mutations desde la app corriendo.
+- **El alta de producto** — no entra en esta entrega, va en una segunda.
+- **La imagen del producto** — fuera de alcance, va en su propia entrega.
+- **El comportamiento en Safari/iOS del escaneo** dentro de la pantalla de
+  códigos — no hay un iPhone en la flota para probarlo hoy.
+
+---
+
+## Bloque 58 — Alta de producto *(nuevo)*
+
+Cierra el circuito: hasta ahora un producto nuevo solo nacía en el escritorio.
+
+> ⚠️ **Los tipos de precio pueden estar inactivos en la instancia que pruebes.**
+> El desplegable de «Tipo de precio» solo ofrece los que tienen `activo = true`.
+> En la base local se activaron los seis el 2026-09-04, pero **en alpha, beta y
+> producción `UNITARIO`, `FRIO`, `NATURAL` y `FUNCIONARIOS` siguen inactivos**,
+> así que ahí el selector ofrece solo `EXPO` y `EXPO-DEPOSITO`. **No es una
+> falla de la pantalla: es el dato.** Con eso, un producto nuevo no puede
+> recibir su precio normal desde el teléfono hasta que esos tipos se reactiven.
+
+### 58.1 · La entrada
+1. Ir a la pestaña **Buscar**.
+
+**Esperado:** abajo aparece **«¿No lo encontrás? Cargá un producto nuevo»**. Con
+un usuario **sin** `EDITAR PRODUCTOS`, no aparece — y escribir `/producto/nuevo`
+a mano tampoco entra.
+
+### 58.2 · Todo en mayúsculas
+1. Abrir el alta y escribir la descripción **en minúsculas**.
+
+**Esperado:** se ve en MAYÚSCULAS mientras se escribe. *Por qué:* el central la
+convierte igual (`ProductoService.java:312`); mostrarla en minúsculas sería
+enseñar un texto distinto del que va a quedar guardado.
+
+### 58.3 · Aviso de duplicado, no bloqueo
+1. Escribir la descripción de un producto que ya exista —por ejemplo
+   `pilsen clasica lata 269 ml`, en minúsculas— y salir del campo.
+
+**Esperado:** avisa que ya existe **y deja continuar igual**. *Por qué:* hay
+homónimos legítimos, y un bloqueo duro empuja a inventar variantes del nombre
+para esquivarlo. Que lo encuentre escribiendo en minúsculas es parte de la
+prueba: la consulta va en mayúsculas porque así está guardado.
+
+### 58.4 · Falta lo obligatorio
+1. Con la descripción cargada pero sin familia, mirar el pie.
+
+**Esperado:** dice **«Falta la familia.»** y **Crear producto** está
+deshabilitado. Al elegir familia pasa a pedir la subfamilia.
+
+### 58.5 · Familia y subfamilia por nombre
+1. **Elegir familia** → buscar y elegir una.
+
+**Esperado:** el diálogo lista las familias por **nombre** (BEBIDAS, GENERAL…),
+no por su descripción larga, y la lista de subfamilias tampoco tiene filas en
+blanco. Cambiar de familia **limpia** la subfamilia elegida antes.
+
+### 58.6 · Nace inactivo — ⚠️ *el caso que define el diseño*
+1. Completar los tres campos y tocar **Crear producto**.
+
+**Esperado:** cae en el hub de edición del producto recién creado, con el aviso
+**«Este producto está inactivo · No se puede vender todavía. Falta una
+presentación, un código y un precio.»** *Por qué:* un alta abandonada a mitad
+deja un producto invisible, no uno roto que la caja no puede cobrar. Verificar
+también que la lista dice **una presentación, un código y un precio** —con
+comas y una sola «y»—, no «y … y …».
+
+### 58.7 · Los valores por defecto
+1. Sobre el producto recién creado, entrar a **Datos generales**.
+
+**Esperado:** **IVA 10**, **Controla stock activado**, **Activo apagado**, y la
+**Descripción de factura ya cargada con el mismo texto** que la descripción.
+
+### 58.8 · La descripción de factura se despega
+1. En **Datos generales**, editar la **descripción de factura** y guardar.
+2. Volver a entrar y cambiar la **descripción del producto**.
+
+**Esperado:** la de factura **conserva lo que se escribió** y no vuelve a
+copiar la descripción. Antes de tocarla, en cambio, acompaña sola.
+
+### 58.9 · Activar
+1. Cargar una presentación, un código y un precio.
+2. Volver al hub.
+
+**Esperado:** el aviso pasa a **«Ya tiene presentación, código y precio: se
+puede activar»** y aparece **Activar producto**. Al tocarlo, el aviso
+desaparece. Comprobar en la ficha que **el IVA y la subfamilia siguen como
+estaban**: activar pasa por el mismo camino que todo lo demás y manda el
+`ProductoInput` completo.
+
+### 58.10 · Nada de errores fantasma — ⚠️ *regresión*
+1. En **Códigos**, tocar **Generar interno**.
+2. Marcar ese código como **principal**.
+3. En **Precios**, agregar uno.
+
+**Esperado:** las tres cosas ocurren **sin que aparezca «No se pudieron cargar
+los datos»**. *Por qué:* las tres recargan el producto al terminar, y el id que
+devuelve el central es un **string**; pasarlo al guard de `cargar()`, que usa
+`Number.isFinite`, hacía que la pantalla mostrara un error justo después de un
+guardado exitoso. Reintentar lo tapaba.
+
+> El código generado empieza con **2199** y tiene 13 dígitos.
+
+**Qué queda sin verificar en este bloque:** el escaneo con cámara para cargar un
+código, y todo el flujo en Safari/iOS.
+
+---
+
+## Bloque 59 — La sucursal de la marcación sale del GPS *(nuevo, sin probar)*
 
 **Por qué está acá:** se podía marcar entrada y salida **sin que la ubicación
 validara nada**. La sucursal se elegía en un desplegable —la última usada, si
@@ -5185,27 +5502,27 @@ usar tienen `localizacion` cargada** (`empresarial.sucursal.localizacion`, con
 el formato `lat,lng`). Sin eso todos los casos dan «No se pudo determinar la
 sucursal», que es correcto pero no es lo que se quiere probar.
 
-### 55.1 · Al abrir, la sucursal se detecta sola
+### 59.1 · Al abrir, la sucursal se detecta sola
 1. Parado dentro de una sucursal, entrar a **Mi trabajo → Marcación**.
 
 **Esperado:** la sección **Dónde estás** muestra primero el progreso del GPS y
 después el **nombre de la sucursal**, la **distancia** y la **precisión**.
 Nadie tocó nada.
 
-### 55.2 · Ya no hay desplegable
+### 59.2 · Ya no hay desplegable
 1. En la misma pantalla, intentar tocar el nombre de la sucursal.
 
 **Esperado:** es texto, no un campo. **No** se abre ninguna lista de
 sucursales. No hay forma de elegir otra.
 
-### 55.3 · Recalcular vuelve a medir
+### 59.3 · Recalcular vuelve a medir
 1. Tocar **Recalcular**.
 
 **Esperado:** vuelve al estado de búsqueda, pide la posición de nuevo y
 termina mostrando la sucursal y una distancia. El botón queda deshabilitado
 mientras busca.
 
-### 55.4 · Sin permiso de ubicación no se marca, y lo dice
+### 59.4 · Sin permiso de ubicación no se marca, y lo dice
 1. En la configuración del sitio del navegador, **denegar** la ubicación.
 2. Entrar a Marcación.
 
@@ -5214,7 +5531,7 @@ y el botón de marcar está **deshabilitado**. No aparece ningún nombre de
 sucursal. ⚠️ **Lo que no puede pasar:** que muestre la sucursal de tu usuario
 y te deje marcar igual — eso es exactamente el bug que esto corrige.
 
-### 55.5 · Dar el permiso y recalcular desbloquea
+### 59.5 · Dar el permiso y recalcular desbloquea
 1. Con la pantalla abierta del caso anterior, permitir la ubicación en el
    navegador.
 2. Tocar **Recalcular**.
@@ -5222,13 +5539,13 @@ y te deje marcar igual — eso es exactamente el bug que esto corrige.
 **Esperado:** aparece la sucursal detectada y el botón de marcar se habilita.
 **No hace falta recargar la app.**
 
-### 55.6 · Parado en otra sucursal, detecta la otra
+### 59.6 · Parado en otra sucursal, detecta la otra
 1. Trasladarse a una segunda sucursal y abrir Marcación.
 
 **Esperado:** detecta **esa** sucursal, no la del usuario ni la de la vez
 anterior. Es el caso del funcionario que cubre en otro local.
 
-### 55.7 · Lejos de la sucursal avisa, pero deja marcar
+### 59.7 · Lejos de la sucursal avisa, pero deja marcar
 1. Desde un punto a más de 33 m de cualquier sucursal —la vereda de enfrente
    alcanza— tocar el botón de marcar.
 
@@ -5236,14 +5553,14 @@ anterior. Es el caso del funcionario que cubre en otro local.
 sucursal y la precisión. Confirmando, **la marcación se registra**. La
 distancia avisa; no bloquea.
 
-### 55.8 · La sucursal virtual nunca se detecta
+### 59.8 · La sucursal virtual nunca se detecta
 1. Estando en la casa central —donde `SERVIDOR` y `COMPRAS` tienen sus
    coordenadas— abrir Marcación.
 
 **Esperado:** detecta una sucursal **con depósito**. Nunca `SERVIDOR` ni
 `COMPRAS`, aunque estén más cerca.
 
-### 55.9 · Lo que se guarda es la posición del momento de marcar
+### 59.9 · Lo que se guarda es la posición del momento de marcar
 1. Abrir Marcación y esperar a que detecte.
 2. Esperar unos minutos sin salir de la pantalla, o caminar unos metros.
 3. Marcar.
@@ -5253,7 +5570,7 @@ Después, en la base: `latitud`, `longitud`, `precision_gps` y
 `distancia_sucursal` de esa marcación corresponden a **dónde estabas al
 marcar**, no a dónde estabas al abrir la pantalla.
 
-### 55.10 · Moverse entre abrir y marcar no marca contra la vieja
+### 59.10 · Moverse entre abrir y marcar no marca contra la vieja
 1. Abrir Marcación dentro de una sucursal y esperar la detección.
 2. Sin cerrar la pantalla, trasladarse hasta quedar más cerca de otra.
 3. Tocar el botón de marcar.
@@ -5263,7 +5580,7 @@ sucursal, la pantalla pasa a mostrar esa, y hay que volver a tocar el botón.
 ⚠️ Es el caso más difícil de armar: necesita dos sucursales cercanas o mucha
 paciencia.
 
-### 55.11 · Si se pierde la ubicación al marcar, no se marca igual
+### 59.11 · Si se pierde la ubicación al marcar, no se marca igual
 1. Abrir Marcación con permiso dado y esperar la detección.
 2. Apagar el GPS del teléfono (o poner modo avión) sin cerrar la pantalla.
 3. Tocar marcar.
@@ -5272,7 +5589,7 @@ paciencia.
 **no registra nada**. El botón vuelve a su texto normal — **no** se queda en
 «Marcando…».
 
-### 55.12 · Los tres estados
+### 59.12 · Los tres estados
 1. Recorrer: pantalla cargando, sin permiso de ubicación, y con el central
    caído.
 
@@ -5280,7 +5597,7 @@ paciencia.
 botón **Recalcular** a mano; con el central caído, el estado de error con
 reintentar. Ninguno muestra una sucursal.
 
-### 55.13 · Tema oscuro y tema claro
+### 59.13 · Tema oscuro y tema claro
 1. Ver la sección **Dónde estás** en los dos temas, en los estados «detectada»
    y «sin ubicación».
 
@@ -5289,7 +5606,7 @@ tiene contraste suficiente.
 
 ---
 
-## Bloque 56 — Marcación facial: cuenta regresiva, foto sola y reintento *(nuevo, sin probar)*
+## Bloque 60 — Marcación facial: cuenta regresiva, foto sola y reintento *(nuevo, sin probar)*
 
 **Por qué está acá:** el diálogo facial hacía **verificación continua** —un
 bucle a 12 frames por segundo esperando a que la persona pasara los tres
@@ -5300,12 +5617,12 @@ foto**. Issue #16.
 
 ⚠️ **Necesita cámara y un rostro enrolado.** Antes de empezar, registrá el
 rostro desde **Mi cuenta → Mi rostro**. Sin eso, todos los casos dan «No tenés
-rostro registrado», que es el caso 56.9 y nada más.
+rostro registrado», que es el caso 60.9 y nada más.
 
 ⚠️ **Sigue siendo 1:1**: verifica que sos vos, no busca quién sos. La
 identificación 1:N y el kiosco son la issue #17.
 
-### 56.1 · La cuenta espera a la cámara
+### 60.1 · La cuenta espera a la cámara
 1. Con la app recién instalada —o después de limpiar la caché, para que los
    modelos no estén descargados— tocar el botón de marcar.
 
@@ -5313,83 +5630,83 @@ identificación 1:N y el kiosco son la issue #17.
 La cuenta **no arranca** hasta que la cámara se ve. ⚠️ **Lo que no puede
 pasar:** que cuente sobre una pantalla negra y saque la foto antes de tiempo.
 
-### 56.2 · Cuenta 3, 2, 1
+### 60.2 · Cuenta 3, 2, 1
 1. Mirar el número grande sobre el video.
 
 **Esperado:** 3 · 2 · 1, un segundo cada uno, centrado y legible sobre la
 imagen. El rostro **no** queda tapado por un velo mientras uno se acomoda.
 
-### 56.3 · La foto se toma sola
+### 60.3 · La foto se toma sola
 1. No tocar nada y esperar a que la cuenta termine.
 
 **Esperado:** la foto se toma sola, aparece «Verificando…» y —si sos vos— el
 diálogo cierra y la marcación sigue. **No hay botón de disparo.**
 
-### 56.4 · No queda mirando frames
+### 60.4 · No queda mirando frames
 1. Después de una verificación buena, observar el consumo del teléfono.
 
 **Esperado:** el diálogo cierra y la cámara se apaga. No queda un bucle
 analizando frames de fondo. Se nota en que el teléfono no se calienta.
 
-### 56.5 · Sin rostro en la foto, lo dice y ofrece otra
+### 60.5 · Sin rostro en la foto, lo dice y ofrece otra
 1. Tapar la cámara con el dedo y dejar que la cuenta llegue a cero.
 
 **Esperado:** **«No se detectó tu rostro. Acercate y buscá mejor luz.»**, con
 los botones **Tomar otra foto** y **Cancelar**. El diálogo **no** cierra.
 
-### 56.6 · Una foto de una foto no pasa
+### 60.6 · Una foto de una foto no pasa
 1. Poner delante de la cámara una foto tuya en la pantalla de otro teléfono.
 
 **Esperado:** **«Tiene que ser tu rostro real, no una foto.»** Es `antispoof`
 y `liveness`. ⚠️ Si esto pasa, es un hallazgo grave: anotalo.
 
-### 56.7 · Otra persona no pasa
+### 60.7 · Otra persona no pasa
 1. Que otro funcionario —con rostro enrolado o sin él— se ponga frente a la
    cámara con tu sesión abierta.
 
 **Esperado:** **«No te reconocimos. Probá de frente y con más luz.»**
 
-### 56.8 · «Tomar otra foto» reinicia la cuenta
+### 60.8 · «Tomar otra foto» reinicia la cuenta
 1. Desde un fallo, tocar **Tomar otra foto**.
 
 **Esperado:** la cuenta vuelve a **3** y la foto se toma sola de nuevo. No hay
 que tocar nada más.
 
-### 56.9 · Los intentos se acaban
+### 60.9 · Los intentos se acaban
 1. Fallar tres veces seguidas, tapando la cámara.
 
 **Esperado:** al tercero el diálogo cierra solo y la marcación pregunta
 **«Sin verificación facial · ¿Querés marcar igual?»**. Confirmando, la
 marcación se registra. No se puede quedar reintentando para siempre.
 
-### 56.10 · Sin rostro registrado no se pide la cámara
+### 60.10 · Sin rostro registrado no se pide la cámara
 1. Con un usuario **sin** rostro enrolado, tocar marcar.
 
 **Esperado:** dice que hay que registrarlo desde **Mi cuenta**, y el navegador
 **no** pide permiso de cámara. ⚠️ Importa: un permiso denegado no se vuelve a
 preguntar, así que gastarlo para nada deja al usuario peor.
 
-### 56.11 · Cancelar
+### 60.11 · Cancelar
 1. Tocar **Cancelar** durante la cuenta.
 
 **Esperado:** el diálogo cierra, la cámara se apaga, y la marcación ofrece
 marcar sin verificación facial.
 
-### 56.12 · Safari en iPhone
-1. Repetir 56.2, 56.3 y 56.5 en Safari sobre iOS.
+### 60.12 · Safari en iPhone
+1. Repetir 60.2, 60.3 y 60.5 en Safari sobre iOS.
 
 **Esperado:** el video se ve **dentro** de la tarjeta, no a pantalla completa
 —es lo que dan `playsinline` y `muted`— y la foto se toma sola igual.
 ⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
 
-### 56.13 · Los modelos se bajan una sola vez
+### 60.13 · Los modelos se bajan una sola vez
 1. Marcar con rostro, cerrar la app, volver a marcar sin conexión.
 
 **Esperado:** la segunda vez la cámara queda lista mucho más rápido y funciona
 **sin conexión**: los modelos los cachea el service worker como asset group
 lazy.
 
-### 56.14 · Tema oscuro y tema claro
+### 60.14 · Tema oscuro y tema claro
 1. Ver el diálogo en los dos temas, en cuenta y en fallo.
 
 **Esperado:** el número de la cuenta se lee sobre cualquier imagen, y el
@@ -5397,7 +5714,7 @@ motivo del fallo tiene contraste suficiente en los dos.
 
 ---
 
-## Bloque 57 — Kiosco de marcación *(nuevo, sin probar)*
+## Bloque 61 — Kiosco de marcación *(nuevo, sin probar)*
 
 **Por qué está acá:** una tablet en la puerta para que todos marquen, sin
 sesión personal. Identifica el rostro contra **todas** las galerías (1:N) y
@@ -5405,7 +5722,7 @@ registra la marcación **a nombre de quien reconoció**. Issue #17.
 
 ⚠️ **Acá está el riesgo más caro de todo el módulo.** Un falso positivo marca
 por otra persona, y eso queda en el registro de asistencia como un hecho.
-**Probá el 57.6 y el 57.7 con gente de verdad**, no solo con vos mismo.
+**Probá el 61.6 y el 61.7 con gente de verdad**, no solo con vos mismo.
 
 ⚠️ **Y hoy no se puede auditar.** La marcación no guarda el método, la
 similitud ni el margen contra el segundo candidato: eso es el #217 del
@@ -5416,7 +5733,7 @@ quedar rastro.
 Hace falta: una tablet o teléfono con cámara, un usuario con rol **ADMIN** o
 **RRHH GESTIONAR**, y al menos **tres personas con el rostro enrolado**.
 
-### 57.1 · Solo entra quien tiene el rol
+### 61.1 · Solo entra quien tiene el rol
 1. Con un usuario **sin** `ADMIN` ni `RRHH GESTIONAR`, buscar «Kiosco de
    marcación» en Inicio, y después escribir `/marcacion/kiosco` a mano.
 
@@ -5424,19 +5741,19 @@ Hace falta: una tablet o teléfono con cámara, un usuario con rol **ADMIN** o
 permiso» y rebota a Inicio. ⚠️ Que no aparezca en el menú no alcanza: probá la
 URL.
 
-### 57.2 · Detecta la sucursal sola
+### 61.2 · Detecta la sucursal sola
 1. Entrar al kiosco con el rol correcto.
 
 **Esperado:** muestra la sucursal detectada y la distancia, igual que la
 marcación personal. El botón **Marcar** está habilitado.
 
-### 57.3 · Sin ubicación no se puede marcar
+### 61.3 · Sin ubicación no se puede marcar
 1. Denegar el permiso de ubicación y entrar.
 
 **Esperado:** dice que no se pudo obtener la ubicación y **Marcar** queda
 deshabilitado.
 
-### 57.4 · Identifica y marca por la persona reconocida
+### 61.4 · Identifica y marca por la persona reconocida
 1. Con la sesión de la tablet abierta como encargado, que **otra** persona
    —con rostro enrolado— toque **Marcar** y se ponga frente a la cámara.
 
@@ -5444,27 +5761,27 @@ deshabilitado.
 `marcacion.usuario_id` es **el de esa persona**, no el del encargado logueado
 en la tablet. ⚠️ **Verificalo en la base**, no solo en la pantalla.
 
-### 57.5 · Vuelve solo, listo para el siguiente
+### 61.5 · Vuelve solo, listo para el siguiente
 1. Después del saludo, no tocar nada y esperar.
 
 **Esperado:** a los ~5 segundos vuelve solo a la pantalla de **Marcar**. Con
 una fila en la puerta nadie va a tocar «listo».
 
-### 57.6 · A quien no está enrolado no lo reconoce
+### 61.6 · A quien no está enrolado no lo reconoce
 1. Que alguien **sin** rostro registrado toque Marcar.
 
 **Esperado:** **«No te reconocimos. ¿Tenés el rostro registrado?»** y **no**
 marca nada. ⚠️ **Lo que no puede pasar:** que lo confunda con otra persona
 enrolada. Si pasa, es un hallazgo grave — anotá con quién lo confundió.
 
-### 57.7 · Personas parecidas
+### 61.7 · Personas parecidas
 1. Si hay hermanos, parientes o gente de rasgos similares enrolados, que
    marquen uno después del otro.
 
 **Esperado:** cada uno queda a su nombre. ⚠️ **Este es el caso que decide si
 el 1:N es viable en esta población.** Anotá cualquier confusión con detalle.
 
-### 57.8 · Una foto no marca
+### 61.8 · Una foto no marca
 1. Poner delante de la cámara la foto de un funcionario enrolado, en la
    pantalla de otro teléfono.
 
@@ -5472,44 +5789,44 @@ el 1:N es viable en esta población.** Anotá cualquier confusión con detalle.
 esto importa más que en el teléfono personal: cualquiera puede acercar una
 foto.
 
-### 57.9 · Con las dos salidas, pregunta cuál
+### 61.9 · Con las dos salidas, pregunta cuál
 1. Que alguien con entrada marcada y sin salida de almuerzo toque Marcar.
 
 **Esperado:** después de reconocerlo, pregunta **«¿salís a almorzar o terminás
 el día?»** con los dos botones. No elige por la persona.
 
-### 57.10 · Elegir «Salir a almorzar» no cierra la jornada
+### 61.10 · Elegir «Salir a almorzar» no cierra la jornada
 1. Elegir **Salir a almorzar**.
 
 **Esperado:** queda registrada como salida de almuerzo y la jornada **sigue
 abierta**: al volver, el kiosco le ofrece el retorno.
 
-### 57.11 · «Intentar de nuevo» tras un fallo
+### 61.11 · «Intentar de nuevo» tras un fallo
 1. Tapar la cámara, dejar que falle, y tocar **Intentar de nuevo**.
 
 **Esperado:** vuelve a contar 3 y a sacar la foto sola. **Cancelar** vuelve a
 la pantalla inicial.
 
-### 57.12 · Recalcular
+### 61.12 · Recalcular
 1. Tocar **Recalcular** en la sección de ubicación.
 
 **Esperado:** vuelve a tomar la posición. Es lo que hay que usar si mueven la
 tablet de sucursal.
 
-### 57.13 · Varias marcaciones seguidas
+### 61.13 · Varias marcaciones seguidas
 1. Que tres personas marquen una detrás de otra sin recargar la app.
 
 **Esperado:** las tres quedan bien, cada una a su nombre. La cámara no se
 traba y la ubicación **no** se vuelve a pedir en cada una — el dispositivo
 está fijo, y esperar el GPS por persona haría la fila insoportable.
 
-### 57.14 · Safari en iPhone
-1. Abrir el kiosco en Safari sobre iOS y repetir 57.4.
+### 61.14 · Safari en iPhone
+1. Abrir el kiosco en Safari sobre iOS y repetir 61.4.
 
 **Esperado:** el video se ve dentro de la tarjeta y la identificación
 funciona. ⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
 
-### 57.15 · Tema oscuro y tema claro
+### 61.15 · Tema oscuro y tema claro
 1. Ver el kiosco en los dos temas: inicio, cuenta, saludo y fallo.
 
 **Esperado:** el saludo y el motivo del fallo se leen en los dos, y el botón
@@ -5517,7 +5834,7 @@ funciona. ⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
 
 ---
 
-## Bloque 58 — Método, similitud y margen de cada marcación *(nuevo, sin probar)*
+## Bloque 62 — Método, similitud y margen de cada marcación *(nuevo, sin probar)*
 
 **Por qué está acá:** la marcación guardaba buena evidencia de **dónde** y
 ninguna de **cómo se identificó a la persona**. Con el kiosco 1:N eso deja de
@@ -5540,40 +5857,40 @@ sin `out-of-order`, una filial puede saltearla en silencio.
 Este bloque se verifica **en la base**, no en la pantalla: la app no muestra
 ninguno de estos campos.
 
-### 58.1 · Marcar con rostro desde el teléfono
+### 62.1 · Marcar con rostro desde el teléfono
 1. Marcar entrada pasando la verificación facial.
 2. `SELECT metodo_registro, similitud_facial, margen_segundo_candidato FROM administrativo.marcacion ORDER BY id DESC LIMIT 1;`
 
 **Esperado:** `metodo_registro = 'FACIAL_1A1'` y `similitud_facial` con un
 valor entre 0 y 1.
 
-### 58.2 · Marcar sin rostro
+### 62.2 · Marcar sin rostro
 1. Cancelar la verificación facial y confirmar «Marcar igual».
 
 **Esperado:** `metodo_registro = 'MANUAL'`, y `similitud_facial` y
 `margen_segundo_candidato` en `NULL`. ⚠️ **No pueden venir en 0**: cero es una
 medición, `NULL` es «no hubo».
 
-### 58.3 · Marcar desde el kiosco
+### 62.3 · Marcar desde el kiosco
 1. Marcar desde el kiosco identificando a una persona.
 
 **Esperado:** `metodo_registro = 'FACIAL_1AN_KIOSCO'`, con similitud y —si hay
 más de un enrolado— margen.
 
-### 58.4 · El margen aparece cuando hay con quién comparar
+### 62.4 · El margen aparece cuando hay con quién comparar
 1. Con **al menos dos** personas enroladas, marcar desde el kiosco.
 
 **Esperado:** `margen_segundo_candidato` con valor. Es la similitud del
 reconocido menos la del siguiente candidato.
 
-### 58.5 · Con un solo enrolado no se inventa un margen
+### 62.5 · Con un solo enrolado no se inventa un margen
 1. En una instancia con **una sola** persona enrolada, marcar desde el kiosco.
 
 **Esperado:** `margen_segundo_candidato` en `NULL`. ⚠️ **Ni 0 ni 1**: no había
 contra quién comparar, y decir «margen 1» afirmaría una certeza que nadie
 midió.
 
-### 58.6 · La similitud guardada es la del central
+### 62.6 · La similitud guardada es la del central
 1. Marcar con rostro desde el teléfono con el central **caído** o sin red
    justo en ese paso.
 
@@ -5582,13 +5899,13 @@ midió.
 teléfono **no** se usa para rellenar la columna: son medidas distintas y
 mezclarlas la volvería inservible.
 
-### 58.7 · El desktop sigue marcando sin enterarse
+### 62.7 · El desktop sigue marcando sin enterarse
 1. Registrar una marcación desde el **desktop**.
 
 **Esperado:** se guarda normalmente, con las tres columnas en `NULL`. Los
 campos son opcionales; el desktop usa el mismo `saveMarcacion` y no los manda.
 
-### 58.8 · La replicación no se cortó
+### 62.8 · La replicación no se cortó
 1. Después de aplicar `V216.5`, marcar en una filial y en el central.
 2. Revisar que las filas aparezcan del otro lado.
 
@@ -5596,7 +5913,7 @@ campos son opcionales; el desktop usa el mismo `saveMarcacion` y no los manda.
 de recibir, revisá que tenga la migración: es el modo de falla más probable de
 este cambio.
 
-### 58.9 · La segunda opinión rechaza a otra persona
+### 62.9 · La segunda opinión rechaza a otra persona
 1. Con dos personas enroladas, que **la otra** se ponga frente a la cámara con
    tu sesión abierta en el teléfono.
 
@@ -5664,11 +5981,23 @@ enrolado.
 | 52 · Elegir el lote al cargar un producto | 16 | | | |
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
 | 54 · Cantidades en enteros | 10 | 10 | | |
-| 55 · La sucursal de la marcación sale del GPS | 13 | | | |
-| 56 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
-| 57 · Kiosco de marcación | 15 | | | |
-| 58 · Método, similitud y margen | 9 | | | |
-| **Total** | **523** | | | |
+| 55 · Alta de solicitud de caja chica | 16 | | | |
+| 56 · La foto del producto en el buscador | 6 | | | |
+| 57 · Edición de producto | 10 | | | |
+| 58 · Alta de producto | 10 | | | |
+| 59 · La sucursal de la marcación sale del GPS | 13 | | | |
+| 60 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
+| 61 · Kiosco de marcación | 15 | | | |
+| 62 · Método, similitud y margen | 9 | | | |
+| **Total** | **575** | | | |
+
+> El total se recalcula **sumando la columna «Casos»**, no arrastrando el
+> número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las
+> filas sumaban **504**: sumarle un bloque nuevo a ese número daba otro
+> resultado que parecía correcto por casualidad. Los bloques 57 y 58 son de
+> esta tanda; el 57 **existía y se perdió** al resolver un conflicto de merge
+> en `feat/foto-producto-buscador` (commit `75d0a59`), y se restauró desde el
+> merge del PR #42.
 
 ### Los cinco que más importan
 

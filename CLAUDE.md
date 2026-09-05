@@ -151,6 +151,41 @@ Lo que se carga solo para Safari va en un **chunk aparte**: el peso no lo paga A
 
 > ⚠️ Ya pasó una vez: el escáner se escribió sin fallback «porque hoy no hay iOS». Eso invierte el orden — el soporte de iOS es el requisito, no una consecuencia de tener usuarios de iOS.
 
+### 8 · Una issue que se resuelve se cierra
+
+**Resolver una issue incluye cerrarla.** Mientras siga abierta, para cualquiera
+que mire el tablero el problema sigue vivo: se vuelve a reportar, se vuelve a
+diagnosticar y se vuelve a discutir algo que ya está hecho.
+
+**El `Closes #<n>` va en el cuerpo del PR** —`Closes GabFrank/<repo>#<n>` si la
+issue es de otro repositorio—, así queda enlazado **qué commit** la resolvió.
+Un PR que cierra varias issues las lista todas.
+
+⚠️ **Una rama puede acumular varias issues.** Cuando un tema se ataca de a
+varias —marcación, por ejemplo—, se trabaja todo en una rama y va **un solo
+PR** al final. En ese caso la issue **se cierra a mano al terminarla**, sin
+esperar al merge, y su comentario de cierre dice en qué rama quedó el trabajo.
+El PR igual lleva el `Closes` de todas: no cambia nada que ya estén cerradas, y
+deja el enlace al commit.
+
+Antes de cerrar, dos cosas:
+
+1. **Los criterios de aceptación de la issue, tildados uno por uno.** Si alguno
+   quedó afuera, no se cierra: se dice cuál y por qué, o se abre la issue que
+   lo cubre y se enlaza.
+2. **Un comentario de cierre** que diga qué se hizo, qué quedó sin verificar y
+   cuál es el bloque del plan de testeo manual que lo prueba — la regla 4.1 no
+   se salda con el merge.
+
+⚠️ **Si la solución necesita las dos mitades**, la issue de la PWA no se cierra
+hasta que el central esté publicado — ni siquiera a mano. Cerrarla antes afirma
+que el usuario tiene el arreglo, y contra un central viejo no lo tiene.
+
+**Una issue no se cierra por vieja, por dudosa ni por ordenar el tablero.** Se
+cierra porque está resuelta, o con un comentario que explique por qué se
+descarta. Cerrar sin decir nada borra el problema del tablero pero no de la
+app.
+
 ## Estructura
 
 ```
@@ -236,7 +271,9 @@ Al 2026-08-15, farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna de la
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **92 archivos de test, 1.106 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **96 archivos de test, 1.182 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+
+⚠️ **La marcación con rostro necesita un central con `V216.5` y las filiales con `V91.5`.** Desde el kiosco 1:N y desde la marcación personal viajan `metodoRegistro`, `similitudFacial` y `margenSegundoCandidato`; contra un central que no los conozca **la mutation falla entera y no se registra ninguna marcación**, no solo los campos nuevos. **El orden es filial → central → PWA**: `administrativo.marcacion` se replica en las dos direcciones y la replicación lógica no propaga DDL, así que una columna que exista solo en el central deja al apply worker de la filial en crash-loop y corta la bajada central→filial. Es el mismo modo de falla del incidente del enum `tipo_dispositivo`. Ver [`docs/modulos/marcacion.md`](docs/modulos/marcacion.md).
 
 ⚠️ **`cantidad` es lo contado y `cantidadFisica` lo que dice el sistema**, al revés de lo que sugieren los nombres y de lo que `docs/modulos/inventario.md` afirmó hasta ahora. Lo fija `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La app las tuvo al derecho y la consecuencia era muda: lo contado desde el teléfono no entraba en el ajuste de stock. Corregido con test; ver el hallazgo #60 de [`docs/TODO_TECNICO.md`](docs/TODO_TECNICO.md).
 
@@ -257,3 +294,4 @@ Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.
 7. Escribir un token `--mdc-*`: Material 21 renombró toda esa familia a `--mat-*` y los nombres viejos **fallan en silencio** — la regla se aplica, la variable queda definida y el componente sigue con su valor por defecto. Hay un test que lo impide
 8. Escribir un backtick dentro de `template:` o `styles:` de un componente: rompe el literal y el error que sale no señala la causa
 9. Dejar una capacidad de dispositivo sin camino en Safari «porque hoy no hay iOS» — ver la regla 7
+10. Dar por resuelta una issue y dejarla abierta — ver la regla 8

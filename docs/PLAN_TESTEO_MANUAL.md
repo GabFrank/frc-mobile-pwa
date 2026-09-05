@@ -5479,6 +5479,450 @@ código, y todo el flujo en Safari/iOS.
 
 ---
 
+## Bloque 59 — La sucursal de la marcación sale del GPS *(nuevo, sin probar)*
+
+**Por qué está acá:** se podía marcar entrada y salida **sin que la ubicación
+validara nada**. La sucursal se elegía en un desplegable —la última usada, si
+no la de la sesión, si no la primera de la lista— y el GPS entraba después,
+solo para medir la distancia **contra la sucursal ya elegida**. Alcanzaba con
+seleccionar la sucursal donde uno *dice* estar para que el aviso de «estás
+lejos» no apareciera nunca. Issue #15.
+
+Ahora la sucursal **se detecta sola** al abrir la pantalla, hay un botón
+**Recalcular**, y **sin ubicación no se marca**.
+
+⚠️ **Necesita un teléfono de verdad y salir a la calle.** Buena parte de estos
+casos no se puede probar desde el escritorio: hay que negar y dar el permiso
+de ubicación en el navegador del teléfono, y moverse físicamente. Para probar
+en un Android por USB: `adb reverse tcp:4300 tcp:4300` (y `tcp:8081` si el
+central es local) — `localhost` es contexto seguro y el GPS funciona.
+
+⚠️ **Antes de empezar, confirmá en el central que las sucursales que vas a
+usar tienen `localizacion` cargada** (`empresarial.sucursal.localizacion`, con
+el formato `lat,lng`). Sin eso todos los casos dan «No se pudo determinar la
+sucursal», que es correcto pero no es lo que se quiere probar.
+
+### 59.1 · Al abrir, la sucursal se detecta sola
+1. Parado dentro de una sucursal, entrar a **Mi trabajo → Marcación**.
+
+**Esperado:** la sección **Dónde estás** muestra primero el progreso del GPS y
+después el **nombre de la sucursal**, la **distancia** y la **precisión**.
+Nadie tocó nada.
+
+### 59.2 · Ya no hay desplegable
+1. En la misma pantalla, intentar tocar el nombre de la sucursal.
+
+**Esperado:** es texto, no un campo. **No** se abre ninguna lista de
+sucursales. No hay forma de elegir otra.
+
+### 59.3 · Recalcular vuelve a medir
+1. Tocar **Recalcular**.
+
+**Esperado:** vuelve al estado de búsqueda, pide la posición de nuevo y
+termina mostrando la sucursal y una distancia. El botón queda deshabilitado
+mientras busca.
+
+### 59.4 · Sin permiso de ubicación no se marca, y lo dice
+1. En la configuración del sitio del navegador, **denegar** la ubicación.
+2. Entrar a Marcación.
+
+**Esperado:** dice **«No se pudo obtener la ubicación»** con el motivo debajo,
+y el botón de marcar está **deshabilitado**. No aparece ningún nombre de
+sucursal. ⚠️ **Lo que no puede pasar:** que muestre la sucursal de tu usuario
+y te deje marcar igual — eso es exactamente el bug que esto corrige.
+
+### 59.5 · Dar el permiso y recalcular desbloquea
+1. Con la pantalla abierta del caso anterior, permitir la ubicación en el
+   navegador.
+2. Tocar **Recalcular**.
+
+**Esperado:** aparece la sucursal detectada y el botón de marcar se habilita.
+**No hace falta recargar la app.**
+
+### 59.6 · Parado en otra sucursal, detecta la otra
+1. Trasladarse a una segunda sucursal y abrir Marcación.
+
+**Esperado:** detecta **esa** sucursal, no la del usuario ni la de la vez
+anterior. Es el caso del funcionario que cubre en otro local.
+
+### 59.7 · Lejos de la sucursal avisa, pero deja marcar
+1. Desde un punto a más de 33 m de cualquier sucursal —la vereda de enfrente
+   alcanza— tocar el botón de marcar.
+
+**Esperado:** un diálogo **«Estás lejos de la sucursal»** con los metros, la
+sucursal y la precisión. Confirmando, **la marcación se registra**. La
+distancia avisa; no bloquea.
+
+### 59.8 · La sucursal virtual nunca se detecta
+1. Estando en la casa central —donde `SERVIDOR` y `COMPRAS` tienen sus
+   coordenadas— abrir Marcación.
+
+**Esperado:** detecta una sucursal **con depósito**. Nunca `SERVIDOR` ni
+`COMPRAS`, aunque estén más cerca.
+
+### 59.9 · Lo que se guarda es la posición del momento de marcar
+1. Abrir Marcación y esperar a que detecte.
+2. Esperar unos minutos sin salir de la pantalla, o caminar unos metros.
+3. Marcar.
+
+**Esperado:** el GPS se toma **otra vez** antes de guardar (se ve el progreso).
+Después, en la base: `latitud`, `longitud`, `precision_gps` y
+`distancia_sucursal` de esa marcación corresponden a **dónde estabas al
+marcar**, no a dónde estabas al abrir la pantalla.
+
+### 59.10 · Moverse entre abrir y marcar no marca contra la vieja
+1. Abrir Marcación dentro de una sucursal y esperar la detección.
+2. Sin cerrar la pantalla, trasladarse hasta quedar más cerca de otra.
+3. Tocar el botón de marcar.
+
+**Esperado:** **no se marca**. Avisa que ahora estás más cerca de la otra
+sucursal, la pantalla pasa a mostrar esa, y hay que volver a tocar el botón.
+⚠️ Es el caso más difícil de armar: necesita dos sucursales cercanas o mucha
+paciencia.
+
+### 59.11 · Si se pierde la ubicación al marcar, no se marca igual
+1. Abrir Marcación con permiso dado y esperar la detección.
+2. Apagar el GPS del teléfono (o poner modo avión) sin cerrar la pantalla.
+3. Tocar marcar.
+
+**Esperado:** después del paso del rostro, avisa que se perdió la ubicación y
+**no registra nada**. El botón vuelve a su texto normal — **no** se queda en
+«Marcando…».
+
+### 59.12 · Los tres estados
+1. Recorrer: pantalla cargando, sin permiso de ubicación, y con el central
+   caído.
+
+**Esperado:** carga con esqueleto; sin permiso, el vacío con su motivo y el
+botón **Recalcular** a mano; con el central caído, el estado de error con
+reintentar. Ninguno muestra una sucursal.
+
+### 59.13 · Tema oscuro y tema claro
+1. Ver la sección **Dónde estás** en los dos temas, en los estados «detectada»
+   y «sin ubicación».
+
+**Esperado:** el texto del vacío se lee en los dos, y el botón **Recalcular**
+tiene contraste suficiente.
+
+---
+
+## Bloque 60 — Marcación facial: cuenta regresiva, foto sola y reintento *(nuevo, sin probar)*
+
+**Por qué está acá:** el diálogo facial hacía **verificación continua** —un
+bucle a 12 frames por segundo esperando a que la persona pasara los tres
+controles—, sin final visible: no se sabía si faltaba un segundo o si nunca
+iba a pasar, y el reintento no existía como tal. Ahora es el flujo de la PWA
+de gourmet: cuenta de 3 s, la foto se toma sola, y si no pasa hay **Tomar otra
+foto**. Issue #16.
+
+⚠️ **Necesita cámara y un rostro enrolado.** Antes de empezar, registrá el
+rostro desde **Mi cuenta → Mi rostro**. Sin eso, todos los casos dan «No tenés
+rostro registrado», que es el caso 60.9 y nada más.
+
+⚠️ **Sigue siendo 1:1**: verifica que sos vos, no busca quién sos. La
+identificación 1:N y el kiosco son la issue #17.
+
+### 60.1 · La cuenta espera a la cámara
+1. Con la app recién instalada —o después de limpiar la caché, para que los
+   modelos no estén descargados— tocar el botón de marcar.
+
+**Esperado:** primero «Preparando el reconocimiento…» y el video encendido.
+La cuenta **no arranca** hasta que la cámara se ve. ⚠️ **Lo que no puede
+pasar:** que cuente sobre una pantalla negra y saque la foto antes de tiempo.
+
+### 60.2 · Cuenta 3, 2, 1
+1. Mirar el número grande sobre el video.
+
+**Esperado:** 3 · 2 · 1, un segundo cada uno, centrado y legible sobre la
+imagen. El rostro **no** queda tapado por un velo mientras uno se acomoda.
+
+### 60.3 · La foto se toma sola
+1. No tocar nada y esperar a que la cuenta termine.
+
+**Esperado:** la foto se toma sola, aparece «Verificando…» y —si sos vos— el
+diálogo cierra y la marcación sigue. **No hay botón de disparo.**
+
+### 60.4 · No queda mirando frames
+1. Después de una verificación buena, observar el consumo del teléfono.
+
+**Esperado:** el diálogo cierra y la cámara se apaga. No queda un bucle
+analizando frames de fondo. Se nota en que el teléfono no se calienta.
+
+### 60.5 · Sin rostro en la foto, lo dice y ofrece otra
+1. Tapar la cámara con el dedo y dejar que la cuenta llegue a cero.
+
+**Esperado:** **«No se detectó tu rostro. Acercate y buscá mejor luz.»**, con
+los botones **Tomar otra foto** y **Cancelar**. El diálogo **no** cierra.
+
+### 60.6 · Una foto de una foto no pasa
+1. Poner delante de la cámara una foto tuya en la pantalla de otro teléfono.
+
+**Esperado:** **«Tiene que ser tu rostro real, no una foto.»** Es `antispoof`
+y `liveness`. ⚠️ Si esto pasa, es un hallazgo grave: anotalo.
+
+### 60.7 · Otra persona no pasa
+1. Que otro funcionario —con rostro enrolado o sin él— se ponga frente a la
+   cámara con tu sesión abierta.
+
+**Esperado:** **«No te reconocimos. Probá de frente y con más luz.»**
+
+### 60.8 · «Tomar otra foto» reinicia la cuenta
+1. Desde un fallo, tocar **Tomar otra foto**.
+
+**Esperado:** la cuenta vuelve a **3** y la foto se toma sola de nuevo. No hay
+que tocar nada más.
+
+### 60.9 · Los intentos se acaban
+1. Fallar tres veces seguidas, tapando la cámara.
+
+**Esperado:** al tercero el diálogo cierra solo y la marcación pregunta
+**«Sin verificación facial · ¿Querés marcar igual?»**. Confirmando, la
+marcación se registra. No se puede quedar reintentando para siempre.
+
+### 60.10 · Sin rostro registrado no se pide la cámara
+1. Con un usuario **sin** rostro enrolado, tocar marcar.
+
+**Esperado:** dice que hay que registrarlo desde **Mi cuenta**, y el navegador
+**no** pide permiso de cámara. ⚠️ Importa: un permiso denegado no se vuelve a
+preguntar, así que gastarlo para nada deja al usuario peor.
+
+### 60.11 · Cancelar
+1. Tocar **Cancelar** durante la cuenta.
+
+**Esperado:** el diálogo cierra, la cámara se apaga, y la marcación ofrece
+marcar sin verificación facial.
+
+### 60.12 · Safari en iPhone
+1. Repetir 60.2, 60.3 y 60.5 en Safari sobre iOS.
+
+**Esperado:** el video se ve **dentro** de la tarjeta, no a pantalla completa
+—es lo que dan `playsinline` y `muted`— y la foto se toma sola igual.
+⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
+
+### 60.13 · Los modelos se bajan una sola vez
+1. Marcar con rostro, cerrar la app, volver a marcar sin conexión.
+
+**Esperado:** la segunda vez la cámara queda lista mucho más rápido y funciona
+**sin conexión**: los modelos los cachea el service worker como asset group
+lazy.
+
+### 60.14 · Tema oscuro y tema claro
+1. Ver el diálogo en los dos temas, en cuenta y en fallo.
+
+**Esperado:** el número de la cuenta se lee sobre cualquier imagen, y el
+motivo del fallo tiene contraste suficiente en los dos.
+
+---
+
+## Bloque 61 — Kiosco de marcación *(nuevo, sin probar)*
+
+**Por qué está acá:** una tablet en la puerta para que todos marquen, sin
+sesión personal. Identifica el rostro contra **todas** las galerías (1:N) y
+registra la marcación **a nombre de quien reconoció**. Issue #17.
+
+⚠️ **Acá está el riesgo más caro de todo el módulo.** Un falso positivo marca
+por otra persona, y eso queda en el registro de asistencia como un hecho.
+**Probá el 61.6 y el 61.7 con gente de verdad**, no solo con vos mismo.
+
+⚠️ **Y hoy no se puede auditar.** La marcación no guarda el método, la
+similitud ni el margen contra el segundo candidato: eso es el #217 del
+central, que sigue abierto. Si en la prueba aparece un reconocimiento
+equivocado, **anotá quién, cuándo y contra quién**, porque en la base no va a
+quedar rastro.
+
+Hace falta: una tablet o teléfono con cámara, un usuario con rol **ADMIN** o
+**RRHH GESTIONAR**, y al menos **tres personas con el rostro enrolado**.
+
+### 61.1 · Solo entra quien tiene el rol
+1. Con un usuario **sin** `ADMIN` ni `RRHH GESTIONAR`, buscar «Kiosco de
+   marcación» en Inicio, y después escribir `/marcacion/kiosco` a mano.
+
+**Esperado:** en Inicio **no aparece**, y la URL a mano avisa «No tenés
+permiso» y rebota a Inicio. ⚠️ Que no aparezca en el menú no alcanza: probá la
+URL.
+
+### 61.2 · Detecta la sucursal sola
+1. Entrar al kiosco con el rol correcto.
+
+**Esperado:** muestra la sucursal detectada y la distancia, igual que la
+marcación personal. El botón **Marcar** está habilitado.
+
+### 61.3 · Sin ubicación no se puede marcar
+1. Denegar el permiso de ubicación y entrar.
+
+**Esperado:** dice que no se pudo obtener la ubicación y **Marcar** queda
+deshabilitado.
+
+### 61.4 · Identifica y marca por la persona reconocida
+1. Con la sesión de la tablet abierta como encargado, que **otra** persona
+   —con rostro enrolado— toque **Marcar** y se ponga frente a la cámara.
+
+**Esperado:** la saluda **por su nombre** y registra su marcación. En la base,
+`marcacion.usuario_id` es **el de esa persona**, no el del encargado logueado
+en la tablet. ⚠️ **Verificalo en la base**, no solo en la pantalla.
+
+### 61.5 · Vuelve solo, listo para el siguiente
+1. Después del saludo, no tocar nada y esperar.
+
+**Esperado:** a los ~5 segundos vuelve solo a la pantalla de **Marcar**. Con
+una fila en la puerta nadie va a tocar «listo».
+
+### 61.6 · A quien no está enrolado no lo reconoce
+1. Que alguien **sin** rostro registrado toque Marcar.
+
+**Esperado:** **«No te reconocimos. ¿Tenés el rostro registrado?»** y **no**
+marca nada. ⚠️ **Lo que no puede pasar:** que lo confunda con otra persona
+enrolada. Si pasa, es un hallazgo grave — anotá con quién lo confundió.
+
+### 61.7 · Personas parecidas
+1. Si hay hermanos, parientes o gente de rasgos similares enrolados, que
+   marquen uno después del otro.
+
+**Esperado:** cada uno queda a su nombre. ⚠️ **Este es el caso que decide si
+el 1:N es viable en esta población.** Anotá cualquier confusión con detalle.
+
+### 61.8 · Una foto no marca
+1. Poner delante de la cámara la foto de un funcionario enrolado, en la
+   pantalla de otro teléfono.
+
+**Esperado:** **«Tiene que ser un rostro real, no una foto.»** ⚠️ En un kiosco
+esto importa más que en el teléfono personal: cualquiera puede acercar una
+foto.
+
+### 61.9 · Con las dos salidas, pregunta cuál
+1. Que alguien con entrada marcada y sin salida de almuerzo toque Marcar.
+
+**Esperado:** después de reconocerlo, pregunta **«¿salís a almorzar o terminás
+el día?»** con los dos botones. No elige por la persona.
+
+### 61.10 · Elegir «Salir a almorzar» no cierra la jornada
+1. Elegir **Salir a almorzar**.
+
+**Esperado:** queda registrada como salida de almuerzo y la jornada **sigue
+abierta**: al volver, el kiosco le ofrece el retorno.
+
+### 61.11 · «Intentar de nuevo» tras un fallo
+1. Tapar la cámara, dejar que falle, y tocar **Intentar de nuevo**.
+
+**Esperado:** vuelve a contar 3 y a sacar la foto sola. **Cancelar** vuelve a
+la pantalla inicial.
+
+### 61.12 · Recalcular
+1. Tocar **Recalcular** en la sección de ubicación.
+
+**Esperado:** vuelve a tomar la posición. Es lo que hay que usar si mueven la
+tablet de sucursal.
+
+### 61.13 · Varias marcaciones seguidas
+1. Que tres personas marquen una detrás de otra sin recargar la app.
+
+**Esperado:** las tres quedan bien, cada una a su nombre. La cámara no se
+traba y la ubicación **no** se vuelve a pedir en cada una — el dispositivo
+está fijo, y esperar el GPS por persona haría la fila insoportable.
+
+### 61.14 · Safari en iPhone
+1. Abrir el kiosco en Safari sobre iOS y repetir 61.4.
+
+**Esperado:** el video se ve dentro de la tarjeta y la identificación
+funciona. ⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
+
+### 61.15 · Tema oscuro y tema claro
+1. Ver el kiosco en los dos temas: inicio, cuenta, saludo y fallo.
+
+**Esperado:** el saludo y el motivo del fallo se leen en los dos, y el botón
+**Marcar** tiene contraste suficiente.
+
+---
+
+## Bloque 62 — Método, similitud y margen de cada marcación *(nuevo, sin probar)*
+
+**Por qué está acá:** la marcación guardaba buena evidencia de **dónde** y
+ninguna de **cómo se identificó a la persona**. Con el kiosco 1:N eso deja de
+ser un detalle: un falso positivo registra asistencia a nombre de quien no
+estuvo, y sin estas columnas es indistinguible de un olvido. Issue #217 del
+central.
+
+⚠️ **Las dos mitades se publican juntas.** Contra un central **sin la
+migración `V216.5`** la mutation falla entera y **la marcación deja de
+funcionar**, no solo los campos nuevos. Antes de probar, confirmá que la
+instancia tenga `V216.5` aplicada.
+
+⚠️ **Y la migración tiene que estar también en las filiales.**
+`administrativo.marcacion` se replica en las dos direcciones: si la columna
+existe solo en el central, la replicación hacia la filial que no la tenga se
+corta con «logical replication target relation is missing replicated column».
+**Revisar `flyway_schema_history` de cada filial**, no solo la del central —
+sin `out-of-order`, una filial puede saltearla en silencio.
+
+Este bloque se verifica **en la base**, no en la pantalla: la app no muestra
+ninguno de estos campos.
+
+### 62.1 · Marcar con rostro desde el teléfono
+1. Marcar entrada pasando la verificación facial.
+2. `SELECT metodo_registro, similitud_facial, margen_segundo_candidato FROM administrativo.marcacion ORDER BY id DESC LIMIT 1;`
+
+**Esperado:** `metodo_registro = 'FACIAL_1A1'` y `similitud_facial` con un
+valor entre 0 y 1.
+
+### 62.2 · Marcar sin rostro
+1. Cancelar la verificación facial y confirmar «Marcar igual».
+
+**Esperado:** `metodo_registro = 'MANUAL'`, y `similitud_facial` y
+`margen_segundo_candidato` en `NULL`. ⚠️ **No pueden venir en 0**: cero es una
+medición, `NULL` es «no hubo».
+
+### 62.3 · Marcar desde el kiosco
+1. Marcar desde el kiosco identificando a una persona.
+
+**Esperado:** `metodo_registro = 'FACIAL_1AN_KIOSCO'`, con similitud y —si hay
+más de un enrolado— margen.
+
+### 62.4 · El margen aparece cuando hay con quién comparar
+1. Con **al menos dos** personas enroladas, marcar desde el kiosco.
+
+**Esperado:** `margen_segundo_candidato` con valor. Es la similitud del
+reconocido menos la del siguiente candidato.
+
+### 62.5 · Con un solo enrolado no se inventa un margen
+1. En una instancia con **una sola** persona enrolada, marcar desde el kiosco.
+
+**Esperado:** `margen_segundo_candidato` en `NULL`. ⚠️ **Ni 0 ni 1**: no había
+contra quién comparar, y decir «margen 1» afirmaría una certeza que nadie
+midió.
+
+### 62.6 · La similitud guardada es la del central
+1. Marcar con rostro desde el teléfono con el central **caído** o sin red
+   justo en ese paso.
+
+**Esperado:** la marcación se registra igual, con `metodo_registro =
+'FACIAL_1A1'` y `similitud_facial` en `NULL`. La similitud calculada en el
+teléfono **no** se usa para rellenar la columna: son medidas distintas y
+mezclarlas la volvería inservible.
+
+### 62.7 · El desktop sigue marcando sin enterarse
+1. Registrar una marcación desde el **desktop**.
+
+**Esperado:** se guarda normalmente, con las tres columnas en `NULL`. Los
+campos son opcionales; el desktop usa el mismo `saveMarcacion` y no los manda.
+
+### 62.8 · La replicación no se cortó
+1. Después de aplicar `V216.5`, marcar en una filial y en el central.
+2. Revisar que las filas aparezcan del otro lado.
+
+**Esperado:** siguen replicando en las dos direcciones. ⚠️ Si una filial dejó
+de recibir, revisá que tenga la migración: es el modo de falla más probable de
+este cambio.
+
+### 62.9 · La segunda opinión rechaza a otra persona
+1. Con dos personas enroladas, que **la otra** se ponga frente a la cámara con
+   tu sesión abierta en el teléfono.
+
+**Esperado:** dice **«El rostro reconocido no es el tuyo.»** y no marca. ⚠️ **No
+tiene que decir de quién era el rostro**: nombrarlo revelaría quién más está
+enrolado.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -5541,7 +5985,11 @@ código, y todo el flujo en Safari/iOS.
 | 56 · La foto del producto en el buscador | 6 | | | |
 | 57 · Edición de producto | 10 | | | |
 | 58 · Alta de producto | 10 | | | |
-| **Total** | **524** | | | |
+| 59 · La sucursal de la marcación sale del GPS | 13 | | | |
+| 60 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
+| 61 · Kiosco de marcación | 15 | | | |
+| 62 · Método, similitud y margen | 9 | | | |
+| **Total** | **575** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

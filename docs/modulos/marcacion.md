@@ -146,8 +146,8 @@ El historial de marcaciones también aparece en [`mis-rrhh`](mis-rrhh-y-finanzas
 | `/marcacion` | `MarcacionPage` |
 
 La cascada de rutas anidadas del repo anterior —tipo → ubicación →
-identificación— desaparece: sin paso facial queda **una sola pantalla** que
-muestra el estado del día, la sucursal y el botón que corresponda.
+identificación— desaparece: queda **una sola pantalla** que muestra el estado
+del día, la sucursal detectada y el botón que corresponda.
 
 ## El GPS se reimplementó, no se perdió
 
@@ -166,8 +166,54 @@ pide confirmación y se guarda igual — con `precisionGps` y
 calibrado dejaría gente sin poder marcar; guardar la evidencia permite
 recalibrarlo con datos reales, que es lo que el módulo ya hacía.
 
-Si no hay ubicación en absoluto, también se puede marcar confirmando: queda
-registrado sin GPS, que es un dato honesto.
+## La sucursal sale del GPS, no de una lista
+
+`deteccion-sucursal.util.ts` toma la posición y devuelve la **operable más
+cercana** con coordenadas cargadas, y a cuántos metros quedó. Corre sola al
+abrir la pantalla, y de nuevo con **Recalcular**. No hay selección manual.
+
+⚠️ **Hubo un desplegable, y era el agujero.** Mientras la sucursal se elegía a
+mano —la persistida, si no la de la sesión, si no la primera de la lista—, la
+distancia no medía nada: alcanzaba con seleccionar la sucursal donde uno
+*dice* estar y el aviso de «estás lejos» no aparecía nunca. Verificado en un
+Android real contra alpha el 2026-08-15. Ver la issue #15.
+
+**Sin posición no se marca**, y esto es deliberado: caer en silencio a la
+sucursal de la sesión reabriría el mismo agujero por la puerta de atrás —
+bastaría con negar el permiso de ubicación—. Los botones quedan
+deshabilitados y la pantalla dice por qué.
+
+⚠️ **«No pude preguntar» y «no hay contra qué comparar» son dos respuestas
+distintas**, y se dicen distinto:
+
+| Estado | Qué pasó | Qué hay que hacer |
+|---|---|---|
+| `sin-posicion` | No hubo posición: permiso negado, GPS apagado, tiempo agotado | Es del teléfono: dar el permiso y **Recalcular** |
+| `sin-coordenadas` | Hubo posición, pero ninguna sucursal operable tiene `localizacion` | Es del central: cargar las coordenadas |
+
+Juntarlas en un «no se pudo» genérico manda a revisar el permiso del teléfono
+cuando el que falta es un dato del central.
+
+⚠️ **El filtro por `soloOperables()` vive dentro de la util, no en quien la
+llama.** `SERVIDOR` y `COMPRAS` son virtuales y llevan las coordenadas del
+central: dejarlas competir les daría todas las marcaciones de quien esté cerca
+de la casa central. Que el filtro sea interno hace imposible olvidarlo.
+
+⚠️ **La util no aplica ningún radio.** Devuelve la más cercana aunque queden
+kilómetros; el corte lo decide la pantalla, que avisa y deja marcar. Recortar
+ahí convertiría un GPS malo —lo normal en un interior— en «no podés marcar».
+
+## La posición se toma dos veces, y es a propósito
+
+La de la **apertura** sirve para decir dónde estás y habilitar el botón. La
+del **momento de marcar** es la que viaja en `latitud`, `longitud`,
+`precisionGps` y `distanciaSucursalMetros`.
+
+Entre una y otra pueden pasar minutos. Guardar la de la apertura sería
+registrar como evidencia un lugar donde la persona ya no está.
+
+Si entre las dos la más cercana **cambió**, no se marca: se muestra la nueva y
+se avisa. Marcar contra la de la apertura afirmaría un lugar equivocado.
 
 ## Una sola acción a la vez
 
@@ -177,15 +223,17 @@ El backend dice qué corresponde (`accionPendiente`) y la pantalla ofrece
 `esSalidaAlmuerzo` viaja aparte del `tipo`: una salida de almuerzo es
 `SALIDA` pero **no cierra la jornada**.
 
-## La sucursal persistida, con su gotcha
+## La sucursal persistida se retiró
 
-Se guarda en `localStorage` con el patrón correcto del repo anterior —
-`removeItem`, no `setItem(clave, null)`, y `JSON.parse` en `try/catch` que
-limpia la clave si está corrupta.
+`MarcacionService` guardaba la última sucursal elegida en
+`localStorage['frc.marcacion.sucursal']`. Se fue entera con la issue #15: la
+sucursal ahora sale del GPS en cada marcación, y un valor guardado volvería a
+ganarle a lo que dice la posición.
 
-⚠️ **Se borra al cerrar sesión** (`auth.service.ts`): la sucursal es del
-funcionario, no del dispositivo. Sin eso, el próximo que entre en ese
-teléfono marca contra la sucursal del anterior.
+⚠️ **De paso apareció que nunca se limpiaba.** El comentario decía «se borra
+al cerrar sesión», pero `limpiarSucursal()` no lo llamaba nadie: la clave
+quedaba en el teléfono para siempre, así que el próximo usuario de ese aparato
+heredaba la sucursal del anterior. Dejó de importar al no haber más clave.
 
 ## Lo que falta
 
@@ -203,12 +251,35 @@ marcar. Todo ocurre **en el dispositivo**: no se manda una foto a ningún lado
 ni se le pregunta al servidor quién es la persona. Lo único que sale es el
 embedding consolidado, y solo si pasó.
 
-## Es verificación 1:1, no identificación 1:N
+## En el teléfono 1:1; el 1:N vive en el kiosco
 
 `frc-mobile` **busca** contra todas las galerías (`buscarYValidarUsuario`).
-Acá el usuario ya está en sesión, así que la pregunta es otra: *¿sos vos?*, no
-*¿quién sos?*. Se compara contra la galería propia, que además es más barato y
-más difícil de confundir.
+En el teléfono personal la pregunta es otra —*¿sos vos?*, no *¿quién sos?*—,
+así que se compara contra la galería propia.
+
+**El 1:N entra como segunda opinión, después del 1:1 y no en su lugar.**
+
+⚠️ **El orden es lo que preserva la privacidad.** Primero corre el 1:1 contra
+la galería propia; recién cuando pasó se le manda al central el embedding
+consolidado para preguntarle quién es. Así, en un intento fallido **no sale
+ningún rostro del dispositivo** — que era la propiedad que la #16 pedía no
+perder. Hacer el 1:N primero, como se lee literalmente el alcance A de #17,
+mandaría el rostro en cada intento.
+
+**Qué agrega, entonces.** Justo el caso que el 1:1 no puede ver: un rostro que
+se parece lo suficiente a *tu* galería pero que el central reconoce como de
+otra persona. El 1:1 solo sabe decir «se parece a la galería con la que
+comparé»; no sabe si se parece más a la de otro. Si el central identifica a
+alguien distinto del de la sesión, **no se verifica**.
+
+⚠️ **No se dice de quién era el rostro.** Nombrarlo revelaría quién más está
+enrolado a cualquiera que apunte la cámara a una foto.
+
+⚠️ **Si el central no contesta, no bloquea.** El 1:1 ya pasó; quedarse sin
+poder marcar por un problema de red sería peor que perder una segunda opinión.
+
+El 1:N que **sí marca por otra persona** vive solo en el kiosco, que es el
+dispositivo compartido donde hace falta.
 
 ## Los umbrales no se bajaron, y no se bajan
 
@@ -219,9 +290,63 @@ la ruta del import.
 ⚠️ Si en la práctica cuesta pasar, el problema es el **enrolamiento** —pocas
 poses, mala luz—, no el umbral. Aflojarlo convierte esto en un teatro.
 
-⚠️ **Los aciertos tienen que ser consecutivos.** Un fallo reinicia la cuenta y
-descarta los frames: acumular aciertos sueltos permitiría insistir un rato
-frente a la cámara con la foto de otro.
+⚠️ **Los frames salen de una sola foto, no de un rato frente a la cámara.**
+Antes había un bucle a 12 fps que acumulaba aciertos consecutivos; ahora la
+tanda entera dura ~320 ms y se acepta o se rechaza como un bloque. Insistir
+tiene un costo visible —hay que tocar «Tomar otra foto»— y un límite.
+
+## Cuenta regresiva, foto sola y reintento
+
+El flujo es el de la PWA de gourmet, que ya estaba pedido: se abre el diálogo,
+cuenta **3 segundos**, la foto **se toma sola**, y si no pasa se ofrece
+**Tomar otra foto**. Ver la issue #16.
+
+| Fase | Qué pasa |
+|---|---|
+| `preparando` | Se busca la galería y se enciende la cámara |
+| `contando` | 3 · 2 · 1 sobre el video, en grande |
+| `capturando` | La tanda de frames y la decisión |
+| `fallo` | El motivo, con **Tomar otra foto** |
+| `error` | Sin rostro enrolado, o la cámara no se pudo abrir |
+
+⚠️ **La cuenta arranca con el evento `listo` de la cámara, no al abrir el
+diálogo.** Si arrancara al abrir, correría mientras se bajan los 10 MB de
+modelos y la foto saldría de una pantalla negra. Es lo mismo que hace gourmet
+con su `onCaptureReady()`.
+
+⚠️ **La cámara no se monta hasta saber que hay galería.** Pedir permiso de
+cámara para después decir que no había con qué comparar gasta el permiso: una
+vez denegado, el navegador no vuelve a preguntar.
+
+⚠️ **Una foto sola no puede pasar `confirmarVerificacionFinal`**, que exige
+`FRAMES_MINIMOS_VERIFICACION` = 3. Por eso «la foto» son **5 frames en ~320
+ms**: para la persona es una foto, y la regla queda intacta. La alternativa
+era relajar la regla, que es justo lo que la issue prohíbe.
+
+**Los motivos de rechazo se distinguen** porque llevan a cosas distintas:
+
+| Motivo | Qué hacer |
+|---|---|
+| No se detectó tu rostro | Acercarse, más luz |
+| Tiene que ser tu rostro real, no una foto | No se arregla: es `antispoof`/`liveness` |
+| No te reconocimos | Luz, de frente — o el enrolamiento es pobre |
+
+**Tres intentos.** Al tercero el diálogo cierra como cancelado y la marcación
+sigue por el camino de «sin verificación facial», que pregunta si se quiere
+marcar igual y lo deja registrado. Insistir para siempre dejaría a alguien sin
+poder marcar por una cámara mala, que es un problema distinto.
+
+## `captura-facial.component.ts`, la cámara sin criterio
+
+Enciende la cámara, carga los modelos y saca tandas de frames. **No decide
+nada**: no compara contra ninguna galería, no habla con el central y no guarda
+nada. El `overlay` es el número grande de la cuenta.
+
+Es el `face-capture` de `frc-gourmet` portado, incluido su `overlayText`.
+
+⚠️ **Vive en `pages/marcacion/`, no en `shared/`.** Lo usan dos pantallas del
+mismo módulo, y la regla de tres del repo pide tres pantallas de módulos
+distintos.
 
 ## Cinco capturas libres, como `frc-gourmet`
 
@@ -235,9 +360,14 @@ fijar el número en cinco.
 ## La ubicación sigue siendo un chequeo aparte
 
 El diálogo facial **no valida dónde está la persona**. Eso sigue en
-`MarcacionPage` con `GeoService`, y corre **después** del rostro. Son dos
-preguntas distintas —quién sos y dónde estás— y mezclarlas haría que aflojar
-una afloje la otra.
+`MarcacionPage` con `GeoService`. Son dos preguntas distintas —quién sos y
+dónde estás— y mezclarlas haría que aflojar una afloje la otra.
+
+⚠️ **El orden es: dónde estás, después quién sos, y de nuevo dónde estás.** La
+sucursal se detecta al abrir porque sin ella no hay nada que marcar; el rostro
+se pide al tocar el botón, antes del GPS del momento, porque es el paso que
+puede fallar por gusto del usuario —cancelar, no tener rostro cargado— y no
+tiene sentido esperar al GPS para descubrirlo.
 
 ## Los modelos no se commitean
 
@@ -252,3 +382,127 @@ galería** y no da ningún error: simplemente deja de reconocer a la gente.
 
 Se sirven desde `/face-models` y `ngsw-config.json` los declara como asset
 group **lazy**: quien nunca marca con rostro no los descarga.
+
+
+---
+
+# El kiosco de marcación
+
+`/marcacion/kiosco` — `KioscoMarcacionPage`. Un dispositivo compartido en la
+puerta: la persona toca **Marcar**, cuenta de 3 s, la foto se toma sola, el
+central dice quién es y la marcación queda **a nombre de quien la cámara
+reconoció**. Es el flujo del `fichaje-facial` de `frc-gourmet`.
+
+`inicio` → `contando` → `capturando` → (`eligiendo`) → `exito` → vuelve solo a
+`inicio` a los 5 s, que es lo que hace falta con una fila en la puerta.
+
+## Lleva rol, y la marcación propia no
+
+`permisos.ts` dice que Marcación **no** lleva rol porque es autoservicio: el
+filtro es la persona en sesión. **El kiosco rompe esa premisa** —marca por
+otros—, así que pide `kioscoMarcacion` = `[ADMIN, RRHH GESTIONAR]`.
+
+`frc-mobile` protege la pantalla equivalente comparando
+`nickname === 'ADMIN'` (`AdminIngresoPersonaGuard`), que además de frágil no
+se puede delegar a nadie. De hecho ese guard **redirige** `/marcacion` a
+`ingreso-persona` cuando el usuario es ADMIN: en el repo viejo, la tablet
+logueada como ADMIN *era* el kiosco. Acá es una pantalla aparte con su ruta.
+
+## El doble control, y por qué hace falta
+
+`usuarioPorEmbedding` resuelve el 1:N contra la caché en memoria del central.
+Devolvía **el mejor match y nada más**: `findBestMatch()` calculaba el máximo y
+descartaba el resto.
+
+⚠️ **Hasta `V216.5` un `0.71` contra un segundo candidato de `0.69` llegaba
+indistinguible de un `0.71` contra un `0.45`**, y el primero es una moneda al
+aire. Ahora `usuarioPorEmbedding` devuelve también `similitudSegundo` y
+`margen` — pero el margen se **registra**, no se usa para rechazar. Por eso
+`validarIdentificacion()` recalcula la similitud **en el dispositivo** contra
+la galería que vino en la respuesta, y exige las dos:
+
+| Control | Umbral | Por qué ese |
+|---|---|---|
+| Central | `0.55` (`UMBRAL_SIMILITUD_FACIAL`) | Es el de búsqueda, el que usa su caché |
+| Local | `0.75` (`UMBRAL_SIMILITUD_VERIFICACION`) | **Más estricto que el `0.55` de `frc-mobile`** |
+
+`frc-mobile` acepta con `0.55` en las dos puntas, pero lo usa para **elegir** a
+quién marcar en una pantalla donde después hay una verificación 1:1. Acá el
+1:N es la única puerta: un rechazo de más cuesta un reintento, un falso
+positivo deja una marcación a nombre de otra persona en el registro de
+asistencia.
+
+⚠️ **Sin galería en la respuesta no se marca.** No se cae al veredicto del
+central: quedarse con un solo control es justamente lo que la función existe
+para evitar.
+
+## El riesgo asumido, y con qué se mide
+
+Un falso positivo en el kiosco **marca por otra persona**, y eso queda en el
+registro de asistencia como un hecho. En 1:1 el peor caso era que alguien no
+pudiera marcar.
+
+**Ahora queda registrado.** `administrativo.marcacion` guarda desde `V216.5`:
+
+| Columna | Qué es |
+|---|---|
+| `metodo_registro` | `MANUAL` · `FACIAL_1A1` · `FACIAL_1AN_KIOSCO` |
+| `similitud_facial` | La que informó **el central**, 0..1 |
+| `margen_segundo_candidato` | Cuánto le sacó al segundo |
+
+⚠️ **`similitud_facial` es siempre la del central, nunca la calculada en el
+dispositivo.** Son medidas distintas —una contra la caché del central, otra
+contra la galería propia— y mezclarlas en la misma columna la vuelve
+inservible: nadie sabría después cuál está mirando. Si el central no contestó,
+queda vacía.
+
+⚠️ **El margen se registra pero todavía no decide nada.** Poner hoy un umbral
+de margen sería inventar el número que la medición existe para averiguar: hace
+falta ver qué margen dan estas caras, estas cámaras y esta luz. Cuando haya
+datos, es una línea en `validarIdentificacion()`.
+
+⚠️ **Son tres mitades, no dos.** Hay una migración por repositorio y el orden
+importa:
+
+| Repo | Migración | Cuándo |
+|---|---|---|
+| `franco-system-backend-filial` | `V91.5` | **Primero**, en todas las filiales |
+| `franco-system-backend-servidor` | `V216.5` | Después |
+| `frc-mobile-pwa` | — | Con el central, o después |
+
+Contra un central sin `V216.5` los campos nuevos hacen fallar la mutation
+entera y **la marcación deja de funcionar**, no solo los campos nuevos.
+
+Y la de la filial va **antes** que el deploy del central, no después. La
+replicación lógica **no propaga DDL**, y `administrativo.marcacion` viaja en
+las dos direcciones: las publicaciones `central_filialN_pub` no llevan lista
+de columnas, así que el publisher manda todas. Si el central gana una columna
+que una filial no tiene, en cuanto alguien marque el apply worker de esa
+filial muere con `is missing replicated column`, entra en crash-loop y **la
+bajada central→filial queda cortada** con el WAL creciendo.
+
+No es hipotético: es el mismo modo de falla del incidente del 2026-08-20 con
+el enum `tipo_dispositivo` (`V90.7` de la filial), cambiando el enum por una
+columna. Sin `out-of-order`, además, una filial que ya pasó ese
+`installed_rank` **saltea la migración en silencio**: hay que confirmar
+`flyway_schema_history` filial por filial.
+
+## Dos cosas que se apartan de gourmet, a propósito
+
+**No se ofrece ENTRADA/SALIDA al principio.** Gourmet arranca preguntando; acá
+lo decide el central con `estadoMarcacionUsuario(usuarioId)` **de la persona
+identificada**. Ofrecer las dos permite dos entradas seguidas, que es
+justamente lo que el estado del backend existe para impedir. La única
+pregunta que queda es la ambigua a propósito —salida de almuerzo o cierre del
+día—, cuando el central habilita las dos.
+
+**No hay cola offline.** Gourmet encola en `localStorage` y reintenta al
+reconectar. Este repo no tiene ese patrón en ningún módulo y agregarlo acá es
+un subsistema entero —conflictos, reintentos, orden—; queda fuera y dicho.
+
+## La posición es la de la detección, no la de cada marcación
+
+A diferencia de la marcación personal, que **vuelve a tomar el GPS al marcar**,
+el kiosco usa la posición con la que detectó la sucursal. El dispositivo está
+fijo en una pared: volver a tomarla por persona agregaría hasta 6 s a cada una
+de una fila, para registrar la misma coordenada.

@@ -1,7 +1,7 @@
 # producto
 
 **Ubicación:** `src/app/pages/producto/`
-**Tamaño:** 31 archivos TS, ~3.233 LOC
+**Tamaño:** 16 archivos TS, ~4.105 LOC (incluye la edición, `pages/producto/editar/`)
 **Ruta base:** `/producto`
 
 ## Qué resuelve
@@ -68,7 +68,7 @@ Permite apuntar el kiosco a un servidor concreto. Escribe `serverIp`, `serverPor
 |---|---|
 | `ProductoDashboardComponent` | Hub del módulo |
 | `SearchProductoDialogComponent` | Buscador reutilizable (también lo usa `operaciones/devolucion`) |
-| `EditProductoComponent` | Edición; el alta exige rol `NUEVO-PRODUCTO` |
+| `EditProductoComponent` | Edición y alta; el escritorio usa el rol `EDITAR PRODUCTOS` (`list-producto.component.ts:494`), no `NUEVO-PRODUCTO` |
 | `AjustarStockDialogComponent` | Ajuste manual de existencias |
 | `ProductoVerificacionDialogComponent` | Verificación de producto |
 | `ConsultarPrecioDashboardComponent` | Consulta con más contexto que el kiosco |
@@ -89,9 +89,25 @@ Permite apuntar el kiosco a un servidor concreto. Escribe `serverIp`, `serverPor
 | `saveProducto.ts` | Alta/edición |
 | `saveImagenProducto.ts` | Imagen |
 
+Doce operaciones nuevas de la edición en la PWA, todas en `src/app/graphql/productos/`:
+
+| Archivo | Uso |
+|---|---|
+| `saveProducto.ts` | Guardar datos generales, familia/subfamilia — **reemplazo completo**, ver «La edición» |
+| `savePresentacion.ts` · `deletePresentacion.ts` | Alta/edición y baja de una presentación |
+| `saveCodigo.ts` · `deleteCodigo.ts` | Alta/edición y baja de un código — cuelga de la presentación |
+| `savePrecioPorSucursal.ts` · `deletePrecioPorSucursal.ts` | Alta/edición y baja de un precio — cuelga de la presentación |
+| `generarCodigoInterno.ts` | Próximo EAN-13 interno (prefijo `2199`), sin persistir |
+| `familiaSearch.ts` · `subfamiliaSearch.ts` | Catálogos del selector de categoría |
+| `tiposPresentacion.ts` | Catálogo del selector de presentación |
+| `tipoPrecios.ts` | Catálogo del selector de precio |
+
+> `saveProducto.ts` **no estaba portado** antes de esta entrega, aunque una
+> versión anterior de este documento lo daba por hecho.
+
 ## Permisos
 
-`NUEVO-PRODUCTO` habilita el alta. Es uno de los strings de rol inline (ver el gotcha de roles inconsistentes en [`../arquitectura/routing-navegacion.md`](../arquitectura/routing-navegacion.md)).
+`EDITAR PRODUCTOS` habilita la edición; `EDITAR PRECIOS`, la sección de precios. `NUEVO-PRODUCTO`, que este documento nombraba, **no existe en `personas.role`**.
 
 ## Al trabajar en este módulo
 
@@ -106,9 +122,10 @@ Permite apuntar el kiosco a un servidor concreto. Escribe `serverIp`, `serverPor
 # Qué cambió en la PWA
 
 > **Estado:** implementados la **búsqueda**, la **ficha** (`/producto/:id`),
-> el **modo kiosco** (`/kiosco`) y el **reporte de vencidos**
-> (`/producto/vencidos`). Falta la **edición y el alta**, que exigen rol
-> `NUEVO-PRODUCTO`.
+> el **modo kiosco** (`/kiosco`), el **reporte de vencidos**
+> (`/producto/vencidos`) y la **edición** (`/producto/:id/editar`), detrás del
+> rol `EDITAR PRODUCTOS`, y el **alta** (`/producto/nuevo`), con el mismo rol —
+> no `NUEVO-PRODUCTO`, que no existe en `personas.role`.
 
 ## Pantallas
 
@@ -188,13 +205,14 @@ El inventario completo, función por función, está en
 |---|---|
 | **Abrirlo como diálogo selector** — `(seleccion)` ya emite, falta el envoltorio | Con **devolución**, el primer consumidor real |
 | **Foco automático en el campo** | Con el modo diálogo. En una pestaña, robar el foco levanta el teclado sin que nadie lo pida |
-| **Ver imagen del producto** — `imagenPrincipal` viene en la query, la card muestra un ícono | Con el detalle de producto |
+| ~~**Ver imagen del producto**~~ | ✅ La card muestra `imagenPrincipal` —un `data:` base64 que arma el central, no una URL— y cae al ícono cuando el producto no tiene foto. ⚠️ Es el **original**, no la miniatura de 250×250 que consumía `frc-mobile`: si el buscador se pone lento, el arreglo es un campo de miniatura en el central |
 | **FAB «subir»** | Si las listas se vuelven largas. Con 10 por tanda no hace falta |
 | **Stock de origen y destino** en la card | Con **transferencias** |
 | **Modo inventario** — cantidad, vencimiento, estado | Con **inventario**, en su propia pantalla: es un formulario, no un selector |
 | ~~**Detalle de producto**~~ | ✅ `/producto/:id`. Todos los códigos y todos los tipos de precio |
 | ~~**Modo kiosco**~~ | ✅ `/kiosco`, fuera del shell |
-| **Edición y alta**, rol `NUEVO-PRODUCTO` | Sigue pendiente. Es del escritorio: cambiar un precio desde el salón, sin costos ni márgenes a la vista, es de donde salen los precios mal cargados |
+| ~~**Edición**~~ | ✅ `/producto/:id/editar`, rol `EDITAR PRODUCTOS` (+ `EDITAR PRECIOS` para la sección de precios). Ver «La edición» |
+| ~~**Alta**~~ | ✅ `/producto/nuevo`, rol `EDITAR PRODUCTOS`. Ver «El alta» |
 
 
 ---
@@ -270,6 +288,89 @@ pasillo con el teléfono.
 
 ---
 
+# La edición
+
+**Ruta:** `/producto/:id/editar` — un hub con una fila por sección
+(datos generales, familia/subfamilia, presentaciones, códigos y precios),
+cada una con su propia pantalla que guarda al confirmar. Se llega desde el
+menú `⋮` de la ficha, detrás del rol `EDITAR PRODUCTOS`, con guard de ruta
+además de ocultar el botón — ocultarlo no es control de acceso.
+
+**No hay port posible.** `edit-producto` de `frc-mobile` es un scaffold vacío
+del CLI. La referencia es el formulario del escritorio,
+`frc-sistemas-integrados-angular/src/app/modules/productos/producto/edit-producto/`.
+
+Cuatro cosas cuestan caro no saberlas:
+
+1. **`saveProducto` reemplaza el registro entero, no lo parchea**
+   (`ProductoService.java:297-325` del central: mapea el input a un `Producto`
+   nuevo y lo guarda). Por eso la pantalla **siempre** manda un `ProductoInput`
+   completo, hidratado con `productoPorIdQuery` y con solo los campos tocados
+   cambiados encima —`construirProductoInput()` en
+   `producto-editar.reglas.ts`—, aunque el formulario visible edite un
+   subconjunto. Corregir solo la descripción de un producto con vencimiento y
+   lote activos **no** puede apagar esas dos banderas, y la mutation
+   respondería OK si lo hiciera: es la regresión silenciosa que este módulo
+   existe para evitar, y el caso 1 del bloque de testeo manual la ejercita.
+   `saveCodigo` tiene el mismo patrón de reemplazo
+   (`CodigoService.java:93-115`).
+
+2. **Códigos y precios cuelgan de la presentación, no del producto.**
+   `CodigoInput` lleva `presentacionId` y `PrecioPorSucursalInput` lleva
+   `presentacionId + tipoPrecioId + sucursalId`. Por eso se editan desde
+   `presentacion-editar.page.ts`, no desde el hub — el hub solo **cuenta**
+   cuántos hay en total, sumando todas las presentaciones.
+
+3. **El precio se escribe solo en la sucursal de la sesión**, igual que el
+   escritorio (`adicionar-precio-dialog.component.ts:265`, sin alternativa).
+   Los precios de las demás sucursales se muestran de solo lectura, con su
+   sucursal identificada. Al marcar un precio como principal, la pantalla
+   degrada primero —en orden, nunca en paralelo— a los demás principales
+   **de la propia sucursal** en esa presentación
+   (`preciosADegradar()`/`codigosADegradar()` en `producto-editar.reglas.ts`);
+   nunca toca precios de otra sucursal.
+
+   El escritorio tiene acá un defecto destructivo que esta app **decide no
+   replicar**: al degradar el principal de OTRA sucursal, reescribe el
+   `sucursalId` de esa fila a la sucursal actual —mueve el registro— y la otra
+   sucursal se queda sin precio principal. Queda anotado para que nadie
+   «corrija» el comportamiento más acotado de esta app pensando que es un bug.
+
+4. **El rol es `EDITAR PRODUCTOS`** (32 usuarios de 492), no `NUEVO-PRODUCTO`
+   —que no existe en `personas.role`, ver «Permisos» arriba—. La sección de
+   precios pide además `EDITAR PRECIOS` (26 usuarios): quien tiene el primero
+   y no el segundo ve la fila «Precios» del hub deshabilitada con el motivo
+   escrito, y escribir la URL a mano tampoco entra.
+
+**Otras reglas replicadas del escritorio**, con test:
+
+- `isEnvase` apaga en cascada balanza, garantía, ingrediente, promoción,
+  vencimiento y lote —seis, no siete: el escritorio también apaga
+  `esAlcoholico`, que no existe ni en `ProductoInput` ni en la entidad del
+  central, así que acá no hay nada que apagar—. No apaga `combo`.
+- La descripción **no puede ir vacía**: `ProductoService.java:312` hace
+  `.toUpperCase()` sin guard y tira `NullPointerException` en el central. La
+  pantalla valida antes de llamar.
+- La descripción **vuelve en mayúsculas** porque la pone el central, no el
+  cliente; la pantalla muestra el valor que volvió, no el que se tipeó.
+
+**Qué NO entra en esta entrega:** el alta de producto, la imagen del producto
+(merece su propia entrega con su camino en Safari) y vencimiento/lote como
+sección editable —se hidratan y se reenvían para no perderse, pero no hay
+pantalla para cambiarlos—.
+
+**Dos campos que el central pierde en cada `saveProducto`, y no es nuevo de
+esta entrega:** `observacion` y `creadoEn`. Ver el hallazgo #66 de
+[`../TODO_TECNICO.md`](../TODO_TECNICO.md) — afecta también al escritorio, y
+el arreglo va en el central.
+
+**El central no necesitó ningún cambio.** Todas las mutations y queries ya
+existían en el schema (`productos.graphqls`, `presentacion.graphqls`,
+`codigo.graphqls`, `precio-por-sucursal.graphqls`). Es la primera entrega de
+este repo que no depende de promover el central.
+
+---
+
 # La configuración del kiosco
 
 Un engranaje en la barra del kiosco elige **cómo lee los códigos**, y la
@@ -311,3 +412,67 @@ activo, que es la pregunta real de quien instala la tablet.
 
 La opción se deshabilita y explica por qué. Elegirla dejaría el kiosco **mudo**:
 sin lector no entra nada por el campo, y no habría de dónde leer.
+
+
+---
+
+# El alta
+
+`/producto/nuevo` pide **solo tres cosas** —descripción, familia y subfamilia— y
+manda al hub de la edición, donde las pantallas que ya existen cargan
+presentaciones, códigos y precios. No hay un formulario largo que junte todo: el
+central guarda en mutations separadas y **sin transacción**, así que un «guardar
+todo» dejaría el producto a medias igual, pero además haciéndole creer al
+operador que no se guardó nada.
+
+**Se entra desde Buscar**, no desde el estado vacío del buscador compartido: ese
+componente lo usan devolución, inventario y transferencias, donde ofrecer «creá
+un producto» en medio del flujo no tiene sentido.
+
+## Los tres campos son obligatorios, y no por prolijidad
+
+| Campo | Por qué |
+|---|---|
+| Descripción | Sin ella el central **revienta**: `ProductoService.java:312` hace `.toUpperCase()` sin guard |
+| Familia | Es el paso previo a la subfamilia; sin ella no hay lista que mostrar |
+| Subfamilia | De ella cuelga la notificación de producto creado que el central dispara al dar de alta (`ProductoGraphQL.java:370`). Sin subfamilia, **nadie se entera de que el producto existe** |
+
+## Nace inactivo
+
+Un producto nuevo se crea con `activo = false`, `iva = 10` y `stock = true`. El
+hub muestra qué le falta y ofrece **«Activar producto»** solo cuando ya se puede
+vender: **una presentación que tenga a la vez un código y un precio**, ambos
+activos. Ver `faltaParaActivar()`.
+
+> ⚠️ **Las tres cosas van en la MISMA presentación.** Un código en la unidad y
+> un precio en la caja no alcanzan: el código escaneado resuelve la
+> presentación, y es esa la que tiene que tener precio.
+
+La alternativa —nacer activo y aceptar productos incompletos, como el borrador
+de transferencia— se descartó: un producto sin precio ni código aparece en el
+buscador y en la caja, donde no se puede cobrar. Un alta abandonada deja basura
+invisible en vez de algo roto que alguien intenta vender.
+
+## Detalles que salieron de usarlo
+
+> **La descripción se escribe en MAYÚSCULAS, no se convierte al guardar.** El
+> central la convierte igual; mostrarla en minúsculas era enseñarle al operador
+> un texto distinto del que iba a quedar guardado.
+
+> **La descripción de factura acompaña a la descripción hasta que alguien la
+> edita.** En la enorme mayoría de los productos es el mismo texto. Al abrir un
+> producto cuya descripción de factura **ya difiere**, la pantalla asume que se
+> eligió a propósito y no vuelve a pisarla.
+
+> **El duplicado avisa, no bloquea.** `productoDescripcionExists` estaba en el
+> central sin usar. Se consulta **en mayúsculas**, porque así queda guardada y
+> la comparación es exacta. No bloquea porque hay homónimos legítimos, y un
+> bloqueo duro empuja a inventar variantes del nombre para esquivarlo.
+
+> ⚠️ **El selector de tipo de precio solo ofrece los `activo = true`.** En la
+> base local se activaron los seis el 2026-09-04, pero **en alpha, beta y
+> producción `UNITARIO`, `FRIO`, `NATURAL` y `FUNCIONARIOS` siguen inactivos**
+> —y son los que usan 10.844 de los 11.415 precios cargados—. Ahí el selector
+> ofrece solo `EXPO` y `EXPO-DEPOSITO`, y un producto nuevo no puede recibir su
+> precio normal desde el teléfono. **No es una falla de la pantalla: es el
+> dato.** El escritorio no filtra, así que no lo nota.

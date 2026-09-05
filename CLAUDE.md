@@ -224,7 +224,32 @@ detalle financiero multi-moneda y los datos del retiro. Con esto,
 la galería del sistema de diseño, y sus primeros tests — antes un fallo de
 red en ese modo se presentaba igual que «Sin resultados».
 
-Pendiente: de **inventario**, arrastrar el conteo de una toma anterior; de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; y el **transporte WebSocket** para suscripciones.
+Sumado en la sexta: de **producto**, la **edición** (`/producto/:id/editar`,
+rol `EDITAR PRODUCTOS`) — un hub con una fila por sección (datos generales,
+familia/subfamilia, presentaciones, códigos y precios), cada una con su
+propia pantalla que guarda al confirmar. **Códigos y precios cuelgan de la
+presentación**, no del producto, así que se editan desde ahí; la sección de
+**precios** pide además `EDITAR PRECIOS`, con su propio guard de ruta, y solo
+escribe en la sucursal de la sesión. La regla que gobierna todo el módulo:
+`saveProducto` **reemplaza el registro entero**, no lo parchea
+(`ProductoService.java:297-325`), así que la pantalla siempre manda un
+`ProductoInput` completo —hidratado y con solo los campos tocados
+cambiados— aunque el formulario visible edite un subconjunto; sin eso,
+corregir una descripción apagaría en silencio el control de vencimiento y
+lote del producto, con la mutation respondiendo OK. Ver
+[`docs/modulos/producto.md`](docs/modulos/producto.md), sección «La edición».
+**Es la primera entrega de este repo que no depende de promover el
+central** — todas las mutations y queries ya existían en el schema.
+
+Sumado en la séptima: de **producto**, el **alta** (`/producto/nuevo`, rol
+`EDITAR PRODUCTOS`) — pide solo descripción, familia y subfamilia, y manda al
+hub de la edición para el resto. **Nace inactivo** y se activa recién cuando
+tiene una presentación con código y precio: un alta abandonada deja un producto
+invisible, no uno roto que la caja no puede cobrar. Con esto **crear un producto
+dejó de ser del escritorio**, y el issue #10 de paridad queda cerrado salvo el
+transporte WebSocket.
+
+Pendiente: de **inventario**, arrastrar el conteo de una toma anterior; y el **transporte WebSocket** para suscripciones. De **producto** ya no queda nada: la edición y el alta están.
 
 La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

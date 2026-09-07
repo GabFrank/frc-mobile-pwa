@@ -16,6 +16,7 @@ const cabecera = `
   etapa
   observacion
   creadoEn
+  solicitante { ${usuario} }
   usuarioPreTransferencia { ${usuario} }
   usuarioPreparacion { ${usuario} }
   usuarioTransporte { ${usuario} }

@@ -5983,6 +5983,105 @@ etiqueta.
 **Esperado:** el ícono se sigue viendo. La imagen entra en el grupo `assets`
 de `ngsw.json`, así que el service worker la tiene cacheada.
 
+## Bloque 64 — El solicitante de una transferencia *(nuevo, sin probar)*
+
+**Por qué está acá:** la transferencia guardaba cuatro usuarios —quién la creó,
+quién preparó, quién transportó y quién recibió— pero ninguno decía **quién
+pidió los productos**. El que crea la transferencia se toma de la sesión, que
+suele ser alguien de bodega, no el funcionario de la sucursal destino que hizo
+el pedido.
+
+El solicitante es un campo nuevo, se elige a mano y **es obligatorio**: sin él
+el central no deja salir de la etapa de creación.
+
+⚠️ **Necesita las dos mitades.** Contra un central sin el campo, el alta falla
+con `Unknown field` — no es que el solicitante no se guarde: **no se crea la
+transferencia**. El central tiene que tener la migración `V162.3` y la query
+`cajerosConCajaAbiertaPorSucursal`.
+
+⚠️ **La lista de candidatos no es «todos los que tienen caja».** El central se
+queda con la última caja de cada maletín: `activo = true` incluye cajas que
+quedaron sin cerrar en 2023 y 2024. En la sucursal 8 eso daba cuatro cajeros
+donde hay uno.
+
+### 64.1 · El buscador arranca con los cajeros del destino
+
+1. Entrar a **Transferencias → Nueva**.
+2. Elegir origen y un destino que tenga **una caja abierta**.
+3. Tocar **Elegir solicitante**.
+
+**Esperado:** el diálogo abre **ya con la lista cargada**, sin escribir nada, y
+trae **solo** a quien tiene caja abierta en esa sucursal. El título dice
+«Elegir solicitante» y el campo, «Buscar entre los que están en caja».
+
+### 64.2 · El campo no se autocompleta
+
+1. Repetir 64.1 hasta abrir el diálogo, y cerrarlo con **Cancelar**.
+
+**Esperado:** el solicitante sigue diciendo **«Sin elegir»**. Que la lista
+venga filtrada no elige a nadie: la lista es una ayuda, la elección es manual.
+
+### 64.3 · Sin cajas abiertas se busca entre todos
+
+1. Elegir como destino una sucursal **sin ninguna caja abierta**.
+2. Tocar **Elegir solicitante**.
+
+**Esperado:** debajo del botón aparece «No hay cajas abiertas en ⟨sucursal⟩: se
+busca entre todos los usuarios», y el diálogo abre en modo búsqueda por texto.
+Se puede elegir cualquier usuario. **La transferencia no queda trabada.**
+
+### 64.4 · Sin solicitante no se puede crear
+
+1. Elegir origen y destino, y **no** elegir solicitante.
+
+**Esperado:** el botón **«Crear y cargar productos» está deshabilitado**. No
+hay forma de crear la transferencia sin solicitante.
+
+### 64.5 · Cambiar el destino descarta el solicitante
+
+1. Elegir destino A, elegir un solicitante.
+2. Cambiar el destino a B.
+
+**Esperado:** el solicitante vuelve a **«Sin elegir»** y el botón de crear se
+apaga. Los candidatos salen de las cajas de la sucursal destino: dejar al de A
+atribuiría el pedido a alguien de otra sucursal.
+
+### 64.6 · El solicitante queda guardado
+
+1. Completar el alta con un solicitante y crear la transferencia.
+2. Ir al **detalle** de esa transferencia.
+
+**Esperado:** en «Quién intervino», la fila **«Solicitante»** muestra el
+elegido, y **«Creó»** muestra al usuario de la sesión. Son dos personas
+distintas y el detalle lo dice.
+
+### 64.7 · «Pidió» ya no existe
+
+1. Abrir el detalle de **cualquier** transferencia, vieja o nueva.
+
+**Esperado:** la sección «Quién intervino» dice **«Creó»**, no «Pidió». Esa
+etiqueta colgaba de quien crea la transferencia, no de quien la pide.
+
+### 64.8 · Las transferencias anteriores no se rompen
+
+1. Abrir el detalle de una transferencia **creada antes de este cambio**.
+
+**Esperado:** «Solicitante» dice **«—»** y el resto de la pantalla funciona
+igual. Avanzar de etapa **sigue andando**: la obligatoriedad solo aplica al
+salir de la etapa de creación, y esas ya la pasaron.
+
+### 64.9 · Finalizar el borrador exige el solicitante
+
+1. Contra un central actualizado, crear una transferencia **desde el
+   escritorio** sin solicitante, dejarla en etapa de creación.
+2. Abrirla en la PWA en `/transferencias/:id/borrador`, cargarle un producto y
+   tocar **Finalizar**.
+
+**Esperado:** el central la **rechaza** con «no puede avanzar sin
+solicitante». Este caso existe porque la PWA finaliza con
+`finalizarTransferencia`, que movía la etapa **sin pasar por las validaciones**
+del otro camino.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6050,7 +6149,8 @@ de `ngsw.json`, así que el service worker la tiene cacheada.
 | 61 · Kiosco de marcación | 15 | | | |
 | 62 · Método, similitud y margen | 9 | | | |
 | 63 · El ícono de la app | 5 | | | |
-| **Total** | **580** | | | |
+| 64 · El solicitante de una transferencia | 9 | | | |
+| **Total** | **589** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

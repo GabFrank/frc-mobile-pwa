@@ -33,6 +33,16 @@ import {
  * toca. `frc-mobile` no lo manda y sus borradores figuran sin responsable
  * hasta que alguien los finaliza.
  *
+ * ⚠️ **El solicitante no es el responsable.** `usuarioPreTransferenciaId` es
+ * quien opera el alta —el de la sesión— y `solicitanteId` quien pidió los
+ * productos en la sucursal destino, que puede ser cualquier funcionario y no
+ * necesariamente el que después la recibe. Son dos campos distintos del
+ * central y confundirlos deja el pedido sin dueño.
+ *
+ * ⚠️ **Se omite si no viene**, en vez de viajar en `null`. Para el central un
+ * campo ausente significa «no lo toques»: mandarlo nulo no lo borraría, pero
+ * escribe la intención al revés en un input que además es el del alta.
+ *
  * El tipo es siempre `MANUAL`: `AUTOMATICA` es la que genera el sistema por
  * reposición y `MIXTA` la que nace automática y se completa a mano; las dos
  * las arma el escritorio, no un operador con el teléfono.
@@ -41,6 +51,7 @@ export function nuevaTransferenciaInput(datos: {
   sucursalOrigenId: number;
   sucursalDestinoId: number;
   usuarioId: number;
+  solicitanteId?: number | null;
 }): TransferenciaInput {
   return {
     sucursalOrigenId: datos.sucursalOrigenId,
@@ -49,6 +60,7 @@ export function nuevaTransferenciaInput(datos: {
     tipo: TipoTransferencia.MANUAL,
     etapa: EtapaTransferencia.PRE_TRANSFERENCIA_CREACION,
     usuarioPreTransferenciaId: datos.usuarioId,
+    ...(datos.solicitanteId != null ? { solicitanteId: datos.solicitanteId } : {}),
   };
 }
 

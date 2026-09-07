@@ -185,8 +185,15 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
           <p class="bloqueo">{{ motivo }}</p>
         }
 
+        <!--
+          Solicitante y responsable son dos personas distintas y la etiqueta
+          lo tiene que decir. "Pidio" colgaba de usuarioPreTransferencia, que
+          es quien CREO la transferencia: con el solicitante al lado, las dos
+          filas se contradecian.
+        -->
         <frc-seccion titulo="Quién intervino" [panel]="true">
-          <frc-dato etiqueta="Pidió" [valor]="quien(t.usuarioPreTransferencia)" />
+          <frc-dato etiqueta="Solicitante" [valor]="quien(t.solicitante)" />
+          <frc-dato etiqueta="Creó" [valor]="quien(t.usuarioPreTransferencia)" />
           <frc-dato etiqueta="Preparó" [valor]="quien(t.usuarioPreparacion)" />
           <frc-dato etiqueta="Transportó" [valor]="quien(t.usuarioTransporte)" />
           <frc-dato etiqueta="Recibió" [valor]="quien(t.usuarioRecepcion)" />

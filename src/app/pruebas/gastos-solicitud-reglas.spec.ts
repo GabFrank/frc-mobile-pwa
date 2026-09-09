@@ -45,15 +45,14 @@ describe('Qué falta para poder pedir la plata', () => {
     );
   });
 
-  it('rechaza la sucursal SERVIDOR, con id 0, con un mensaje que no miente', () => {
-    // El central rechaza `sucursalId <= 0` al guardar (`PreGastoGraphQL.java`).
-    // La pantalla ya no ofrece SERVIDOR en el selector, pero esta regla es la
-    // fuente de verdad: si un `0` se cuela por otra vía, el mensaje tiene que
-    // decir que esa sucursal no sirve, no «seleccione una sucursal» —eso
-    // sugeriría que no hay ninguna elegida, y sí la hay.
-    expect(faltaParaGuardar({ ...completo(), sucursalId: 0 })).toBe(
-      'Esa sucursal no puede recibir solicitudes de caja chica',
-    );
+  it('acepta la sucursal SERVIDOR, con id 0', () => {
+    // SERVIDOR es un destino válido: la solicitud no se retira de una caja,
+    // se envía a tesorería y se cobra desde la caja mayor. El central ya no
+    // rechaza por el signo del id, valida que la sucursal exista.
+    //
+    // Es la prueba que protege el `== null` de la regla: con un `!` pelado,
+    // el `0` de SERVIDOR se leería como "no eligió sucursal".
+    expect(faltaParaGuardar({ ...completo(), sucursalId: 0 })).toBeNull();
   });
 
   it('un id 0 de responsable o tipo de gasto tampoco cuenta como ausente', () => {

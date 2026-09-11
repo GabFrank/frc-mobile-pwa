@@ -72,26 +72,39 @@ export function hayMonedasMezcladas(notas: NotaRecepcion[]): boolean {
 }
 
 /**
- * Solo una solicitud `PENDIENTE` se puede tocar.
+ * Solo se puede tocar un borrador (`PENDIENTE`) o una solicitud que tesorería
+ * devolvió para que se corrija (`DEVUELTO`).
  *
  * El central lo valida en `actualizarSolicitudPago` y tira
  * `IllegalStateException` con cualquier otro estado. Se replica acá para no
  * ofrecer una acción que va a fallar.
  */
 export function esEditable(estado: SolicitudPagoEstado | null | undefined): boolean {
-  return estado === SolicitudPagoEstado.PENDIENTE;
+  return estado === SolicitudPagoEstado.PENDIENTE || estado === SolicitudPagoEstado.DEVUELTO;
 }
 
 /**
- * Si todavía hay que validarla para que entre en la cola de pagos.
+ * Si todavía hay que mandarla a la cola de pagos: un borrador, o una devuelta
+ * que compras ya corrigió y reenvía (`DEVUELTO → SOLICITADO`).
  *
- * ⚠️ **Es el mismo estado que `esEditable`, y no es casualidad**: un borrador
- * se puede tocar justamente porque nadie lo va a pagar. Son dos preguntas
- * distintas sobre el mismo hecho, y se escriben aparte porque si el central
- * cambia una no tiene por qué cambiar la otra.
+ * ⚠️ **Son los mismos estados que `esEditable`, y no es casualidad**: se puede
+ * tocar justamente lo que nadie va a pagar. Son dos preguntas distintas sobre
+ * el mismo hecho, y se escriben aparte porque si el central cambia una no
+ * tiene por qué cambiar la otra.
  */
 export function puedeSolicitar(estado: SolicitudPagoEstado | null | undefined): boolean {
-  return estado === SolicitudPagoEstado.PENDIENTE;
+  return estado === SolicitudPagoEstado.PENDIENTE || estado === SolicitudPagoEstado.DEVUELTO;
+}
+
+/**
+ * Si tesorería la devolvió a compras (`DEVUELTO`).
+ *
+ * Se reenvía igual que un borrador —`puedeSolicitar` la incluye—, pero **no se
+ * presenta como un borrador**: alguien del otro lado la vio, no la pagó y dejó
+ * el motivo en las observaciones. Decirle «borrador» escondería justamente eso.
+ */
+export function estaDevuelta(estado: SolicitudPagoEstado | null | undefined): boolean {
+  return estado === SolicitudPagoEstado.DEVUELTO;
 }
 
 /**

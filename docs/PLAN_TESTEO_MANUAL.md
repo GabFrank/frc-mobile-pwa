@@ -5983,6 +5983,60 @@ etiqueta.
 **Esperado:** el ícono se sigue viendo. La imagen entra en el grupo `assets`
 de `ngsw.json`, así que el service worker la tiene cacheada.
 
+## Bloque 64 — Solicitud de pago devuelta por tesorería *(nuevo, sin probar)*
+
+**Por qué está acá:** tesorería ya no cancela una solicitud de pago que no va
+a pagar: la **devuelve a compras** con un motivo, desde *Caja mayor → Pagar
+Compras* en el escritorio. El central la deja en el estado nuevo `DEVUELTO`,
+distinto del borrador, y compras la corrige y la reenvía, o la cancela.
+
+⚠️ **Necesita un central con la migración `V222.3`** y el código del estado
+`DEVUELTO`. Contra un central sin eso, el filtro «Devueltas» falla —el central
+no conoce el valor— y la lista muestra su estado de error; el resto de la
+pantalla no cambia.
+
+**Preparación:** en el escritorio, abrir *Caja mayor → Pagar Compras*, tocar el
+botón **Devolver a compras** (la flecha de deshacer) de una solicitud y
+devolverla con un motivo, por ejemplo `FALTA LA FACTURA`. Anotar su número.
+
+### 64.1 · Se ve como devuelta en la lista
+
+1. Abrir *Solicitudes de pago* y buscar la solicitud devuelta.
+
+**Esperado:** el badge **«Devuelto»** en rojo, con el ícono de volver. **No**
+«Borrador» en gris: un borrador nadie lo vio; esta la vio tesorería y no la
+pagó.
+
+### 64.2 · El filtro «Devueltas»
+
+1. Elegir el filtro **Devueltas**.
+2. Elegir después **Borradores**.
+
+**Esperado:** con «Devueltas» aparece la devuelta; con «Borradores», no.
+
+### 64.3 · El detalle dice que la devolvió tesorería
+
+1. Abrir el detalle de la devuelta.
+
+**Esperado:** un panel **«Devuelta por tesorería»** —no «Todavía es un
+borrador»— y el motivo en *Observaciones*:
+`DEVUELTA A COMPRAS POR <usuario>: FALTA LA FACTURA`. En la sección del pago
+dice que no hay pago asociado **sin** llamarla borrador.
+
+### 64.4 · Reenviarla a la cola de pagos
+
+1. En el detalle, tocar **Solicitar**.
+2. En el escritorio, abrir de nuevo *Pagar Compras*.
+
+**Esperado:** pasa a **«Solicitado»** y vuelve a aparecer en *Pagar Compras*.
+Corregirla antes —monto, notas— sigue siendo del escritorio.
+
+### 64.5 · Tema oscuro y tema claro
+
+1. Repetir 64.1 y 64.3 en los dos temas.
+
+**Esperado:** el badge rojo y el panel se leen en los dos.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6050,7 +6104,8 @@ de `ngsw.json`, así que el service worker la tiene cacheada.
 | 61 · Kiosco de marcación | 15 | | | |
 | 62 · Método, similitud y margen | 9 | | | |
 | 63 · El ícono de la app | 5 | | | |
-| **Total** | **580** | | | |
+| 64 · Solicitud de pago devuelta por tesorería | 5 | | | |
+| **Total** | **585** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -220,3 +220,9 @@ export const deleteTransferenciaItemMutation = gql`
     data: deleteTransferenciaItem(id: $id)
   }
 `;
+
+export const transferenciaQrEscaneadoMutation = gql`
+  mutation transferenciaQrEscaneado($id: ID!, $sucursalId: ID!) {
+    data: transferenciaQrEscaneado(id: $id, sucursalId: $sucursalId)
+  }
+`;

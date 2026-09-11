@@ -1,5 +1,9 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { Router } from '@angular/router';
+
+import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
+import { descodificarQr } from 'src/app/generic/utils/qrUtils';
+import { TransferenciaService } from 'src/app/pages/transferencias/transferencia.service';
 
 import { NotificacionService } from '../ui/notificacion.service';
 import { EscanerService } from './escaner.service';
@@ -28,6 +32,44 @@ export class EscanerUniversalService {
   private readonly escaner = inject(EscanerService);
   private readonly router = inject(Router);
   private readonly notificacion = inject(NotificacionService);
+  private readonly injector = inject(Injector);
+
+  /**
+   * Le avisa al central que este QR se escaneó, si es de una transferencia.
+   *
+   * Es lo que cierra el diálogo del QR en el desktop que lo está mostrando.
+   * Va fuera de `rutearEscaneo` porque esa función es pura a propósito —no
+   * toca el router ni el servidor— y acá hace falta justamente lo segundo.
+   *
+   * ⚠️ **No se espera la respuesta ni se corta la navegación si falla.** El
+   * escaneo sirve para abrir la transferencia; que el desktop se entere es
+   * un extra. Encadenarlo haría que un central caído deje al operario sin
+   * poder entrar.
+   *
+   * ⚠️ **`TransferenciaService` se pide recién acá, no en un campo.** Este
+   * servicio es infraestructura: lo usa el botón flotante de toda la app.
+   * Inyectarlo arriba le colgaba encima toda la capa GraphQL de
+   * transferencias, y cualquier pantalla que montara el FAB pasaba a
+   * necesitar Apollo —78 tests de pantallas se cayeron así—. Diferirlo
+   * mantiene el acoplamiento donde corresponde: solo el que escanea una
+   * transferencia paga ese costo.
+   */
+  private avisarSiEsTransferencia(texto: string): void {
+    const qr = descodificarQr(texto);
+    if (qr?.tipoEntidad !== TipoEntidad.TRANSFERENCIA) {
+      return;
+    }
+    const id = Number(qr.idOrigen ?? qr.idCentral);
+    const sucursalId = Number(qr.sucursalId);
+    if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(sucursalId) || sucursalId <= 0) {
+      return;
+    }
+    this.injector.get(TransferenciaService).avisarQrEscaneado(id, sucursalId).subscribe({
+      error: () => {
+        // Silencioso a propósito: ver el comentario de arriba.
+      },
+    });
+  }
 
   /**
    * Abre la cámara y navega.
@@ -48,6 +90,7 @@ export class EscanerUniversalService {
     }
 
     const destino = rutearEscaneo(texto);
+    this.avisarSiEsTransferencia(texto);
 
     switch (destino.clase) {
       case 'navegar':

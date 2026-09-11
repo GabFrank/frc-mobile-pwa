@@ -8,6 +8,8 @@ import { AuthService } from '../core/auth/auth.service';
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
 import { SucursalService } from '../domains/empresarial/sucursal/sucursal.service';
+import { UsuarioService } from '../domains/personas/usuario.service';
+import { CajaService } from '../pages/operaciones/caja/caja.service';
 import { ProductoBusquedaService } from '../domains/productos/producto-busqueda.service';
 import type { OpcionesBuscador } from '../shared/producto/buscador.types';
 import {
@@ -45,11 +47,19 @@ describe('Nueva transferencia', () => {
   let sucursales: { todas: ReturnType<typeof vi.fn> };
   let servicio: { crear: ReturnType<typeof vi.fn> };
   let notificacion: { warn: ReturnType<typeof vi.fn>; danger: ReturnType<typeof vi.fn>; ok: ReturnType<typeof vi.fn> };
+  let caja: { cajerosConCajaAbierta: ReturnType<typeof vi.fn> };
+  let dialogo: { abrir: ReturnType<typeof vi.fn> };
+  let usuarios: { buscar: ReturnType<typeof vi.fn> };
+
+  const CAJERO = { id: 88, nickname: 'vdavalos', persona: { id: 9, nombre: 'VICENTE DAVALOS' } };
 
   beforeEach(() => {
     sucursales = { todas: vi.fn(() => of(TODAS)) };
     servicio = { crear: vi.fn(() => of({ id: 54_060 })) };
     notificacion = { warn: vi.fn(), danger: vi.fn(), ok: vi.fn() };
+    caja = { cajerosConCajaAbierta: vi.fn(() => of([CAJERO])) };
+    dialogo = { abrir: vi.fn(async () => CAJERO) };
+    usuarios = { buscar: vi.fn(() => of([])) };
 
     TestBed.configureTestingModule({
       providers: [
@@ -58,6 +68,9 @@ describe('Nueva transferencia', () => {
         { provide: TransferenciaService, useValue: servicio },
         { provide: NotificacionService, useValue: notificacion },
         { provide: AuthService, useValue: sesion() },
+        { provide: CajaService, useValue: caja },
+        { provide: DialogoService, useValue: dialogo },
+        { provide: UsuarioService, useValue: usuarios },
       ],
     });
   });
@@ -99,6 +112,7 @@ describe('Nueva transferencia', () => {
     const router = TestBed.inject(Router);
     const navegar = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     f.componentInstance.cambiarDestino(3);
+    await f.componentInstance.elegirSolicitante();
 
     await f.componentInstance.crear();
 
@@ -109,6 +123,7 @@ describe('Nueva transferencia', () => {
       tipo: 'MANUAL',
       etapa: EtapaTransferencia.PRE_TRANSFERENCIA_CREACION,
       usuarioPreTransferenciaId: 41,
+      solicitanteId: 88,
     });
     // `replaceUrl`: volver atrás desde el borrador no puede crear otra.
     expect(navegar).toHaveBeenCalledWith(['/transferencias', 54_060, 'borrador'], {
@@ -122,6 +137,77 @@ describe('Nueva transferencia', () => {
 
     expect(servicio.crear).not.toHaveBeenCalled();
     expect(notificacion.warn).toHaveBeenCalled();
+  });
+
+  /**
+   * ⚠️ El central exige el solicitante para salir de la etapa de creación. Sin
+   * este corte se puede cargar el borrador entero y descubrir recién al
+   * finalizar que no sale.
+   */
+  it('sin solicitante no crea nada, aunque origen y destino estén elegidos', async () => {
+    const f = montar();
+    f.componentInstance.cambiarDestino(3);
+
+    expect(f.componentInstance.puedeCrear()).toBe(false);
+
+    await f.componentInstance.crear();
+    expect(servicio.crear).not.toHaveBeenCalled();
+    expect(notificacion.warn).toHaveBeenCalled();
+  });
+
+  it('ofrece primero a los cajeros con caja abierta en el destino', async () => {
+    const f = montar();
+    f.componentInstance.cambiarDestino(3);
+
+    await f.componentInstance.elegirSolicitante();
+
+    expect(caja.cajerosConCajaAbierta).toHaveBeenCalledWith(3);
+    const config = dialogo.abrir.mock.calls[0][1];
+    expect(config.modo).toBe('local');
+    expect(config.items).toEqual([CAJERO]);
+    expect(f.componentInstance.solicitante()).toEqual(CAJERO);
+  });
+
+  /**
+   * ⚠️ Sin cajas abiertas la transferencia no se puede quedar sin crear: el
+   * filtro es una ayuda de búsqueda, no una restricción.
+   */
+  it('sin cajas abiertas cae a buscar entre todos los usuarios', async () => {
+    caja.cajerosConCajaAbierta.mockReturnValue(of([]));
+    const f = montar();
+    f.componentInstance.cambiarDestino(3);
+
+    await f.componentInstance.elegirSolicitante();
+
+    expect(dialogo.abrir.mock.calls[0][1].modo).toBe('paginado');
+    expect(f.componentInstance.sinCajasAbiertas()).toBe(true);
+  });
+
+  /** Un fallo de la consulta de cajas tampoco puede trabar el alta. */
+  it('si la consulta de cajeros falla, igual deja elegir entre todos', async () => {
+    caja.cajerosConCajaAbierta.mockReturnValue(throwError(() => new Error('sin red')));
+    const f = montar();
+    f.componentInstance.cambiarDestino(3);
+
+    await f.componentInstance.elegirSolicitante();
+
+    expect(dialogo.abrir.mock.calls[0][1].modo).toBe('paginado');
+  });
+
+  /**
+   * ⚠️ Los candidatos salen de las cajas del destino: dejar al elegido antes
+   * atribuiría el pedido a alguien de otra sucursal.
+   */
+  it('cambiar el destino descarta el solicitante elegido', async () => {
+    const f = montar();
+    f.componentInstance.cambiarDestino(3);
+    await f.componentInstance.elegirSolicitante();
+    expect(f.componentInstance.solicitante()).not.toBeNull();
+
+    f.componentInstance.cambiarDestino(5);
+
+    expect(f.componentInstance.solicitante()).toBeNull();
+    expect(f.componentInstance.puedeCrear()).toBe(false);
   });
 });
 

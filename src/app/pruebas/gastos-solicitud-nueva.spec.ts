@@ -113,13 +113,14 @@ describe('Alta de solicitud de caja chica', () => {
     expect(fixture.componentInstance.sucursales().map((s) => s.id)).toEqual([1, 9]);
   });
 
-  it('no ofrece la sucursal SERVIDOR, que tiene id 0', () => {
-    // El central rechaza `sucursalId <= 0` al guardar (`PreGastoGraphQL.java`:
-    // «Debe indicar una sucursal válida para registrar la solicitud.»).
-    // Antes la pantalla la dejaba elegir —`faltaParaGuardar` la aceptaba
-    // porque `0` es "falsy" y el chequeo usa `== null`— y el operador recién
-    // se enteraba del rechazo después de llenar todo el formulario y tocar
-    // Guardar. Ahora ni aparece en el selector.
+  it('ofrece la sucursal SERVIDOR, que tiene id 0', () => {
+    // SERVIDOR es un destino válido: la solicitud se envía a tesorería y se
+    // cobra desde la caja mayor, no se retira de una caja. El central valida
+    // que la sucursal exista, ya no su signo (`PreGastoGraphQL.java`).
+    //
+    // Es el caso que protege el manejo del id `0` "falsy" en toda la pantalla:
+    // si vuelve un filtro con `Number(s.id) > 0` o un `!s.id`, SERVIDOR
+    // desaparece del selector y este test se pone en rojo.
     //
     // `overrideProvider` no sirve acá: el módulo ya se instanció en el
     // `beforeEach` al pedir `AuthService`. Se reconfigura entero, como el
@@ -146,12 +147,11 @@ describe('Alta de solicitud de caja chica', () => {
     } as never);
     const fixture = montar();
 
-    // Sin sucursales ofrecibles, no hay valor por defecto y el formulario
-    // queda pidiendo una — el mismo mensaje que si el central no devolviera
-    // ninguna sucursal.
-    expect(fixture.componentInstance.sucursales()).toEqual([]);
-    expect(fixture.componentInstance.sucursalId()).toBeNull();
-    expect(fixture.componentInstance.falta()).toBe('Seleccione una sucursal de retiro');
+    // SERVIDOR se ofrece y, siendo la única, queda elegida: el formulario no
+    // puede quedar pidiendo una sucursal que sí está seleccionada.
+    expect(fixture.componentInstance.sucursales().map((s) => s.id)).toEqual([0]);
+    expect(fixture.componentInstance.sucursalId()).toBe(0);
+    expect(fixture.componentInstance.falta()).not.toBe('Seleccione una sucursal de retiro');
   });
 
   it('muestra el responsable de la sesión y no lo deja elegir', () => {

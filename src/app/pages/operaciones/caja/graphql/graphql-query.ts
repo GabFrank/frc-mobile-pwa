@@ -643,3 +643,26 @@ export const imprimirBalanceQuery = gql`
     }
   }
 `;
+
+/**
+ * Los cajeros que hoy están en caja en una sucursal.
+ *
+ * ⚠️ **No es `cajaAbiertoPorSucursal`.** Ese devuelve todo lo que tiene
+ * `activo = true`, y esa bandera solo dice que la caja nunca se cerró: en la
+ * base hay cajas de 2023 y 2024 que quedaron así. Una consulta de la sucursal
+ * 8 devolvía cuatro cajeros donde había uno. El criterio estricto —quedarse
+ * con la última caja de cada maletín— vive en el central, que además
+ * deduplica: un mismo cajero puede tener más de una caja abierta.
+ */
+export const cajerosConCajaAbiertaQuery = gql`
+  query ($sucursalId: ID!) {
+    data: cajerosConCajaAbiertaPorSucursal(sucursalId: $sucursalId) {
+      id
+      nickname
+      persona {
+        id
+        nombre
+      }
+    }
+  }
+`;

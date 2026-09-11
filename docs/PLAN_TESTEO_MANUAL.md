@@ -5983,81 +5983,104 @@ etiqueta.
 **Esperado:** el ícono se sigue viendo. La imagen entra en el grupo `assets`
 de `ngsw.json`, así que el service worker la tiene cacheada.
 
-## Bloque 64 — Una transferencia ajena se toma con su código *(nuevo, sin probar)*
+## Bloque 64 — El solicitante de una transferencia *(nuevo, sin probar)*
 
-**Por qué está acá:** se podía tomar la preparación de una transferencia que
-estaba a nombre de otro sin que te hubiera pasado nada: bastaba con abrirla
-desde la lista. En `frc-mobile` eso no pasaba —a una transferencia ajena solo
-se llegaba escaneando su QR o cargando su código—, y ahora la PWA exige lo
-mismo en el detalle.
+**Por qué está acá:** la transferencia guardaba cuatro usuarios —quién la creó,
+quién preparó, quién transportó y quién recibió— pero ninguno decía **quién
+pidió los productos**. El que crea la transferencia se toma de la sesión, que
+suele ser alguien de bodega, no el funcionario de la sucursal destino que hizo
+el pedido.
 
-**Necesita:** tres usuarios —A, B y C—, transferencias de prueba creadas por A
-en `PRE_TRANSFERENCIA_ORIGEN`, y dos teléfonos (o un teléfono y la
-computadora) para mostrar y escanear el QR. Desde el caso 64.2 se mueve stock:
-mismas precauciones y mismo central que el bloque 49.
+El solicitante es un campo nuevo, se elige a mano y **es obligatorio**: sin él
+el central no deja salir de la etapa de creación.
 
-### 64.1 · Sin el código, la transferencia ajena no se toma *(el caso del reporte)*
-1. Con B, entrar a **Transferencias** y abrir desde la lista una transferencia de A.
+⚠️ **Necesita las dos mitades.** Contra un central sin el campo, el alta falla
+con `Unknown field` — no es que el solicitante no se guarde: **no se crea la
+transferencia**. El central tiene que tener la migración `V162.3` y la query
+`cajerosConCajaAbiertaPorSucursal`.
 
-**Esperado:** **Preparar productos** está apagado, y debajo de la cabecera
-dice **«Esta transferencia está a nombre de <A>. Para continuar, pedile el QR
-o el código y escanealo.»**
+⚠️ **La lista de candidatos no es «todos los que tienen caja».** El central se
+queda con la última caja de cada maletín: `activo = true` incluye cajas que
+quedaron sin cerrar en 2023 y 2024. En la sucursal 8 eso daba cuatro cajeros
+donde hay uno.
 
-### 64.2 · Con el QR, sí
-1. Con A, abrir la transferencia → ícono de QR arriba a la derecha.
-2. Con B, tocar el botón flotante de escanear y leer ese QR.
+### 64.1 · El buscador arranca con los cajeros del destino
 
-**Esperado:** se abre la misma transferencia con **Preparar productos**
-encendido y sin aviso. Al tomarla, «Preparó» queda con el nombre de B.
+1. Entrar a **Transferencias → Nueva**.
+2. Elegir origen y un destino que tenga **una caja abierta**.
+3. Tocar **Elegir solicitante**.
 
-### 64.3 · El código cargado a mano también vale
-1. Con otra transferencia de A: A abre el QR → **Copiar**.
-2. B toca el botón flotante → **Ingresar a mano** → pega el código → confirma.
+**Esperado:** el diálogo abre **ya con la lista cargada**, sin escribir nada, y
+trae **solo** a quien tiene caja abierta en esa sucursal. El título dice
+«Elegir solicitante» y el campo, «Buscar entre los que están en caja».
 
-**Esperado:** lo mismo que en el 64.2. Es el «Ingresar código» de `frc-mobile`.
+### 64.2 · El campo no se autocompleta
 
-### 64.4 · El enlace de WhatsApp también
-1. A comparte otra transferencia suya por WhatsApp.
-2. B toca el enlace del mensaje.
+1. Repetir 64.1 hasta abrir el diálogo, y cerrarlo con **Cancelar**.
 
-**Esperado:** la app abre la transferencia con **Preparar productos**
-encendido. El enlace termina en `?qr=frc-…`: ese es el código.
+**Esperado:** el solicitante sigue diciendo **«Sin elegir»**. Que la lista
+venga filtrada no elige a nadie: la lista es una ayuda, la elección es manual.
 
-### 64.5 · El QR de otra transferencia no sirve
-1. Con B, escanear el QR de una transferencia **X** de A.
-2. Volver a la lista y abrir otra transferencia **Y** de A.
+### 64.3 · Sin cajas abiertas se busca entre todos
 
-**Esperado:** en Y el botón está apagado, con el aviso del 64.1.
+1. Elegir como destino una sucursal **sin ninguna caja abierta**.
+2. Tocar **Elegir solicitante**.
 
-### 64.6 · Entrar por la lista vuelve a pedir el código
-1. Escanear el QR de una transferencia de A **sin** tomar la preparación.
-2. Volver a la lista y abrir esa misma transferencia.
+**Esperado:** debajo del botón aparece «No hay cajas abiertas en ⟨sucursal⟩: se
+busca entre todos los usuarios», y el diálogo abre en modo búsqueda por texto.
+Se puede elegir cualquier usuario. **La transferencia no queda trabada.**
 
-**Esperado:** el botón vuelve a estar apagado. El código vale para la entrada
-que lo trajo; no queda guardado.
+### 64.4 · Sin solicitante no se puede crear
 
-### 64.7 · El responsable no necesita código
-1. Con A, abrir desde la lista una transferencia suya en `PRE_TRANSFERENCIA_ORIGEN`.
+1. Elegir origen y destino, y **no** elegir solicitante.
 
-**Esperado:** **Preparar productos** encendido, sin aviso.
+**Esperado:** el botón **«Crear y cargar productos» está deshabilitado**. No
+hay forma de crear la transferencia sin solicitante.
 
-### 64.8 · El código no alcanza para concluir la etapa ajena
-1. Con la preparación tomada por B (64.2), C escanea el QR de esa transferencia.
+### 64.5 · Cambiar el destino descarta el solicitante
 
-**Esperado:** los ítems **no** tienen el menú de tres puntos, **Concluir
-preparación** está apagado y dice **«Esta etapa la está trabajando <B>.»**
-Solo el que la tomó la cierra.
+1. Elegir destino A, elegir un solicitante.
+2. Cambiar el destino a B.
 
-### 64.9 · El traspaso sigue en transporte y recepción
-1. B concluye la preparación.
-2. C abre la transferencia desde la lista → **Verificar para transporte** apagado.
-3. B le muestra el QR y C lo escanea → encendido. C la toma y la despacha.
-4. En destino, otro usuario la abre desde la lista → **Iniciar recepción**
-   apagado; escanea el QR que le muestra C → encendido.
+**Esperado:** el solicitante vuelve a **«Sin elegir»** y el botón de crear se
+apaga. Los candidatos salen de las cajas de la sucursal destino: dejar al de A
+atribuiría el pedido a alguien de otra sucursal.
 
-**Esperado:** en cada paso el botón se enciende solo con el QR de quien tiene
-la transferencia a su nombre. Iniciar la recepción sigue pidiendo, además, el
-QR de la sucursal de destino (caso 49.8).
+### 64.6 · El solicitante queda guardado
+
+1. Completar el alta con un solicitante y crear la transferencia.
+2. Ir al **detalle** de esa transferencia.
+
+**Esperado:** en «Quién intervino», la fila **«Solicitante»** muestra el
+elegido, y **«Creó»** muestra al usuario de la sesión. Son dos personas
+distintas y el detalle lo dice.
+
+### 64.7 · «Pidió» ya no existe
+
+1. Abrir el detalle de **cualquier** transferencia, vieja o nueva.
+
+**Esperado:** la sección «Quién intervino» dice **«Creó»**, no «Pidió». Esa
+etiqueta colgaba de quien crea la transferencia, no de quien la pide.
+
+### 64.8 · Las transferencias anteriores no se rompen
+
+1. Abrir el detalle de una transferencia **creada antes de este cambio**.
+
+**Esperado:** «Solicitante» dice **«—»** y el resto de la pantalla funciona
+igual. Avanzar de etapa **sigue andando**: la obligatoriedad solo aplica al
+salir de la etapa de creación, y esas ya la pasaron.
+
+### 64.9 · Finalizar el borrador exige el solicitante
+
+1. Contra un central actualizado, crear una transferencia **desde el
+   escritorio** sin solicitante, dejarla en etapa de creación.
+2. Abrirla en la PWA en `/transferencias/:id/borrador`, cargarle un producto y
+   tocar **Finalizar**.
+
+**Esperado:** el central la **rechaza** con «no puede avanzar sin
+solicitante». Este caso existe porque la PWA finaliza con
+`finalizarTransferencia`, que movía la etapa **sin pasar por las validaciones**
+del otro camino.
 
 ## Resumen para completar
 
@@ -6126,7 +6149,7 @@ QR de la sucursal de destino (caso 49.8).
 | 61 · Kiosco de marcación | 15 | | | |
 | 62 · Método, similitud y margen | 9 | | | |
 | 63 · El ícono de la app | 5 | | | |
-| 64 · Transferencia ajena: se toma con su código | 9 | | | |
+| 64 · El solicitante de una transferencia | 9 | | | |
 | **Total** | **589** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

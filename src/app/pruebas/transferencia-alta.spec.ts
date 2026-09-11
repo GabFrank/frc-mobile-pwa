@@ -61,6 +61,39 @@ describe('Input de una transferencia nueva', () => {
     expect(input.usuarioPreTransferenciaId).toBe(41);
   });
 
+  /**
+   * ⚠️ El solicitante es quien pidió los productos en la sucursal destino, no
+   * quien opera el alta. Son dos campos distintos del central: escribir el de
+   * la sesión en los dos deja el pedido atribuido a quien lo cargó.
+   */
+  it('manda el solicitante en su propio campo, separado del responsable', () => {
+    const input = nuevaTransferenciaInput({
+      sucursalOrigenId: 3,
+      sucursalDestinoId: 7,
+      usuarioId: 41,
+      solicitanteId: 88,
+    });
+
+    expect(input.solicitanteId).toBe(88);
+    expect(input.usuarioPreTransferenciaId).toBe(41);
+  });
+
+  /**
+   * ⚠️ Ausente, no en `null`: para el central un campo nulo y uno que no viene
+   * significan lo mismo —«no lo toques»—, así que mandar `null` no borraría
+   * nada y escribe la intención al revés.
+   */
+  it('omite el solicitante cuando no hay, en vez de mandarlo en null', () => {
+    const input = nuevaTransferenciaInput({
+      sucursalOrigenId: 3,
+      sucursalDestinoId: 7,
+      usuarioId: 41,
+      solicitanteId: null,
+    });
+
+    expect('solicitanteId' in input).toBe(false);
+  });
+
   it('no manda id: con id el central lo tomaría como edición', () => {
     const input = nuevaTransferenciaInput({
       sucursalOrigenId: 3,

@@ -8,7 +8,7 @@ import { TransferenciaService } from 'src/app/pages/transferencias/transferencia
 import { NotificacionService } from '../ui/notificacion.service';
 import { EscanerService } from './escaner.service';
 import { FORMATOS_PRODUCTO } from './escaner.types';
-import { rutearEscaneo } from './escaneo-ruteo';
+import { rutearEscaneo, transferenciaDelQr } from './escaneo-ruteo';
 
 /**
  * Escanear una vez y caer donde corresponda.
@@ -93,11 +93,16 @@ export class EscanerUniversalService {
     this.avisarSiEsTransferencia(texto);
 
     switch (destino.clase) {
-      case 'navegar':
-        await this.router.navigate([...destino.ruta], {
-          queryParams: destino.queryParams,
-        });
+      case 'navegar': {
+        // El QR de una transferencia viaja con ella hasta el detalle: es la
+        // prueba de que a quien la abre le pasaron el código, y lo que lo
+        // habilita a tomarla aunque esté a nombre de otro. Vale igual si el
+        // código se cargó a mano. Ver `transferenciaDelQr`.
+        const queryParams =
+          transferenciaDelQr(texto) != null ? { qr: texto.trim() } : destino.queryParams;
+        await this.router.navigate([...destino.ruta], { queryParams });
         return true;
+      }
 
       case 'producto':
         // El código todavía no se resolvió contra el servidor: eso lo hace

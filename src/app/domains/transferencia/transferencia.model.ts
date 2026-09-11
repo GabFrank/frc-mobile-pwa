@@ -168,6 +168,14 @@ export interface Transferencia {
   tipo?: TipoTransferencia;
   etapa?: EtapaTransferencia;
   observacion?: string;
+  /**
+   * Quién pidió los productos en la sucursal destino.
+   *
+   * ⚠️ **No es ninguno de los cuatro de abajo.** Esos son los que operan la
+   * transferencia; el solicitante no interviene en ninguna etapa y no
+   * necesariamente es quien la recibe. Es a quién le responde el pedido.
+   */
+  solicitante?: Usuario;
   /** Quién intervino en cada etapa. */
   usuarioPreTransferencia?: Usuario;
   usuarioPreparacion?: Usuario;
@@ -287,6 +295,7 @@ export interface TransferenciaInput {
   tipo?: TipoTransferencia;
   etapa?: EtapaTransferencia;
   observacion?: string;
+  solicitanteId?: number;
   usuarioPreTransferenciaId?: number;
   usuarioPreparacionId?: number;
   usuarioTransporteId?: number;

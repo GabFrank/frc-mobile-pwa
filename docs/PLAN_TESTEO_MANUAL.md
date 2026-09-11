@@ -5983,59 +5983,104 @@ etiqueta.
 **Esperado:** el ícono se sigue viendo. La imagen entra en el grupo `assets`
 de `ngsw.json`, así que el service worker la tiene cacheada.
 
-## Bloque 64 — Solicitud de pago devuelta por tesorería *(nuevo, sin probar)*
+## Bloque 64 — El solicitante de una transferencia *(nuevo, sin probar)*
 
-**Por qué está acá:** tesorería ya no cancela una solicitud de pago que no va
-a pagar: la **devuelve a compras** con un motivo, desde *Caja mayor → Pagar
-Compras* en el escritorio. El central la deja en el estado nuevo `DEVUELTO`,
-distinto del borrador, y compras la corrige y la reenvía, o la cancela.
+**Por qué está acá:** la transferencia guardaba cuatro usuarios —quién la creó,
+quién preparó, quién transportó y quién recibió— pero ninguno decía **quién
+pidió los productos**. El que crea la transferencia se toma de la sesión, que
+suele ser alguien de bodega, no el funcionario de la sucursal destino que hizo
+el pedido.
 
-⚠️ **Necesita un central con la migración `V222.3`** y el código del estado
-`DEVUELTO`. Contra un central sin eso, el filtro «Devueltas» falla —el central
-no conoce el valor— y la lista muestra su estado de error; el resto de la
-pantalla no cambia.
+El solicitante es un campo nuevo, se elige a mano y **es obligatorio**: sin él
+el central no deja salir de la etapa de creación.
 
-**Preparación:** en el escritorio, abrir *Caja mayor → Pagar Compras*, tocar el
-botón **Devolver a compras** (la flecha de deshacer) de una solicitud y
-devolverla con un motivo, por ejemplo `FALTA LA FACTURA`. Anotar su número.
+⚠️ **Necesita las dos mitades.** Contra un central sin el campo, el alta falla
+con `Unknown field` — no es que el solicitante no se guarde: **no se crea la
+transferencia**. El central tiene que tener la migración `V162.3` y la query
+`cajerosConCajaAbiertaPorSucursal`.
 
-### 64.1 · Se ve como devuelta en la lista
+⚠️ **La lista de candidatos no es «todos los que tienen caja».** El central se
+queda con la última caja de cada maletín: `activo = true` incluye cajas que
+quedaron sin cerrar en 2023 y 2024. En la sucursal 8 eso daba cuatro cajeros
+donde hay uno.
 
-1. Abrir *Solicitudes de pago* y buscar la solicitud devuelta.
+### 64.1 · El buscador arranca con los cajeros del destino
 
-**Esperado:** el badge **«Devuelto»** en rojo, con el ícono de volver. **No**
-«Borrador» en gris: un borrador nadie lo vio; esta la vio tesorería y no la
-pagó.
+1. Entrar a **Transferencias → Nueva**.
+2. Elegir origen y un destino que tenga **una caja abierta**.
+3. Tocar **Elegir solicitante**.
 
-### 64.2 · El filtro «Devueltas»
+**Esperado:** el diálogo abre **ya con la lista cargada**, sin escribir nada, y
+trae **solo** a quien tiene caja abierta en esa sucursal. El título dice
+«Elegir solicitante» y el campo, «Buscar entre los que están en caja».
 
-1. Elegir el filtro **Devueltas**.
-2. Elegir después **Borradores**.
+### 64.2 · El campo no se autocompleta
 
-**Esperado:** con «Devueltas» aparece la devuelta; con «Borradores», no.
+1. Repetir 64.1 hasta abrir el diálogo, y cerrarlo con **Cancelar**.
 
-### 64.3 · El detalle dice que la devolvió tesorería
+**Esperado:** el solicitante sigue diciendo **«Sin elegir»**. Que la lista
+venga filtrada no elige a nadie: la lista es una ayuda, la elección es manual.
 
-1. Abrir el detalle de la devuelta.
+### 64.3 · Sin cajas abiertas se busca entre todos
 
-**Esperado:** un panel **«Devuelta por tesorería»** —no «Todavía es un
-borrador»— y el motivo en *Observaciones*:
-`DEVUELTA A COMPRAS POR <usuario>: FALTA LA FACTURA`. En la sección del pago
-dice que no hay pago asociado **sin** llamarla borrador.
+1. Elegir como destino una sucursal **sin ninguna caja abierta**.
+2. Tocar **Elegir solicitante**.
 
-### 64.4 · Reenviarla a la cola de pagos
+**Esperado:** debajo del botón aparece «No hay cajas abiertas en ⟨sucursal⟩: se
+busca entre todos los usuarios», y el diálogo abre en modo búsqueda por texto.
+Se puede elegir cualquier usuario. **La transferencia no queda trabada.**
 
-1. En el detalle, tocar **Solicitar**.
-2. En el escritorio, abrir de nuevo *Pagar Compras*.
+### 64.4 · Sin solicitante no se puede crear
 
-**Esperado:** pasa a **«Solicitado»** y vuelve a aparecer en *Pagar Compras*.
-Corregirla antes —monto, notas— sigue siendo del escritorio.
+1. Elegir origen y destino, y **no** elegir solicitante.
 
-### 64.5 · Tema oscuro y tema claro
+**Esperado:** el botón **«Crear y cargar productos» está deshabilitado**. No
+hay forma de crear la transferencia sin solicitante.
 
-1. Repetir 64.1 y 64.3 en los dos temas.
+### 64.5 · Cambiar el destino descarta el solicitante
 
-**Esperado:** el badge rojo y el panel se leen en los dos.
+1. Elegir destino A, elegir un solicitante.
+2. Cambiar el destino a B.
+
+**Esperado:** el solicitante vuelve a **«Sin elegir»** y el botón de crear se
+apaga. Los candidatos salen de las cajas de la sucursal destino: dejar al de A
+atribuiría el pedido a alguien de otra sucursal.
+
+### 64.6 · El solicitante queda guardado
+
+1. Completar el alta con un solicitante y crear la transferencia.
+2. Ir al **detalle** de esa transferencia.
+
+**Esperado:** en «Quién intervino», la fila **«Solicitante»** muestra el
+elegido, y **«Creó»** muestra al usuario de la sesión. Son dos personas
+distintas y el detalle lo dice.
+
+### 64.7 · «Pidió» ya no existe
+
+1. Abrir el detalle de **cualquier** transferencia, vieja o nueva.
+
+**Esperado:** la sección «Quién intervino» dice **«Creó»**, no «Pidió». Esa
+etiqueta colgaba de quien crea la transferencia, no de quien la pide.
+
+### 64.8 · Las transferencias anteriores no se rompen
+
+1. Abrir el detalle de una transferencia **creada antes de este cambio**.
+
+**Esperado:** «Solicitante» dice **«—»** y el resto de la pantalla funciona
+igual. Avanzar de etapa **sigue andando**: la obligatoriedad solo aplica al
+salir de la etapa de creación, y esas ya la pasaron.
+
+### 64.9 · Finalizar el borrador exige el solicitante
+
+1. Contra un central actualizado, crear una transferencia **desde el
+   escritorio** sin solicitante, dejarla en etapa de creación.
+2. Abrirla en la PWA en `/transferencias/:id/borrador`, cargarle un producto y
+   tocar **Finalizar**.
+
+**Esperado:** el central la **rechaza** con «no puede avanzar sin
+solicitante». Este caso existe porque la PWA finaliza con
+`finalizarTransferencia`, que movía la etapa **sin pasar por las validaciones**
+del otro camino.
 
 ## Resumen para completar
 
@@ -6104,8 +6149,8 @@ Corregirla antes —monto, notas— sigue siendo del escritorio.
 | 61 · Kiosco de marcación | 15 | | | |
 | 62 · Método, similitud y margen | 9 | | | |
 | 63 · El ícono de la app | 5 | | | |
-| 64 · Solicitud de pago devuelta por tesorería | 5 | | | |
-| **Total** | **585** | | | |
+| 64 · El solicitante de una transferencia | 9 | | | |
+| **Total** | **589** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -14,6 +14,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { transferenciaDelQr } from 'src/app/core/dispositivo/escaneo-ruteo';
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
 import { FORMATOS_PRODUCTO, FORMATOS_QR } from 'src/app/core/dispositivo/escaner.types';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
@@ -53,6 +54,7 @@ import {
   itemVerificado,
   itemsSinVerificar,
   puedeEditarEtapa,
+  puedeTomarEtapa,
   requiereDesconfirmarAntes,
   responsableDeEtapa,
 } from './etapas';
@@ -368,6 +370,16 @@ export class TransferenciaDetallePage {
   /** Input opcional: el router lo asigna después de construir (NG0950). */
   readonly id = input<string>();
 
+  /**
+   * El código con el que se llegó, si vino de un QR o de un enlace compartido.
+   *
+   * Lo pone el escáner universal al leer el QR de una transferencia —o el
+   * código cargado a mano—, y lo trae el enlace de WhatsApp. Es la prueba de
+   * que el responsable le pasó la transferencia a quien la abre: ver
+   * `puedeTomarEtapa`.
+   */
+  readonly qr = input<string>();
+
   readonly transferencia = signal<Transferencia | null>(null);
   readonly items = signal<TransferenciaItem[]>([]);
   readonly cargando = signal(true);
@@ -402,6 +414,21 @@ export class TransferenciaDetallePage {
     puedeEditarEtapa(this.transferencia(), this.auth.usuario()?.id),
   );
 
+  /**
+   * `true` si se llegó con el código de **esta** transferencia.
+   *
+   * Se compara el id: el QR de otra transferencia no habilita esta.
+   */
+  readonly conCodigo = computed(() => {
+    const delQr = transferenciaDelQr(this.qr());
+    return delQr != null && delQr === Number(this.id());
+  });
+
+  /** `true` si este usuario puede hacerse cargo de la etapa siguiente. */
+  readonly puedeTomar = computed(() =>
+    puedeTomarEtapa(this.transferencia(), this.auth.usuario()?.id, this.conCodigo()),
+  );
+
   /** `true` si se pueden tocar los ítems ahora mismo. */
   readonly editable = computed(() => this.verificando() && this.puedeEditar());
 
@@ -416,11 +443,14 @@ export class TransferenciaDetallePage {
   /**
    * `true` si el botón de avance se puede apretar.
    *
-   * Las etapas que **cierran** una verificación son las que exigen las dos
-   * cosas: ser el responsable, y no dejar ítems sin revisar. Las otras —tomar
-   * la preparación, pasar a transporte, iniciar la recepción— son justamente
-   * el acto de hacerse cargo de la etapa siguiente, y ahí todavía no hay
-   * responsable a quien pedirle permiso.
+   * Las etapas que **cierran** una verificación exigen ser el responsable y
+   * no dejar ítems sin revisar. El código de la transferencia no alcanza:
+   * cerrar la etapa ajena es dar por bueno lo que verificó otro.
+   *
+   * Las otras —tomar la preparación, pasar a transporte, iniciar la
+   * recepción— son el acto de hacerse cargo de la etapa siguiente. Esas las
+   * aprieta el responsable actual, o quien llegó con el código: el traspaso
+   * de `frc-mobile`, en el que el que termina le pasa el QR al que sigue.
    */
   readonly accionHabilitada = computed(() => {
     const accion = this.accion();
@@ -428,7 +458,7 @@ export class TransferenciaDetallePage {
       return false;
     }
     if (!accion.exigeItemsVerificados) {
-      return true;
+      return this.puedeTomar();
     }
     return this.puedeEditar() && this.pendientes().length === 0;
   });
@@ -439,8 +469,15 @@ export class TransferenciaDetallePage {
     if (!accion || this.accionHabilitada()) {
       return null;
     }
+    const nombre = this.responsable()?.persona?.nombre;
+    if (!accion.exigeItemsVerificados) {
+      // Una transferencia ajena abierta sin su código: el camino es pedirlo.
+      const aNombreDe = nombre
+        ? 'Esta transferencia está a nombre de ' + nombre
+        : 'Esta transferencia está a nombre de otra persona';
+      return aNombreDe + '. Para continuar, pedile el QR o el código y escanealo.';
+    }
     if (!this.puedeEditar()) {
-      const nombre = this.responsable()?.persona?.nombre;
       return nombre
         ? 'Esta etapa la está trabajando ' + nombre + '.'
         : 'Esta etapa la está trabajando otra persona.';
@@ -515,7 +552,8 @@ export class TransferenciaDetallePage {
   async avanzar(accion: AccionEtapa): Promise<void> {
     const transferencia = this.transferencia();
     const usuarioId = this.auth.usuario()?.id;
-    if (transferencia?.id == null || usuarioId == null) {
+    // El botón ya está apagado; esto cubre que se dispare igual.
+    if (transferencia?.id == null || usuarioId == null || !this.accionHabilitada()) {
       return;
     }
 

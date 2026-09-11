@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
-import { GeoService, PRECISION_MAXIMA_M, Posicion, ProgresoGeo } from 'src/app/core/dispositivo/geo.service';
+import { PRECISION_MAXIMA_M, Posicion } from 'src/app/core/dispositivo/geo.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { IncorporarEmbeddingMarcacionGQL } from 'src/app/graphql/personas/usuario/graphql/incorporarEmbeddingMarcacion';
 import {
@@ -13,22 +13,22 @@ import {
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
-import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
-import { soloOperables } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
   MarcacionInput,
+  MetodoMarcacion,
   TipoMarcacion,
 } from 'src/app/domains/marcacion/marcacion.model';
 import { convertMsToTime, fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
+import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
+import { DeteccionSucursalService } from './deteccion-sucursal.service';
 import { MarcacionService } from './marcacion.service';
 
 /** Qué texto lleva el botón según lo que el backend diga que falta. */
@@ -55,6 +55,13 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
  * confirmación en vez de impedirlo. Lo que queda es la evidencia:
  * `precisionGps` y `distanciaSucursalMetros` viajan con la marcación y
  * permiten recalibrar el umbral con datos reales. Ver `geo.service.ts`.
+ *
+ * ⚠️ **La sucursal sale de la posición, no de una lista.** Mientras se elegía
+ * de un desplegable, la distancia no medía nada: alcanzaba con seleccionar la
+ * sucursal donde uno *dice* estar, y el aviso de «estás lejos» no aparecía
+ * nunca. Por eso **sin posición no se marca**: caer en silencio a la sucursal
+ * de la sesión reabriría el mismo agujero por la puerta de atrás —bastaría
+ * con negar el permiso de ubicación—. Ver la issue #15.
  */
 @Component({
   selector: 'frc-marcacion',
@@ -63,9 +70,9 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
     PaginaComponent,
     SeccionComponent,
     DatoComponent,
-    SelectorComponent,
     SkeletonComponent,
     EstadoErrorComponent,
+    EstadoVacioComponent,
     MatButtonModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,11 +81,11 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
       @if (accion(); as a) {
         <div acciones>
           @if (puedeElegirSalida()) {
-            <button matButton [disabled]="marcando()" (click)="marcar(true)">
+            <button matButton [disabled]="!puedeMarcar()" (click)="marcar(true)">
               {{ enCurso() === true ? 'Marcando…' : 'Salir a almorzar' }}
             </button>
           }
-          <button matButton="filled" [disabled]="marcando()" (click)="marcar(false)">
+          <button matButton="filled" [disabled]="!puedeMarcar()" (click)="marcar(false)">
             {{ enCurso() === false ? 'Marcando…' : ETIQUETAS[a] }}
           </button>
         </div>
@@ -89,13 +96,36 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
       } @else if (error()) {
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
       } @else {
-        <frc-seccion titulo="Sucursal" [panel]="true">
-          <frc-selector
-            etiqueta="Dónde estás marcando"
-            [opciones]="opcionesSucursal()"
-            [valor]="sucursalId()"
-            (valorChange)="elegirSucursal($event)"
-          />
+        <frc-seccion titulo="Dónde estás" [panel]="true">
+          @switch (deteccion()) {
+            @case ('buscando') {
+              <frc-dato etiqueta="Sucursal" [valor]="progreso()?.mensaje ?? 'Buscando tu ubicación…'" />
+            }
+            @case ('ok') {
+              <frc-dato etiqueta="Sucursal" [valor]="nombreDetectada()" />
+              <frc-dato etiqueta="Distancia" [valor]="distanciaLegible()" />
+              @if (progreso()?.precisionActual; as p) {
+                <frc-dato etiqueta="Precisión" [valor]="'±' + redondear(p) + ' m'" />
+              }
+            }
+            @case ('sin-posicion') {
+              <frc-estado-vacio
+                titulo="No se pudo obtener la ubicación"
+                [detalle]="detalleSinPosicion()"
+              />
+            }
+            @case ('sin-coordenadas') {
+              <frc-estado-vacio
+                titulo="No se pudo determinar la sucursal"
+                detalle="Ninguna sucursal operable tiene sus coordenadas cargadas, así que no hay contra qué comparar. Avisá a sistemas."
+              />
+            }
+          }
+          <div class="recalcular">
+            <button matButton [disabled]="deteccion() === 'buscando'" (click)="detectar()">
+              Recalcular
+            </button>
+          </div>
         </frc-seccion>
 
         <frc-seccion titulo="Hoy" [panel]="true">
@@ -115,31 +145,27 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
           }
         </frc-seccion>
 
-        @if (progreso(); as p) {
-          <frc-seccion titulo="Ubicación" [panel]="true">
-            <frc-dato etiqueta="Estado" [valor]="p.mensaje" />
-            @if (p.precisionActual != null) {
-              <frc-dato etiqueta="Precisión" [valor]="'±' + redondear(p.precisionActual) + ' m'" />
-            }
-            @if (distancia() != null) {
-              <frc-dato etiqueta="Distancia" [valor]="redondear(distancia()!) + ' m'" />
-            }
-          </frc-seccion>
-        }
       }
     </frc-pagina>
+  `,
+  styles: `
+    /* El cuerpo de frc-seccion es una columna flex y estira a sus hijos: sin
+       este contenedor el botón ocuparía todo el ancho del panel. */
+    .recalcular {
+      display: flex;
+      justify-content: flex-end;
+    }
   `,
 })
 export class MarcacionPage {
   private readonly servicio = inject(MarcacionService);
-  private readonly geo = inject(GeoService);
+  private readonly det = inject(DeteccionSucursalService);
 
   private readonly datos = inject(DatosService);
   private readonly incorporarGQL = inject(IncorporarEmbeddingMarcacionGQL);
 
   /** Lo que devolvió la verificación facial de esta marcación, si hubo. */
   private readonly verificacion = signal<ResultadoVerificacion | null>(null);
-  private readonly sucursalesService = inject(SucursalService);
   private readonly auth = inject(AuthService);
   private readonly dialogo = inject(DialogoService);
   private readonly notificacion = inject(NotificacionService);
@@ -147,10 +173,11 @@ export class MarcacionPage {
   readonly ETIQUETAS = ETIQUETAS;
 
   readonly estado = signal<EstadoMarcacionUsuario | null>(null);
-  readonly sucursales = signal<Sucursal[]>([]);
-  readonly sucursalId = signal<unknown>(null);
-  readonly progreso = signal<ProgresoGeo | null>(null);
-  readonly distancia = signal<number | null>(null);
+  /** Dónde está el dispositivo. La regla vive en el servicio, no acá. */
+  readonly deteccion = this.det.estado;
+  readonly sucursalDetectada = this.det.sucursal;
+  readonly progreso = this.det.progreso;
+  readonly distancia = this.det.distancia;
   readonly cargando = signal(true);
   readonly marcando = signal(false);
   /**
@@ -177,8 +204,31 @@ export class MarcacionPage {
     const e = this.estado();
     return e?.puedeMarcarSalida === true && e?.puedeMarcarSalidaAlmuerzo === true;
   });
-  readonly opcionesSucursal = computed<OpcionSeleccion[]>(() =>
-    this.sucursales().map((s) => ({ valor: s.id, texto: String(s.nombre ?? `Sucursal ${s.id}`) })),
+  /** Solo se marca con una sucursal detectada y sin otra marcación en vuelo. */
+  readonly puedeMarcar = computed(() => !this.marcando() && this.sucursalDetectada() != null);
+  readonly nombreDetectada = computed(() => {
+    const s = this.sucursalDetectada();
+    return s ? String(s.nombre ?? `Sucursal ${s.id}`) : '—';
+  });
+  readonly distanciaLegible = computed(() => {
+    const m = this.distancia();
+    if (m == null) {
+      return '—';
+    }
+    // Cuatro mil metros se lee peor que 4 km, y es la escala en la que uno
+    // entiende de una que está en otra sucursal.
+    return m >= 1000 ? `${formatearCantidad(m / 1000, 2)} km` : `${this.redondear(m)} m`;
+  });
+  /**
+   * Por qué no hay ubicación.
+   *
+   * Se prefiere el mensaje del `GeoService` —que distingue el permiso negado
+   * del tiempo agotado— antes que un texto propio que diría menos.
+   */
+  readonly detalleSinPosicion = computed(
+    () =>
+      this.progreso()?.mensaje ??
+      'Revisá que el permiso de ubicación esté dado y que el GPS esté encendido, y tocá Recalcular.',
   );
   readonly resumenEstado = computed(() => {
     const e = this.estado();
@@ -228,28 +278,12 @@ export class MarcacionPage {
   }
 
   private cargarSucursales(): void {
-    this.sucursalesService.todas().subscribe({
-      next: (todas) => {
-        const locales = soloOperables(todas ?? []);
-        this.sucursales.set(locales);
-        // La última elegida gana sobre la de la sesión: el funcionario marca
-        // donde trabaja, que no siempre es la de su usuario.
-        const persistida = this.servicio.sucursalPersistida()?.id;
-        const deLaSesion = this.auth.sucursal()?.id;
-        const elegida =
-          locales.find((s) => String(s.id) === String(persistida)) ??
-          locales.find((s) => String(s.id) === String(deLaSesion)) ??
-          locales[0];
-        this.sucursalId.set(elegida?.id ?? null);
-      },
-      error: () => this.notificacion.warn('No se pudieron cargar las sucursales.'),
-    });
+    this.det.cargar(() => this.notificacion.warn('No se pudieron cargar las sucursales.'));
   }
 
-  elegirSucursal(id: unknown): void {
-    this.sucursalId.set(id);
-    const elegida = this.sucursales().find((s) => String(s.id) === String(id)) ?? null;
-    this.servicio.guardarSucursal(elegida);
+  /** **Recalcular**: vuelve a tomar la posición. */
+  detectar(): Promise<unknown> {
+    return this.det.detectar();
   }
 
   hora(valor: string | undefined): string {
@@ -309,9 +343,9 @@ export class MarcacionPage {
   async marcar(esSalidaAlmuerzo: boolean): Promise<void> {
     const usuarioId = this.auth.usuario()?.id;
     const accion = this.accion();
-    const sucursal = this.sucursales().find((s) => String(s.id) === String(this.sucursalId()));
-    if (usuarioId == null || !accion || !sucursal?.id) {
-      this.notificacion.warn('Elegí la sucursal donde estás marcando.');
+    const alAbrir = this.sucursalDetectada();
+    if (usuarioId == null || !accion || !alAbrir?.id) {
+      this.notificacion.warn('Todavía no se sabe en qué sucursal estás. Tocá Recalcular.');
       return;
     }
     this.enCurso.set(esSalidaAlmuerzo);
@@ -326,31 +360,37 @@ export class MarcacionPage {
     }
 
     this.marcando.set(true);
-    this.distancia.set(null);
 
-    const posicion = await this.geo.posicionActual((p) => this.progreso.set(p));
-    if (!posicion) {
+    // ⚠️ **La posición se vuelve a tomar acá.** La de la apertura sirvió para
+    // decir dónde estás y habilitar el botón; entre eso y el toque pueden
+    // pasar minutos. Lo que se guarda como evidencia tiene que ser del
+    // momento en que se marcó, no de cuando se abrió la pantalla.
+    const ahora = await this.det.detectar();
+    const posicion = this.det.posicion();
+
+    if (!ahora || !posicion) {
       this.marcando.set(false);
-      const seguir = await this.dialogo.confirmar({
-        titulo: 'Sin ubicación',
-        mensaje: 'No se pudo obtener la ubicación. ¿Marcar igual? Va a quedar registrado sin GPS.',
-        confirmar: 'Marcar igual',
-      });
-      if (!seguir) {
-        this.enCurso.set(null);
-        return;
-      }
-      this.enviar(usuarioId, accion, sucursal, null, null, esSalidaAlmuerzo);
+      this.enCurso.set(null);
+      this.notificacion.warn('Se perdió la ubicación. No se marcó nada; tocá Recalcular.');
       return;
     }
 
-    const metros = this.distanciaA(sucursal, posicion);
-    this.distancia.set(metros);
+    // La persona se movió lo suficiente como para que ahora esté más cerca de
+    // otra sucursal. Marcar contra la de la apertura registraría un lugar
+    // donde ya no está, así que se muestra la nueva y decide de nuevo.
+    if (String(ahora.sucursal.id) !== String(alAbrir.id)) {
+      this.marcando.set(false);
+      this.enCurso.set(null);
+      this.notificacion.warn(
+        `Ahora estás más cerca de ${this.nombreDetectada()}. Revisá y volvé a marcar.`,
+      );
+      return;
+    }
 
-    if (metros != null && metros > PRECISION_MAXIMA_M) {
+    if (ahora.metros > PRECISION_MAXIMA_M) {
       const seguir = await this.dialogo.confirmar({
         titulo: 'Estás lejos de la sucursal',
-        mensaje: `La ubicación da ${Math.round(metros)} m de distancia, con una precisión de ±${Math.round(posicion.precision)} m. La marcación queda registrada con esos datos.`,
+        mensaje: `La ubicación da ${Math.round(ahora.metros)} m de distancia de ${this.nombreDetectada()}, con una precisión de ±${Math.round(posicion.precision)} m. La marcación queda registrada con esos datos.`,
         confirmar: 'Marcar igual',
       });
       if (!seguir) {
@@ -360,18 +400,7 @@ export class MarcacionPage {
       }
     }
 
-    this.enviar(usuarioId, accion, sucursal, posicion, metros, esSalidaAlmuerzo);
-  }
-
-  private distanciaA(sucursal: Sucursal, posicion: Posicion): number | null {
-    // `localizacion` guarda "lat,lng" como texto en la sucursal.
-    const partes = String(sucursal.localizacion ?? '').split(',');
-    const lat = Number(partes[0]);
-    const lng = Number(partes[1]);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return null;
-    }
-    return this.geo.distanciaMetros(lat, lng, posicion.latitud, posicion.longitud);
+    this.enviar(usuarioId, accion, ahora.sucursal, posicion, ahora.metros, esSalidaAlmuerzo);
   }
 
   /**
@@ -406,8 +435,8 @@ export class MarcacionPage {
     usuarioId: number,
     accion: AccionMarcacionPendiente,
     sucursal: Sucursal,
-    posicion: Posicion | null,
-    metros: number | null,
+    posicion: Posicion,
+    metros: number,
     esSalidaAlmuerzo: boolean,
   ): void {
     // Solo ENTRADA y SALIDA existen como tipo; el matiz de almuerzo va en
@@ -416,15 +445,22 @@ export class MarcacionPage {
       accion === AccionMarcacionPendiente.SALIDA ||
       accion === AccionMarcacionPendiente.SALIDA_DEFINITIVA;
 
+    // Con qué método se identificó a la persona. Es lo que después permite
+    // distinguir un falso positivo de un olvido; ver el #217 del central.
+    const verificacion = this.verificacion();
+
     const input: MarcacionInput = {
       usuarioId,
       sucursalId: Number(sucursal.id),
       tipo: esSalida ? TipoMarcacion.SALIDA : TipoMarcacion.ENTRADA,
       esSalidaAlmuerzo,
-      latitud: posicion?.latitud,
-      longitud: posicion?.longitud,
-      precisionGps: posicion?.precision,
-      distanciaSucursalMetros: metros ?? undefined,
+      metodoRegistro: verificacion ? MetodoMarcacion.FACIAL_1A1 : MetodoMarcacion.MANUAL,
+      similitudFacial: verificacion?.similitudCentral,
+      margenSegundoCandidato: verificacion?.margen ?? undefined,
+      latitud: posicion.latitud,
+      longitud: posicion.longitud,
+      precisionGps: posicion.precision,
+      distanciaSucursalMetros: metros,
       deviceInfo: navigator.userAgent,
     };
 

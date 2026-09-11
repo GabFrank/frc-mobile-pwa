@@ -65,42 +65,6 @@ describe('Distancia a la sucursal', () => {
   });
 });
 
-describe('Sucursal persistida de marcación', () => {
-  let servicio: MarcacionService;
-
-  beforeEach(() => {
-    localStorage.clear();
-    TestBed.configureTestingModule({ providers: sinApollo });
-    servicio = TestBed.inject(MarcacionService);
-  });
-
-  it('guarda y recuerda la elegida', () => {
-    servicio.guardarSucursal({ id: 3, nombre: 'SUC. ROTONDA' } as never);
-    expect(servicio.sucursalPersistida()?.id).toBe(3);
-  });
-
-  it('guardar null la borra, sin dejar la cadena "null"', () => {
-    servicio.guardarSucursal({ id: 3 } as never);
-    servicio.guardarSucursal(null);
-
-    expect(servicio.sucursalPersistida()).toBeNull();
-    // Es el bug #4 del TODO del repo anterior: `setItem(clave, null)` persiste
-    // el texto "null", que después se lee como un valor válido.
-    expect(localStorage.getItem('frc.marcacion.sucursal')).toBeNull();
-  });
-
-  it('un dato corrupto se limpia en vez de arrastrarse', () => {
-    localStorage.setItem('frc.marcacion.sucursal', '{no es json');
-    // Se relee al construir el servicio.
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({ providers: sinApollo });
-    const otro = TestBed.inject(MarcacionService);
-
-    expect(otro.sucursalPersistida()).toBeNull();
-    expect(localStorage.getItem('frc.marcacion.sucursal')).toBeNull();
-  });
-});
-
 /**
  * El central declara `distanciaSucursalMetros: Int` en `MarcacionInput`
  * (`marcacion.graphqls`), pero el cálculo de Haversine devuelve un decimal.
@@ -186,8 +150,6 @@ describe('Elegir el tipo de salida', () => {
   let servicio: {
     estado: ReturnType<typeof vi.fn>;
     guardar: ReturnType<typeof vi.fn>;
-    guardarSucursal: ReturnType<typeof vi.fn>;
-    sucursalPersistida: () => null;
   };
   let guardado: MarcacionInput | undefined;
 
@@ -214,14 +176,26 @@ describe('Elegir el tipo de salida', () => {
     return f;
   };
 
+  /** Espera a que la detección de sucursal termine y repinta. */
+  const detectada = async (f: { detectChanges: () => void }) => {
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      f.detectChanges();
+    }
+  };
+
   const tocar = async (f: { nativeElement: HTMLElement; detectChanges: () => void }, etiqueta: string) => {
     const boton = Array.from(f.nativeElement.querySelectorAll<HTMLButtonElement>('[acciones] button')).find(
       (b) => (b.textContent ?? '').trim() === etiqueta,
     );
     expect(boton, `no existe el botón «${etiqueta}»`).toBeTruthy();
     boton!.click();
-    await new Promise((r) => setTimeout(r, 0));
-    f.detectChanges();
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      f.detectChanges();
+    }
   };
 
   beforeEach(() => {
@@ -233,8 +207,6 @@ describe('Elegir el tipo de salida', () => {
         guardado = input;
         return of({});
       }),
-      guardarSucursal: vi.fn(),
-      sucursalPersistida: () => null,
     };
 
     TestBed.configureTestingModule({
@@ -245,8 +217,22 @@ describe('Elegir el tipo de salida', () => {
         provideRouter([]),
         { provide: MarcacionService, useValue: servicio },
         {
+          // ⚠️ **Con `localizacion`.** Desde la issue #15 la sucursal se
+          // detecta por GPS: sin coordenadas no hay sucursal detectada y los
+          // botones de marcar quedan deshabilitados.
           provide: SucursalService,
-          useValue: { todas: () => of([{ id: 7, nombre: 'DEPOSITO AQUARIO', deposito: true, activo: true }]) },
+          useValue: {
+            todas: () =>
+              of([
+                {
+                  id: 7,
+                  nombre: 'DEPOSITO AQUARIO',
+                  deposito: true,
+                  activo: true,
+                  localizacion: '-25.5,-54.6',
+                },
+              ]),
+          },
         },
         {
           // Sin rostro cargado y sin avisos: lo que se prueba es qué flag viaja.
@@ -254,7 +240,8 @@ describe('Elegir el tipo de salida', () => {
           useValue: { abrir: () => Promise.resolve(null), confirmar: () => Promise.resolve(true) },
         },
         {
-          // Sucursal sin `localizacion`, así que no hay distancia ni aviso de lejanía.
+          // Parado sobre la sucursal: distancia cero, así que no hay aviso de
+          // lejanía y lo que se prueba es el flag de la salida.
           provide: GeoService,
           useValue: {
             posicionActual: () => Promise.resolve({ latitud: -25.5, longitud: -54.6, precision: 4, lecturas: 3 }),
@@ -274,6 +261,8 @@ describe('Elegir el tipo de salida', () => {
 
   it('«Marcar salida» cierra la jornada, no manda el almuerzo', async () => {
     const f = montar(conEleccion);
+    // Sin sucursal detectada el botón está deshabilitado: primero el GPS.
+    await detectada(f);
 
     await tocar(f, 'Marcar salida');
 
@@ -283,6 +272,7 @@ describe('Elegir el tipo de salida', () => {
 
   it('«Salir a almorzar» sí manda el flag', async () => {
     const f = montar(conEleccion);
+    await detectada(f);
 
     await tocar(f, 'Salir a almorzar');
 

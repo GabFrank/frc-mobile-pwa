@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   input,
+  linkedSignal,
   output,
   signal,
 } from '@angular/core';
@@ -54,8 +55,23 @@ export interface AccionProducto {
           [attr.aria-expanded]="abierta()"
           (click)="alternar()"
         >
+          <!--
+            La foto, como en frc-mobile: imagenPrincipal no es una URL sino un
+            data:image/jpg;base64,… que arma el central
+            (ImageService.fileToBase64). Va derecho al src —no hay pedido de
+            red que hacer— y por eso tampoco sirve loading="lazy": los bytes
+            ya llegaron con la consulta.
+
+            El ícono no es un placeholder mientras carga: es el estado real de
+            un producto sin foto cargada, que son la mayoría. El central
+            devuelve null en ese caso, no una imagen gris.
+          -->
           <span class="thumb">
-            <frc-icono nombre="producto" [tamano]="22" />
+            @if (imagen(); as foto) {
+              <img [src]="foto" alt="" decoding="async" (error)="fotoFallo.set(true)" />
+            } @else {
+              <frc-icono nombre="producto" [tamano]="22" />
+            }
           </span>
 
           <span class="datos">
@@ -183,6 +199,19 @@ export interface AccionProducto {
       place-items: center;
       color: var(--text-mute);
       flex-shrink: 0;
+      overflow: hidden;
+    }
+    /*
+      cover y no contain: las fotos vienen del celular, en cualquier relación
+      de aspecto, y contain deja franjas del fondo hundido que hacen ver la
+      fila desalineada. Recortar centrado es lo que hacía el ion-avatar del
+      repo anterior.
+    */
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
     .datos {
       flex: 1;
@@ -322,6 +351,34 @@ export class ProductoCardComponent {
   readonly accion = output<string>();
 
   readonly abierta = signal(false);
+
+  /**
+   * Una foto que el navegador no pudo decodificar deja de intentarse.
+   *
+   * Es `linkedSignal` y no `signal` porque `@for` reusa la instancia de la
+   * card cuando cambia la lista: sin reponer el valor al cambiar de producto,
+   * el primero con la foto rota apagaba la foto de todos los que ocuparan esa
+   * fila después.
+   */
+  readonly fotoFallo = linkedSignal<number | undefined, boolean>({
+    source: () => this.producto().id,
+    computation: () => false,
+  });
+
+  /**
+   * La foto del producto, o `null` para que se muestre el ícono.
+   *
+   * El central manda `null` cuando no hay archivo, pero se descarta también
+   * la cadena vacía: un `src=""` hace que el navegador vuelva a pedir la
+   * página actual como si fuera una imagen.
+   */
+  readonly imagen = computed(() => {
+    if (this.fotoFallo()) {
+      return null;
+    }
+    const foto = this.producto().imagenPrincipal?.trim();
+    return foto ? foto : null;
+  });
 
   readonly presentaciones = computed(() => this.producto().presentaciones ?? []);
   readonly stockLegible = computed(() => formatearCantidad(this.stock(), 0));

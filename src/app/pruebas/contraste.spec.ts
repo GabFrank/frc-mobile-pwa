@@ -99,6 +99,17 @@ describe.each([
     expect(contraste(t.onBrand, t.brand)).toBeGreaterThanOrEqual(AA);
   });
 
+  /*
+    `matButton="tonal"` pinta con `--danger-bg` de fondo y `--brand-text` de
+    etiqueta —el mismo par que `primary-container`—. No estaba cubierto
+    porque hasta ahora el puente de tokens no reasignaba
+    `--mat-sys-secondary-container`, así que Material generaba su propio
+    par ajeno a la marca.
+  */
+  it('el texto de marca sobre el relleno tonal del botón secundario', () => {
+    expect(contraste(t.brandText, t.dangerBg)).toBeGreaterThanOrEqual(AA);
+  });
+
   it('la marca como color de texto', () => {
     expect(contraste(t.brandText, t.surface)).toBeGreaterThanOrEqual(AA);
     expect(contraste(t.brandText, t.bg)).toBeGreaterThanOrEqual(AA);

@@ -41,29 +41,64 @@ export class Producto {
   // costo: CostoPorProducto
   isEnvase?: boolean;
   envase?: Producto;
+  activo?: boolean;
+  propagado?: boolean;
+  subfamilia?: {
+    id?: number;
+    nombre?: string;
+    familia?: { id?: number; nombre?: string };
+  };
 }
 
+/**
+ * Lo que acepta `saveProducto` del central.
+ *
+ * ⚠️ **Se manda SIEMPRE completo.** `saveProducto` no parchea: mapea el input
+ * a un `Producto` nuevo y lo guarda (`ProductoService.java:297-325`), así que
+ * todo campo ausente se persiste en `null`. Armalo con
+ * `construirProductoInput()`, nunca a mano.
+ *
+ * ⚠️ **`observacion` y `creadoEn` no están acá, cada uno por su propia razón:**
+ * - `observacion` no existe en `input ProductoInput` del central — no hay
+ *   forma de preservarlo desde ningún cliente.
+ * - `creadoEn` SÍ está en el schema (`productos.graphqls:62`, tipo `String`),
+ *   pero la entidad lo tiene como `LocalDateTime` sin `@PrePersist` ni
+ *   `@CreationTimestamp` (`Producto.java:96-97`). El central mapea con
+ *   `ModelMapper` en modo STRICT: un `String` no convertible tira excepción en
+ *   el guardado ENTERO, no solo en ese campo. Mandarlo sería arriesgar el save
+ *   completo para preservar una fecha — se decide no mandarlo nunca.
+ *
+ * `imagenes` sí está en esta clase, pero se manda siempre `null` a propósito:
+ * el central lo reescribe a la ruta literal `/productos`, que es lo que ya
+ * tienen las 8386 filas de `bodega` — no hay nada que preservar.
+ *
+ * Detalle completo, con los números de `bodega`, en `docs/TODO_TECNICO.md`
+ * hallazgo #66.
+ */
 export class ProductoInput {
-  id?: number;
-  descripcion?: string;
-  descripcionFactura?: string;
-  iva?: number;
-  unidadPorCaja?: number;
-  unidadPorCajaSecundaria?: number;
-  balanza?: boolean;
-  stock?: boolean;
-  garantia?: boolean;
-  tiempoGarantia?: boolean;
-  cambiable?: boolean;
-  ingredientes?: boolean;
-  combo?: boolean;
-  promocion?: boolean;
-  vencimiento?: boolean;
-  diasVencimiento?: number;
-  usuarioId?: number;
-  imagenes?: string;
-  tipoConservacion?: string;
-  subfamiliaId?: number;
-  isEnvase?: boolean;
-  envaseId?: number;
+  id?: number | null;
+  propagado?: boolean | null;
+  descripcion?: string | null;
+  descripcionFactura?: string | null;
+  iva?: number | null;
+  unidadPorCaja?: number | null;
+  unidadPorCajaSecundaria?: number | null;
+  balanza?: boolean | null;
+  garantia?: boolean | null;
+  tiempoGarantia?: number | null;
+  ingrediente?: boolean | null;
+  combo?: boolean | null;
+  stock?: boolean | null;
+  promocion?: boolean | null;
+  vencimiento?: boolean | null;
+  diasVencimiento?: number | null;
+  cambiable?: boolean | null;
+  usuarioId?: number | null;
+  imagenes?: string | null;
+  subfamiliaId?: number | null;
+  tipoConservacion?: string | null;
+  isEnvase?: boolean | null;
+  envaseId?: number | null;
+  activo?: boolean | null;
+  lote?: boolean | null;
 }

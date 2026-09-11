@@ -53,6 +53,22 @@ export interface Marcacion {
   esSalidaAlmuerzo?: boolean;
 }
 
+/**
+ * Cómo se identificó a la persona al registrar la marcación.
+ *
+ * Existe para poder evaluar el 1:N con datos y no con impresiones: cuando
+ * aparezca un caso raro, sin esto no hay forma de distinguir un falso
+ * positivo de un olvido. Ver `franco-system-backend-servidor#217`.
+ */
+export enum MetodoMarcacion {
+  /** Sin verificación facial: se marcó confirmando que iba igual. */
+  MANUAL = 'MANUAL',
+  /** 1:1 contra la galería del usuario en sesión, en su teléfono. */
+  FACIAL_1A1 = 'FACIAL_1A1',
+  /** 1:N en el kiosco compartido. Es la que puede marcar por otro. */
+  FACIAL_1AN_KIOSCO = 'FACIAL_1AN_KIOSCO',
+}
+
 export interface MarcacionInput {
   id?: number;
   sucursalId?: number;
@@ -76,6 +92,19 @@ export interface MarcacionInput {
   codigo?: string;
   /** Rostro. La PWA todavía no lo completa: ver `docs/modulos/marcacion.md`. */
   embedding?: number[];
+  /** Cómo se identificó a la persona. */
+  metodoRegistro?: MetodoMarcacion;
+  /**
+   * La similitud que informó **el central**, 0..1.
+   *
+   * ⚠️ **No se rellena con la calculada en el dispositivo.** Son medidas
+   * distintas —una contra la caché del central, otra contra la galería
+   * propia— y mezclarlas en la misma columna la vuelve inservible: nadie
+   * sabría después cuál está mirando. Vacía si el central no contestó.
+   */
+  similitudFacial?: number;
+  /** Cuánto le sacó al segundo candidato. Vacío si no hubo segundo. */
+  margenSegundoCandidato?: number;
   esSalidaAlmuerzo?: boolean;
 }
 

@@ -1,0 +1,35 @@
+org.gradle.jvmargs=-Xmx1536M --add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-exports=jdk.unsupported/sun.misc=ALL-UNNAMED
+
+--comando para actualizar
+ng build && npx cap sync && npx cap copy
+
+-- comando para iniciar la app enn un dispositivo externo
+ionic capacitor run android -l --external
+
+-- comando para abrir enn android studio
+npx cap open android
+
+-- reiniciar adb
+adb kill-server
+adb start-server
+-- cambiar de puerto tcpip
+adb forward tcp:5555 tcp:5555
+
+-- crear puente tcpip //con el dispositivo conectado
+/Users/gabfranck/Library/Android/sdk/platform-tools/adb kill-server
+/Users/gabfranck/Library/Android/sdk/platform-tools/adb start-server
+/Users/gabfranck/Library/Android/sdk/platform-tools/adb forward tcp:5555 tcp:5555
+/Users/gabfranck/Library/Android/sdk/platform-tools/adb tcpip 5555
+-- conectar con el ceulalar
+/Users/gabfranck/Library/Android/sdk/platform-tools/adb connect 192.168.1.102:40833
+
+
+keytool -genkey -v -keystore frc.jks -keyalg RSA -keysize 2048 -validity 10000 -alias frc
+
+{
+    "message": "Validation error of type FieldUndefined: Field 'usuarioId' in type 'Cliente' is undefined @ 'clientePorPersona/usuarioId'"
+}
+
+-- barcodescanner: change compile to implementation
+-- node_modules/phonegap-plugin-barcodescanner/src/android/barcodescanner.gradle
+-- implementation(name:'barcodescanner-release-2.1.5', ext:'aar')

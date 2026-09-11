@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rutearEscaneo } from './escaneo-ruteo';
+import { rutearEscaneo, transferenciaDelQr } from './escaneo-ruteo';
 
 /**
  * Arma un QR del sistema campo por campo.
@@ -22,6 +22,24 @@ function qr(
     '-',
   );
 }
+
+describe('transferenciaDelQr', () => {
+  // Es lo que habilita a tomar una transferencia ajena: si leyera el id de
+  // otro campo, el QR de una habilitaría otra.
+  it('devuelve el id del mismo campo del que lo lee rutearEscaneo', () => {
+    expect(transferenciaDelQr(qr('3', 'TRF', '88', '99'))).toBe(88);
+  });
+
+  it('otro tipo de QR no es el código de una transferencia', () => {
+    expect(transferenciaDelQr(qr('3', 'INV', '', '55'))).toBeNull();
+  });
+
+  it('sin id, o sin texto, no hay transferencia', () => {
+    expect(transferenciaDelQr(qr('3', 'TRF', '', ''))).toBeNull();
+    expect(transferenciaDelQr('7790001234567')).toBeNull();
+    expect(transferenciaDelQr(undefined)).toBeNull();
+  });
+});
 
 describe('rutearEscaneo', () => {
   describe('QR que abren un registro', () => {

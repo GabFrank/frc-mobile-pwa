@@ -13,7 +13,7 @@ import { MatInputModule } from '@angular/material/input';
 import { LoteService } from 'src/app/domains/lote/lote.service';
 import { ESTADO_LOTE_TEXTO, EstadoLote, type LoteDeProducto } from 'src/app/domains/lote/lote.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
-import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
@@ -248,8 +248,15 @@ export class BuscadorLoteDialogComponent {
     return fechaLegible(fecha, { conHora: false }) ?? fecha;
   }
 
+  /**
+   * El saldo del lote, en unidades base.
+   *
+   * Sin decimales fijos: el saldo llega como `Float` aunque el producto se
+   * cuente por unidad, y `24,00` se lee como si hubiera una fracción. Si viene
+   * fraccionado se muestra así — ver `formatearExistencia`.
+   */
   formatear(saldo: number | undefined): string {
-    return formatearCantidad(saldo ?? 0, 2);
+    return formatearExistencia(saldo ?? 0);
   }
 
   textoEstado(estado: EstadoLote): string {

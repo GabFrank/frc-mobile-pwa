@@ -47,6 +47,21 @@ Confundirlos produce exactamente dos síntomas: botones desteñidos, o íconos q
 
 Fuera de eso, no. Las cards por módulo, los formularios por entidad y los layouts de pantalla se resuelven con lo que ya existe.
 
+## Variantes de botón
+
+Cuatro variantes, cada una con un rol fijo — no es cuestión de gusto:
+
+| Variante | Uso | Ejemplos reales en el repo |
+|---|---|---|
+| `filled` | La acción principal de la pantalla | «Guardar solicitud», «Nueva solicitud», «Escanear» cuando es la única acción de una pantalla vacía |
+| `tonal` | Acción secundaria dentro de un formulario: abre un buscador, agrega una fila, dispara una búsqueda | «Elegir tipo de gasto», «Elegir beneficiario», «Agregar detalle», «Buscar», «Agregar nota», «Escanear producto», «Agregar» (verificación) |
+| `outlined` | Una acción secundaria que igual necesita destacarse: reintentar, cargar más, cerrar sesión | «Reintentar», «Cargar más», «Cerrar sesión» |
+| texto (sin variante) | Cancelar/cerrar un diálogo, o navegación terciaria | «Cancelar» (en todos los diálogos de confirmación), «Ver detalle», «Escanear solicitud» (desde una lista) |
+
+⚠️ **`outlined` no es "Cancelar".** Los ~20 diálogos del repo cierran con `matButton` sin variante ("Cancelar" en texto plano); `outlined` se usa para acciones que sí necesitan visibilidad pero no son la principal (reintentar, cargar más, cerrar sesión). Confundirlos le da a un simple "cerrar el diálogo" un peso visual que no le corresponde.
+
+`--mat-sys-secondary-container`/`on-secondary-container` (el par que pinta `tonal`) están reasignados en el puente de `src/styles.scss`, igual que `primary-container`: sin eso, Material genera su propio rojo desde `mat.$red-palette`, ajeno a la marca.
+
 ## Catálogo
 
 Todo se exporta desde `src/app/shared/index.ts`.

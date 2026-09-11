@@ -166,6 +166,41 @@ Lo que se carga solo para Safari va en un **chunk aparte**: el peso no lo paga A
 
 > ⚠️ Ya pasó una vez: el escáner se escribió sin fallback «porque hoy no hay iOS». Eso invierte el orden — el soporte de iOS es el requisito, no una consecuencia de tener usuarios de iOS.
 
+### 8 · Una issue que se resuelve se cierra
+
+**Resolver una issue incluye cerrarla.** Mientras siga abierta, para cualquiera
+que mire el tablero el problema sigue vivo: se vuelve a reportar, se vuelve a
+diagnosticar y se vuelve a discutir algo que ya está hecho.
+
+**El `Closes #<n>` va en el cuerpo del PR** —`Closes GabFrank/<repo>#<n>` si la
+issue es de otro repositorio—, así queda enlazado **qué commit** la resolvió.
+Un PR que cierra varias issues las lista todas.
+
+⚠️ **Una rama puede acumular varias issues.** Cuando un tema se ataca de a
+varias —marcación, por ejemplo—, se trabaja todo en una rama y va **un solo
+PR** al final. En ese caso la issue **se cierra a mano al terminarla**, sin
+esperar al merge, y su comentario de cierre dice en qué rama quedó el trabajo.
+El PR igual lleva el `Closes` de todas: no cambia nada que ya estén cerradas, y
+deja el enlace al commit.
+
+Antes de cerrar, dos cosas:
+
+1. **Los criterios de aceptación de la issue, tildados uno por uno.** Si alguno
+   quedó afuera, no se cierra: se dice cuál y por qué, o se abre la issue que
+   lo cubre y se enlaza.
+2. **Un comentario de cierre** que diga qué se hizo, qué quedó sin verificar y
+   cuál es el bloque del plan de testeo manual que lo prueba — la regla 4.1 no
+   se salda con el merge.
+
+⚠️ **Si la solución necesita las dos mitades**, la issue de la PWA no se cierra
+hasta que el central esté publicado — ni siquiera a mano. Cerrarla antes afirma
+que el usuario tiene el arreglo, y contra un central viejo no lo tiene.
+
+**Una issue no se cierra por vieja, por dudosa ni por ordenar el tablero.** Se
+cierra porque está resuelta, o con un comentario que explique por qué se
+descarta. Cerrar sin decir nada borra el problema del tablero pero no de la
+app.
+
 ## Estructura
 
 ```
@@ -193,7 +228,43 @@ Sumado en la segunda tanda de paridad: **revisión del supervisor** y **control 
 
 Sumado en la tercera: **abrir una toma de inventario** (`/inventario/nuevo`, con rol `CREAR INVENTARIO` y el chequeo de toma abierta que `frc-mobile` tiene escrito y nunca ejecuta), **agregar zonas a la toma** desde el detalle —creando la zona y su sector al paso si faltan—, y **sumar un producto al conteo** con el buscador de siempre: descripción, código, cámara y códigos de balanza. El **vencimiento viene sugerido** de lo que el central conoce —compra, transferencia o el último inventario, con el ranking que ya resuelve `productosVencidos`—, y el detalle **avisa si hay transferencias sin recibir** en esa sucursal, que es lo que produce diferencias que no son diferencias. Con eso el ciclo entero —abrir, definir el alcance, contar, finalizar— ocurre en el teléfono.
 
-Pendiente: de **caja chica**, el **alta** de la solicitud —es el formulario más grande que queda: tipo de gasto, activo imputado con su buscador paginado, beneficiario y detalle financiero—; de **inventario**, arrastrar el conteo de una toma anterior; de **producto**, la edición y el alta con rol `NUEVO-PRODUCTO`; y el **transporte WebSocket** para suscripciones.
+Sumado en la cuarta: **crear una transferencia** (`/transferencias/nueva`, con rol `CREAR TRANSFERENCIA` — el que `frc-mobile` declara y nunca usa) y **cargarle los productos** en `/transferencias/:id/borrador`, con el buscador mostrando **las dos existencias**, la de origen y la de destino, que es el modo que el componente ya soportaba y no usaba nadie. El borrador vive en el central desde el primer paso —el input de la cabecera no acepta ítems anidados— y cada ítem se guarda al agregarlo, así que una carga de cuarenta renglones no se pierde si el service worker se actualiza en el medio. Con eso el documento **nace** en el teléfono y sigue por las etapas que ya estaban. Sumado después: **de qué lote sale cada renglón**, elegido a mano al cargarlo, con el saldo por lote que el central convierte a la presentación con la que carga el operador. Es opcional —sin elegir, el desglose sigue saliendo por FEFO, que es lo que hicieron siempre todos los clientes— y **no necesita promover el central**: `lotesAsignados` está desde `v4.7.0-beta.2` y `v4.8.0`, así que farmacia y bodega ya lo tienen.
+
+Sumado en la quinta: de **caja chica**, el **alta** de la solicitud
+(`/operaciones/gastos/nueva`, sin guard de rol) — el formulario más grande
+del módulo: responsable de solo lectura, beneficiario, tipo de gasto, activo
+imputado con su buscador paginado y la tarjeta de resumen financiero,
+detalle financiero multi-moneda y los datos del retiro. Con esto,
+`frc-buscador` en modo **paginado** tiene su primer consumidor real fuera de
+la galería del sistema de diseño, y sus primeros tests — antes un fallo de
+red en ese modo se presentaba igual que «Sin resultados».
+
+Sumado en la sexta: de **producto**, la **edición** (`/producto/:id/editar`,
+rol `EDITAR PRODUCTOS`) — un hub con una fila por sección (datos generales,
+familia/subfamilia, presentaciones, códigos y precios), cada una con su
+propia pantalla que guarda al confirmar. **Códigos y precios cuelgan de la
+presentación**, no del producto, así que se editan desde ahí; la sección de
+**precios** pide además `EDITAR PRECIOS`, con su propio guard de ruta, y solo
+escribe en la sucursal de la sesión. La regla que gobierna todo el módulo:
+`saveProducto` **reemplaza el registro entero**, no lo parchea
+(`ProductoService.java:297-325`), así que la pantalla siempre manda un
+`ProductoInput` completo —hidratado y con solo los campos tocados
+cambiados— aunque el formulario visible edite un subconjunto; sin eso,
+corregir una descripción apagaría en silencio el control de vencimiento y
+lote del producto, con la mutation respondiendo OK. Ver
+[`docs/modulos/producto.md`](docs/modulos/producto.md), sección «La edición».
+**Es la primera entrega de este repo que no depende de promover el
+central** — todas las mutations y queries ya existían en el schema.
+
+Sumado en la séptima: de **producto**, el **alta** (`/producto/nuevo`, rol
+`EDITAR PRODUCTOS`) — pide solo descripción, familia y subfamilia, y manda al
+hub de la edición para el resto. **Nace inactivo** y se activa recién cuando
+tiene una presentación con código y precio: un alta abandonada deja un producto
+invisible, no uno roto que la caja no puede cobrar. Con esto **crear un producto
+dejó de ser del escritorio**, y el issue #10 de paridad queda cerrado salvo el
+transporte WebSocket.
+
+Pendiente: de **inventario**, arrastrar el conteo de una toma anterior; y el **transporte WebSocket** para suscripciones. De **producto** ya no queda nada: la edición y el alta están.
 
 La lista operativa de esto, escrita para que nadie lo reporte como falla durante una prueba, está en «Qué no está implementado todavía» de [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
@@ -215,7 +286,9 @@ Al 2026-08-15, farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna de la
 
 ⚠️ **La solicitud de pago exige un central con la migración `V194.5`.** Al crearla, la pantalla la envía a la cola de pagos con el estado `SOLICITADO`; contra un central que no lo tenga, ese paso falla y la solicitud queda como borrador —que es justamente el documento que nadie ve—. Antes de publicar hay que confirmar que la instancia de destino tiene la migración **y** que el flujo `PENDIENTE → SOLICITADO` está liberado en el central, no solo en el árbol de trabajo de alguien.
 
-Verificación: **812 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+Verificación: **96 archivos de test, 1.182 tests**, cero errores de tipos, AOT en verde, y pasadas manuales contra el central real (ver el estado de ejecución en el plan de testeo).
+
+⚠️ **La marcación con rostro necesita un central con `V216.5` y las filiales con `V91.5`.** Desde el kiosco 1:N y desde la marcación personal viajan `metodoRegistro`, `similitudFacial` y `margenSegundoCandidato`; contra un central que no los conozca **la mutation falla entera y no se registra ninguna marcación**, no solo los campos nuevos. **El orden es filial → central → PWA**: `administrativo.marcacion` se replica en las dos direcciones y la replicación lógica no propaga DDL, así que una columna que exista solo en el central deja al apply worker de la filial en crash-loop y corta la bajada central→filial. Es el mismo modo de falla del incidente del enum `tipo_dispositivo`. Ver [`docs/modulos/marcacion.md`](docs/modulos/marcacion.md).
 
 ⚠️ **`cantidad` es lo contado y `cantidadFisica` lo que dice el sistema**, al revés de lo que sugieren los nombres y de lo que `docs/modulos/inventario.md` afirmó hasta ahora. Lo fija `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La app las tuvo al derecho y la consecuencia era muda: lo contado desde el teléfono no entraba en el ajuste de stock. Corregido con test; ver el hallazgo #60 de [`docs/TODO_TECNICO.md`](docs/TODO_TECNICO.md).
 
@@ -236,3 +309,4 @@ Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.
 7. Escribir un token `--mdc-*`: Material 21 renombró toda esa familia a `--mat-*` y los nombres viejos **fallan en silencio** — la regla se aplica, la variable queda definida y el componente sigue con su valor por defecto. Hay un test que lo impide
 8. Escribir un backtick dentro de `template:` o `styles:` de un componente: rompe el literal y el error que sale no señala la causa
 9. Dejar una capacidad de dispositivo sin camino en Safari «porque hoy no hay iOS» — ver la regla 7
+10. Dar por resuelta una issue y dejarla abierta — ver la regla 8

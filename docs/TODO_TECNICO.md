@@ -2,9 +2,9 @@
 
 > ⚠️ **Este archivo cataloga los defectos de `frc-mobile`**, el repo anterior. Se conserva como memoria de qué NO repetir.
 >
-> **Ya resueltos en `frc-mobile-pwa`** (no hay que volver a hacerlos): **#1** fecha por defecto de `porFecha` · **#2** observables que no completaban ni propagaban errores · **#3** update forzado (desaparece con el service worker) · **#4** la cadena `"null"` en `localStorage` · **#7** módulos lazy y eager a la vez · **#9** roles con strings inline · **#11** `descodificarQr` sin validar · **#12** `comparatorLike` sin escapar el regex · **#16-19** código muerto y archivos `" copy"` (no se portaron) · **#24** `errorLink` vacío · **#26** `totalRs` sin tipo · **#34** typos `delele`/`toInpuList`/`ZonaesSearchGQL` · **#32** `SolicitudPago.pago` tipado `any` · **#38** `pais.model.ts` vacío · **#46** carpeta `venta/` vacía · **#48** `pages/financiero` y `pages/general` movidos a `domains/` · **#56** dos sets de íconos.
+> **Ya resueltos en `frc-mobile-pwa`** (no hay que volver a hacerlos): **#1** fecha por defecto de `porFecha` · **#2** observables que no completaban ni propagaban errores · **#3** update forzado (desaparece con el service worker) · **#4** la cadena `"null"` en `localStorage` · **#5** `ProductoInput.tiempoGarantia` tipado `boolean` · **#7** módulos lazy y eager a la vez · **#9** roles con strings inline · **#11** `descodificarQr` sin validar · **#12** `comparatorLike` sin escapar el regex · **#16-19** código muerto y archivos `" copy"` (no se portaron) · **#24** `errorLink` vacío · **#26** `totalRs` sin tipo · **#34** typos `delele`/`toInpuList`/`ZonaesSearchGQL` · **#32** `SolicitudPago.pago` tipado `any` · **#38** `pais.model.ts` vacío · **#46** carpeta `venta/` vacía · **#48** `pages/financiero` y `pages/general` movidos a `domains/` · **#56** dos sets de íconos.
 >
-> **Siguen abiertos y aplican al repo nuevo:** **#5** `ProductoInput.tiempoGarantia` tipado `boolean` · **#6** `toInput()` que pierde campos · **#8** lectura de `Preferences` (ya no aplica: no hay Capacitor) · **#13** lint y tests (resuelto: vitest corre) · **#25** campos comentados en `Producto` · **#40** `RrhhMobileService` sin tipos · **#41** guard de aprobaciones RRHH · **#52** modelos faciales desde CDN · **#53** credenciales de terceros en el código.
+> **Siguen abiertos y aplican al repo nuevo:** **#6** `toInput()` que pierde campos · **#8** lectura de `Preferences` (ya no aplica: no hay Capacitor) · **#13** lint y tests (resuelto: vitest corre) · **#25** campos comentados en `Producto` · **#40** `RrhhMobileService` sin tipos · **#41** guard de aprobaciones RRHH · **#52** modelos faciales desde CDN · **#53** credenciales de terceros en el código.
 >
 > **Además**, la revisión con agentes del repo nuevo encontró 14 defectos propios, ya corregidos. Ver el commit `fix: corregir los 14 hallazgos de la revision con agentes`.
 
@@ -87,13 +87,13 @@ Todo lector debe comparar contra `null` **y** contra `'null'`. El mismo patrón 
 
 ## 🟡 Media
 
-### 5. `ProductoInput.tiempoGarantia` tipado como `boolean`
+### 5. ✅ `ProductoInput.tiempoGarantia` tipado como `boolean`
 
 **Dónde:** `src/app/domains/productos/producto.model.ts`
 
-`Producto.tiempoGarantia` es `number` (días de garantía) pero `ProductoInput.tiempoGarantia` está declarado `boolean`. TypeScript no ayuda a detectar el error en el punto de uso.
+`Producto.tiempoGarantia` es `number` (días de garantía) pero `ProductoInput.tiempoGarantia` estaba declarado `boolean`. TypeScript no ayudaba a detectar el error en el punto de uso.
 
-**Fix propuesto:** cambiar a `number`. Verificar antes qué manda hoy el formulario de producto.
+**Estado:** corregido. `ProductoInput` se reescribió entero para la edición de producto (Task 2 del plan `2026-09-04-edicion-producto`): `tiempoGarantia` ahora es `number | null`, junto con el resto de los campos.
 
 ---
 
@@ -806,10 +806,36 @@ Del lado del cliente, la confirmación de *Finalizar* ahora dice cuántos ítems
 
 ---
 
+### 66. 🟢 `saveProducto`/`saveCodigo`/`savePresentacion` reemplazan y pierden `creadoEn` — `observacion` e `imagenes` de `ProductoInput` es a propósito
+
+**Dónde:** `src/app/domains/productos/producto.model.ts` (`ProductoInput`), `productos.graphqls` en el central; `ProductoService.java:297-325`, `CodigoService.java:93-115` y el equivalente de `Presentacion`.
+
+Tres campos que `saveProducto` puede tocar y que `construirProductoInput()` no hidrata, cada uno por una razón distinta:
+
+- **`observacion`**: no existe en absoluto en `input ProductoInput` del schema del central. No hay forma de preservarlo desde ningún cliente — le pasa igual al escritorio.
+- **`creadoEn`**: sí está declarado (`productos.graphqls:62`, `creadoEn: String`), pero la entidad lo tiene como `LocalDateTime` (`Producto.java:96-97`) y no hay `@PrePersist` ni `@CreationTimestamp` que lo complete solo. El central corre `ModelMapper` en modo **STRICT**: si se le manda un `String` no convertible a `LocalDateTime`, tira excepción **en el guardado entero**, no solo en ese campo — sería peor que perder la fecha de alta, sería no poder guardar el producto. Por eso se decide no mandarlo nunca desde acá.
+- **`imagenes`**: se manda `null` a propósito. El central reescribe `null` a la ruta literal `/productos`, y las **8386** filas de `bodega` ya tienen exactamente ese valor — no hay nada que preservar.
+
+**Evidencia de la pérdida ya existente:** al 2026-09-04, **8086 de 8386** productos de `bodega` ya tienen `creado_en` en `NULL`, escrito así por el escritorio (que llama la misma mutation sin este campo). No es una regresión que introduzca este módulo.
+
+**El mismo defecto se extiende a `saveCodigo` y `savePresentacion` — mismo patrón de reemplazo, mismo campo perdido.** `CodigoService.java:93-115` mapea el input a una entidad `Codigo` nueva igual que `ProductoService`, y la presentación sigue el mismo esquema. `creado_en` ya está en `NULL` en la base, escrito así antes de que existiera esta app:
+
+| Tabla | Filas con `creado_en` NULL | Total |
+|---|---|---|
+| `productos.producto` | 8.086 | 8.386 |
+| `productos.codigo` | 9.798 | 10.148 |
+| `productos.presentacion` | 1.232 | 10.732 |
+
+Verificado el 2026-09-04 contra `bodega`. Es deuda preexistente, escrita por el escritorio; ningún cliente puede completarla mientras el central no lo resuelva.
+
+**Fix propuesto:** pertenece al central — agregar `@CreationTimestamp` (o completar `creadoEn` en el `@PrePersist`) a `Producto`, `Codigo` y `Presentacion`, para que deje de depender de que algún cliente lo mande a mano, y agregar `observacion` al input de `Producto` si alguna vez hace falta preservarlo desde afuera del escritorio.
+
+---
+
 ## Cómo usar este archivo
 
 Al arrancar la fase de corrección: convertir cada ítem en un issue, empezando por los 🔴. Los ítems 16-19, 46-48 y 50-51 son borrado o movimiento puro y pueden agruparse en un solo PR de limpieza — pero el 17 toca `capacitor.config.ts` y por lo tanto exige release nativo, y el 47 requiere actualizar un import.
 
 Los ítems 34-36 son cosméticos **con riesgo de contrato**: antes de renombrar cualquier cosa que viaje al backend, verificá el schema del central.
 
-**Resumen:** 65 hallazgos — 6 🔴, 27 🟡, 28 🟢, 3 ✅. El #60 y el #62 son deuda **de este repo**; el #63 era del **central** y ya está corregido allá.
+**Resumen:** 66 hallazgos — 6 🔴, 26 🟡, 29 🟢, 4 ✅ (agrega #66; #5 pasó de 🟡 a ✅). El #60 y el #62 son deuda **de este repo**; el #63 era del **central** y ya está corregido allá.

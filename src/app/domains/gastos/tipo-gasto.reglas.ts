@@ -91,6 +91,15 @@ export function esModuloPadreConCuotasActivo(modulo?: string | null): boolean {
  * El orden importa: un `esPagoCuotaActivo` explícito **manda sobre la
  * naturaleza**, porque es una decisión que alguien ya tomó para esa
  * solicitud.
+ *
+ * ⚠️ **Todavía no tiene consumidor fuera de sus propios tests.** La tarjeta
+ * de resumen del alta usa `vistaResumen().mostrarCuotas`
+ * (`ente-financiero.reglas.ts`), que sale de `cuotasTotales > 0` — un
+ * criterio distinto. Esta función es la regla de dominio portada tal como
+ * la tiene el backend, correcta y necesaria, pero para el **pago** de una
+ * cuota de un activo, que está fuera del alcance de `alta-solicitud-caja-chica`.
+ * Se conserva con sus tests a la espera de ese módulo; no la borres por no
+ * tener quién la llame todavía.
  */
 export function mostrarCuotasActivo(
   modulo?: string | null,

@@ -61,6 +61,17 @@ describe('Permisos y guard de rol', () => {
       expect(entrarCon([ROLES.ADMIN], 'recepcion')).toBe(true);
     });
 
+    /**
+     * ⚠️ **Ver transferencias y crear una son permisos distintos.** `VER
+     * TRANSFERENCIA` lo tienen 257 usuarios: con ese solo rol se mira el
+     * movimiento de mercadería, no se origina uno.
+     */
+    it('ver transferencias no alcanza para crear una', () => {
+      expect(entrarCon([ROLES.VER_TRANSFERENCIA], 'transferencias')).toBe(true);
+      expect(entrarCon([ROLES.VER_TRANSFERENCIA], 'transferenciasAlta')).not.toBe(true);
+      expect(entrarCon([ROLES.CREAR_TRANSFERENCIA], 'transferenciasAlta')).toBe(true);
+    });
+
     it('rebota a Inicio a quien no lo tiene', () => {
       const resultado = entrarCon([ROLES.VENTA_TOUCH], 'inventario');
 

@@ -1,0 +1,39 @@
+# Caché en el borde de Cloudflare Pages.
+#
+# La regla que importa: `index.html`, `ngsw.json` y `ngsw-worker.js` **no
+# llevan hash en el nombre**. Si el CDN los cachea, el service worker sigue
+# viendo el manifiesto viejo y la actualización llega tarde o, peor, mezclada
+# —chunks nuevos contra un manifiesto viejo—. Ese fallo se ve en el teléfono
+# como "la app no se actualiza nunca", que ya costó una sesión entera de
+# testeo antes. Ver docs/arquitectura/actualizaciones-app.md.
+#
+# Los chunks sí llevan hash (`outputHashing: all`), así que ahí `immutable`
+# es correcto y gratis: un nombre nuevo por cada contenido nuevo.
+
+/index.html
+  Cache-Control: no-cache
+
+/ngsw.json
+  Cache-Control: no-cache
+
+/ngsw-worker.js
+  Cache-Control: no-cache
+
+/safety-worker.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+# Los modelos de reconocimiento facial se copian desde node_modules en cada
+# build y no llevan hash, pero cambian solo cuando cambia la versión de
+# @vladmandic/human. Una semana es un equilibrio razonable: no se rebajan en
+# cada visita y una actualización de la librería se propaga sin intervención.
+/face-models/*
+  Cache-Control: public, max-age=604800

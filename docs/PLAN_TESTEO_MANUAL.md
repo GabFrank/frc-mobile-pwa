@@ -1210,8 +1210,9 @@ en mayúsculas con guion bajo ni vacía.
 
 ## Bloque 17 — Caja chica *(nuevo)*
 
-> Las solicitudes se crean hoy desde el desktop: la PWA todavía no las da de
-> alta. Para probar hace falta al menos una solicitud existente.
+> El alta de la solicitud está en el bloque 53
+> (`/operaciones/gastos/nueva`). Para los casos de acá alcanza con al menos
+> una solicitud existente, creada desde ahí o desde el desktop.
 
 ### 17.1 · Lista
 1. Operaciones → **Caja chica**
@@ -1249,8 +1250,8 @@ rendición, aparece su propio estado aparte del estado de la solicitud.
 
 ## Bloque 18 — Transferencias *(nuevo)*
 
-> Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes: la PWA
-> todavía no las crea.
+> Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes. Crear
+> una es el bloque 51, y pide además `CREAR TRANSFERENCIA`.
 
 ### 18.1 · Los tres puntos de vista
 1. Inicio → **Transferencias**
@@ -2670,12 +2671,13 @@ Para que no se reporte como falla:
 
 | Área | Estado |
 |---|---|
-| Operaciones | De caja chica, **el alta** de la solicitud. La rendición ya está (bloque 28) |
 | Pagos | El **pago** en sí: alta, cuotas y autorización son del sistema de escritorio. Acá solo se lee el pago de una solicitud |
 | Solicitud de pago: editar, reabrir, cancelar y borrar | No portados. Crear, enviar a pagos y consultar sí. Reabrir —volver de Solicitado a borrador— y editar son del escritorio |
 | Inventario: agregar un producto que la toma no incluye | No portado. Abrir la toma (bloque 39), agregarle zonas (bloque 40), contar (bloque 29), revisar (35) y finalizar sí. Sumar a una zona una presentación que no está necesita el buscador paginado y el alta de ítem |
 | Histórico de recepción | **No hace falta**: la lista de recepciones de la PWA ya usa la misma consulta que el histórico del Android (`delUsuario`), paginada y con todos los estados |
-| Producto: **edición y alta** | No portados. Detalle, modo kiosco y vencidos ya están (bloques 25 a 27) |
+| Transferencias: **elegir el lote en la preparación** | No portado. Elegir el lote al **cargar** el producto sí (bloque 52). El escritorio deja reasignarlo también mientras se prepara la mercadería (`etapaAsignacionLote: PREPARACION`); acá esa etapa sigue resolviéndose por FEFO o por lo que se eligió al cargar |
+| Transferencias: **repartir un renglón entre varios lotes** | No portado, y el escritorio tampoco lo hace. El central lo acepta; acá se carga el producto dos veces |
+| Producto: **alta** | No portada. Detalle, modo kiosco, vencidos y **edición** ya están (bloques 25 a 27 y 56) |
 | Kiosco: selector de moneda | No portado **a propósito**: `frc-mobile` convertía multiplicando en el cliente, y acá el dinero lo calcula el backend. Necesita que el central mande el precio convertido |
 | Recibir push (FCM) | No portado — la bandeja sí |
 | Aprobar vales desde la bandeja | El mobile nunca tuvo la mutation |
@@ -4294,11 +4296,11 @@ bloque.
 
 | Etapa | Botón | Quién |
 |---|---|---|
-| Pendiente en origen | Preparar productos | cualquiera en origen |
+| Pendiente en origen | Preparar productos | quien la pidió, o quien recibió su QR (bloque 64) |
 | Preparando mercadería | Concluir preparación | quien la tomó |
-| Preparación concluida | Verificar para transporte | el transportista |
+| Preparación concluida | Verificar para transporte | el transportista, con el QR de quien preparó |
 | Verificando para transporte | Concluir y despachar | quien la tomó |
-| En camino | Iniciar recepción | quien recibe |
+| En camino | Iniciar recepción | quien recibe, con el QR del transportista |
 | Verificando recepción | Concluir recepción | quien la tomó |
 
 ### 49.1 · La pantalla dice en qué etapa está y qué sigue
@@ -4441,6 +4443,1622 @@ primero que se necesita saber.
 
 ---
 
+## Bloque 50 — Mayúsculas en login y búsqueda de producto *(nuevo)* — **4/7 y dos parciales** (Franco + Claude en Chrome; alpha y central local, 2026-09-03)
+
+**Por qué está acá:** `frc-mobile` mostraba en mayúsculas lo que se escribía en
+el login y en el buscador de productos (`text-transform: uppercase` sobre el
+`ion-input`), y la PWA no lo había portado. Es paridad, no una idea nueva.
+
+**Qué es y qué no es:** es **presentación**. El valor que viaja al central
+conserva lo que se tipeó — la app no transforma nada. Que dé igual lo decide el
+backend: el usuario se resuelve con `findByNicknameIgnoreCase`, la contraseña se
+compara con `toUpperCase()` de los dos lados, y la búsqueda de productos filtra
+con `UPPER(...) like UPPER(...)`.
+
+### 50.1 · El usuario se ve en mayúsculas — ✅ PASÓ
+1. Abrir el login (si hay sesión, cerrarla).
+2. Escribir el usuario en minúsculas.
+
+**Esperado:** se ve en **MAYÚSCULAS** mientras se escribe. Entrar funciona
+igual, sin importar cómo se tipeó.
+
+### 50.2 · La contraseña también, con el ojo abierto — ✅ PASÓ
+1. En el login, escribir la contraseña.
+2. Tocar el ojo para mostrarla.
+
+**Esperado:** con el ojo cerrado se ven los puntos de siempre; al abrirlo, el
+texto aparece en mayúsculas. El login entra igual.
+
+### 50.3 · Con usuario recordado — ✅ PASÓ
+1. Entrar con «Recordar usuario» activo, salir y volver al login.
+
+**Esperado:** el usuario precargado también se ve en mayúsculas, y el foco
+sigue arrancando en la contraseña.
+
+### 50.4 · El buscador de productos — ✅ PASÓ
+1. Pestaña **Buscar** → escribir parte de una descripción en minúsculas.
+
+**Esperado:** el campo se ve en mayúsculas y los resultados son los mismos que
+antes del cambio.
+
+### 50.5 · El código escaneado y el de balanza — sin probar
+1. En **Buscar**, tocar el ícono y escanear un código de barras.
+2. Repetir con una etiqueta de balanza.
+
+**Esperado:** el código cargado en el campo se ve en mayúsculas, el producto
+aparece y el bloque de producto pesado sigue calculando igual.
+
+### 50.6 · El mismo buscador en las otras pantallas — parcial: ✅ inventario y devolución; transferencias sin probar
+
+Verificado desde el conteo de inventario («algilem» → `ALGILEM`) y desde
+**Nueva devolución** («banes forte» → `BANES FORTE`). En **transferencias** el
+buscador solo aparece dentro de la etapa de preparación: llegar hasta él exige
+avanzar de etapa una transferencia real, así que no se probó.
+1. Abrir el buscador de producto desde devolución, desde el conteo de
+   inventario y desde transferencias.
+
+**Esperado:** en las tres se ve en mayúsculas — es el mismo componente
+compartido, no tres campos distintos.
+
+### 50.7 · Tema oscuro y tema claro — parcial: ✅ el buscador; el login sin probar
+
+Verificado en la pestaña **Buscar** contra el central local, con los dos temas:
+en claro «mandioca» → `MANDIOCA`, en oscuro «costilla» → `COSTILLA`, legible en
+los dos. El **login** no se probó: verlo exige cerrar la sesión.
+1. Repetir 50.1 y 50.4 con cada tema.
+
+**Esperado:** solo cambia el color; el texto sigue en mayúsculas y legible.
+
+
+---
+
+## Bloque 51 — Crear una transferencia y cargarle productos *(nuevo, sin probar)*
+
+**Por qué está acá:** cierra el ciclo. Hasta ahora la PWA leía y movía
+transferencias que había creado la APK; con esto el documento **nace** en el
+teléfono.
+
+**Necesita:** el rol **`CREAR TRANSFERENCIA`** (además de `VER TRANSFERENCIA`
+para la lista), y dos sucursales con depósito.
+
+> ⚠️ **Confirmá primero cuánta gente tiene el rol.** Si en la base no lo tiene
+> nadie, el botón «Nueva transferencia» solo lo van a ver los ADMIN. El arreglo
+> es **asignar el rol**, no sacar el guard.
+
+⚠️ **Este bloque no mueve stock.** Crear y cargar no descuentan nada: el
+descuento ocurre al despachar (bloque 49). Lo que sí deja es un documento
+`ABIERTA` en la lista si se abandona a la mitad.
+
+### 51.1 · El botón aparece según el rol
+1. Entrar a **Transferencias** con un usuario que tenga solo `VER
+   TRANSFERENCIA`.
+2. Repetir con uno que tenga `CREAR TRANSFERENCIA`.
+
+**Esperado:** el botón **Nueva transferencia** al pie solo con el segundo.
+Escribiendo `/transferencias/nueva` a mano, el primero rebota a Inicio.
+
+### 51.2 · Solo sucursales que mueven stock
+1. Tocar **Nueva transferencia** y abrir los dos selectores.
+
+**Esperado:** no aparecen `SERVIDOR` ni `COMPRAS` —no tienen depósito—, y el
+origen arranca en la sucursal de tu sesión.
+
+### 51.3 · El destino no puede ser el origen
+1. Elegir un destino.
+2. Cambiar el **origen** a esa misma sucursal.
+
+**Esperado:** la sucursal elegida como origen desaparece de la lista de
+destinos, y el destino queda en blanco. El botón de crear se apaga hasta que
+elijas otro.
+
+### 51.4 · Crear el borrador
+1. Con origen y destino elegidos, tocar **Crear y cargar productos**.
+
+**Esperado:** se abre la pantalla de carga con `#número`, «Sale de» y «Llega
+a», y **Responsable** con tu nombre. ⚠️ Tocar «atrás» vuelve a la lista, **no**
+crea una segunda transferencia.
+
+### 51.5 · El borrador queda en la lista y se retoma
+1. Volver a la lista y buscar la transferencia recién creada.
+2. Tocarla.
+
+**Esperado:** figura como **Abierta / En creación**, y al tocarla se abre otra
+vez la pantalla de carga —no el detalle de etapas, que no tendría nada que
+ofrecer.
+
+### 51.6 · Agregar un producto, con los dos stocks a la vista
+1. Tocar **Agregar producto** y buscar uno por descripción.
+2. Expandir la card.
+
+**Esperado:** la card muestra **dos existencias**: `Origen` y `Destino`. Es lo
+que evita mandar mercadería a una sucursal que ya la tiene.
+
+### 51.7 · Cantidad, vencimiento y observación
+1. Elegir una presentación.
+2. Cargar cantidad 2, un vencimiento y una observación.
+
+**Esperado:** el diálogo dice la presentación («Cantidad: 12 (Caja)») y, si se
+pudo consultar, cuántas unidades hay en origen. Al aceptar, el renglón aparece
+en la lista con su presentación y la observación abajo.
+
+### 51.8 · El aviso de stock avisa, no bloquea
+1. Cargar una cantidad que supere lo que hay en origen.
+
+**Esperado:** el texto del stock se pone en color de advertencia y dice cuántas
+unidades estás pidiendo. **El botón sigue habilitado**: pedir de más es un caso
+real y el descuento recién ocurre al despachar.
+
+### 51.9 · Un código de balanza trae los kilos
+1. Escanear (o tipear) un código de balanza de un producto pesable.
+
+**Esperado:** la cantidad viene cargada con los kilos del código; no hay que
+volver a escribirla.
+
+### 51.10 · Corregir un renglón
+1. Tocar un producto ya cargado.
+2. Cambiar la cantidad y aceptar.
+
+**Esperado:** se reabre el mismo diálogo con lo que tenía, y al guardar la
+lista muestra la cantidad nueva. El contador de **Unidades** de arriba se
+actualiza.
+
+### 51.11 · Quitar un renglón
+1. Tocar **Quitar** en un producto.
+
+**Esperado:** pide confirmación, lo saca de la lista y avisa «Ítem quitado».
+⚠️ Tocar **Quitar** no abre la edición.
+
+### 51.12 · Sin productos no se finaliza
+1. Quitar todos los renglones.
+
+**Esperado:** el botón **Finalizar** queda apagado. Una transferencia vacía
+llegaría hasta preparación sin nada que preparar, y el central no lo impide.
+
+### 51.13 · Finalizar
+1. Con al menos un producto, tocar **Finalizar** y confirmar.
+
+**Esperado:** la confirmación nombra cuántos productos, de qué sucursal y a
+cuál. Al aceptar se abre el **detalle**, ya en **Pendiente en origen**, con el
+botón «Preparar productos» — que es donde sigue el bloque 49.
+
+### 51.14 · Lo finalizado ya no se edita acá
+1. Volver atrás, o escribir a mano `/transferencias/<id>/borrador` de la que
+   se acaba de finalizar.
+
+**Esperado:** manda al detalle. Sus ítems son los que otra etapa va a
+verificar; quitarlos desde acá dejaría a alguien preparando mercadería que ya
+no figura.
+
+### 51.15 · Las cuatro cifras nacen bien
+1. Abrir el detalle de la transferencia recién finalizada.
+
+**Esperado:** cada ítem muestra **solo** «Pedido», con su cantidad y
+presentación. Las otras tres etapas **no** aparecen en cero: todavía no pasó
+nada ahí. ⚠️ Este es el caso que prueba que el alta no pisó las otras etapas.
+
+### 51.16 · Los tres estados
+1. Abrir el alta con el servidor caído; el borrador sin productos; y mirar la
+   carga.
+
+**Esperado:** esqueleto mientras carga, error con **Reintentar** si fallan las
+sucursales o la cabecera, y «Sin productos» con su botón cuando el borrador
+está vacío. ⚠️ Si fallan **solo los ítems**, avisa «No se pudieron traer los
+productos cargados»: un borrador cargado que se muestra vacío en silencio
+termina cargándose dos veces.
+
+---
+
+## Bloque 52 — Elegir el lote al cargar un producto *(nuevo, sin probar)*
+
+**Por qué está acá:** hasta ahora el central resolvía **siempre** por FEFO de
+qué lote salía la mercadería. Este bloque prueba el caso en que el depósito
+real no coincide con ese orden teórico y el operador elige a mano.
+
+**Necesita:** el rol **`CREAR TRANSFERENCIA`**, y un producto con **control de
+lote** (`producto.lote = true`) que tenga **al menos dos lotes con saldo** en
+la sucursal de origen. Idealmente uno de ellos **bloqueado o en cuarentena**,
+para el caso 52.5.
+
+> ✅ **No hace falta promover el central.** `lotesAsignados`,
+> `etapaAsignacionLote` y `stockPorLoteEnPresentacion` entraron en el commit
+> `b88fc34a` del central y están desde `v4.7.0-alpha.26`, `v4.7.0-beta.2` y
+> `v4.8.0`: farmacia y bodega ya los tienen. Es la diferencia con el bloque 49,
+> que sí exige promover.
+
+⚠️ **Elegir el lote NO mueve stock.** Lo que se guarda es la **intención**: de
+qué lote sacar. El descuento real ocurre al despachar (bloque 49), y ahí es
+donde hay que verificar que salió del lote elegido y no de otro.
+
+⚠️ **El caso crítico es el 52.12**, el único que confirma que la elección se
+respetó de verdad. Todo lo demás es pantalla.
+
+### 52.1 · El lote solo se ofrece si el producto lo lleva
+1. Crear un borrador y agregar un producto **sin** control de lote.
+2. Agregar otro **con** control de lote.
+
+**Esperado:** en el primero el diálogo es el de siempre —cantidad, vencimiento,
+observación—. En el segundo aparece arriba una fila **Lote** que dice «Elegir
+lote — Opcional. Sin elegir, se manda lo que vence antes».
+
+### 52.2 · La lista muestra el saldo en la presentación del renglón
+1. En el producto con lote, elegir una presentación de **más de una unidad**
+   (una caja, un pack) y tocar la fila **Lote**.
+
+**Esperado:** cada lote muestra su número, su vencimiento y el saldo **en
+cajas**, no en unidades. Debajo, en letra chica, el total en unidades y cuántas
+**sobran** fuera de las cajas completas: un lote de 20 unidades en cajas de 6
+dice «3» arriba y «20 unid. · sobran 2» abajo.
+
+⚠️ Si el saldo apareciera en unidades donde debería decir cajas, **pará**: es
+la conversión, y el número que se manda al central saldría multiplicado.
+
+### 52.3 · Buscar por número de lote
+1. Con la lista abierta, escribir parte de un número de lote.
+
+**Esperado:** la lista se filtra **contra el central** (hay una pausa corta al
+tipear, no filtra letra por letra en memoria). Buscar «l-20» encuentra
+«L-2026-88»: el central normaliza igual que al crear el lote.
+
+### 52.4 · Ver más lotes
+1. Usar un producto con más de diez lotes con saldo.
+
+**Esperado:** aparece **Ver más lotes** al pie; al tocarlo la lista **se
+agranda**, no se reemplaza. Los lotes vienen ordenados por FEFO: primero lo
+que hay que sacar antes.
+
+### 52.5 · Un lote bloqueado se ve pero no se puede elegir
+1. Bloquear un lote desde el escritorio (o usar uno en cuarentena) y abrir la
+   lista.
+
+**Esperado:** el lote **aparece igual**, atenuado, con «Bloqueado — no se puede
+mandar», y tocarlo no hace nada. ⚠️ **Que aparezca es el punto:** si se
+escondiera, el operador buscaría el lote que tiene en la mano y no entendería
+por qué no está.
+
+### 52.6 · Elegir un lote
+1. Tocar un lote liberado.
+
+**Esperado:** vuelve al diálogo del ítem, y la fila **Lote** ahora muestra el
+número, «Vence dd/MM/yyyy» y «N disponible».
+
+### 52.7 · El vencimiento viene sugerido
+1. Con el campo **Vencimiento** vacío, elegir un lote que tenga vencimiento
+   cargado.
+2. Después, **borrar** el lote y elegir otro con **otro** vencimiento, pero
+   habiendo escrito antes una fecha a mano.
+
+**Esperado:** en el primer caso el campo se completa con el vencimiento del
+lote. En el segundo **no se pisa** lo que escribiste: el papel que tenés en la
+mano gana sobre lo que dice el maestro.
+
+⚠️ La fecha se ve como `dd/MM/yyyy`, **sin hora**. Si apareciera «00:00»,
+anotalo: el central manda las fechas con hora y hay que recortarla.
+
+### 52.8 · El aviso de stock pasa a ser el del lote
+1. Con un lote elegido, cargar una cantidad **mayor** al saldo de ese lote pero
+   menor a lo que hay en la sucursal.
+
+**Esperado:** el aviso dice «El lote L-… tiene N unidades. Estás pidiendo M: se
+manda igual, pero revisá», en color de advertencia. ⚠️ **Sigue sin bloquear**,
+igual que el aviso de la sucursal.
+
+⚠️ Es el caso que justifica la funcionalidad: contra el saldo de la sucursal
+—que suma todos los lotes— ese pedido parecería sobrado.
+
+### 52.9 · Salir sin elegir no es un error
+1. Abrir la lista de lotes y tocar **Que decida el sistema**.
+
+**Esperado:** vuelve al diálogo del ítem sin lote, y la fila dice otra vez
+«Elegir lote». El renglón se guarda igual. **Cancelar** deja lo que hubiera.
+
+### 52.10 · El renglón cargado muestra su lote
+1. Guardar el ítem con lote y mirar la lista del borrador.
+
+**Esperado:** la card del renglón dice «⟨presentación⟩ · Lote L-… · Vence …».
+⚠️ Es lo único que distingue dos cargas del mismo producto: sin verlo,
+corregirlo obliga a abrir renglón por renglón.
+
+### 52.11 · Corregir el lote de un renglón ya cargado
+1. Tocar un renglón con lote y abrir la fila **Lote**.
+2. Elegir otro lote y guardar.
+3. Volver a abrirlo y tocar **Sacar el lote**; guardar.
+
+**Esperado:** después de (2) el renglón muestra el lote nuevo. Después de (3)
+el renglón **ya no muestra ningún lote** y vuelve a resolverse por FEFO.
+
+⚠️ Al reabrir un renglón, la fila muestra el número de lote pero **no** un
+saldo, hasta que se vuelva a abrir la lista. Es correcto: el saldo es otra
+consulta y de otro momento; decir «0 disponible» afirmaría que el lote está
+vacío.
+
+### 52.12 · **El lote elegido es el que sale** — ⚠️ *crítico*
+1. Elegir a mano un lote que **no** sea el primero por FEFO (o sea: elegir uno
+   que vence **después** que otro con saldo).
+2. Finalizar la transferencia y llevarla hasta **despachar** (bloque 49, caso
+   49.11).
+3. En el escritorio, abrir el historial del lote elegido y el del que FEFO
+   habría tomado.
+
+**Esperado:** el movimiento de salida está en **el lote elegido**, y el otro
+quedó intacto. ⚠️ **Este es el único caso que prueba que la funcionalidad
+sirve.** Si el descuento saliera del lote de FEFO, todo lo anterior fue
+pantalla.
+
+### 52.13 · La cantidad sale en la unidad correcta
+1. Con una presentación de varias unidades (caja de 6), elegir un lote y cargar
+   **2** cajas. Despachar.
+2. Mirar el movimiento del lote.
+
+**Esperado:** salieron **12 unidades**, no 2 ni 72. ⚠️ La cantidad viaja al
+central en presentaciones y él la convierte; una conversión de más multiplica
+la salida por el tamaño de la caja **sin dar error**.
+
+### 52.14 · Un producto sin lotes con saldo
+1. Agregar un producto con control de lote que **no** tenga lotes con saldo en
+   origen, y abrir la lista.
+
+**Esperado:** «Sin lotes — Este producto no tiene lotes con saldo en esta
+sucursal. Se puede mandar igual: el sistema resuelve el desglose por FEFO».
+El renglón se carga sin problema.
+
+### 52.15 · Los tres estados
+1. Abrir la lista de lotes con el servidor caído.
+2. Buscar un texto que no exista.
+
+**Esperado:** esqueleto mientras carga; error con **Reintentar** si el central
+no responde; «Ningún lote de este producto coincide con lo buscado» cuando la
+búsqueda no trae nada —distinto del texto de 52.14, que es «no tiene lotes»—.
+
+### 52.16 · Tema oscuro y tema claro
+1. Recorrer la lista de lotes y el diálogo del ítem en los dos temas.
+
+**Esperado:** el lote elegido se distingue del resto, los atenuados se leen, y
+el aviso de stock en advertencia tiene contraste suficiente en los dos.
+
+---
+
+## Bloque 53 — El botón flotante no va en Buscar *(nuevo)* — **3/4** (Claude en Chrome, central local, 2026-09-03)
+
+**Por qué está acá:** la pestaña **Buscar** tenía dos botones de escaneo —el
+del campo y el flotante de la esquina— ofreciendo lo mismo. Se apagó el
+flotante con el `conEscaner` que `frc-pagina` ya exponía, igual que hacen
+registrar rostro, nuevo inventario, rendir gasto y la carga del conteo.
+
+⚠️ **Lo que se pierde, a propósito:** parado en Buscar ya no se puede leer un
+QR del sistema —una transferencia, un inventario—, porque el escáner del campo
+pide solo formatos de producto. Se sale de Buscar con un toque; el intercambio
+se aceptó a sabiendas.
+
+### 53.1 · En Buscar no está — ✅ PASÓ
+1. Ir a la pestaña **Buscar**.
+
+**Esperado:** **no** hay botón flotante en la esquina inferior derecha. El
+ícono de escanear del campo, arriba a la derecha, sigue estando y funciona.
+
+### 53.2 · En las demás pantallas sigue estando — ✅ PASÓ
+1. Ir a **Control de inventario**, **Transferencias**, **Inicio**.
+
+**Esperado:** el flotante aparece en las tres, como siempre.
+
+### 53.3 · Se gana el alto que ocupaba — ✅ PASÓ
+1. Buscar algo que devuelva muchos resultados y bajar hasta el final.
+
+**Esperado:** la última fila llega hasta abajo, sin la franja vacía que
+`frc-pagina` reservaba para el flotante.
+
+### 53.4 · El escaneo desde el campo sigue navegando igual — sin probar
+1. En Buscar, tocar el ícono del campo y escanear un código de barras.
+
+**Esperado:** el producto aparece como antes. **Necesita cámara y un producto
+físico**, por eso quedó sin probar.
+
+
+---
+
+## Bloque 54 — Cantidades en enteros, no en decimales *(nuevo)* — **10/10** (Claude en Chrome; alpha y central local, usuario MAURO, 2026-09-03)
+
+> **Este bloque se perdió y se recuperó.** El código y los tests unitarios de
+> la PR #38 entraron a `develop` sin problema, pero al resolver el conflicto
+> del plan en el merge `a3266da` —cruzado con la renumeración de bloques que
+> traía la rama de transferencias— se tomó la versión de `develop` y estos 10
+> casos, todos ya ejecutados, quedaron afuera. Se restauran verbatim desde
+> `52bdcbf`, renumerados de 51 a 54 porque 51, 52 y 53 ya están ocupados.
+
+**Por qué está acá:** el central devuelve las cantidades como `Float` aunque el
+producto se cuente por unidad —`movimiento_stock` y `cantidad_fisica` son
+columnas numéricas con decimales—, y cuatro pantallas las imprimían con dos
+decimales fijos. `-3,00` unidades se lee como si faltara una fracción de
+envase. Es el mismo defecto que el bloque de existencia por sucursal ya
+corrigió; estas cuatro quedaron afuera.
+
+**La regla la decide el valor, no el producto.** Ninguna de las cuatro
+consultas trae el `balanza` del producto —`ProductoSaldoDto` no tiene ese
+campo—, así que: entero sin decimales, fraccionado con ellos. En un pesable el
+decimal son kilos y en un producto por unidad es un ajuste mal cargado; los dos
+hay que verlos, no redondearlos.
+
+⚠️ **Diferencia con la ficha de producto:** ahí, sabiendo que el producto es de
+balanza, la existencia se muestra con 3 decimales fijos (`7,000`). Acá un
+pesable con kilos justos se ve `7`. Igualar las dos requiere agregar `balanza`
+al `ProductoSaldoDto` del central.
+
+### 54.1 · Control de inventario, saldo negativo — ✅ PASÓ
+1. **Inventario → Control de inventario**, reporte **Saldo negativo**.
+
+**Esperado:** los saldos se ven `-3`, `-12`, sin `,00`. El signo se conserva y
+el número sigue en rojo.
+
+### 54.2 · Control de inventario, saldo positivo — ✅ PASÓ
+1. Cambiar el reporte a **Saldo positivo**.
+
+**Esperado:** se ven `+7`, `+25`, sin decimales.
+
+### 54.3 · Un saldo fraccionado sí los muestra — ✅ PASÓ
+
+Contra el **central local** (`localhost:8081`, base `bodega`), en Control de
+inventario → Saldo negativo → **SUC. CENTRAL**, las dos ramas de la regla
+conviven en la misma pantalla:
+
+| Producto | Saldo | |
+|---|---|---|
+| DELIVERY | `-1.021` | entero, con punto de miles |
+| COSTILLA VACUNA PREMIUN | `-983,98` | **fraccionado**, decimales conservados |
+| FRIMESA CHORIZO TOSCANO | `-982,33` | **fraccionado** |
+| ARCOR CHOCOMANI 6.5G | `-958` | entero, pelado |
+| MANDIOCA | `-751,08` | **fraccionado** |
+
+Carne y mandioca llevan decimales; los caramelos no. Nadie le dice a la app
+cuál es pesable: lo decide el valor.
+
+⚠️ **La sucursal importa para poder verlo.** En «Todas las sucursales» el
+primer saldo fraccionado cae en un puesto inalcanzable entre 22.699 productos;
+acotado a SUC. CENTRAL queda **décimo de 1.701**, en la primera página.
+
+⚠️ **En alpha este caso no se puede probar**: hay un solo saldo fraccionado en
+toda la instancia y vale `0,00000004768372` —residuo de punto flotante, no un
+pesable—, que además se vería como `+0,00`.
+
+### 54.4 · Carga del conteo: «Sistema» — ✅ PASÓ (toma #2338, zona b1: «Sistema: -601.243» y «Sistema: -5», sin `,00`)
+1. Abrir una toma, entrar a una zona con renglones ya cargados.
+2. Mirar la cabecera colapsada de cada tarjeta.
+
+**Esperado:** dice `Sistema: 70`, no `Sistema: 70,00`. Es lo que decide si vale
+la pena abrir la tarjeta, y con el contado al lado en entero los dos números se
+comparan de un vistazo.
+
+### 54.5 · La diferencia sigue calculándose igual — ✅ PASÓ (contado 10 contra -601.243 → `+601253`; sin contar, guion)
+1. En esa misma zona, escribir un contado distinto al del sistema.
+
+**Esperado:** la diferencia aparece como antes (`+6`, `-2`), y un renglón sin
+contar sigue mostrando el guion, no un cero.
+
+### 54.6 · Saldo del lote en el buscador de lotes — ✅ PASÓ (BANES FORTE, lote 5555: saldo `0`, no `0,00`)
+1. En el conteo, en un producto con control de lote, tocar **Buscar lote**.
+
+**Esperado:** el saldo de cada lote se ve `24`, no `24,00`.
+
+### 54.7 · Productos vencidos — ✅ PASÓ
+1. **Productos vencidos**, mirar la columna de unidades.
+
+**Esperado:** `3`, no `3,00`. Cuando la presentación es mayor a 1 sigue
+apareciendo el `(x6)` al lado.
+
+### 54.8 · Tema oscuro y tema claro — ✅ PASÓ (claro y oscuro: «Sistema: -601.243» legible, diferencia `-2,50` en rojo con coma decimal)
+1. Repetir 54.1 y 54.4 con cada tema.
+
+**Esperado:** solo cambia el color; los números siguen alineados por la
+tipografía tabular y sin decimales.
+
+
+### 54.9 · La diferencia también se formatea — ✅ PASÓ (contado -596.243 contra -601.243 → `+5.000`)
+1. En la carga del conteo, contar algo que dé una diferencia de miles
+   (por ejemplo 5.070 contra un sistema de 70).
+
+**Esperado:** dice `+5.000`, con separador de miles, igual que el «Sistema:»
+que tiene al lado. Antes salía `+5000`: el mismo número escrito de dos formas
+en la misma línea.
+
+### 54.10 · Una diferencia fraccionada no muestra el float crudo — ✅ PASÓ (contado -601.242,9 → `+0,10`, antes `+0.09999999999999432`)
+1. Contar `70,1` contra un sistema de `70`.
+
+**Esperado:** `+0,1`. Antes salía **`+0.09999999999999432`** —el punto flotante
+entero, y con punto decimal inglés—, que es exactamente el problema de locale
+por el que el repo prohíbe el pipe `number`.
+
+## Bloque 55 — Alta de solicitud de caja chica *(nuevo, parcialmente probado)*
+
+`/operaciones/gastos/nueva`. Cierra lo que faltaba del bloque 17: hasta ahora
+las solicitudes solo se veían, se retiraban y se rendían; acá se **crean**.
+**Sin rol** — como el resto de `caja chica`, cualquiera con acceso a
+Operaciones entra al formulario.
+
+> ⚠️ **Ejecución parcial.** Los casos 55.5, 55.6 y 55.8 no se corrieron:
+> piden un tipo de gasto real de un módulo padre puntual (`VEHICULO` o un
+> servicio continuo como `ANDE`) y, el 55.8, un activo con plan de cuotas
+> cargado — datos concretos que hay que elegir consultando la base, no
+> inventar. No se consultó la base en esta tarea. Ver el detalle en cada
+> caso y en el hueco que dejan más abajo.
+>
+> **Criterio de las marcas:** un caso queda marcado como no ejecutado cuando
+> su «Esperado» depende de **qué entrada puntual del catálogo** se usó —un
+> módulo padre concreto (55.5, 55.6), o un activo con cuotas cargadas
+> (55.8, y lo que arrastra en 55.9/55.10)— porque hay que ir a elegir ese
+> dato contra la base antes de poder correrlo. 55.4 lleva una marca más
+> suave: cualquier tipo de `PERSONAS` u `OTRO` sirve, pero no se confirmó
+> que el catálogo de prueba tenga alguno. Un caso como **55.7 no necesita
+> ninguna marca**: le alcanza con **dos tipos de gasto cualesquiera** que
+> pidan activo, sin importar cuáles — y eso se puede confirmar en el momento,
+> abriendo el buscador de tipo de gasto y mirando si aparece la sección
+> «Activo imputado», sin haber consultado antes la base para saber qué
+> entrada tiene qué módulo padre.
+
+### 55.1 · Entrar desde la lista
+1. Operaciones → **Caja chica** → **Nueva solicitud**
+
+**Esperado:** abre `/operaciones/gastos/nueva`. Mientras cargan los catálogos
+(tipos de gasto, monedas, formas de pago y sucursales) se ve el esqueleto.
+
+### 55.2 · Los tres estados de la carga inicial
+1. Con el central caído (o cortando la red), entrar a la pantalla.
+
+**Esperado:** estado de error con **Reintentar**, no un formulario con
+selectores vacíos. Tocar **Reintentar** repite la carga de los cuatro
+catálogos.
+
+### 55.3 · La sucursal de retiro
+1. Mirar la sección **Retiro** al entrar.
+2. Cambiarla por otra.
+
+**Esperado:** viene preseleccionada la sucursal de la sesión, y se puede
+elegir cualquier otra de la lista — **no se filtra por `soloOperables()`**:
+una caja chica se retira igual en una sucursal sin depósito, como `COMPRAS`.
+
+### 55.4 · Un tipo de gasto de `PERSONAS` no pide activo
+1. Elegir un tipo de gasto cuyo módulo padre sea `PERSONAS` (o `OTRO`).
+
+**Esperado:** no aparece la sección del activo imputado. El formulario sigue
+directo a **Retiro** y **Detalle financiero**.
+
+> ⚪ **No verificado contra un dato real.** Hace falta un tipo de gasto con
+> `moduloPadre = PERSONAS` (o `OTRO`) cargado en el central de prueba; no se
+> consultó cuál.
+
+### 55.5 · Un tipo de gasto de `VEHICULO` pide un vehículo, y el buscador pagina
+1. Elegir un tipo de gasto con `moduloPadre = VEHICULO`.
+2. Tocar **Elegir Vehículo** y, en el buscador, tipear algo con más de diez
+   resultados.
+
+**Esperado:** la sección se titula **Vehículo**. El buscador abre en modo
+paginado; al pie de la primera página aparece **Cargar más**, y tocarlo
+**agrega** resultados a la lista en vez de reemplazarla.
+
+> ⚪ **No ejecutado.** Hace falta un tipo de gasto con `moduloPadre = VEHICULO`
+> y, para la parte de paginación, un texto de búsqueda que traiga más de una
+> página de vehículos en el central de prueba. No se consultó la base para
+> elegir ninguno de los dos.
+
+### 55.6 · Un tipo de gasto de `ANDE` pide un inmueble
+1. Elegir un tipo de gasto con `moduloPadre = ANDE`.
+
+**Esperado:** la sección se titula **Inmueble (ANDE)**, no solo «Inmueble»:
+`ANDE` es uno de los siete servicios continuos que se imputan a un
+`INMUEBLE` aunque su módulo padre diga otra cosa.
+
+> ⚪ **No ejecutado.** Hace falta un tipo de gasto con `moduloPadre = ANDE`
+> cargado en el central de prueba; no se consultó cuál.
+
+### 55.7 · Cambiar de tipo de gasto limpia el activo elegido
+1. Abrir el buscador de tipo de gasto y elegir **cualquiera** que, al
+   elegirlo, muestre la sección **Activo imputado** — no importa cuál. Elegir
+   ahí un activo cualquiera.
+2. Volver a elegir tipo de gasto y elegir **otro** que también muestre esa
+   sección — de nuevo, no importa cuál, mientras sea distinto del anterior.
+
+**Esperado:** el activo elegido, el texto que lo describe y la tarjeta de
+resumen financiero desaparecen al volver a elegir en el paso 2. No queda el
+activo del paso 1 imputado a un tipo de gasto que ya no es el suyo.
+
+> A diferencia de 55.5/55.6, este caso **no necesita un módulo padre
+> puntual**: cualquier par de tipos de gasto que pidan activo alcanza, y eso
+> se ve en el momento sin haber consultado antes la base.
+
+### 55.8 · Un activo con plan de cuotas muestra la tarjeta de resumen
+1. Elegir un tipo de gasto que admita cuotas (`INMUEBLE`, `MUEBLE`,
+   `VEHICULO` o `EQUIPOS`) y, como activo, uno que tenga un plan de cuotas
+   cargado.
+
+**Esperado:** aparece la tarjeta con el pendiente (formateado según su
+moneda), el texto de cuota (`Cuota N/Total`) y las cuotas que faltan; si el
+vencimiento está cerca, un aviso aparte. Si el activo no tiene plan de
+cuotas, en cambio, la tarjeta muestra el resto de los datos sin esa parte, o
+«No se pudo consultar el activo» si la consulta al central falla.
+
+> ⚪ **No ejecutado — necesita un dato concreto en la base.** Hace falta un
+> `Ente` (vehículo, mueble, inmueble o equipo) que tenga un plan de cuotas
+> activo cargado en el central de prueba, con al menos una cuota pendiente.
+> No se consultó la base para elegir uno; sin ese dato puntual, este caso no
+> se puede correr — compilar y que el resto de la pantalla funcione **no**
+> es evidencia de que la tarjeta se arma bien con cuotas reales.
+
+### 55.9 · El monto sugerido entra en el primer detalle vacío
+1. Elegir un activo cuyo resumen financiero traiga un monto sugerido, con el
+   detalle financiero todavía vacío.
+
+**Esperado:** el primer detalle se completa solo con ese monto (y su
+moneda, si el resumen la trae). El operador no tiene que tipearlo.
+
+> Depende del mismo dato que 55.8 — un activo con plan de cuotas y monto
+> sugerido en el central de prueba. No ejecutado por el mismo motivo.
+
+### 55.10 · Con un monto ya cargado, elegir otro activo no lo pisa
+1. Escribir un monto a mano en el primer detalle.
+2. Elegir un activo distinto (uno cuyo resumen traiga monto sugerido).
+
+**Esperado:** el monto tipeado a mano **sigue ahí**, sin reemplazarse.
+`frc-mobile` pisaba el primer detalle cada vez que se elegía un activo; acá
+no se pisa lo que el operador ya cargó.
+
+> Depende de un activo con monto sugerido, igual que 55.8 y 55.9. No
+> ejecutado por el mismo motivo.
+
+### 55.11 · Dos detalles en la misma moneda no dejan guardar
+1. Agregar un segundo detalle con **Agregar detalle**.
+2. Cargar monto, moneda y forma de pago en los dos, repitiendo la moneda.
+
+**Esperado:** el botón **Guardar solicitud** queda deshabilitado y aparece el
+mensaje **«No repita la misma moneda en más de un detalle»**.
+
+### 55.12 · Dos detalles en monedas distintas guardan
+1. Con dos detalles cargados en monedas distintas (y el resto del formulario
+   completo), tocar **Guardar solicitud**.
+
+**Esperado:** guarda sin el mensaje de moneda repetida.
+
+### 55.13 · El total en guaraníes sale sin decimales
+1. Cargar un detalle en guaraníes con centavos en el cálculo (por ejemplo,
+   dos detalles en guaraníes agregados y quitados hasta dejar uno con un
+   monto no redondo).
+
+**Esperado:** el total de la moneda guaraní se muestra **sin decimales**; el
+de cualquier otra moneda, con dos. Es la regla de `moneda.util.ts`
+(`generic/utils/`): el guaraní no lleva decimales en ningún lado de la app.
+
+### 55.14 · Guardar lleva al detalle, con el QR visible
+1. Completar el formulario entero y tocar **Guardar solicitud**.
+
+**Esperado:** navega a `/operaciones/gastos/{id}/{sucursalId}` — el detalle
+de la solicitud recién creada, con el QR de retiro visible ahí.
+
+### 55.15 · El QR sirve para retirar en la caja
+1. Con la solicitud recién creada, mostrar su QR de retiro (bloque 17,
+   caso 17.3) y confirmar el retiro desde otra sesión o usuario con acceso a
+   la caja.
+
+**Esperado:** el retiro se confirma igual que con una solicitud creada desde
+el escritorio — el `qrToken` que trae la solicitud nueva es válido para
+`confirmarRetiroFuncionario`.
+
+> ⚠️ **En una solicitud multi-moneda, la lista muestra solo la moneda del
+> primer detalle.** El central arma `montoSolicitado` y `moneda` de la
+> cabecera a partir del **primer** `PreGastoDetalleFinanzas` que llega en
+> `finanzas` (`PreGastoGraphQL.java:232-243`) — no suma ni convierte los
+> demás. No es un bug de la PWA ni del central: es cómo se resume la
+> cabecera cuando hay más de un detalle. Al probar 55.12 (dos detalles en
+> monedas distintas), no esperes ver el total combinado en la lista —
+> confirmá el resto de los importes en el detalle, donde sí aparecen todos.
+
+### 55.16 · El detalle muestra lo que se cargó al guardar
+1. Completar el formulario con un **vencimiento** cargado a mano, una
+   **urgencia** distinta de la que trae por defecto, un **beneficiario**
+   puntual y una **descripción**, y tocar **Guardar solicitud**.
+2. En el detalle al que navega, revisar esos cuatro datos.
+
+**Esperado:** el vencimiento, la urgencia, el beneficiario y la descripción
+que se cargaron en el formulario aparecen en el detalle, sin ninguno vacío
+o distinto de lo tipeado. Es el caso que hubiera atajado el defecto del
+vencimiento que el central descartaba en silencio: la mutation respondía OK
+mientras el campo se perdía entero, y ningún caso anterior de este bloque
+abría el detalle a comprobarlo.
+
+---
+
+## Bloque 56 — La foto del producto en el buscador *(nuevo)*
+
+**Por qué está acá:** la card del buscador mostraba siempre el ícono de caja,
+nunca la foto, aunque `imagenPrincipal` ya venía en la consulta desde el
+principio. Era el pendiente «Ver imagen del producto» de
+[`modulos/producto.md`](modulos/producto.md).
+
+**Cómo llega la foto:** el central no manda una URL sino la imagen entera
+codificada, `data:image/jpg;base64,…` (`ImageService.fileToBase64`). Va derecho
+al `src` — no hay un segundo pedido de red que pueda fallar, y la foto o
+llegó con la búsqueda o no está. Es lo mismo que hacía el `ion-avatar` de
+`frc-mobile`.
+
+⚠️ **Lo que hay que mirar además de que se vea: cuánto tarda la búsqueda.**
+`frc-mobile` mostraba la **miniatura** de 250×250 que el central genera al
+subir la foto (`PresentacionResolver`); la consulta de la PWA pasa por
+`ProductoResolver`, que devuelve el **original**, del tamaño que salió del
+celular. Con 10 resultados por tanda, eso puede ser varios MB en una sola
+respuesta. Esos bytes ya se transferían antes de este cambio —la consulta
+pedía el campo y la card lo tiraba—, así que **no es una regresión**, pero si
+el caso 56.5 se siente lento, la corrección es del backend: un campo de
+miniatura, no sacar la foto de la card.
+
+### 56.1 · Un producto con foto la muestra
+1. Ir a la pestaña **Buscar**.
+2. Buscar un producto que tenga foto cargada (probar con los de mayor
+   rotación: gaseosas, lácteos).
+
+**Esperado:** en el recuadro de la izquierda de la fila se ve **la foto**, no
+el ícono de caja. Ocupa el recuadro entero, recortada y centrada, sin
+deformarse ni dejar franjas de fondo a los costados.
+
+### 56.2 · Un producto sin foto sigue mostrando el ícono
+1. En la misma lista, mirar un producto sin foto cargada.
+
+**Esperado:** el ícono de caja de siempre. **No** un recuadro gris vacío ni
+un ícono de imagen rota: el central devuelve «sin foto», y esa es la
+representación correcta, no un error.
+
+### 56.3 · La foto no se corre al expandir la card
+1. Tocar una fila con foto para desplegar sus presentaciones.
+2. Volver a tocarla para cerrarla.
+
+**Esperado:** la foto queda en su lugar, del mismo tamaño, y la fila no salta
+al abrir ni al cerrar. Las presentaciones se despliegan como antes.
+
+### 56.4 · La foto cambia al cambiar la búsqueda
+1. Buscar algo que devuelva productos **con** foto.
+2. Sin salir de la pestaña, buscar otra cosa que devuelva productos
+   **sin** foto.
+3. Volver a buscar lo primero.
+
+**Esperado:** cada lista muestra lo suyo — fotos en la primera, íconos en la
+segunda, y fotos otra vez en la tercera. Ninguna fila se queda con la foto de
+un producto de la búsqueda anterior.
+
+### 56.5 · Cuánto tarda con muchos resultados
+1. Buscar un texto amplio, de los que llenan la tanda de 10 (`coca`, `leche`).
+2. Tocar **Cargar más** un par de veces.
+
+**Esperado:** los resultados aparecen en un tiempo parecido al de antes del
+cambio. **Anotar si se siente más lento** — ver el aviso del encabezado de
+este bloque: se corrige en el central, con una miniatura.
+
+### 56.6 · Tema oscuro y tema claro
+1. Repetir 56.1 y 56.2 en los dos temas.
+
+**Esperado:** en los dos, la foto se ve nítida y el ícono de los productos sin
+foto queda legible sobre el fondo hundido del recuadro.
+
+---
+
+## Bloque 57 — Edición de producto *(nuevo)*
+
+> Datos reales de `bodega`, consultados el 2026-09-04:
+>
+> - **Producto 2 — PILSEN CLASICA LATA 269 ML** (`vencimiento = true`,
+>   `activo = true`) para el caso 56.1. Ningún producto de `bodega` ni de
+>   `general-farma` tiene hoy `lote = true` —las 8.386 filas de `bodega` y las
+>   13.046 de `general-farma` traen `lote = false`—, así que el caso verifica
+>   solo `vencimiento`, que es donde ya se probó el defecto de §1 del diseño.
+>   Si en el futuro aparece un producto con `lote = true`, repetir el caso con
+>   ese producto para cubrir también esa bandera.
+> - **Producto 238 — EISENBAHN AMERICAN IPA LATA 350ML**, presentación **262**
+>   (cantidad 11), sucursal **1 · SUC. CENTRAL**, para el caso 56.5. Esa
+>   presentación tiene hoy **dos precios marcados como `principal = true`** en
+>   la misma sucursal —id 562 (tipo `FRIO`, ₲ 50.000) e id 563 (tipo `NATURAL`,
+>   ₲ 50.000)—: es exactamente la anomalía de «dos principales» que el diseño
+>   existe para no seguir produciendo, ya presente en la base real.
+
+### 57.1 · La regresión silenciosa — ⚠️ *crítico*
+1. Entrar a la ficha del producto **2 — PILSEN CLASICA LATA 269 ML**
+   (`/producto/2`) y confirmar que **Vencimiento** figura activo.
+2. Menú `⋮` → **Editar producto** → **Datos generales**.
+3. Cambiar **solo la descripción** (por ejemplo, agregar un espacio y una
+   letra al final) y guardar.
+4. Volver a `/producto/2`.
+
+**Esperado:** la descripción cambió **y** la ficha sigue mostrando
+**Vencimiento** activo. *Por qué:* `saveProducto` reemplaza el registro
+entero (`ProductoService.java:297-325`); si el input que arma la pantalla no
+llevara `vencimiento` hidratado, esta edición lo apagaría en silencio —la
+mutation responde OK igual— y con él la carga de vencimiento en cada
+recepción e inventario de este producto. Es la falla que este módulo existe
+para evitar.
+
+> Dejar la descripción como estaba (o anotar el valor original) antes de
+> seguir con el resto del bloque, para no ensuciar el catálogo real.
+
+### 57.2 · La descripción vuelve en mayúsculas
+1. En **Datos generales** del mismo producto, escribir la descripción en
+   minúsculas y guardar.
+
+**Esperado:** la pantalla de edición muestra el texto en **mayúsculas** al
+volver a cargar, igual que la ficha — lo pone el central
+(`ProductoService.java:312`), no el cliente.
+
+### 57.3 · Descripción vacía no llega al central
+1. En **Datos generales**, borrar la descripción por completo e intentar
+   guardar.
+
+**Esperado:** mensaje **«La descripción es obligatoria»** y **ninguna llamada
+al central** (verificar en la pestaña Red del navegador que no sale ninguna
+mutation). *Por qué:* sin este guard, `ProductoService.java:312` hace
+`.toUpperCase()` sobre `null` y tira `NullPointerException` en el central.
+
+### 57.4 · Cascada del envase
+1. En **Datos generales** de un producto con **Vencimiento** activo, marcar
+   **Es envase**.
+
+**Esperado:** las siete banderas relacionadas (balanza, garantía,
+ingrediente, alcohólico, promoción, vencimiento y lote) se apagan y quedan
+**deshabilitadas** mientras «Es envase» siga marcado. `combo` no se apaga —el
+escritorio tampoco lo hace.
+
+### 57.5 · Un solo precio principal
+1. Entrar a `/producto/238/editar/presentaciones` → presentación **262**
+   (cantidad 11) → **Precios**.
+2. Confirmar que **hay dos precios marcados como principal** en la sucursal
+   propia (si la sesión no es de SUC. CENTRAL, este caso no se puede ejercitar
+   ahí — cambiar de sucursal o repetir con un producto de la sucursal propia).
+3. Marcar como principal el que todavía no lo era.
+4. Salir de la pantalla y volver a entrar.
+
+**Esperado:** el que era principal antes queda degradado, y al volver a
+entrar hay **uno solo** marcado como principal. *Por qué:* el escritorio
+degrada al anterior antes de guardar el nuevo (`adicionar-precio-dialog.
+component.ts:226-244`); sin eso, cuál gana lo decide el orden en que el
+central devuelve la lista, que no está garantizado.
+
+### 57.6 · El precio va a la sucursal propia
+1. En **Precios** de una presentación con precio en más de una sucursal,
+   editar el monto del precio de la **sucursal propia** y guardar.
+2. Ver la ficha del producto (`/producto/:id`), que lista el precio de todas
+   las sucursales.
+
+**Esperado:** cambió el precio de la sucursal de la sesión y **ninguno de los
+otros**. `savePrecioPorSucursal` nunca recibe una sucursal distinta a la
+propia (`construirPrecioInput`) — no hay forma de escribir en otra desde esta
+pantalla.
+
+### 57.7 · Sin `EDITAR PRECIOS`
+1. Con un usuario que tenga `EDITAR PRODUCTOS` pero no `EDITAR PRECIOS`,
+   entrar al hub de edición de un producto.
+2. Escribir a mano la URL de precios de una presentación
+   (`/producto/:id/editar/presentacion/:presentacionId/precios`).
+
+**Esperado:** en el hub, la fila **Precios** aparece **deshabilitada** con el
+motivo escrito («necesitás el permiso EDITAR PRECIOS»); escribir la URL a
+mano **tampoco entra** — el guard de ruta rebota antes de mostrar la
+pantalla.
+
+### 57.8 · Sin `EDITAR PRODUCTOS`
+1. Con un usuario sin `EDITAR PRODUCTOS`, abrir la ficha de un producto.
+2. Escribir a mano `/producto/:id/editar`.
+
+**Esperado:** el botón **Editar producto** no aparece en el menú `⋮` de la
+ficha, y la URL escrita a mano rebota a Inicio con el aviso de permiso — el
+mismo patrón que el resto de los guards de rol del repo.
+
+### 57.9 · Código por escaneo y código interno *(sin probar contra un
+dispositivo real — ver más abajo)*
+1. En **Códigos** de una presentación, agregar un código escaneando con la
+   cámara.
+2. Agregar otro con **Generar código interno**.
+
+**Esperado:** el código escaneado se guarda tal cual lo lee la cámara; el
+generado empieza con **`2199`** y tiene **13 dígitos** — es un EAN-13 interno
+que `generarCodigoInterno` calcula sin persistirlo, y lo persiste recién
+`saveCodigo`.
+
+### 57.10 · Los tres estados, en las seis pantallas
+1. Recorrer el hub, datos generales, familia/subfamilia, presentaciones,
+   códigos y precios: una vez con datos, una vez sin datos (por ejemplo, un
+   producto sin presentaciones para la pantalla de presentaciones) y una vez
+   con el central caído (apagarlo, o apuntar a un servidor inexistente desde
+   *Mi cuenta → Servidor*).
+
+**Esperado:** cada pantalla distingue **carga**, **vacío** y **error** — «no
+hay» y «no se pudo consultar» son mensajes distintos, nunca la misma pantalla
+en blanco.
+
+**Sin verificar en esta entrega:**
+
+- **El escaneo de códigos y `generarCodigoInterno` contra un central real,
+  en un dispositivo real.** El caso 56.9 no se ejecutó contra la cámara de un
+  teléfono ni contra el central — el número de secuencia y el dígito
+  verificador que arma el central no se confirmaron con una llamada real.
+- **Todo guardado de ida y vuelta contra el central** (56.1 a 56.8): la lógica
+  se verificó por SQL directo contra `bodega` y por lectura de código, no
+  ejecutando las mutations desde la app corriendo.
+- **El alta de producto** — no entra en esta entrega, va en una segunda.
+- **La imagen del producto** — fuera de alcance, va en su propia entrega.
+- **El comportamiento en Safari/iOS del escaneo** dentro de la pantalla de
+  códigos — no hay un iPhone en la flota para probarlo hoy.
+
+---
+
+## Bloque 58 — Alta de producto *(nuevo)*
+
+Cierra el circuito: hasta ahora un producto nuevo solo nacía en el escritorio.
+
+> ⚠️ **Los tipos de precio pueden estar inactivos en la instancia que pruebes.**
+> El desplegable de «Tipo de precio» solo ofrece los que tienen `activo = true`.
+> En la base local se activaron los seis el 2026-09-04, pero **en alpha, beta y
+> producción `UNITARIO`, `FRIO`, `NATURAL` y `FUNCIONARIOS` siguen inactivos**,
+> así que ahí el selector ofrece solo `EXPO` y `EXPO-DEPOSITO`. **No es una
+> falla de la pantalla: es el dato.** Con eso, un producto nuevo no puede
+> recibir su precio normal desde el teléfono hasta que esos tipos se reactiven.
+
+### 58.1 · La entrada
+1. Ir a la pestaña **Buscar**.
+
+**Esperado:** abajo aparece **«¿No lo encontrás? Cargá un producto nuevo»**. Con
+un usuario **sin** `EDITAR PRODUCTOS`, no aparece — y escribir `/producto/nuevo`
+a mano tampoco entra.
+
+### 58.2 · Todo en mayúsculas
+1. Abrir el alta y escribir la descripción **en minúsculas**.
+
+**Esperado:** se ve en MAYÚSCULAS mientras se escribe. *Por qué:* el central la
+convierte igual (`ProductoService.java:312`); mostrarla en minúsculas sería
+enseñar un texto distinto del que va a quedar guardado.
+
+### 58.3 · Aviso de duplicado, no bloqueo
+1. Escribir la descripción de un producto que ya exista —por ejemplo
+   `pilsen clasica lata 269 ml`, en minúsculas— y salir del campo.
+
+**Esperado:** avisa que ya existe **y deja continuar igual**. *Por qué:* hay
+homónimos legítimos, y un bloqueo duro empuja a inventar variantes del nombre
+para esquivarlo. Que lo encuentre escribiendo en minúsculas es parte de la
+prueba: la consulta va en mayúsculas porque así está guardado.
+
+### 58.4 · Falta lo obligatorio
+1. Con la descripción cargada pero sin familia, mirar el pie.
+
+**Esperado:** dice **«Falta la familia.»** y **Crear producto** está
+deshabilitado. Al elegir familia pasa a pedir la subfamilia.
+
+### 58.5 · Familia y subfamilia por nombre
+1. **Elegir familia** → buscar y elegir una.
+
+**Esperado:** el diálogo lista las familias por **nombre** (BEBIDAS, GENERAL…),
+no por su descripción larga, y la lista de subfamilias tampoco tiene filas en
+blanco. Cambiar de familia **limpia** la subfamilia elegida antes.
+
+### 58.6 · Nace inactivo — ⚠️ *el caso que define el diseño*
+1. Completar los tres campos y tocar **Crear producto**.
+
+**Esperado:** cae en el hub de edición del producto recién creado, con el aviso
+**«Este producto está inactivo · No se puede vender todavía. Falta una
+presentación, un código y un precio.»** *Por qué:* un alta abandonada a mitad
+deja un producto invisible, no uno roto que la caja no puede cobrar. Verificar
+también que la lista dice **una presentación, un código y un precio** —con
+comas y una sola «y»—, no «y … y …».
+
+### 58.7 · Los valores por defecto
+1. Sobre el producto recién creado, entrar a **Datos generales**.
+
+**Esperado:** **IVA 10**, **Controla stock activado**, **Activo apagado**, y la
+**Descripción de factura ya cargada con el mismo texto** que la descripción.
+
+### 58.8 · La descripción de factura se despega
+1. En **Datos generales**, editar la **descripción de factura** y guardar.
+2. Volver a entrar y cambiar la **descripción del producto**.
+
+**Esperado:** la de factura **conserva lo que se escribió** y no vuelve a
+copiar la descripción. Antes de tocarla, en cambio, acompaña sola.
+
+### 58.9 · Activar
+1. Cargar una presentación, un código y un precio.
+2. Volver al hub.
+
+**Esperado:** el aviso pasa a **«Ya tiene presentación, código y precio: se
+puede activar»** y aparece **Activar producto**. Al tocarlo, el aviso
+desaparece. Comprobar en la ficha que **el IVA y la subfamilia siguen como
+estaban**: activar pasa por el mismo camino que todo lo demás y manda el
+`ProductoInput` completo.
+
+### 58.10 · Nada de errores fantasma — ⚠️ *regresión*
+1. En **Códigos**, tocar **Generar interno**.
+2. Marcar ese código como **principal**.
+3. En **Precios**, agregar uno.
+
+**Esperado:** las tres cosas ocurren **sin que aparezca «No se pudieron cargar
+los datos»**. *Por qué:* las tres recargan el producto al terminar, y el id que
+devuelve el central es un **string**; pasarlo al guard de `cargar()`, que usa
+`Number.isFinite`, hacía que la pantalla mostrara un error justo después de un
+guardado exitoso. Reintentar lo tapaba.
+
+> El código generado empieza con **2199** y tiene 13 dígitos.
+
+**Qué queda sin verificar en este bloque:** el escaneo con cámara para cargar un
+código, y todo el flujo en Safari/iOS.
+
+---
+
+## Bloque 59 — La sucursal de la marcación sale del GPS *(nuevo, sin probar)*
+
+**Por qué está acá:** se podía marcar entrada y salida **sin que la ubicación
+validara nada**. La sucursal se elegía en un desplegable —la última usada, si
+no la de la sesión, si no la primera de la lista— y el GPS entraba después,
+solo para medir la distancia **contra la sucursal ya elegida**. Alcanzaba con
+seleccionar la sucursal donde uno *dice* estar para que el aviso de «estás
+lejos» no apareciera nunca. Issue #15.
+
+Ahora la sucursal **se detecta sola** al abrir la pantalla, hay un botón
+**Recalcular**, y **sin ubicación no se marca**.
+
+⚠️ **Necesita un teléfono de verdad y salir a la calle.** Buena parte de estos
+casos no se puede probar desde el escritorio: hay que negar y dar el permiso
+de ubicación en el navegador del teléfono, y moverse físicamente. Para probar
+en un Android por USB: `adb reverse tcp:4300 tcp:4300` (y `tcp:8081` si el
+central es local) — `localhost` es contexto seguro y el GPS funciona.
+
+⚠️ **Antes de empezar, confirmá en el central que las sucursales que vas a
+usar tienen `localizacion` cargada** (`empresarial.sucursal.localizacion`, con
+el formato `lat,lng`). Sin eso todos los casos dan «No se pudo determinar la
+sucursal», que es correcto pero no es lo que se quiere probar.
+
+### 59.1 · Al abrir, la sucursal se detecta sola
+1. Parado dentro de una sucursal, entrar a **Mi trabajo → Marcación**.
+
+**Esperado:** la sección **Dónde estás** muestra primero el progreso del GPS y
+después el **nombre de la sucursal**, la **distancia** y la **precisión**.
+Nadie tocó nada.
+
+### 59.2 · Ya no hay desplegable
+1. En la misma pantalla, intentar tocar el nombre de la sucursal.
+
+**Esperado:** es texto, no un campo. **No** se abre ninguna lista de
+sucursales. No hay forma de elegir otra.
+
+### 59.3 · Recalcular vuelve a medir
+1. Tocar **Recalcular**.
+
+**Esperado:** vuelve al estado de búsqueda, pide la posición de nuevo y
+termina mostrando la sucursal y una distancia. El botón queda deshabilitado
+mientras busca.
+
+### 59.4 · Sin permiso de ubicación no se marca, y lo dice
+1. En la configuración del sitio del navegador, **denegar** la ubicación.
+2. Entrar a Marcación.
+
+**Esperado:** dice **«No se pudo obtener la ubicación»** con el motivo debajo,
+y el botón de marcar está **deshabilitado**. No aparece ningún nombre de
+sucursal. ⚠️ **Lo que no puede pasar:** que muestre la sucursal de tu usuario
+y te deje marcar igual — eso es exactamente el bug que esto corrige.
+
+### 59.5 · Dar el permiso y recalcular desbloquea
+1. Con la pantalla abierta del caso anterior, permitir la ubicación en el
+   navegador.
+2. Tocar **Recalcular**.
+
+**Esperado:** aparece la sucursal detectada y el botón de marcar se habilita.
+**No hace falta recargar la app.**
+
+### 59.6 · Parado en otra sucursal, detecta la otra
+1. Trasladarse a una segunda sucursal y abrir Marcación.
+
+**Esperado:** detecta **esa** sucursal, no la del usuario ni la de la vez
+anterior. Es el caso del funcionario que cubre en otro local.
+
+### 59.7 · Lejos de la sucursal avisa, pero deja marcar
+1. Desde un punto a más de 33 m de cualquier sucursal —la vereda de enfrente
+   alcanza— tocar el botón de marcar.
+
+**Esperado:** un diálogo **«Estás lejos de la sucursal»** con los metros, la
+sucursal y la precisión. Confirmando, **la marcación se registra**. La
+distancia avisa; no bloquea.
+
+### 59.8 · La sucursal virtual nunca se detecta
+1. Estando en la casa central —donde `SERVIDOR` y `COMPRAS` tienen sus
+   coordenadas— abrir Marcación.
+
+**Esperado:** detecta una sucursal **con depósito**. Nunca `SERVIDOR` ni
+`COMPRAS`, aunque estén más cerca.
+
+### 59.9 · Lo que se guarda es la posición del momento de marcar
+1. Abrir Marcación y esperar a que detecte.
+2. Esperar unos minutos sin salir de la pantalla, o caminar unos metros.
+3. Marcar.
+
+**Esperado:** el GPS se toma **otra vez** antes de guardar (se ve el progreso).
+Después, en la base: `latitud`, `longitud`, `precision_gps` y
+`distancia_sucursal` de esa marcación corresponden a **dónde estabas al
+marcar**, no a dónde estabas al abrir la pantalla.
+
+### 59.10 · Moverse entre abrir y marcar no marca contra la vieja
+1. Abrir Marcación dentro de una sucursal y esperar la detección.
+2. Sin cerrar la pantalla, trasladarse hasta quedar más cerca de otra.
+3. Tocar el botón de marcar.
+
+**Esperado:** **no se marca**. Avisa que ahora estás más cerca de la otra
+sucursal, la pantalla pasa a mostrar esa, y hay que volver a tocar el botón.
+⚠️ Es el caso más difícil de armar: necesita dos sucursales cercanas o mucha
+paciencia.
+
+### 59.11 · Si se pierde la ubicación al marcar, no se marca igual
+1. Abrir Marcación con permiso dado y esperar la detección.
+2. Apagar el GPS del teléfono (o poner modo avión) sin cerrar la pantalla.
+3. Tocar marcar.
+
+**Esperado:** después del paso del rostro, avisa que se perdió la ubicación y
+**no registra nada**. El botón vuelve a su texto normal — **no** se queda en
+«Marcando…».
+
+### 59.12 · Los tres estados
+1. Recorrer: pantalla cargando, sin permiso de ubicación, y con el central
+   caído.
+
+**Esperado:** carga con esqueleto; sin permiso, el vacío con su motivo y el
+botón **Recalcular** a mano; con el central caído, el estado de error con
+reintentar. Ninguno muestra una sucursal.
+
+### 59.13 · Tema oscuro y tema claro
+1. Ver la sección **Dónde estás** en los dos temas, en los estados «detectada»
+   y «sin ubicación».
+
+**Esperado:** el texto del vacío se lee en los dos, y el botón **Recalcular**
+tiene contraste suficiente.
+
+---
+
+## Bloque 60 — Marcación facial: cuenta regresiva, foto sola y reintento *(nuevo, sin probar)*
+
+**Por qué está acá:** el diálogo facial hacía **verificación continua** —un
+bucle a 12 frames por segundo esperando a que la persona pasara los tres
+controles—, sin final visible: no se sabía si faltaba un segundo o si nunca
+iba a pasar, y el reintento no existía como tal. Ahora es el flujo de la PWA
+de gourmet: cuenta de 3 s, la foto se toma sola, y si no pasa hay **Tomar otra
+foto**. Issue #16.
+
+⚠️ **Necesita cámara y un rostro enrolado.** Antes de empezar, registrá el
+rostro desde **Mi cuenta → Mi rostro**. Sin eso, todos los casos dan «No tenés
+rostro registrado», que es el caso 60.9 y nada más.
+
+⚠️ **Sigue siendo 1:1**: verifica que sos vos, no busca quién sos. La
+identificación 1:N y el kiosco son la issue #17.
+
+### 60.1 · La cuenta espera a la cámara
+1. Con la app recién instalada —o después de limpiar la caché, para que los
+   modelos no estén descargados— tocar el botón de marcar.
+
+**Esperado:** primero «Preparando el reconocimiento…» y el video encendido.
+La cuenta **no arranca** hasta que la cámara se ve. ⚠️ **Lo que no puede
+pasar:** que cuente sobre una pantalla negra y saque la foto antes de tiempo.
+
+### 60.2 · Cuenta 3, 2, 1
+1. Mirar el número grande sobre el video.
+
+**Esperado:** 3 · 2 · 1, un segundo cada uno, centrado y legible sobre la
+imagen. El rostro **no** queda tapado por un velo mientras uno se acomoda.
+
+### 60.3 · La foto se toma sola
+1. No tocar nada y esperar a que la cuenta termine.
+
+**Esperado:** la foto se toma sola, aparece «Verificando…» y —si sos vos— el
+diálogo cierra y la marcación sigue. **No hay botón de disparo.**
+
+### 60.4 · No queda mirando frames
+1. Después de una verificación buena, observar el consumo del teléfono.
+
+**Esperado:** el diálogo cierra y la cámara se apaga. No queda un bucle
+analizando frames de fondo. Se nota en que el teléfono no se calienta.
+
+### 60.5 · Sin rostro en la foto, lo dice y ofrece otra
+1. Tapar la cámara con el dedo y dejar que la cuenta llegue a cero.
+
+**Esperado:** **«No se detectó tu rostro. Acercate y buscá mejor luz.»**, con
+los botones **Tomar otra foto** y **Cancelar**. El diálogo **no** cierra.
+
+### 60.6 · Una foto de una foto no pasa
+1. Poner delante de la cámara una foto tuya en la pantalla de otro teléfono.
+
+**Esperado:** **«Tiene que ser tu rostro real, no una foto.»** Es `antispoof`
+y `liveness`. ⚠️ Si esto pasa, es un hallazgo grave: anotalo.
+
+### 60.7 · Otra persona no pasa
+1. Que otro funcionario —con rostro enrolado o sin él— se ponga frente a la
+   cámara con tu sesión abierta.
+
+**Esperado:** **«No te reconocimos. Probá de frente y con más luz.»**
+
+### 60.8 · «Tomar otra foto» reinicia la cuenta
+1. Desde un fallo, tocar **Tomar otra foto**.
+
+**Esperado:** la cuenta vuelve a **3** y la foto se toma sola de nuevo. No hay
+que tocar nada más.
+
+### 60.9 · Los intentos se acaban
+1. Fallar tres veces seguidas, tapando la cámara.
+
+**Esperado:** al tercero el diálogo cierra solo y la marcación pregunta
+**«Sin verificación facial · ¿Querés marcar igual?»**. Confirmando, la
+marcación se registra. No se puede quedar reintentando para siempre.
+
+### 60.10 · Sin rostro registrado no se pide la cámara
+1. Con un usuario **sin** rostro enrolado, tocar marcar.
+
+**Esperado:** dice que hay que registrarlo desde **Mi cuenta**, y el navegador
+**no** pide permiso de cámara. ⚠️ Importa: un permiso denegado no se vuelve a
+preguntar, así que gastarlo para nada deja al usuario peor.
+
+### 60.11 · Cancelar
+1. Tocar **Cancelar** durante la cuenta.
+
+**Esperado:** el diálogo cierra, la cámara se apaga, y la marcación ofrece
+marcar sin verificación facial.
+
+### 60.12 · Safari en iPhone
+1. Repetir 60.2, 60.3 y 60.5 en Safari sobre iOS.
+
+**Esperado:** el video se ve **dentro** de la tarjeta, no a pantalla completa
+—es lo que dan `playsinline` y `muted`— y la foto se toma sola igual.
+⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
+
+### 60.13 · Los modelos se bajan una sola vez
+1. Marcar con rostro, cerrar la app, volver a marcar sin conexión.
+
+**Esperado:** la segunda vez la cámara queda lista mucho más rápido y funciona
+**sin conexión**: los modelos los cachea el service worker como asset group
+lazy.
+
+### 60.14 · Tema oscuro y tema claro
+1. Ver el diálogo en los dos temas, en cuenta y en fallo.
+
+**Esperado:** el número de la cuenta se lee sobre cualquier imagen, y el
+motivo del fallo tiene contraste suficiente en los dos.
+
+---
+
+## Bloque 61 — Kiosco de marcación *(nuevo, sin probar)*
+
+**Por qué está acá:** una tablet en la puerta para que todos marquen, sin
+sesión personal. Identifica el rostro contra **todas** las galerías (1:N) y
+registra la marcación **a nombre de quien reconoció**. Issue #17.
+
+⚠️ **Acá está el riesgo más caro de todo el módulo.** Un falso positivo marca
+por otra persona, y eso queda en el registro de asistencia como un hecho.
+**Probá el 61.6 y el 61.7 con gente de verdad**, no solo con vos mismo.
+
+⚠️ **Y hoy no se puede auditar.** La marcación no guarda el método, la
+similitud ni el margen contra el segundo candidato: eso es el #217 del
+central, que sigue abierto. Si en la prueba aparece un reconocimiento
+equivocado, **anotá quién, cuándo y contra quién**, porque en la base no va a
+quedar rastro.
+
+Hace falta: una tablet o teléfono con cámara, un usuario con rol **ADMIN** o
+**RRHH GESTIONAR**, y al menos **tres personas con el rostro enrolado**.
+
+### 61.1 · Solo entra quien tiene el rol
+1. Con un usuario **sin** `ADMIN` ni `RRHH GESTIONAR`, buscar «Kiosco de
+   marcación» en Inicio, y después escribir `/marcacion/kiosco` a mano.
+
+**Esperado:** en Inicio **no aparece**, y la URL a mano avisa «No tenés
+permiso» y rebota a Inicio. ⚠️ Que no aparezca en el menú no alcanza: probá la
+URL.
+
+### 61.2 · Detecta la sucursal sola
+1. Entrar al kiosco con el rol correcto.
+
+**Esperado:** muestra la sucursal detectada y la distancia, igual que la
+marcación personal. El botón **Marcar** está habilitado.
+
+### 61.3 · Sin ubicación no se puede marcar
+1. Denegar el permiso de ubicación y entrar.
+
+**Esperado:** dice que no se pudo obtener la ubicación y **Marcar** queda
+deshabilitado.
+
+### 61.4 · Identifica y marca por la persona reconocida
+1. Con la sesión de la tablet abierta como encargado, que **otra** persona
+   —con rostro enrolado— toque **Marcar** y se ponga frente a la cámara.
+
+**Esperado:** la saluda **por su nombre** y registra su marcación. En la base,
+`marcacion.usuario_id` es **el de esa persona**, no el del encargado logueado
+en la tablet. ⚠️ **Verificalo en la base**, no solo en la pantalla.
+
+### 61.5 · Vuelve solo, listo para el siguiente
+1. Después del saludo, no tocar nada y esperar.
+
+**Esperado:** a los ~5 segundos vuelve solo a la pantalla de **Marcar**. Con
+una fila en la puerta nadie va a tocar «listo».
+
+### 61.6 · A quien no está enrolado no lo reconoce
+1. Que alguien **sin** rostro registrado toque Marcar.
+
+**Esperado:** **«No te reconocimos. ¿Tenés el rostro registrado?»** y **no**
+marca nada. ⚠️ **Lo que no puede pasar:** que lo confunda con otra persona
+enrolada. Si pasa, es un hallazgo grave — anotá con quién lo confundió.
+
+### 61.7 · Personas parecidas
+1. Si hay hermanos, parientes o gente de rasgos similares enrolados, que
+   marquen uno después del otro.
+
+**Esperado:** cada uno queda a su nombre. ⚠️ **Este es el caso que decide si
+el 1:N es viable en esta población.** Anotá cualquier confusión con detalle.
+
+### 61.8 · Una foto no marca
+1. Poner delante de la cámara la foto de un funcionario enrolado, en la
+   pantalla de otro teléfono.
+
+**Esperado:** **«Tiene que ser un rostro real, no una foto.»** ⚠️ En un kiosco
+esto importa más que en el teléfono personal: cualquiera puede acercar una
+foto.
+
+### 61.9 · Con las dos salidas, pregunta cuál
+1. Que alguien con entrada marcada y sin salida de almuerzo toque Marcar.
+
+**Esperado:** después de reconocerlo, pregunta **«¿salís a almorzar o terminás
+el día?»** con los dos botones. No elige por la persona.
+
+### 61.10 · Elegir «Salir a almorzar» no cierra la jornada
+1. Elegir **Salir a almorzar**.
+
+**Esperado:** queda registrada como salida de almuerzo y la jornada **sigue
+abierta**: al volver, el kiosco le ofrece el retorno.
+
+### 61.11 · «Intentar de nuevo» tras un fallo
+1. Tapar la cámara, dejar que falle, y tocar **Intentar de nuevo**.
+
+**Esperado:** vuelve a contar 3 y a sacar la foto sola. **Cancelar** vuelve a
+la pantalla inicial.
+
+### 61.12 · Recalcular
+1. Tocar **Recalcular** en la sección de ubicación.
+
+**Esperado:** vuelve a tomar la posición. Es lo que hay que usar si mueven la
+tablet de sucursal.
+
+### 61.13 · Varias marcaciones seguidas
+1. Que tres personas marquen una detrás de otra sin recargar la app.
+
+**Esperado:** las tres quedan bien, cada una a su nombre. La cámara no se
+traba y la ubicación **no** se vuelve a pedir en cada una — el dispositivo
+está fijo, y esperar el GPS por persona haría la fila insoportable.
+
+### 61.14 · Safari en iPhone
+1. Abrir el kiosco en Safari sobre iOS y repetir 61.4.
+
+**Esperado:** el video se ve dentro de la tarjeta y la identificación
+funciona. ⚠️ **Necesita un iPhone**; hoy no hay ninguno en la flota.
+
+### 61.15 · Tema oscuro y tema claro
+1. Ver el kiosco en los dos temas: inicio, cuenta, saludo y fallo.
+
+**Esperado:** el saludo y el motivo del fallo se leen en los dos, y el botón
+**Marcar** tiene contraste suficiente.
+
+---
+
+## Bloque 62 — Método, similitud y margen de cada marcación *(nuevo, sin probar)*
+
+**Por qué está acá:** la marcación guardaba buena evidencia de **dónde** y
+ninguna de **cómo se identificó a la persona**. Con el kiosco 1:N eso deja de
+ser un detalle: un falso positivo registra asistencia a nombre de quien no
+estuvo, y sin estas columnas es indistinguible de un olvido. Issue #217 del
+central.
+
+⚠️ **Las dos mitades se publican juntas.** Contra un central **sin la
+migración `V216.5`** la mutation falla entera y **la marcación deja de
+funcionar**, no solo los campos nuevos. Antes de probar, confirmá que la
+instancia tenga `V216.5` aplicada.
+
+⚠️ **Y la migración tiene que estar también en las filiales.**
+`administrativo.marcacion` se replica en las dos direcciones: si la columna
+existe solo en el central, la replicación hacia la filial que no la tenga se
+corta con «logical replication target relation is missing replicated column».
+**Revisar `flyway_schema_history` de cada filial**, no solo la del central —
+sin `out-of-order`, una filial puede saltearla en silencio.
+
+Este bloque se verifica **en la base**, no en la pantalla: la app no muestra
+ninguno de estos campos.
+
+### 62.1 · Marcar con rostro desde el teléfono
+1. Marcar entrada pasando la verificación facial.
+2. `SELECT metodo_registro, similitud_facial, margen_segundo_candidato FROM administrativo.marcacion ORDER BY id DESC LIMIT 1;`
+
+**Esperado:** `metodo_registro = 'FACIAL_1A1'` y `similitud_facial` con un
+valor entre 0 y 1.
+
+### 62.2 · Marcar sin rostro
+1. Cancelar la verificación facial y confirmar «Marcar igual».
+
+**Esperado:** `metodo_registro = 'MANUAL'`, y `similitud_facial` y
+`margen_segundo_candidato` en `NULL`. ⚠️ **No pueden venir en 0**: cero es una
+medición, `NULL` es «no hubo».
+
+### 62.3 · Marcar desde el kiosco
+1. Marcar desde el kiosco identificando a una persona.
+
+**Esperado:** `metodo_registro = 'FACIAL_1AN_KIOSCO'`, con similitud y —si hay
+más de un enrolado— margen.
+
+### 62.4 · El margen aparece cuando hay con quién comparar
+1. Con **al menos dos** personas enroladas, marcar desde el kiosco.
+
+**Esperado:** `margen_segundo_candidato` con valor. Es la similitud del
+reconocido menos la del siguiente candidato.
+
+### 62.5 · Con un solo enrolado no se inventa un margen
+1. En una instancia con **una sola** persona enrolada, marcar desde el kiosco.
+
+**Esperado:** `margen_segundo_candidato` en `NULL`. ⚠️ **Ni 0 ni 1**: no había
+contra quién comparar, y decir «margen 1» afirmaría una certeza que nadie
+midió.
+
+### 62.6 · La similitud guardada es la del central
+1. Marcar con rostro desde el teléfono con el central **caído** o sin red
+   justo en ese paso.
+
+**Esperado:** la marcación se registra igual, con `metodo_registro =
+'FACIAL_1A1'` y `similitud_facial` en `NULL`. La similitud calculada en el
+teléfono **no** se usa para rellenar la columna: son medidas distintas y
+mezclarlas la volvería inservible.
+
+### 62.7 · El desktop sigue marcando sin enterarse
+1. Registrar una marcación desde el **desktop**.
+
+**Esperado:** se guarda normalmente, con las tres columnas en `NULL`. Los
+campos son opcionales; el desktop usa el mismo `saveMarcacion` y no los manda.
+
+### 62.8 · La replicación no se cortó
+1. Después de aplicar `V216.5`, marcar en una filial y en el central.
+2. Revisar que las filas aparezcan del otro lado.
+
+**Esperado:** siguen replicando en las dos direcciones. ⚠️ Si una filial dejó
+de recibir, revisá que tenga la migración: es el modo de falla más probable de
+este cambio.
+
+### 62.9 · La segunda opinión rechaza a otra persona
+1. Con dos personas enroladas, que **la otra** se ponga frente a la cámara con
+   tu sesión abierta en el teléfono.
+
+**Esperado:** dice **«El rostro reconocido no es el tuyo.»** y no marca. ⚠️ **No
+tiene que decir de quién era el rostro**: nombrarlo revelaría quién más está
+enrolado.
+
+---
+
+## Bloque 63 — El ícono de la app es el de Bodega Franco *(nuevo, sin probar)*
+
+**Por qué está acá:** `public/favicon.ico` seguía siendo el que deja el
+schematic de Angular, así que la pestaña mostraba el logo del framework en una
+app que en todo lo demás es Bodega Franco. Los íconos de `public/icons/` ya
+eran los correctos — el problema era solo ese archivo.
+
+⚠️ **El favicon se cachea con mucha insistencia.** Chrome lo guarda en una base
+aparte que un `Ctrl+Shift+R` no siempre limpia, y encima acá hay un service
+worker en el medio. Si después de desplegar seguís viendo el logo de Angular,
+**no asumas que el deploy falló**: probá primero en una ventana de incógnito,
+que es el único camino que no toca ninguno de los dos cachés. Es la diferencia
+entre un bug y una pestaña vieja.
+
+Este bloque **no se prueba en `ng serve`**: se prueba contra el deploy, porque
+lo que se está verificando es justamente lo que viaja al servidor.
+
+### 63.1 · La pestaña del navegador
+
+1. Abrir la app desplegada en una ventana de **incógnito**.
+2. Mirar el ícono de la pestaña.
+
+**Esperado:** el cuadrado rojo de Bodega Franco. **No** la «A» de Angular. A
+16 px el texto no se lee —es una marca roja—, y está bien: es el mismo aspecto
+que tiene el ícono de la PWA instalada.
+
+### 63.2 · El camino directo, sin pasar por el HTML
+
+1. En la misma ventana, abrir `https://<puerta>/favicon.ico` a mano.
+
+**Esperado:** se descarga un `.ico` con el logo rojo. Este caso existe porque
+el navegador pide esa ruta **por su cuenta, sin mirar el `index.html`**: si
+acá sale la «A» de Angular, el arreglo está a medias aunque 63.1 haya pasado.
+
+### 63.3 · La PWA instalada en Android
+
+1. Instalar la app desde el prompt del navegador.
+2. Mirar el ícono en el cajón de aplicaciones y en la pantalla de inicio.
+
+**Esperado:** el logo de Bodega Franco. Esto ya andaba —sale del manifest— y
+se prueba para confirmar que **no se rompió**.
+
+### 63.4 · «Añadir a inicio» en un iPhone *(necesita dispositivo)*
+
+1. En Safari, «Compartir → Añadir a pantalla de inicio».
+2. Mirar el ícono que propone el diálogo, y el que queda en la pantalla.
+
+**Esperado:** el logo de Bodega Franco, **no una captura de la pantalla en la
+que estabas**. Es lo que agrega el `apple-touch-icon`, que hasta ahora no
+existía. Sin un iPhone no hay forma de probarlo: Safari en Mac no usa esta
+etiqueta.
+
+### 63.5 · Sin internet, el ícono sigue
+
+1. Con la PWA instalada y ya abierta una vez, cortar la red.
+2. Abrirla de nuevo.
+
+**Esperado:** el ícono se sigue viendo. La imagen entra en el grupo `assets`
+de `ngsw.json`, así que el service worker la tiene cacheada.
+
+## Bloque 64 — Una transferencia ajena se toma con su código *(nuevo, sin probar)*
+
+**Por qué está acá:** se podía tomar la preparación de una transferencia que
+estaba a nombre de otro sin que te hubiera pasado nada: bastaba con abrirla
+desde la lista. En `frc-mobile` eso no pasaba —a una transferencia ajena solo
+se llegaba escaneando su QR o cargando su código—, y ahora la PWA exige lo
+mismo en el detalle.
+
+**Necesita:** tres usuarios —A, B y C—, transferencias de prueba creadas por A
+en `PRE_TRANSFERENCIA_ORIGEN`, y dos teléfonos (o un teléfono y la
+computadora) para mostrar y escanear el QR. Desde el caso 64.2 se mueve stock:
+mismas precauciones y mismo central que el bloque 49.
+
+### 64.1 · Sin el código, la transferencia ajena no se toma *(el caso del reporte)*
+1. Con B, entrar a **Transferencias** y abrir desde la lista una transferencia de A.
+
+**Esperado:** **Preparar productos** está apagado, y debajo de la cabecera
+dice **«Esta transferencia está a nombre de <A>. Para continuar, pedile el QR
+o el código y escanealo.»**
+
+### 64.2 · Con el QR, sí
+1. Con A, abrir la transferencia → ícono de QR arriba a la derecha.
+2. Con B, tocar el botón flotante de escanear y leer ese QR.
+
+**Esperado:** se abre la misma transferencia con **Preparar productos**
+encendido y sin aviso. Al tomarla, «Preparó» queda con el nombre de B.
+
+### 64.3 · El código cargado a mano también vale
+1. Con otra transferencia de A: A abre el QR → **Copiar**.
+2. B toca el botón flotante → **Ingresar a mano** → pega el código → confirma.
+
+**Esperado:** lo mismo que en el 64.2. Es el «Ingresar código» de `frc-mobile`.
+
+### 64.4 · El enlace de WhatsApp también
+1. A comparte otra transferencia suya por WhatsApp.
+2. B toca el enlace del mensaje.
+
+**Esperado:** la app abre la transferencia con **Preparar productos**
+encendido. El enlace termina en `?qr=frc-…`: ese es el código.
+
+### 64.5 · El QR de otra transferencia no sirve
+1. Con B, escanear el QR de una transferencia **X** de A.
+2. Volver a la lista y abrir otra transferencia **Y** de A.
+
+**Esperado:** en Y el botón está apagado, con el aviso del 64.1.
+
+### 64.6 · Entrar por la lista vuelve a pedir el código
+1. Escanear el QR de una transferencia de A **sin** tomar la preparación.
+2. Volver a la lista y abrir esa misma transferencia.
+
+**Esperado:** el botón vuelve a estar apagado. El código vale para la entrada
+que lo trajo; no queda guardado.
+
+### 64.7 · El responsable no necesita código
+1. Con A, abrir desde la lista una transferencia suya en `PRE_TRANSFERENCIA_ORIGEN`.
+
+**Esperado:** **Preparar productos** encendido, sin aviso.
+
+### 64.8 · El código no alcanza para concluir la etapa ajena
+1. Con la preparación tomada por B (64.2), C escanea el QR de esa transferencia.
+
+**Esperado:** los ítems **no** tienen el menú de tres puntos, **Concluir
+preparación** está apagado y dice **«Esta etapa la está trabajando <B>.»**
+Solo el que la tomó la cierra.
+
+### 64.9 · El traspaso sigue en transporte y recepción
+1. B concluye la preparación.
+2. C abre la transferencia desde la lista → **Verificar para transporte** apagado.
+3. B le muestra el QR y C lo escanea → encendido. C la toma y la despacha.
+4. En destino, otro usuario la abre desde la lista → **Iniciar recepción**
+   apagado; escanea el QR que le muestra C → encendido.
+
+**Esperado:** en cada paso el botón se enciende solo con el QR de quien tiene
+la transferencia a su nombre. Iniciar la recepción sigue pidiendo, además, el
+QR de la sucursal de destino (caso 49.8).
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -4494,7 +6112,30 @@ primero que se necesita saber.
 | 47 · Contar por lote y la fecha de retiro | 32 | 5 | 2 | 1 |
 | 48 · Compartir el QR por WhatsApp | 11 | | | |
 | 49 · Avanzar de etapa una transferencia | 16 | | | |
-| **Total** | **419** | | | |
+| 50 · Mayúsculas en login y búsqueda | 7 | 4 | | |
+| 51 · Crear una transferencia y cargarle productos | 16 | | | |
+| 52 · Elegir el lote al cargar un producto | 16 | | | |
+| 53 · El flotante no va en Buscar | 4 | 3 | | |
+| 54 · Cantidades en enteros | 10 | 10 | | |
+| 55 · Alta de solicitud de caja chica | 16 | | | |
+| 56 · La foto del producto en el buscador | 6 | | | |
+| 57 · Edición de producto | 10 | | | |
+| 58 · Alta de producto | 10 | | | |
+| 59 · La sucursal de la marcación sale del GPS | 13 | | | |
+| 60 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
+| 61 · Kiosco de marcación | 15 | | | |
+| 62 · Método, similitud y margen | 9 | | | |
+| 63 · El ícono de la app | 5 | | | |
+| 64 · Transferencia ajena: se toma con su código | 9 | | | |
+| **Total** | **589** | | | |
+
+> El total se recalcula **sumando la columna «Casos»**, no arrastrando el
+> número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las
+> filas sumaban **504**: sumarle un bloque nuevo a ese número daba otro
+> resultado que parecía correcto por casualidad. Los bloques 57 y 58 son de
+> esta tanda; el 57 **existía y se perdió** al resolver un conflicto de merge
+> en `feat/foto-producto-buscador` (commit `75d0a59`), y se restauró desde el
+> merge del PR #42.
 
 ### Los cinco que más importan
 

@@ -237,6 +237,35 @@ export function puedeEditarEtapa(
 }
 
 /**
+ * `true` si el usuario puede hacerse cargo de la etapa siguiente.
+ *
+ * Es la regla de `frc-mobile`: una transferencia que está a nombre de otro
+ * solo la avanza quien **recibió su código** —el QR que muestra el
+ * responsable, o el mismo texto cargado a mano—. El que termina su parte le
+ * pasa el QR al que sigue, y así la transferencia cambia de manos.
+ *
+ * La app vieja lo resolvía en la navegación: su lista mostraba solo las
+ * transferencias donde el usuario ya participaba, y a las demás se llegaba
+ * escaneando o cargando el código. La lista de la PWA muestra todas las de la
+ * sucursal, así que la regla tiene que estar acá: sin ella, cualquiera que
+ * la viera en la lista tomaba la preparación de otro.
+ *
+ * El responsable de la etapa en curso no necesita código —la transferencia
+ * ya está a su nombre—, y una sin responsable sigue abierta a cualquiera.
+ *
+ * ⚠️ **No es un control de seguridad.** El QR lleva solo el id y el central
+ * no lo valida: es el mismo control que tenía `frc-mobile`, que el traspaso
+ * pase de mano en mano.
+ */
+export function puedeTomarEtapa(
+  transferencia: Transferencia | null,
+  usuarioId: number | null | undefined,
+  conCodigo: boolean,
+): boolean {
+  return conCodigo || puedeEditarEtapa(transferencia, usuarioId);
+}
+
+/**
  * `true` si el ítem ya se verificó en esta etapa.
  *
  * Basta con **cualquiera** de las tres marcas: la cantidad, el vencimiento o

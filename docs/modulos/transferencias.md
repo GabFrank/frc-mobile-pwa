@@ -234,9 +234,26 @@ nadie la tomó —responsable en blanco— está abierta a cualquiera.
 > sido responsable de una etapa para poder editar las siguientes.
 
 Las tres etapas que **cierran** una verificación exigen las dos cosas: ser el
-responsable y no dejar ítems sin revisar. Las otras tres —tomar la
-preparación, pasar a transporte, iniciar la recepción— son justamente el acto
-de hacerse cargo, y ahí todavía no hay responsable a quien pedirle permiso.
+responsable y no dejar ítems sin revisar. El código de la transferencia no
+alcanza: cerrar la etapa ajena es dar por bueno lo que verificó otro.
+
+Las otras tres —tomar la preparación, pasar a transporte, iniciar la
+recepción— son el acto de hacerse cargo, y siguen la regla de `frc-mobile`:
+**una transferencia a nombre de otro solo la toma quien recibió su código**.
+El que termina su parte le muestra el QR al que sigue —o se lo manda por
+WhatsApp—, y el otro lo escanea con el botón flotante o lo carga a mano. El
+código viaja hasta el detalle en el parámetro `qr`, y el detalle compara su
+id con el de la transferencia: el QR de otra no sirve. El responsable actual
+no necesita código, y una etapa sin responsable sigue abierta. La regla está
+en `puedeTomarEtapa()`.
+
+> ⚠️ **En `frc-mobile` la regla estaba en la navegación, no en el detalle.**
+> Su lista mostraba solo las transferencias donde el usuario ya participaba
+> (`transferenciasPorUsuario`), y a las demás se llegaba por «Scanear QR» o
+> «Ingresar código». La lista de la PWA muestra todas las de la sucursal: sin
+> la regla en el detalle, cualquiera que abría una transferencia desde ahí
+> tomaba la preparación de otro. Tampoco es un control de seguridad —el QR
+> lleva solo el id y el central no lo valida—, igual que antes.
 
 ### La verificación ítem por ítem
 

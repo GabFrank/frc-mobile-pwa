@@ -4296,11 +4296,11 @@ bloque.
 
 | Etapa | Botón | Quién |
 |---|---|---|
-| Pendiente en origen | Preparar productos | cualquiera en origen |
+| Pendiente en origen | Preparar productos | quien la pidió, o quien recibió su QR (bloque 64) |
 | Preparando mercadería | Concluir preparación | quien la tomó |
-| Preparación concluida | Verificar para transporte | el transportista |
+| Preparación concluida | Verificar para transporte | el transportista, con el QR de quien preparó |
 | Verificando para transporte | Concluir y despachar | quien la tomó |
-| En camino | Iniciar recepción | quien recibe |
+| En camino | Iniciar recepción | quien recibe, con el QR del transportista |
 | Verificando recepción | Concluir recepción | quien la tomó |
 
 ### 49.1 · La pantalla dice en qué etapa está y qué sigue

@@ -91,6 +91,24 @@ function idDeRegistro(valor: unknown): number | null {
 }
 
 /**
+ * El id de la transferencia que abre este código, o `null` si no es el QR de
+ * una transferencia.
+ *
+ * Es la prueba de que a quien abre la transferencia **le pasaron el código**:
+ * el escáner y el enlace de WhatsApp lo llevan hasta el detalle en el
+ * parámetro `qr`, y el detalle solo deja tomar una transferencia ajena si el
+ * código es el de ella. Lee el id con la misma regla que `rutearEscaneo`, así
+ * que un QR que abre la transferencia 88 no puede habilitar la 99.
+ */
+export function transferenciaDelQr(texto: string | null | undefined): number | null {
+  const qr = descodificarQr((texto ?? '').trim());
+  if (qr?.tipoEntidad !== TipoEntidad.TRANSFERENCIA) {
+    return null;
+  }
+  return idDeRegistro(REGLAS[TipoEntidad.TRANSFERENCIA].id(qr));
+}
+
+/**
  * Decide adónde va lo que se leyó, sin tocar el router ni el servidor.
  *
  * Es una función pura para poder probar la tabla entera sin montar Angular:
@@ -198,7 +216,15 @@ export function enlaceAlRegistro(texto: string): string | null {
   }
   const ruta = destino.ruta.map(String).join('/').replace(/^\/+/, '');
   try {
-    return new URL(ruta, document.baseURI).href;
+    const url = new URL(ruta, document.baseURI);
+    // El enlace de una transferencia lleva su código, igual que el escaneo:
+    // mandarlo por WhatsApp es pasarle la transferencia al otro, y sin el
+    // código la abriría sin poder tomarla. No agrega nada secreto: el mismo
+    // código ya va escrito en el mensaje.
+    if (transferenciaDelQr(texto) != null) {
+      url.searchParams.set('qr', texto.trim());
+    }
+    return url.href;
   } catch {
     return null;
   }

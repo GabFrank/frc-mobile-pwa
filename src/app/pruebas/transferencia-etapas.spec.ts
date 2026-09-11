@@ -18,6 +18,7 @@ import {
   itemVerificado,
   itemsSinVerificar,
   puedeEditarEtapa,
+  puedeTomarEtapa,
   requiereDesconfirmarAntes,
   responsableDeEtapa,
 } from '../pages/transferencias/etapas';
@@ -263,6 +264,23 @@ describe('Quién puede trabajar la etapa', () => {
     expect(puedeEditarEtapa(t, 7)).toBe(false);
     expect(puedeEditarEtapa(t, 9)).toBe(true);
   });
+
+  it('una transferencia ajena se toma solo con su código', () => {
+    // La regla de `frc-mobile`: el que tiene la transferencia le pasa el QR
+    // al que sigue.
+    const t: Transferencia = {
+      id: 1,
+      etapa: EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN,
+      usuarioPreTransferencia: usuario(7) as never,
+    };
+    expect(puedeTomarEtapa(t, 8, false)).toBe(false);
+    expect(puedeTomarEtapa(t, 8, true)).toBe(true);
+    // La que ya está a su nombre, o a nombre de nadie, no pide código.
+    expect(puedeTomarEtapa(t, 7, false)).toBe(true);
+    expect(
+      puedeTomarEtapa({ id: 1, etapa: EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN }, 8, false),
+    ).toBe(true);
+  });
 });
 
 describe('Cuándo un ítem está revisado', () => {
@@ -422,6 +440,7 @@ describe('El botón de avance, en la pantalla', () => {
     transferencia: Partial<Transferencia>,
     items: TransferenciaItem[],
     usuarioId: number | null,
+    qr?: string,
   ) => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -442,6 +461,9 @@ describe('El botón de avance, en la pantalla', () => {
     });
     const f = TestBed.createComponent(TransferenciaDetallePage);
     f.componentRef.setInput('id', '1');
+    if (qr !== undefined) {
+      f.componentRef.setInput('qr', qr);
+    }
     f.detectChanges();
     return f.componentInstance;
   };
@@ -477,16 +499,72 @@ describe('El botón de avance, en la pantalla', () => {
     expect(pagina.editable()).toBe(false);
   });
 
-  it('tomar la etapa siguiente no exige ser responsable de ninguna', () => {
-    // «Preparar productos», «Verificar para transporte» e «Iniciar recepción»
-    // son justamente el acto de hacerse cargo: ahí todavía no hay responsable
-    // a quien pedirle permiso.
+  it('una etapa sin responsable la toma cualquiera, sin código', () => {
+    // No hay nadie a quien pedirle el QR: exigirlo dejaría la transferencia
+    // clavada.
     const pagina = montar(
       { etapa: EtapaTransferencia.PREPARACION_MERCADERIA_CONCLUIDA },
       [{ id: 1 }],
       8,
     );
     expect(pagina.accionHabilitada()).toBe(true);
+  });
+
+  describe('una transferencia a nombre de otro', () => {
+    const pendienteEnOrigen: Partial<Transferencia> = {
+      etapa: EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN,
+      usuarioPreTransferencia: usuario(7) as never,
+    };
+    const codigoDeEsta = 'frc--TRF-1-1---';
+
+    it('sin su código no se toma, y se dice a nombre de quién está', () => {
+      // El caso del reporte: la lista muestra todas las de la sucursal, y
+      // cualquiera que la abría desde ahí tomaba la preparación de otro.
+      const pagina = montar(pendienteEnOrigen, [{ id: 1 }], 8);
+      expect(pagina.accionHabilitada()).toBe(false);
+      expect(pagina.motivoDeBloqueo()).toContain('U7');
+      expect(pagina.motivoDeBloqueo()).toContain('QR');
+    });
+
+    it('con el QR de esta transferencia, sí', () => {
+      const pagina = montar(pendienteEnOrigen, [{ id: 1 }], 8, codigoDeEsta);
+      expect(pagina.accionHabilitada()).toBe(true);
+      expect(pagina.motivoDeBloqueo()).toBeNull();
+    });
+
+    it('el QR de otra transferencia no la habilita', () => {
+      expect(montar(pendienteEnOrigen, [{ id: 1 }], 8, 'frc--TRF-2-2---').accionHabilitada()).toBe(
+        false,
+      );
+      expect(montar(pendienteEnOrigen, [{ id: 1 }], 8, 'frc-1-INV--1---').accionHabilitada()).toBe(
+        false,
+      );
+    });
+
+    it('su responsable la toma sin código', () => {
+      expect(montar(pendienteEnOrigen, [{ id: 1 }], 7).accionHabilitada()).toBe(true);
+    });
+
+    it('el traspaso sigue igual en transporte: el que preparó pasa el QR', () => {
+      const concluida: Partial<Transferencia> = {
+        etapa: EtapaTransferencia.PREPARACION_MERCADERIA_CONCLUIDA,
+        usuarioPreparacion: usuario(7) as never,
+      };
+      expect(montar(concluida, [{ id: 1 }], 8).accionHabilitada()).toBe(false);
+      expect(montar(concluida, [{ id: 1 }], 8, codigoDeEsta).accionHabilitada()).toBe(true);
+    });
+
+    it('el código no alcanza para concluir la etapa ajena', () => {
+      // Cerrar la preparación de otro es dar por bueno lo que verificó él.
+      const pagina = montar(
+        { etapa: EtapaTransferencia.PREPARACION_MERCADERIA, usuarioPreparacion: usuario(7) as never },
+        [{ id: 1, cantidadPreparacion: 8 }],
+        8,
+        codigoDeEsta,
+      );
+      expect(pagina.accionHabilitada()).toBe(false);
+      expect(pagina.editable()).toBe(false);
+    });
   });
 
   it('en una etapa sin verificación no se muestran acciones por ítem', () => {

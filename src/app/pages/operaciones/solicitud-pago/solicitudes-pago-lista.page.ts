@@ -26,6 +26,7 @@ const FILTROS: OpcionFiltro[] = [
   // el pago» cuando el central sumó SOLICITADO. Ver solicitud-pago.model.ts.
   { etiqueta: 'Borradores', valor: SolicitudPagoEstado.PENDIENTE },
   { etiqueta: 'Solicitadas', valor: SolicitudPagoEstado.SOLICITADO },
+  { etiqueta: 'Devueltas', valor: SolicitudPagoEstado.DEVUELTO },
   { etiqueta: 'Parciales', valor: SolicitudPagoEstado.PARCIAL },
   { etiqueta: 'Concluidas', valor: SolicitudPagoEstado.CONCLUIDO },
   { etiqueta: 'Canceladas', valor: SolicitudPagoEstado.CANCELADO },

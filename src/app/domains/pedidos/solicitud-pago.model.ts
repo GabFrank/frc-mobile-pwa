@@ -41,6 +41,12 @@ export enum SolicitudPagoEstado {
   PENDIENTE = 'PENDIENTE',
   /** Validada y lista para pagar. Es la que ve tesorería. */
   SOLICITADO = 'SOLICITADO',
+  /**
+   * Tesorería la devolvió a compras con un motivo, que queda en las
+   * observaciones. **No** es pagable: se corrige y se reenvía, o se cancela.
+   * El central la sumó en la migración V222.3.
+   */
+  DEVUELTO = 'DEVUELTO',
   PARCIAL = 'PARCIAL',
   CONCLUIDO = 'CONCLUIDO',
   CANCELADO = 'CANCELADO',

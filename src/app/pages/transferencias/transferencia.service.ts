@@ -21,6 +21,7 @@ import { SaveTransferenciaItemGQL } from 'src/app/graphql/transferencias/saveTra
 import { DeleteTransferenciaItemGQL } from 'src/app/graphql/transferencias/deleteTransferenciaItem';
 import { DesconfirmarTransferenciaItemGQL } from 'src/app/graphql/transferencias/desconfirmarTransferenciaItem';
 import { SolicitarPushGQL } from 'src/app/graphql/notificaciones/solicitarPush';
+import { TransferenciaQrEscaneadoGQL } from 'src/app/graphql/transferencias/transferenciaQrEscaneado';
 
 export interface FiltrosTransferencia {
   sucursalOrigenId?: number;
@@ -65,6 +66,23 @@ export class TransferenciaService {
   private readonly eliminarItemGQL = inject(DeleteTransferenciaItemGQL);
   private readonly desconfirmarItemGQL = inject(DesconfirmarTransferenciaItemGQL);
   private readonly pushGQL = inject(SolicitarPushGQL);
+  private readonly qrEscaneadoGQL = inject(TransferenciaQrEscaneadoGQL);
+
+  /**
+   * Le avisa al central que se escaneó el QR de esta transferencia.
+   *
+   * Sirve para que el desktop que lo está mostrando cierre el diálogo solo.
+   * Es un aviso, no una operación: va sin spinner ni cartel de error a
+   * propósito, porque el operario ya está entrando a la transferencia y un
+   * fallo acá no cambia nada de lo que vino a hacer.
+   */
+  avisarQrEscaneado(id: number, sucursalId: number): Observable<boolean> {
+    return this.datos.mutar<boolean>(
+      this.qrEscaneadoGQL,
+      { id, sucursalId },
+      { mostrarCarga: false, notificarError: false },
+    );
+  }
 
   porId(id: number): Observable<Transferencia> {
     return this.datos.porId<Transferencia>(this.porIdGQL, id);

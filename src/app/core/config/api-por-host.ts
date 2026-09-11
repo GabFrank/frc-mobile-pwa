@@ -16,11 +16,14 @@
  * la página, que es lo que gobierna el tren de releases.
  */
 export const API_POR_HOST: Readonly<Record<string, string>> = {
-  // Producción — proyecto `frc-pwa-prod`, dos puertas
-  'farmacia.app.frcsuite.com': 'https://farmacia-api.frcsuite.com',
+  // Producción — proyecto `frc-pwa-prod`
   'bodega.app.frcsuite.com': 'https://bodega-api.frcsuite.com',
 
-  // Canal beta — proyecto `frc-pwa-beta`
+  // Canal beta — proyecto `frc-pwa-beta`, dos puertas. `farmacia.app` cuelga de **beta**, no de
+  // prod: se re-mapeó el 2026-08-20 porque la red de farmacia corre la serie beta del central, y
+  // servirle builds estables la dejaba pidiéndole al backend cosas de otra versión. Que el
+  // hostname diga "farmacia" y el proyecto diga "beta" es correcto, no un error de configuración.
+  'farmacia.app.frcsuite.com': 'https://farmacia-api.frcsuite.com',
   'beta.app.frcsuite.com': 'https://farmacia-api.frcsuite.com',
 
   // Canal alpha — proyecto `frc-pwa-alpha`. La API sale por un túnel de

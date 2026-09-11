@@ -5983,81 +5983,59 @@ etiqueta.
 **Esperado:** el ícono se sigue viendo. La imagen entra en el grupo `assets`
 de `ngsw.json`, así que el service worker la tiene cacheada.
 
-## Bloque 64 — Una transferencia ajena se toma con su código *(nuevo, sin probar)*
+## Bloque 64 — Solicitud de pago devuelta por tesorería *(nuevo, sin probar)*
 
-**Por qué está acá:** se podía tomar la preparación de una transferencia que
-estaba a nombre de otro sin que te hubiera pasado nada: bastaba con abrirla
-desde la lista. En `frc-mobile` eso no pasaba —a una transferencia ajena solo
-se llegaba escaneando su QR o cargando su código—, y ahora la PWA exige lo
-mismo en el detalle.
+**Por qué está acá:** tesorería ya no cancela una solicitud de pago que no va
+a pagar: la **devuelve a compras** con un motivo, desde *Caja mayor → Pagar
+Compras* en el escritorio. El central la deja en el estado nuevo `DEVUELTO`,
+distinto del borrador, y compras la corrige y la reenvía, o la cancela.
 
-**Necesita:** tres usuarios —A, B y C—, transferencias de prueba creadas por A
-en `PRE_TRANSFERENCIA_ORIGEN`, y dos teléfonos (o un teléfono y la
-computadora) para mostrar y escanear el QR. Desde el caso 64.2 se mueve stock:
-mismas precauciones y mismo central que el bloque 49.
+⚠️ **Necesita un central con la migración `V222.3`** y el código del estado
+`DEVUELTO`. Contra un central sin eso, el filtro «Devueltas» falla —el central
+no conoce el valor— y la lista muestra su estado de error; el resto de la
+pantalla no cambia.
 
-### 64.1 · Sin el código, la transferencia ajena no se toma *(el caso del reporte)*
-1. Con B, entrar a **Transferencias** y abrir desde la lista una transferencia de A.
+**Preparación:** en el escritorio, abrir *Caja mayor → Pagar Compras*, tocar el
+botón **Devolver a compras** (la flecha de deshacer) de una solicitud y
+devolverla con un motivo, por ejemplo `FALTA LA FACTURA`. Anotar su número.
 
-**Esperado:** **Preparar productos** está apagado, y debajo de la cabecera
-dice **«Esta transferencia está a nombre de <A>. Para continuar, pedile el QR
-o el código y escanealo.»**
+### 64.1 · Se ve como devuelta en la lista
 
-### 64.2 · Con el QR, sí
-1. Con A, abrir la transferencia → ícono de QR arriba a la derecha.
-2. Con B, tocar el botón flotante de escanear y leer ese QR.
+1. Abrir *Solicitudes de pago* y buscar la solicitud devuelta.
 
-**Esperado:** se abre la misma transferencia con **Preparar productos**
-encendido y sin aviso. Al tomarla, «Preparó» queda con el nombre de B.
+**Esperado:** el badge **«Devuelto»** en rojo, con el ícono de volver. **No**
+«Borrador» en gris: un borrador nadie lo vio; esta la vio tesorería y no la
+pagó.
 
-### 64.3 · El código cargado a mano también vale
-1. Con otra transferencia de A: A abre el QR → **Copiar**.
-2. B toca el botón flotante → **Ingresar a mano** → pega el código → confirma.
+### 64.2 · El filtro «Devueltas»
 
-**Esperado:** lo mismo que en el 64.2. Es el «Ingresar código» de `frc-mobile`.
+1. Elegir el filtro **Devueltas**.
+2. Elegir después **Borradores**.
 
-### 64.4 · El enlace de WhatsApp también
-1. A comparte otra transferencia suya por WhatsApp.
-2. B toca el enlace del mensaje.
+**Esperado:** con «Devueltas» aparece la devuelta; con «Borradores», no.
 
-**Esperado:** la app abre la transferencia con **Preparar productos**
-encendido. El enlace termina en `?qr=frc-…`: ese es el código.
+### 64.3 · El detalle dice que la devolvió tesorería
 
-### 64.5 · El QR de otra transferencia no sirve
-1. Con B, escanear el QR de una transferencia **X** de A.
-2. Volver a la lista y abrir otra transferencia **Y** de A.
+1. Abrir el detalle de la devuelta.
 
-**Esperado:** en Y el botón está apagado, con el aviso del 64.1.
+**Esperado:** un panel **«Devuelta por tesorería»** —no «Todavía es un
+borrador»— y el motivo en *Observaciones*:
+`DEVUELTA A COMPRAS POR <usuario>: FALTA LA FACTURA`. En la sección del pago
+dice que no hay pago asociado **sin** llamarla borrador.
 
-### 64.6 · Entrar por la lista vuelve a pedir el código
-1. Escanear el QR de una transferencia de A **sin** tomar la preparación.
-2. Volver a la lista y abrir esa misma transferencia.
+### 64.4 · Reenviarla a la cola de pagos
 
-**Esperado:** el botón vuelve a estar apagado. El código vale para la entrada
-que lo trajo; no queda guardado.
+1. En el detalle, tocar **Solicitar**.
+2. En el escritorio, abrir de nuevo *Pagar Compras*.
 
-### 64.7 · El responsable no necesita código
-1. Con A, abrir desde la lista una transferencia suya en `PRE_TRANSFERENCIA_ORIGEN`.
+**Esperado:** pasa a **«Solicitado»** y vuelve a aparecer en *Pagar Compras*.
+Corregirla antes —monto, notas— sigue siendo del escritorio.
 
-**Esperado:** **Preparar productos** encendido, sin aviso.
+### 64.5 · Tema oscuro y tema claro
 
-### 64.8 · El código no alcanza para concluir la etapa ajena
-1. Con la preparación tomada por B (64.2), C escanea el QR de esa transferencia.
+1. Repetir 64.1 y 64.3 en los dos temas.
 
-**Esperado:** los ítems **no** tienen el menú de tres puntos, **Concluir
-preparación** está apagado y dice **«Esta etapa la está trabajando <B>.»**
-Solo el que la tomó la cierra.
-
-### 64.9 · El traspaso sigue en transporte y recepción
-1. B concluye la preparación.
-2. C abre la transferencia desde la lista → **Verificar para transporte** apagado.
-3. B le muestra el QR y C lo escanea → encendido. C la toma y la despacha.
-4. En destino, otro usuario la abre desde la lista → **Iniciar recepción**
-   apagado; escanea el QR que le muestra C → encendido.
-
-**Esperado:** en cada paso el botón se enciende solo con el QR de quien tiene
-la transferencia a su nombre. Iniciar la recepción sigue pidiendo, además, el
-QR de la sucursal de destino (caso 49.8).
+**Esperado:** el badge rojo y el panel se leen en los dos.
 
 ## Resumen para completar
 
@@ -6126,8 +6104,8 @@ QR de la sucursal de destino (caso 49.8).
 | 61 · Kiosco de marcación | 15 | | | |
 | 62 · Método, similitud y margen | 9 | | | |
 | 63 · El ícono de la app | 5 | | | |
-| 64 · Transferencia ajena: se toma con su código | 9 | | | |
-| **Total** | **589** | | | |
+| 64 · Solicitud de pago devuelta por tesorería | 5 | | | |
+| **Total** | **585** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -26,7 +26,7 @@ import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { puedeSolicitar, resumenDelPago } from './solicitud-pago-reglas';
+import { estaDevuelta, puedeSolicitar, resumenDelPago } from './solicitud-pago-reglas';
 import { SolicitudPagoService } from './solicitud-pago.service';
 
 /**
@@ -113,7 +113,15 @@ import { SolicitudPagoService } from './solicitud-pago.service';
           }
         </frc-seccion>
 
-        @if (esBorrador()) {
+        @if (esDevuelta()) {
+          <frc-seccion titulo="Devuelta por tesorería" [panel]="true">
+            <p class="aviso">
+              Tesorería <strong>no la va a pagar así</strong>: el motivo está en
+              las observaciones. Corregila desde el sistema de escritorio y tocá
+              <strong>Solicitar</strong> para reenviarla a la cola de pagos.
+            </p>
+          </frc-seccion>
+        } @else if (esBorrador()) {
           <frc-seccion titulo="Todavía es un borrador" [panel]="true">
             <p class="aviso">
               Esta solicitud <strong>no la ve quien paga</strong> hasta que se
@@ -128,6 +136,10 @@ import { SolicitudPagoService } from './solicitud-pago.service';
           <!-- El alias no se llama "texto" para no tapar al método texto(). -->
           @if (resumenPago(); as resumen) {
             <p class="pago">{{ resumen }}</p>
+          } @else if (esDevuelta()) {
+            <p class="pago sin">
+              Sin pago asociado: tesorería la devolvió sin pagarla.
+            </p>
           } @else if (esBorrador()) {
             <p class="pago sin">
               Sin pago asociado, y no puede haberlo mientras sea un borrador.
@@ -198,6 +210,8 @@ export class SolicitudPagoDetallePage {
   );
   readonly resumenPago = computed(() => resumenDelPago(this.solicitud()));
   readonly esBorrador = computed(() => puedeSolicitar(this.solicitud()?.estado));
+  // Una devuelta también se reenvía (esBorrador), pero la pantalla no la llama borrador.
+  readonly esDevuelta = computed(() => estaDevuelta(this.solicitud()?.estado));
 
   constructor() {
     // El valor del `input()` de ruta no está en el constructor: se enlaza

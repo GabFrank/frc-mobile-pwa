@@ -200,6 +200,13 @@ describe('El enlace al registro', () => {
     expect(enlaceAlRegistro('frc-1-REC_MERC-431-431---')).toContain('/operaciones/recepcion/431');
   });
 
+  it('el de una transferencia lleva su código: mandarlo es pasársela al otro', () => {
+    // Sin el código, el que toca el enlace la abre sin poder tomarla.
+    const enlace = new URL(enlaceAlRegistro('frc--TRF-54061-54061---')!);
+    expect(enlace.searchParams.get('qr')).toBe('frc--TRF-54061-54061---');
+    expect(new URL(enlaceAlRegistro('frc-1-INV--2335---')!).searchParams.has('qr')).toBe(false);
+  });
+
   it('un QR que no abre ninguna pantalla no da enlace', () => {
     expect(enlaceAlRegistro('7790001234567')).toBeNull();
     expect(enlaceAlRegistro('frc--TRF------')).toBeNull();

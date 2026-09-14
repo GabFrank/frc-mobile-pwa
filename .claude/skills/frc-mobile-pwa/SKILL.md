@@ -5,7 +5,7 @@ description: Conocimiento profundo del repo frc-comercial/mobile-pwa — la PWA 
 
 # frc-mobile-pwa
 
-Repo: `GabFrank/frc-mobile-pwa` — **privado**
+Repo: `GabFrank/frc-mobile-pwa` — **público** (verificado 2026-09-14: `gh repo view` devuelve `isPrivate=false`)
 Path local: `/Users/gabfranck/workspace/frc-sistemas-informaticos/frc-comercial/mobile-pwa/`
 Stack: **Angular 21** standalone y **zoneless** · Material 21 · Apollo Client 4 / `apollo-angular` 14 · `@angular/service-worker` 21 · Node 20.20 · vitest
 
@@ -98,6 +98,38 @@ no lo paga Android.
 
 Ya pasó una vez que el escáner se escribió sin fallback «porque hoy no hay
 iOS». Eso invierte el orden.
+
+## Cómo se publica
+
+**Cloudflare Pages, un proyecto por canal.** No hay JAR, ni instalador, ni
+tienda: es un sitio estático más un service worker. El flujo de ramas y
+`semantic-release` es el mismo que en los otros cuatro repos del SaaS.
+
+| Canal | Proyecto | Puertas | API por defecto |
+|---|---|---|---|
+| alpha | `frc-pwa-alpha` | `alpha.app.frcsuite.com` (detrás de **Access**) | `alpha-api.frcsuite.com` → mauro por túnel |
+| beta | `frc-pwa-beta` | `beta.app.frcsuite.com` **y `farmacia.app.frcsuite.com`** | `farmacia-api.frcsuite.com` para las dos |
+| prod | `frc-pwa-prod` | `bodega.app.frcsuite.com` | `bodega-api.frcsuite.com` |
+
+⚠️ **`farmacia.app` cuelga del proyecto de beta, no del de prod** (re-mapeado el
+2026-08-20). La red de farmacia corre la serie beta del central: servirle builds
+estables la dejaba pidiéndole al backend operaciones de otra versión. **«beta»
+acá es producción que factura**, y un push a `release/beta` llega a farmacia.
+
+Cuatro cosas que conviene saber antes de tocar el pipeline:
+
+1. **El backend por defecto sale del hostname**, no del build:
+   `core/config/api-por-host.ts`. Una sola compilación sirve las cuatro
+   puertas, y el artefacto que se prueba en beta es byte a byte el que va a
+   producción. **No hay `fileReplacements` ni `environment.prod.ts`.**
+2. **Un host desconocido cae al fallback de `environment`, nunca a producción.**
+   Es deliberado: una preview de Pages no debe escribir en la base de nadie.
+3. **`index.html`, `ngsw.json` y `ngsw-worker.js` van `no-cache`** en
+   `public/_headers`. No llevan hash: si el CDN los cachea, la actualización
+   llega tarde o mezclada.
+4. **alpha y beta publican solos**; producción exige aprobación.
+
+Plan completo, decisiones y gotchas: `frc-cicd/plan-cicd-mobile-pwa.md`.
 
 ## Antes de tocar el central
 

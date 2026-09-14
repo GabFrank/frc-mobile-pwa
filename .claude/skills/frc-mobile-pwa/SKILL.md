@@ -5,7 +5,7 @@ description: Conocimiento profundo del repo frc-comercial/mobile-pwa — la PWA 
 
 # frc-mobile-pwa
 
-Repo: `GabFrank/frc-mobile-pwa` — **privado**
+Repo: `GabFrank/frc-mobile-pwa` — **público** (verificado 2026-09-14: `gh repo view` devuelve `isPrivate=false`)
 Path local: `/Users/gabfranck/workspace/frc-sistemas-informaticos/frc-comercial/mobile-pwa/`
 Stack: **Angular 21** standalone y **zoneless** · Material 21 · Apollo Client 4 / `apollo-angular` 14 · `@angular/service-worker` 21 · Node 20.20 · vitest
 

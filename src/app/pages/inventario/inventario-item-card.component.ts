@@ -331,11 +331,15 @@ export interface FilaConteo {
       gap: var(--sp-2);
       min-width: 0;
     }
+    /*
+      La descripción baja a las líneas que necesite: truncada con «…», dos
+      productos que comparten el principio del nombre no se distinguían.
+      anywhere corta también un código sin espacios, que con min-width: 0
+      en el contenedor se saldría de la card.
+    */
     .titulo {
       font-weight: var(--fw-medium);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
     }
     .marca-vencido { color: var(--danger); flex-shrink: 0; line-height: 0; }
     .fila-2 {

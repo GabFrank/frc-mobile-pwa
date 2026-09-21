@@ -638,6 +638,9 @@ export class InventarioCargaPage {
       sucursalId: Number.isFinite(sucursalId) ? sucursalId : undefined,
       mostrarPrecio: false,
       etiquetaCampo: 'Código, descripción o escaneo',
+      // Se cuenta en unidades: tocar la «x6» en vez de la «x1» multiplicaba
+      // el stock por seis al finalizar la toma.
+      soloPresentacionUnitaria: true,
     };
 
     const elegido = await this.dialogo.abrir<

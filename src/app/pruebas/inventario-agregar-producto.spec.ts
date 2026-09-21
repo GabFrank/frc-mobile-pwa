@@ -153,6 +153,16 @@ describe('Agregar un producto al conteo', () => {
     expect(datos.opciones.devuelve).toBe('presentacion');
   });
 
+  it('el buscador ofrece solo la presentación de 1', async () => {
+    // Tocar la «x6» en vez de la «x1» multiplicaba el stock por seis al
+    // finalizar la toma.
+    const f = montar();
+    await f.componentInstance.agregarProducto();
+
+    const datos = dialogo.abrir.mock.calls[0][1] as { opciones: { soloPresentacionUnitaria?: boolean } };
+    expect(datos.opciones.soloPresentacionUnitaria).toBe(true);
+  });
+
   it('un peso de balanza entra como lo contado', async () => {
     dialogo.abrir = vi.fn(async () => ({ ...SELECCION, peso: 1.235 }));
     const f = montar();

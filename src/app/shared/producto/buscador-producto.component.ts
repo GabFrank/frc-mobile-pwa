@@ -147,6 +147,7 @@ const LOTE = 10;
           [etiquetaStockDestino]="opciones().etiquetaStockDestino ?? 'Destino'"
           [cargando]="cargandoDetalle() === producto.id"
           [expandible]="opciones().devuelve !== 'producto'"
+          [soloUnitaria]="opciones().soloPresentacionUnitaria ?? false"
           (expandir)="alExpandir($event)"
           (seleccionar)="seleccion.emit({ producto: $event })"
           (elegir)="elegirPresentacion(producto, $event)"

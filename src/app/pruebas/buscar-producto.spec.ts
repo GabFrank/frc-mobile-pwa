@@ -20,6 +20,7 @@ import { OpcionesBuscador } from '../shared/producto/buscador.types';
 import {
   etiquetaPresentacion,
   precioDe,
+  presentacionesContables,
   resolverPresentacionPorCodigo,
 } from '../shared/producto/presentacion.util';
 
@@ -263,6 +264,80 @@ describe('Buscador de producto', () => {
     });
   });
 
+  describe('solo la presentación de 1 (conteo de inventario)', () => {
+    const caja = () =>
+      presentacion({
+        id: 11,
+        cantidad: 6,
+        principal: false,
+        tipoPresentacion: { descripcion: 'Pack' },
+        codigos: [{ id: 2, codigo: '7840006', principal: true }],
+      });
+
+    const abrirCard = (f: ReturnType<typeof montar>) => {
+      (f.nativeElement as HTMLElement).querySelector('.chevron')!.closest('button')!.click();
+      f.detectChanges();
+    };
+
+    const filas = (f: ReturnType<typeof montar>) =>
+      Array.from((f.nativeElement as HTMLElement).querySelectorAll('button.presentacion')).map(
+        (b) => b.textContent ?? '',
+      );
+
+    it('producto que llega con x1 y x6 ya cargadas (como por código): solo la x1', () => {
+      // Es el caso real: escanear la caja trae el producto con todas sus
+      // presentaciones, sin pasar por el detalle.
+      const conLasDos = producto({ presentaciones: [presentacion(), caja()] as never });
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([conLasDos]));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, '7840006');
+      abrirCard(f);
+
+      expect(busqueda.detalle).not.toHaveBeenCalled();
+      expect(filas(f)).toHaveLength(1);
+      expect(filas(f)[0]).toContain('Cantidad: 1');
+      expect(texto(f)).toContain('contá en unidades');
+    });
+
+    it('por texto: sigue filtrado después de que llega el detalle', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto()]));
+      busqueda.detalle.mockReturnValue(
+        of(producto({ presentaciones: [presentacion(), caja()] as never })),
+      );
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(busqueda.detalle).toHaveBeenCalledWith(1);
+      expect(filas(f)).toHaveLength(1);
+      expect(filas(f)[0]).toContain('Cantidad: 1');
+    });
+
+    it('sin la opción se ofrecen todas y no hay aviso', () => {
+      // Buscar, transferencias y devoluciones: ahí elegir la caja es legítimo.
+      const conLasDos = producto({ presentaciones: [presentacion(), caja()] as never });
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([conLasDos]));
+      const f = montar({});
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(filas(f)).toHaveLength(2);
+      expect(texto(f)).not.toContain('contá en unidades');
+    });
+
+    it('un producto sin presentación de 1 ofrece todas, sin aviso', () => {
+      const soloCaja = producto({ presentaciones: [caja()] as never });
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([soloCaja]));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(filas(f)).toHaveLength(1);
+      expect(filas(f)[0]).toContain('Cantidad: 6');
+      expect(texto(f)).not.toContain('contá en unidades');
+    });
+  });
+
   describe('menú de acciones', () => {
     it('siempre ofrece ver stock por sucursal', () => {
       const f = montar();
@@ -466,6 +541,44 @@ describe('Presentaciones', () => {
 
   it('sin presentaciones devuelve null en vez de romper', () => {
     expect(resolverPresentacionPorCodigo({ presentaciones: [] } as never, 'X')).toBeNull();
+  });
+
+  describe('las contables en un inventario', () => {
+    const p = (id: number, cantidad: number | null, activo?: boolean) =>
+      ({ id, cantidad, activo }) as never;
+    const ids = (lista: { id?: number }[]) => lista.map((x) => x.id);
+
+    it('deja solo las de cantidad 1', () => {
+      expect(ids(presentacionesContables([p(1, 1), p(2, 6), p(3, 12)]))).toEqual([1]);
+    });
+
+    it('con varias de 1 deja todas esas', () => {
+      expect(ids(presentacionesContables([p(1, 1), p(2, 6), p(3, 1)]))).toEqual([1, 3]);
+    });
+
+    it('sin ninguna de 1 devuelve todas', () => {
+      expect(ids(presentacionesContables([p(2, 6), p(3, 12)]))).toEqual([2, 3]);
+    });
+
+    it('una x1 inactiva no cuenta: cae en todas', () => {
+      expect(ids(presentacionesContables([p(1, 1, false), p(2, 6, true)]))).toEqual([1, 2]);
+    });
+
+    it('un activo ausente cuenta como activo', () => {
+      expect(ids(presentacionesContables([p(1, 1, undefined), p(2, 6)]))).toEqual([1]);
+    });
+
+    it('una cantidad nula no cuenta como 1: el central no puede multiplicarla', () => {
+      expect(ids(presentacionesContables([p(1, null), p(2, 1)]))).toEqual([2]);
+    });
+
+    it('una fraccionaria no es unitaria', () => {
+      expect(ids(presentacionesContables([p(1, 0.5), p(2, 1.5), p(3, 1)]))).toEqual([3]);
+    });
+
+    it('una lista vacía queda vacía', () => {
+      expect(presentacionesContables([])).toEqual([]);
+    });
   });
 
   it('el precio principal gana sobre el resto', () => {

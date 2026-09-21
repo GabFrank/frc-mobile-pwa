@@ -14,7 +14,7 @@ import { Producto } from 'src/app/domains/productos/producto.model';
 import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { IconoComponent } from '../icono/icono.component';
 import { ImporteComponent } from '../importe/importe.component';
-import { etiquetaPresentacion, precioDe } from './presentacion.util';
+import { etiquetaPresentacion, precioDe, presentacionesContables } from './presentacion.util';
 
 /** Una entrada del menú `⋮`. El id lo interpreta la pantalla que la declaró. */
 export interface AccionProducto {
@@ -153,6 +153,9 @@ export interface AccionProducto {
                 </span>
               </button>
             }
+            @if (hayOcultas()) {
+              <p class="aviso unitaria">Solo la presentación de 1 unidad: contá en unidades.</p>
+            }
           }
         </div>
       }
@@ -278,7 +281,7 @@ export interface AccionProducto {
       text-align: left;
       cursor: pointer;
     }
-    .presentacion:last-child { border-bottom: none; }
+    .presentacion:last-of-type { border-bottom: none; }
     .presentacion:hover { background: var(--surface); }
     .p-datos {
       display: flex;
@@ -308,6 +311,11 @@ export interface AccionProducto {
       padding: var(--sp-3);
       font-size: var(--fs-label);
       color: var(--text-mute);
+    }
+    /* Advierte contra un error caro: no se puede leer como un «cargando…». */
+    .aviso.unitaria {
+      color: var(--warn);
+      background: var(--warn-bg);
     }
     .etiqueta-menu { margin-left: var(--sp-2); }
   `,
@@ -346,6 +354,11 @@ export class ProductoCardComponent {
    * descartaban.
    */
   readonly expandible = input(true);
+  /**
+   * Solo las presentaciones activas de cantidad 1 —o todas, si no hay
+   * ninguna—. La pide el conteo de inventario. Ver `presentacionesContables()`.
+   */
+  readonly soloUnitaria = input(false);
 
   /** Se emite al abrir, para que la pantalla cargue presentaciones y stock. */
   readonly expandir = output<Producto>();
@@ -384,7 +397,15 @@ export class ProductoCardComponent {
     return foto ? foto : null;
   });
 
-  readonly presentaciones = computed(() => this.producto().presentaciones ?? []);
+  private readonly todas = computed(() => this.producto().presentaciones ?? []);
+  readonly presentaciones = computed(() =>
+    this.soloUnitaria() ? presentacionesContables(this.todas()) : this.todas(),
+  );
+  /**
+   * El filtro escondió alguna. Sin avisarlo, quien escaneó el código de la
+   * caja ve solo la x1 y carga la cantidad de cajas como si fueran unidades.
+   */
+  readonly hayOcultas = computed(() => this.presentaciones().length < this.todas().length);
   readonly stockLegible = computed(() => formatearCantidad(this.stock(), 0));
   readonly stockDestinoLegible = computed(() => formatearCantidad(this.stockDestino(), 0));
 

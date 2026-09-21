@@ -6149,6 +6149,62 @@ salirse.
 
 ---
 
+## Bloque 66 — El conteo ofrece solo la presentación de 1 *(nuevo, sin probar)*
+
+**Por qué está acá:** al agregar un producto al conteo, el buscador mostraba
+todas las presentaciones. Tocar «x6» en vez de «x1» cargaba el conteo en la
+caja: 100 unidades contadas se volvían 600 al finalizar la toma. Ahora, **solo
+en esa pantalla**, se ofrecen las presentaciones activas de cantidad 1; si el
+producto no tiene ninguna, todas.
+
+Preparación: una toma **abierta** con al menos una zona, y tres productos a
+mano: **A**, con presentación x1 y alguna de más unidades (x6, x12); **B**, con
+solo presentaciones de más de 1 (o con la x1 inactiva); y el código de barras
+de la caja de **A**.
+
+### 66.1 · Por descripción, solo la x1
+1. Abrir la zona → **Agregar producto**.
+2. Buscar **A** por descripción y tocar la fila para desplegarla.
+
+**Esperado:** una sola presentación, «Cantidad: 1 (…)», y debajo el aviso
+«Solo la presentación de 1 unidad: contá en unidades.». La x6 **no aparece**.
+
+### 66.2 · Escaneando la caja, igual solo la x1
+1. **Agregar producto** → escanear (o tipear) el código de la **caja** de **A**.
+2. Desplegar la fila.
+
+**Esperado:** igual que 66.1 — solo la x1, con el aviso. El código que se ve en
+la fila es el de la unidad, no el escaneado.
+
+### 66.3 · Elegir la x1 agrega el renglón en unidades
+1. Desde 66.1, tocar la x1.
+
+**Esperado:** el diálogo se cierra y aparece el renglón de **A** en la lista,
+con «Cantidad: 1» como presentación y el stock del sistema en unidades.
+
+### 66.4 · Sin presentación de 1, se ofrecen todas
+1. **Agregar producto** → buscar **B** y desplegarlo.
+
+**Esperado:** se ven **todas** sus presentaciones, como antes, y **sin** el
+aviso de «contá en unidades». Se puede elegir cualquiera.
+
+### 66.5 · Las otras pantallas no cambian
+1. Pestaña **Buscar** → buscar **A** y desplegarlo.
+2. Una transferencia en borrador (o una devolución nueva) → **Agregar
+   producto** → buscar **A**.
+
+**Esperado:** en las dos se ven **todas** las presentaciones de **A** y no hay
+aviso.
+
+### 66.6 · Finalizar suma en unidades
+1. En la toma de prueba, contar **10** en el renglón de **A** agregado en 66.3,
+   guardar y finalizar la toma.
+
+**Esperado:** el ajuste de stock de **A** parte de **10 unidades**, no de 60 ni
+de 120.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6218,7 +6274,8 @@ salirse.
 | 63 · El ícono de la app | 5 | | | |
 | 64 · El solicitante de una transferencia | 9 | | | |
 | 65 · La descripción completa del producto | 6 | 6 | | |
-| **Total** | **595** | | | |
+| 66 · El conteo ofrece solo la presentación de 1 | 6 | | | |
+| **Total** | **601** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

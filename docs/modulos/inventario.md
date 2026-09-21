@@ -431,7 +431,7 @@ la misma condición que habilita *Agregar producto*.
 > | Caso | Por qué es legítimo |
 > |---|---|
 > | El mismo producto contado en dos zonas | Hay stock en góndola y en depósito; los conteos se suman |
-> | «Unidad» y «caja x12» del mismo producto | Son dos presentaciones y dos renglones |
+> | «Unidad» y «caja x12» del mismo producto | Son dos presentaciones y dos renglones — para el central. **Desde la app ya no se agrega la caja**: ver «Solo la presentación de 1», abajo |
 > | Dos renglones sin vencimiento, de presentaciones distintas | El vencimiento es opcional en los dos frentes |
 > | La misma presentación con dos fechas | Son dos lotes |
 >
@@ -461,6 +461,46 @@ la pestaña Buscar: descripción, código, cámara y códigos de balanza. Recibe
 sucursal de la toma, así que muestra el stock de cada producto antes de
 elegirlo.
 
+### Solo la presentación de 1
+
+**Al agregar al conteo, el buscador ofrece solo las presentaciones activas de
+cantidad 1.** Es una decisión (Franco, 2026-09-21): el conteo se hace en
+unidades. Existe para evitar el error de toque más caro del módulo: 100
+unidades cargadas en la «x6» se vuelven 600 al finalizar, porque el central
+suma `cantidad × presentacion.cantidad`.
+
+- La enciende `soloPresentacionUnitaria` en las opciones del buscador, y solo
+  la pasa esta pantalla. Buscar, transferencias y devoluciones siguen
+  ofreciendo todas: ahí elegir la caja es legítimo.
+- **Si el producto no tiene ninguna presentación activa de 1, se ofrecen
+  todas.** Bloquear dejaba sin poder contar lo que solo existe en caja.
+- Una x1 **inactiva** no cuenta, para que caiga en «todas» y no en «solo la
+  que ya no se usa». Por eso `productoPorCodigo` pide también `activo`.
+- Una `cantidad` **nula** tampoco: el central la multiplica como `Double`
+  (`InventarioGraphQL.java:257`) y el renglón haría fallar la finalización.
+- Cuando el filtro escondió presentaciones, la card lo dice: «Solo la
+  presentación de 1 unidad: contá en unidades.» Sin eso, quien escanea el
+  código de la caja ve solo la x1 y carga la cantidad de cajas como unidades.
+
+⚠️ **No es la única vía que crea renglones.** `aplicarLote()` abre un renglón
+nuevo por lote **copiando la presentación de la fila**: un renglón en x6 que ya
+estaba —generado por la toma o cargado antes de este cambio— se replica en x6
+con cada lote. Ahí no hay elección que equivocar, así que no se filtra.
+
+⚠️ **Un código de balanza tampoco pasa por el filtro**: el buscador emite
+directo la presentación que resolvió el código, sin mostrar la card. Hoy no
+es un riesgo —en bodega, los 56 productos de balanza activos tienen todas sus
+presentaciones en x1 (consultado el 2026-09-21)—, pero un PLU cargado en otra
+presentación entraría en esa.
+
+⚠️ **Es una protección contra el error de toque, no una regla del central.**
+`saveInventarioProductoItem` sigue aceptando cualquier presentación: desde el
+desktop, desde `frc-mobile` o con una llamada a mano se puede seguir cargando
+en la caja, y el central la multiplica igual.
+
+La regla vive en `presentacionesContables()`
+(`shared/producto/presentacion.util.ts`).
+
 El ítem se **persiste al elegirlo**, con el stock del sistema y sin conteo, y
 la lista se recarga. Así hay una sola fuente de verdad —lo que dice el
 central— y no un renglón a medio existir que se pierde si alguien sale de la
@@ -477,8 +517,8 @@ etiqueta y que la cantidad salga del código es el flujo real de la balanza.
 
 **Una presentación que ya está en la zona no se duplica.** La clave real es
 `(inventario_producto, presentacion)`: dos renglones de lo mismo se suman los
-dos al finalizar. Otra presentación del mismo producto sí se puede agregar —
-«unidad» y «caja x12» son dos ítems legítimos.
+dos al finalizar. Otra presentación del mismo producto el central la acepta,
+pero desde la app ya no se ofrece: ver «Solo la presentación de 1».
 
 **Si no se pudo consultar el stock, no se agrega.** Un cero inventado diría que
 el sistema no tiene nada de ese producto, que es una afirmación que nadie hizo.

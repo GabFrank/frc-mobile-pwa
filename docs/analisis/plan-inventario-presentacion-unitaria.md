@@ -127,3 +127,28 @@ Dos auditores, sin verse. Todo hallazgo se verificó contra el código.
 | B | «Una sola puerta» era falso: `aplicarLote()` también crea renglones | Tabla de alcance corregida; queda afuera a propósito, documentado |
 | B | Faltaban tests del camino por código y de la recarga del detalle | Agregados a la fase |
 | B | Tomas abiertas y service worker postergado | Sin riesgo: nada persiste ni cambia contrato; rollback = revertir el front |
+
+## Auditoría del diff (paso 8)
+
+Tres fijos; los condicionales no se disparan (el diff no toca release ni nada
+replicado).
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 | El código de balanza emite su presentación sin pasar por la card | Medido en bodega prod: los 56 pesables activos tienen solo x1. Documentado en el módulo, sin filtrar |
+| Fijo 1 | La bandera es solo del cliente: el central acepta cualquier presentación | Documentado: es contra el error de toque, no una garantía |
+| Fijo 2 | `Presentacion.activo` existe en el esquema desde el primer commit (2022) | Sin acción: ningún canal queda atrás |
+| Fijo 2 | `catchError(() => of(null))` en la búsqueda por código tragaría un campo inexistente | Fuera de alcance; no aplica a `activo` |
+| Fijo 3 | El aviso quedaba como último hijo y dejaba el borde del último botón; tono mudo | `:last-of-type` y tono `--warn` |
+| Fijo 3 | El test «por código» no ejercita el escaneo, solo el producto ya cargado | Renombrado a lo que prueba |
+
+## Revisión de datos en producción (bodega, 2026-09-21, solo lectura)
+
+Productos **activos**: 9.041. Con x1 activa: 9.019. Seis tienen más de una x1
+activa (se ofrecen todas esas). Ninguna presentación con `activo` nulo.
+
+| Caso | Productos | Qué ve el conteo |
+|---|---|---|
+| Sin x1, solo otras cantidades | 13 | Todas (fallback) |
+| x1 existe pero inactiva | 2 — 921 CARBON BRITEZ KUE GRANDE, 4532 REXONA CLINICAL MEN… | Todas (fallback): en los dos es la única presentación |
+| Sin ninguna presentación | 7 | «no tiene presentaciones cargadas», como hoy |

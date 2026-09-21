@@ -6082,7 +6082,14 @@ solicitante». Este caso existe porque la PWA finaliza con
 `finalizarTransferencia`, que movía la etapa **sin pasar por las validaciones**
 del otro camino.
 
-## Bloque 65 — La descripción completa del producto en las listas *(nuevo, sin probar)*
+## Bloque 65 — La descripción completa del producto en las listas *(nuevo)* — **6/6** (Claude en Chrome, central local, usuario MAURO, 2026-09-21)
+
+> Probado en un viewport real de 390 px (la app dentro de un iframe de
+> 390×844: la ventana del navegador no se dejaba achicar). 65.4 se probó
+> desde devolución nueva; 65.5 sobre la zona «estante destilados» de la toma
+> 2522, concluida (solo lectura). La palabra sin espacios de 65.6 se simuló
+> cambiando el texto de una fila en pantalla: no hay ningún producto así en
+> la base. Falta un teléfono real, y iOS.
 
 **Por qué está acá:** en la lista de productos la descripción se cortaba en
 una línea con «…». Dos productos que comparten el principio del nombre
@@ -6210,7 +6217,7 @@ salirse.
 | 62 · Método, similitud y margen | 9 | | | |
 | 63 · El ícono de la app | 5 | | | |
 | 64 · El solicitante de una transferencia | 9 | | | |
-| 65 · La descripción completa del producto | 6 | | | |
+| 65 · La descripción completa del producto | 6 | 6 | | |
 | **Total** | **595** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

@@ -6082,6 +6082,73 @@ solicitante». Este caso existe porque la PWA finaliza con
 `finalizarTransferencia`, que movía la etapa **sin pasar por las validaciones**
 del otro camino.
 
+## Bloque 65 — La descripción completa del producto en las listas *(nuevo)* — **6/6** (Claude en Chrome, central local, usuario MAURO, 2026-09-21)
+
+> Probado en un viewport real de 390 px (la app dentro de un iframe de
+> 390×844: la ventana del navegador no se dejaba achicar). 65.4 se probó
+> desde devolución nueva; 65.5 sobre la zona «estante destilados» de la toma
+> 2522, concluida (solo lectura). La palabra sin espacios de 65.6 se simuló
+> cambiando el texto de una fila en pantalla: no hay ningún producto así en
+> la base. Falta un teléfono real, y iOS.
+
+**Por qué está acá:** en la lista de productos la descripción se cortaba en
+una línea con «…». Dos productos que comparten el principio del nombre
+(«COCA COLA 500ML…» y «COCA COLA 500ML ZERO…») eran la misma fila a la vista.
+Ahora el nombre baja a las líneas que necesite. Cambia en la card del
+buscador —pestaña **Buscar** y todo lo que la reusa: agregar producto a una
+transferencia, a una devolución, al conteo— y en la lista del conteo de
+inventario, que tiene su propia card.
+
+### 65.1 · Un nombre largo se lee entero en Buscar
+1. Ir a la pestaña **Buscar**.
+2. Buscar un producto de nombre largo (probar `coca`, `leche`, o cualquiera
+   con presentación y sabor en el nombre).
+
+**Esperado:** el nombre completo, en dos o más líneas si no entra en una.
+**Ningún** «…» al final del nombre. El código y el stock de abajo siguen en
+una línea.
+
+### 65.2 · La fila no se deforma
+1. En la misma lista, mirar una fila de nombre largo al lado de una de
+   nombre corto.
+
+**Esperado:** la foto (o el ícono) conserva su tamaño cuadrado y queda
+centrada a la altura de la fila; el chevron y el botón **⋮** quedan a la
+derecha, sin encimarse con el texto. La fila de nombre corto se ve igual que
+antes.
+
+### 65.3 · Expandir y cerrar una fila de nombre largo
+1. Tocar una fila de nombre largo para desplegar sus presentaciones.
+2. Volver a tocarla.
+
+**Esperado:** se despliega y se cierra como antes; el nombre sigue entero en
+los dos estados.
+
+### 65.4 · El diálogo de búsqueda de las otras pantallas
+1. Abrir una devolución nueva (o una zona de una toma de inventario) y tocar
+   **Agregar producto**.
+2. Buscar un producto de nombre largo.
+
+**Esperado:** igual que 65.1 — nombre entero, sin «…», y el diálogo sigue
+haciendo scroll si los resultados no entran.
+
+### 65.5 · La lista del conteo de inventario
+1. Abrir una toma de inventario con productos cargados en una zona.
+2. Mirar un renglón de nombre largo, y uno vencido (con el ícono rojo).
+
+**Esperado:** el nombre completo en varias líneas; el ícono de vencido sigue
+visible al lado del nombre, no empujado fuera de la card.
+
+### 65.6 · Teléfono angosto y tema oscuro
+1. Repetir 65.1 en un teléfono chico (o Chrome en 360 px de ancho) y en
+   tema oscuro.
+
+**Esperado:** sin scroll horizontal en ninguna fila; un nombre con una
+palabra muy larga sin espacios también corta dentro de la card en vez de
+salirse.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6150,7 +6217,8 @@ del otro camino.
 | 62 · Método, similitud y margen | 9 | | | |
 | 63 · El ícono de la app | 5 | | | |
 | 64 · El solicitante de una transferencia | 9 | | | |
-| **Total** | **589** | | | |
+| 65 · La descripción completa del producto | 6 | 6 | | |
+| **Total** | **595** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

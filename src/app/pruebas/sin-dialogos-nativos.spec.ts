@@ -26,8 +26,8 @@ declare global {
 }
 
 describe('Sin diálogos nativos', () => {
-  // Se leen los fuentes por glob y no con `fs` porque el proyecto no tiene
-  // los tipos de Node.
+  // Solo `.ts`, que el glob entrega con su contenido. Ojo con extenderlo: los
+  // `.scss` llegan vacíos en este runner (ver `tokens-de-material.spec.ts`).
   const fuentes = import.meta.glob('../**/*.ts', {
     query: '?raw',
     import: 'default',
@@ -67,5 +67,13 @@ describe('Sin diálogos nativos', () => {
     // Sin esto, un glob que dejara de resolver haría pasar el test anterior
     // sin haber mirado un solo archivo.
     expect(Object.keys(fuentes).length).toBeGreaterThan(100);
+  });
+
+  it('ningún fuente llega vacío', () => {
+    // Contar archivos no alcanza: vacíos, el test de arriba pasaría igual.
+    const vacios = Object.entries(fuentes)
+      .filter(([, contenido]) => String(contenido ?? '').trim().length === 0)
+      .map(([ruta]) => ruta);
+    expect(vacios).toEqual([]);
   });
 });

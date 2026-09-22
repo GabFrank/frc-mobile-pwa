@@ -427,8 +427,8 @@ de concluir, el aviso de finalizar, el título del conteo y el diálogo
 `sector-detalle.page.ts`. Transforma solo la descripción: el relleno («Sin
 zona») queda como está, y lo guardado no cambia. Las siglas y los códigos
 alfanuméricos se aplanan («UPS» → «Ups», «GONDOLA 2B» → «Gondola 2b»): es lo
-que ya hacían lugares y sector; si molesta, el cambio va en `nombreDeLugar()` y
-alcanza a las tres pantallas.
+que ya hacían lugares y sector, y **se deja así** (Franco, 2026-09-22). Si
+algún día se cambia, va en `nombreDeLugar()` y alcanza a las tres pantallas.
 
 En la card, «Contar» y «Concluir»/«Reabrir» van en **un** contenedor —el único
 nodo raíz de su `@if`, que por eso proyecta— en el slot **`[botonera]`** de
@@ -517,6 +517,13 @@ diciendo si se **permite**; `mostrarAgregar`, si corresponde mostrarlo.
   *Agregar producto*: el paso siguiente es el menú ⋮.
 - Sin ninguno de los dos —toma cerrada— la barra no se pinta.
 - Con algo sin guardar no se puede agregar otro producto: primero se guarda.
+
+⚠️ **Pendiente, preexistente:** en un renglón con lote, «Guardar conteo» manda
+en paralelo las fechas al maestro del lote (`actualizarFechas`) y el renglón
+(`guardarItem`, con su copia del vencimiento). Si falla solo la primera —por
+ejemplo, el central rechaza un retiro posterior al vencimiento—, la copia del
+renglón queda distinta del maestro hasta que se reintente con éxito. Reintentar
+es seguro: las dos operaciones pisan valores, no suman.
 
 **Al guardar, el renglón se contrae.** ⚠️ **De `edicion` sale solo lo que se
 guardó**: si un ítem falla, lo escrito se conserva, su renglón queda abierto

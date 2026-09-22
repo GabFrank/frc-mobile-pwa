@@ -173,6 +173,8 @@ Para agregar un ícono, sumá su `path` al mapa del componente.
 
 La duración del toast la fija el tono, no el llamador: un error necesita más tiempo de lectura que un éxito.
 
+**El margen de un diálogo con caja propia lo pone `styles.scss`**, no el componente: la superficie de Material 21 no trae padding y `mat-dialog-content` sí. Un diálogo que no usa `mat-dialog-content` recibe `--sp-3` en los cuatro lados de una regla global; no le agregues padding a su caja, o queda con el doble. El escáner, a pantalla completa, está excluido.
+
 `CargandoService` alimenta la barra de progreso del shell. **No abre un overlay bloqueante**: las listas muestran skeleton, que es el patrón aprobado.
 
 ## Convenciones de componente

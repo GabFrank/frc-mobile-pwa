@@ -90,3 +90,13 @@ Teléfono real e iOS.
 | B | El surface no crece: `border-box` + `max-width: inherit`; QR con scroll en 280 px | Anotado |
 | B | vitest corre en jsdom sin `styles.scss` | Test sobre el texto de la hoja; verificación visual en navegador |
 | A | Arriba y abajo también a 0 px | Los cuatro lados, confirmado por Franco |
+
+## Auditoría del diff (paso 8)
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 y 2 | Solo estilos y docs; los diálogos sensibles solo ganan margen | Sin acción |
+| Fijo 1 | ¿El recorte del rostro depende del ancho del video? | No: `drawImage` usa las medidas de la imagen (`core/dispositivo/imagen.ts:43`) |
+| Fijo 2 | Choque con el PR #56 en la tabla del plan de testeo (bloques 70 y 71, total 628 vs 625) | Al mergear el segundo: bloque 70 antes que 71, **total 631** |
+| Fijo 3 | Los 5 `dialog.open` directos usan `mat-dialog-content`; el escáner queda excluido | Sin acción |
+| Fijo 3 | En el runner, `import.meta.glob(…?raw)` devuelve los `.scss` vacíos: `tokens-de-material.spec.ts` nunca revisó `styles.scss` ni `_tokens.scss` (los `.ts` sí: 578 archivos con contenido, verificado) | Fuera de alcance; el test nuevo lee con `node:fs`. Anotado para Franco |

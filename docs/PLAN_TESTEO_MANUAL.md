@@ -6394,6 +6394,36 @@ la app (caja, devoluciones, transferencias…) se ven igual que antes.
 
 ---
 
+## Bloque 71 — Margen de los diálogos *(nuevo)* — **3/3** (Claude en Chrome, central local, 2026-09-22)
+
+> Medido en el navegador, no a ojo: el padding calculado de la superficie y la
+> distancia del título y los botones al borde. El escáner se verificó sobre la
+> misma estructura de clases que arma Material, sin abrir la cámara. Falta
+> teléfono real e iOS (`:has()` necesita Safari 15.4+).
+
+**Por qué está acá:** los diálogos que arman su propia caja —crear y buscar
+lote, zona, lugar, seleccionar lote, kiosco, QR, verificación facial— tenían
+el contenido pegado al borde en los cuatro lados.
+
+### 71.1 · Crear lote con margen
+1. En una zona, menú ⋮ de un renglón con lote → **Crear nuevo lote**.
+
+**Esperado:** el título, los campos y los botones separados del borde del
+diálogo (12 px) en los cuatro lados.
+
+### 71.2 · Los que ya tenían margen, igual
+1. **Agregar producto** (o cualquier diálogo con título y contenido de
+   Material: confirmar, devoluciones, transferencias).
+
+**Esperado:** se ve igual que antes, sin margen doble.
+
+### 71.3 · El escáner sigue a pantalla completa
+1. Tocar el botón de escanear.
+
+**Esperado:** el video ocupa todo el ancho, sin franjas a los costados.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6467,7 +6497,8 @@ la app (caja, devoluciones, transferencias…) se ven igual que antes.
 | 67 · Un producto abierto a la vez en el buscador | 4 | | | |
 | 68 · Una toma cerrada es de solo lectura | 4 | | | |
 | 69 · Nombres de zona y botones de la card | 3 | | | |
-| **Total** | **622** | | | |
+| 71 · Margen de los diálogos | 3 | 3 | | |
+| **Total** | **625** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

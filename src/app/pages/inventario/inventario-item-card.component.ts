@@ -161,18 +161,18 @@ export interface FilaConteo {
               ya asignado abre otro: es cómo se cuentan dos lotes del mismo
               producto en la misma zona sin volver a «Agregar producto».
             -->
-            <button mat-menu-item (click)="agregarLote.emit()">
+            <button mat-menu-item [disabled]="ocupado()" (click)="agregarLote.emit()">
               <frc-icono nombre="buscar" [tamano]="18" />
               <span class="etiqueta-menu">
                 {{ fila().lote ? 'Agregar otro lote' : 'Agregar lote' }}
               </span>
             </button>
-            <button mat-menu-item (click)="crearLote.emit()">
+            <button mat-menu-item [disabled]="ocupado()" (click)="crearLote.emit()">
               <frc-icono nombre="producto" [tamano]="18" />
               <span class="etiqueta-menu">Crear nuevo lote</span>
             </button>
           }
-          <button mat-menu-item (click)="quitar.emit()">
+          <button mat-menu-item [disabled]="ocupado()" (click)="quitar.emit()">
             <frc-icono nombre="tirar" [tamano]="18" />
             <span class="etiqueta-menu">Quitar del conteo</span>
           </button>
@@ -209,10 +209,10 @@ export interface FilaConteo {
                 poder contarlo.
               </span>
               <span class="sin-lote-acciones">
-                <button type="button" class="usar" (click)="agregarLote.emit()">
+                <button type="button" class="usar" [disabled]="ocupado()" (click)="agregarLote.emit()">
                   Buscar lote
                 </button>
-                <button type="button" class="usar" (click)="crearLote.emit()">
+                <button type="button" class="usar" [disabled]="ocupado()" (click)="crearLote.emit()">
                   Crear lote
                 </button>
               </span>
@@ -489,6 +489,11 @@ export class InventarioItemCardComponent {
    * registro diciendo otra cosa que el ajuste aplicado.
    */
   readonly soloLectura = input(false);
+  /**
+   * La pantalla está agregando, aplicando un lote o quitando: las acciones de
+   * lote y «Quitar» esperan. Un doble toque creaba dos lotes o dos renglones.
+   */
+  readonly ocupado = input(false);
   /**
    * El renglón recién agregado: al pintarse se lleva a la vista y, si hay que
    * contarlo, pone el foco en «Contado».

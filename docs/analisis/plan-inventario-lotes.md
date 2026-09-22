@@ -76,9 +76,16 @@ guarda con una fecha que el lote no tiene.
 - Renglón **con fechas de lote cambiadas** (con o sin conteo): primero
   `actualizarFechas`; si sale bien, `guardarItem` con el `vencimiento` **que
   devolvió el maestro** (`fechaVencimiento`, recortado a `yyyy-MM-dd`: el tipo
-  es `Date`). También sin conteo nuevo: si no, la copia del renglón —que
-  sostiene la clave de duplicado— quedaba vieja (eje A). Sin conteo se manda
-  la `cantidad` que el renglón ya tenía.
+  es `Date`). Si el renglón ya tiene conteo (guardado o escrito) va en
+  `filasAGuardar()` y se manda con la fecha nueva.
+- **Cambio al implementar:** un renglón que cambió **solo fechas y nunca se
+  contó** no manda `guardarItem`. `saveInventarioProductoItem` **reemplaza el
+  renglón entero** (`ModelMapper` sobre el input,
+  `InventarioProductoItemGraphQL.java:141-183`): mandarlo sin conteo pisaría
+  sus marcas de verificado/revisado. Su copia del vencimiento se corrige en el
+  próximo guardado con conteo, que toma la fecha del maestro (`propiaDe()`,
+  `inventario-carga.page.ts:333`); y dos renglones del mismo lote en la zona
+  no pueden existir, así que la copia vieja no produce un duplicado.
 - Si `actualizarFechas` **falla o responde vacío** (`DatosService` deja pasar
   `data: null` sin error): **no** se manda `guardarItem` y el renglón queda
   entre los fallidos, con lo escrito conservado. Un vacío no es lo mismo que
@@ -95,27 +102,26 @@ guarda con una fecha que el lote no tiene.
 - El error de `actualizarFechas` salía dos veces (`DatosService` y el
   `danger` propio): queda uno.
 
-## Fase 3 — el stock del sistema, en la presentación del renglón
+## Fase 3 — el «Sistema» se ve en la presentación del renglón
 
 **Qué pasa hoy** (hallazgo de los dos ejes). El saldo de un lote y el stock
-del producto llegan **en unidades** (`LoteRepository.java:50-70`,
-`buscador-lote-dialog.component.ts:252`, `productoPorSucursalStock`), y la
-PWA los pone tal cual en `cantidadFisica`. En un renglón x6 eso compara cajas
-contadas contra unidades del sistema: la diferencia sale mal y
-`marcasDeConteo()` lo marca `revisado` aunque coincida. `frc-mobile` convertía
-(`stockPorProducto / presentacion.cantidad`,
-`edit-inventario-item-dialog.component.ts:65`).
+del producto llegan **en unidades**, y la PWA los muestra tal cual. En un
+renglón x6 eso compara cajas contadas contra unidades: la diferencia sale mal
+y `marcasDeConteo()` lo marca `revisado` aunque coincida. `frc-mobile`
+convertía al mostrar (`stockPorProducto / presentacion.cantidad`).
 
-`finalizarInventarioEnSucursal()` **no** usa `cantidadFisica` —suma
-`cantidad × presentacion.cantidad` contra `movimiento_stock`—, así que el
-ajuste de stock nunca estuvo mal: lo que está mal es lo que se ve y la marca
-de revisión.
+**Cambio al implementar** (auditoría del diff + decisión de Franco,
+2026-09-22). La primera versión **guardaba** `cantidadFisica` en la
+presentación. Se descartó: el central lo define en unidades («el saldo de ese
+lote en la sucursal», `InventarioProductoItem.java:47-52`), su reporte y los
+filtros de revisión lo restan de `cantidad` (`InventarioProductoItemGraphQL.java:270-274`),
+y una misma toma quedaba con renglones en unidades y en cajas. Ahora:
 
-**Cambio.** Una función `enPresentacion(unidades, presentacion)` divide por
-`presentacion.cantidad` (con `cantidad` nula o 0, sin convertir). Se usa en
-los tres lugares donde la PWA carga el stock del sistema: `nuevoItemInput()`
-(alta), y `aplicarLote()` al completar un renglón y al abrir uno nuevo. Con la
-x1 no cambia nada.
+- `cantidadFisica` se **guarda en unidades**, como siempre (alta y lotes).
+- La pantalla lo **muestra** en la presentación (`enPresentacion()` en
+  `items()`): «Sistema» y la diferencia.
+- Las marcas comparan **en unidades** (`enUnidades()`: contado ×
+  presentación), así no dependen de los decimales de dividir.
 
 ## Tests
 
@@ -183,3 +189,14 @@ y `cantidadFisica` pasa a ir en la presentación del renglón.
 | B | `null` en `actualizarFechas` o en el detalle | Fallo, no «borrado» ni «ninguna activa» |
 | B | `agregando` y el doble toque con el viaje extra | Se baja en todos los caminos; ⋮ y botones deshabilitados |
 | B | `inventario-lote.spec.ts` no simula `detalle`; los mocks de fechas no devuelven fecha | Se ajustan |
+
+## Auditoría del diff (paso 8)
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 y 2 | Mismos campos en `guardarItem`; el vencimiento llega `"yyyy-MM-dd HH:mm"` sin zona: el recorte no corre el día | Sin acción |
+| Fijo 2 | **Guardar `cantidadFisica` en presentación cambiaba un dato que el central define en unidades** y que leen su reporte y la revisión; mezclaba criterios en una toma | Decisión de Franco: guardar en unidades, convertir solo al mostrar, marcas en unidades |
+| Fijo 3 | Dividir da decimales y las marcas con `===` nunca daban verificado | Resuelto al comparar en unidades |
+| Fijo 3 | El aviso de «elegir» decía «inactiva» también cuando la original tenía cantidad nula | Texto neutro |
+| Fijo 3 | Un test decía «al agregar» y corría `crearLote`; el de detalle vacío no miraba su aviso | Corregidos |
+| Fijo 3 | `agregando`, `pendientes`, `olvidarFechas` y la comparación de lotes duplicados | Verificados, sin cambios |

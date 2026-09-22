@@ -9,6 +9,7 @@ import {
   InventarioProductoItemInput,
   TipoInventario,
 } from 'src/app/domains/inventario/inventario.model';
+import type { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import type { Sector } from 'src/app/domains/sector/sector.model';
 import { marcasDeConteo } from './revision-item';
 
@@ -220,9 +221,90 @@ function sufijoAntiguedad(inventario: Inventario, ahora: Date): string {
  * existencia del producto a cada renglón de lote haría que todos mostraran la
  * misma diferencia y que el ajuste saliera multiplicado.
  */
+/**
+ * Unidades del sistema expresadas en la presentación del renglón, **para
+ * mostrar**.
+ *
+ * ⚠️ `cantidadFisica` se **guarda en unidades**: así lo define el central
+ * («el saldo de ese lote en la sucursal», `InventarioProductoItem.java`) y así
+ * lo leen su reporte y los filtros de revisión. Lo que se convierte es lo que
+ * se ve: en un renglón x6 se cuentan cajas, y mostrar «Sistema: 12» al lado de
+ * «2» contadas hacía ver una diferencia que no existe. `frc-mobile` convertía
+ * igual (`stockPorProducto / presentacion.cantidad`). El ajuste de stock nunca
+ * estuvo mal: `finalizarInventarioEnSucursal()` no usa este campo.
+ *
+ * Con una cantidad nula o cero no se convierte.
+ */
+export function enPresentacion(
+  unidades: number,
+  cantidadPresentacion: number | null | undefined,
+): number {
+  return cantidadPresentacion ? unidades / cantidadPresentacion : unidades;
+}
+
+/**
+ * Lo contado en la presentación del renglón, en unidades: para compararlo con
+ * `cantidadFisica`, que está en unidades. Comparar en unidades evita los
+ * decimales de dividir el sistema (7 unidades en una x6 son 1,1666…).
+ */
+export function enUnidades(
+  contado: number,
+  cantidadPresentacion: number | null | undefined,
+): number {
+  return cantidadPresentacion ? contado * cantidadPresentacion : contado;
+}
+
+/** En qué presentación va el renglón nuevo de un lote, o por qué no hay. */
+export type PresentacionParaLote =
+  | { presentacion: Presentacion }
+  | { motivo: 'ninguna' | 'elegir' };
+
+/**
+ * La presentación del renglón **nuevo** que abre un lote sobre un renglón que
+ * ya tiene otro.
+ *
+ * Copiar la del renglón original esquivaba las dos reglas del alta: contar en
+ * unidades y no operar sin presentación activa. Ahora es la misma regla que
+ * `presentacionesContables()` más una preferencia (Franco, 2026-09-22):
+ *
+ * 1. una x1 activa (la original, si es una de ellas);
+ * 2. si no, la original si está activa;
+ * 3. si no, la única activa;
+ * 4. ninguna activa → `ninguna`; varias y ninguna sirve → `elegir`: no se
+ *    adivina, se agrega el producto con *Agregar producto*.
+ *
+ * Una `cantidad` nula no cuenta como activa utilizable: el central la
+ * multiplica al finalizar y la toma falla.
+ */
+export function presentacionParaNuevoLote(
+  presentaciones: Presentacion[],
+  originalId: number | null | undefined,
+): PresentacionParaLote {
+  const activas = presentaciones.filter((p) => p.activo !== false && p.cantidad != null);
+  const esOriginal = (p: Presentacion) => originalId != null && Number(p.id) === Number(originalId);
+
+  const unitarias = activas.filter((p) => p.cantidad === 1);
+  if (unitarias.length > 0) {
+    return { presentacion: unitarias.find(esOriginal) ?? unitarias[0] };
+  }
+  const original = activas.find(esOriginal);
+  if (original) {
+    return { presentacion: original };
+  }
+  if (activas.length === 1) {
+    return { presentacion: activas[0] };
+  }
+  return { motivo: activas.length === 0 ? 'ninguna' : 'elegir' };
+}
+
 export function nuevoItemInput(datos: {
   inventarioProductoId: number;
   presentacionId: number;
+  /**
+   * Cuántas unidades trae la presentación. El stock va en unidades a
+   * `cantidadFisica`; solo sirve para comparar un peso contado contra él.
+   */
+  cantidadPresentacion?: number | null;
   stock: number | null | undefined;
   usuarioId: number;
   peso?: number;
@@ -246,5 +328,9 @@ export function nuevoItemInput(datos: {
   if (datos.peso == null) {
     return base;
   }
-  return { ...base, cantidad: datos.peso, ...marcasDeConteo(datos.peso, sistema) };
+  return {
+    ...base,
+    cantidad: datos.peso,
+    ...marcasDeConteo(enUnidades(datos.peso, datos.cantidadPresentacion), sistema),
+  };
 }

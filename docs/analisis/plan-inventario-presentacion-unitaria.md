@@ -269,6 +269,41 @@ Revertir y ver fallar. Docs: módulo (la barra y el cierre) y bloque 66.
 guardado parcial que borraba lo fallido; el eje B, además, el renglón con lote
 esperando el ⋮. Verificado contra el código e incorporado arriba.
 
+**Fase 5** — en el buscador, abrir un producto cierra el anterior. Pedido de
+Franco (2026-09-22): con un producto desplegado se podía desplegar otro y el
+primero quedaba abierto.
+
+- Hoy cada `ProductoCardComponent` guarda su propio `abierta = signal(false)`
+  (`producto-card.component.ts:405`); el buscador no sabe cuál está abierta.
+- **El buscador pasa a ser la única fuente**, igual que la lista del conteo
+  (`inventario-carga.page.ts:154`): `abiertoId` en el buscador; la card recibe
+  `abierta` como **input** (default `false`: el host de
+  `descripcion-completa.spec.ts` no lo pasa) y al tocar la cabecera emite
+  `alternada`. El buscador hace `abiertoId` = ese id o `null` si ya era, y
+  llama a `alExpandir()` **solo al abrir**. Con `expandible = false` la card
+  sigue emitiendo `seleccionar`, sin cambios.
+- **Una búsqueda nueva y el pesable ponen `abiertoId` en `null`.** Vacían la
+  lista y recrean las cards (`buscador-producto.component.ts:374-377`): con la
+  marca vieja, una card podía nacer abierta sin que nadie pidiera su detalle
+  ni su stock, y quedar en «Cargando presentaciones…» para siempre. «Cargar
+  más» agrega filas y conserva las instancias: no la toca.
+- **Descartado:** un híbrido con `linkedSignal` (estado local + input). Los
+  dos auditores mostraron el caso anterior y otro: cerrar A dejaba la marca en
+  A, y A reaparecía abierta en la búsqueda siguiente.
+- Como la card la monta **solo** el buscador (`git grep`), vale para Buscar,
+  transferencias, devoluciones y el conteo.
+
+Tests: abrir A y después B deja solo B abierta (falla hoy: las dos quedan con
+`aria-expanded="true"`); tocar la abierta la cierra; buscar de nuevo con A en
+los resultados la muestra cerrada; el detalle se pide al abrir y no al cerrar;
+`expandible = false` sigue eligiendo. Revertir y ver fallar. Docs: casos en el
+plan de testeo.
+
+**Auditoría del plan de la fase 5:** los dos ejes encontraron que el diseño
+híbrido dejaba una card abierta sin detalle tras una búsqueda nueva, y que
+«mismo criterio que el conteo» era falso; el eje B recomendó la card
+controlada. Verificado e incorporado arriba.
+
 ## Datos nuevos
 
 | Dato | Quién lo escribe | Quién lo lee |

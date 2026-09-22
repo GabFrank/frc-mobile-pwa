@@ -360,6 +360,50 @@ confirmó que ninguna otra pantalla edita ítems y que los campos compartidos
 respetan `deshabilitado`. Eje B — ediciones pendientes que quedaban mostradas
 como registro, sin salida; guard en `editar()`. Verificado e incorporado.
 
+**Fase 7** — la card de zona del detalle de la toma. Pedido de Franco
+(2026-09-22), tras probar la fase 6.
+
+- **Zona y sector con mayúscula inicial por palabra** («zona gaseosas» →
+  «Zona Gaseosas», «deposito» → «Deposito»), con `TitleCasePipe`, el mismo
+  que ya usan `lugares.page.ts` y `sector-detalle.page.ts` (verificado: con
+  acentos, ñ, números y guiones sale bien —«estante café» → «Estante Café»,
+  «DEPOSITO A-2» → «Deposito A-2»—; las siglas se aplanan, «UPS» → «Ups», igual
+  que en esas pantallas). Solo presentación: lo que se guarda no cambia.
+- **Un solo criterio en todo el recorrido de la toma**, no solo en la card:
+  una función `nombreDeLugar()` (en `inventario-alta.ts`, junto a las otras
+  reglas de zonas) que transforma **solo la descripción**; los textos de
+  relleno («Sin zona», «Sin sector») quedan como están. Se usa en:
+  - la card de zona y el diálogo de concluir/reabrir (`zonaDe()`/`sectorDe()`);
+  - el aviso de «no se finaliza con una zona sin concluir»
+    (`motivoNoFinalizar()`, `inventario-conteo.ts:143`);
+  - el título de la pantalla de conteo (`inventario-carga.page.ts:298`), a la
+    que se entra con «Contar» desde esa card;
+  - las zonas y sectores del diálogo «Agregar zona» (`inventario-alta.ts:71-72`),
+    que se abre desde la misma pantalla. Corrige lo que este plan decía: ese
+    diálogo solo aplicaba el pipe al nombre de la sucursal.
+- **«Contar» y «Concluir»/«Reabrir» juntos, siempre en su propia línea y a la
+  derecha.** El pie de `frc-card` es `flex` con `flex-wrap`
+  (`card.component.ts:67-72`) y cada botón se proyectaba suelto junto al
+  texto del conteo: sin lugar, el segundo bajaba solo. Pasan a un único
+  `<div pie class="botones">` —un solo nodo raíz, que proyecta bien—, dentro
+  de un `@if (abierto())` para no dejar un contenedor vacío con la toma
+  cerrada. `.botones` ocupa la línea entera (`flex-basis: 100%`) y alinea a la
+  derecha: en un teléfono de 360 px el grupo no entra junto al conteo de
+  todos modos (medido por el auditor: quedan ~170-190 px), así que se decide
+  una vez y se ve igual en cualquier ancho.
+
+Tests: zona y sector con mayúscula inicial en la card, sin tocar «Sin zona»;
+el aviso de finalizar y el título del conteo con el mismo criterio; los dos
+botones comparten el mismo contenedor (`parentElement`), no solo el pie; con
+la toma cerrada no hay contenedor. Ajustar los tests que esperan el texto
+crudo en `motivoNoFinalizar`. Docs: casos en el plan de testeo.
+
+**Auditoría del plan de la fase 7:** eje A — el diálogo «Agregar zona» no
+aplicaba el pipe a zonas (la justificación era falsa), los rellenos «Sin
+zona» cambiarían, y el aviso de finalizar y el título del conteo quedaban con
+otro criterio. Eje B — la proyección funciona; a 360 px el grupo baja
+siempre, y un contenedor vacío quedaba con la toma cerrada. Incorporado.
+
 ## Datos nuevos
 
 | Dato | Quién lo escribe | Quién lo lee |

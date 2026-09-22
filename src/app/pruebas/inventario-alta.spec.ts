@@ -5,6 +5,7 @@ import type { Sector } from '../domains/sector/sector.model';
 import type { Zona } from '../domains/zona/zona.model';
 import {
   hayZonaSinConcluir,
+  nombreDeLugar,
   nuevoInventarioInput,
   zonasDisponibles,
 } from '../pages/inventario/inventario-alta';
@@ -76,10 +77,20 @@ describe('Zonas que se pueden sumar a la toma', () => {
     expect(zonasDisponibles(sectores(), []).some((z) => z.zonaId === 22)).toBe(false);
   });
 
+  it('el nombre de un lugar va con mayúscula inicial por palabra', () => {
+    expect(nombreDeLugar('zona gaseosas')).toBe('Zona Gaseosas');
+    expect(nombreDeLugar('deposito')).toBe('Deposito');
+    expect(nombreDeLugar('DEPOSITO A-2')).toBe('Deposito A-2');
+    expect(nombreDeLugar('estante café')).toBe('Estante Café');
+    expect(nombreDeLugar('  ')).toBe('');
+    expect(nombreDeLugar(null)).toBe('');
+  });
+
   it('nombra la zona con su sector, que es como se la busca en el salón', () => {
     const [primera] = zonasDisponibles(sectores(), []);
-    expect(primera.texto).toBe('estante alto');
-    expect(primera.detalle).toBe('gondola central');
+    // Con mayúscula inicial, como en el resto del recorrido de la toma.
+    expect(primera.texto).toBe('Estante Alto');
+    expect(primera.detalle).toBe('Gondola Central');
   });
 
   it('un renglón sin zona no rompe ni tapa una zona válida', () => {

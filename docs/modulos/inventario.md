@@ -417,6 +417,23 @@ Con la toma cerrada el menú no aparece: el alcance ya es un hecho histórico y
 sacarle un renglón cambiaría qué se contó en una toma que ya ajustó stock. Es
 la misma condición que habilita *Agregar producto*.
 
+## Nombres de zona y sector
+
+Se muestran con **mayúscula inicial por palabra** («zona gaseosas» → «Zona
+Gaseosas») en todo el recorrido de la toma: la card del detalle, el diálogo
+de concluir, el aviso de finalizar, el título del conteo y el diálogo
+«Agregar zona». Lo hace `nombreDeLugar()` (`inventario-alta.ts`) con
+`TitleCasePipe`, el mismo criterio de `lugares.page.ts` y
+`sector-detalle.page.ts`. Transforma solo la descripción: el relleno («Sin
+zona») queda como está, y lo guardado no cambia. Las siglas y los códigos
+alfanuméricos se aplanan («UPS» → «Ups», «GONDOLA 2B» → «Gondola 2b»): es lo
+que ya hacían lugares y sector; si molesta, el cambio va en `nombreDeLugar()` y
+alcanza a las tres pantallas.
+
+En la card, «Contar» y «Concluir»/«Reabrir» van en **un** contenedor —el único
+nodo raíz de su `@if`, que por eso proyecta al pie—, en su propia línea y a la
+derecha. Sueltos en el pie (flex con wrap), el segundo bajaba solo.
+
 ## Una toma cerrada es de solo lectura
 
 **En el conteo de una zona, si la toma no está `ABIERTO`** —`CONCLUIDO` o

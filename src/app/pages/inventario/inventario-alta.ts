@@ -1,3 +1,5 @@
+import { TitleCasePipe } from '@angular/common';
+
 import {
   Inventario,
   InventarioEstado,
@@ -9,6 +11,22 @@ import {
 } from 'src/app/domains/inventario/inventario.model';
 import type { Sector } from 'src/app/domains/sector/sector.model';
 import { marcasDeConteo } from './revision-item';
+
+const MAYUSCULA_INICIAL = new TitleCasePipe();
+
+/**
+ * El nombre de una zona o un sector como se muestra: mayúscula inicial por
+ * palabra («zona gaseosas» → «Zona Gaseosas»). Es el criterio de
+ * `lugares.page.ts` y `sector-detalle.page.ts`, que ya usan `TitleCasePipe`.
+ *
+ * Transforma **solo la descripción**: el relleno de quien llama («Sin zona»)
+ * queda como está. Vacío si no hay nada. Solo presentación: lo guardado no
+ * cambia.
+ */
+export function nombreDeLugar(descripcion: string | null | undefined): string {
+  const texto = descripcion?.trim() ?? '';
+  return texto ? MAYUSCULA_INICIAL.transform(texto) : '';
+}
 
 /** Una zona que todavía se puede sumar a la toma. */
 export interface ZonaDisponible {
@@ -68,8 +86,8 @@ export function zonasDisponibles(
       .filter((zona) => zona.id != null && zona.activo !== false && !usadas.has(zona.id))
       .map((zona) => ({
         zonaId: zona.id as number,
-        texto: zona.descripcion ?? `Zona ${zona.id}`,
-        detalle: sector.descripcion ?? '',
+        texto: nombreDeLugar(zona.descripcion) || `Zona ${zona.id}`,
+        detalle: nombreDeLugar(sector.descripcion),
       })),
   );
 }

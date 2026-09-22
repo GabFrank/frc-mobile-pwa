@@ -101,6 +101,43 @@ describe('Zonas de la toma', () => {
     expect(textos).toContain('Concluir');
   });
 
+  it('«Contar» y «Concluir» van en el mismo contenedor, no sueltos en el pie', () => {
+    // Sueltos en el pie —flex con wrap— el segundo bajaba solo a otra fila.
+    const f = montar();
+    const botones = [...(f.nativeElement as HTMLElement).querySelectorAll('frc-card .pie button')];
+    const contar = botones.find((b) => b.textContent?.trim() === 'Contar')!;
+    const concluir = botones.find((b) => b.textContent?.trim() === 'Concluir')!;
+
+    expect(contar.parentElement).toBe(concluir.parentElement);
+    expect(contar.parentElement!.classList).toContain('botones');
+  });
+
+  it('con la toma cerrada no queda un contenedor de botones vacío', () => {
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO, [ZONA_CONCLUIDA])));
+    const f = montar();
+
+    expect((f.nativeElement as HTMLElement).querySelector('.botones')).toBeNull();
+  });
+
+  it('zona y sector con mayúscula inicial por palabra', () => {
+    const f = montar();
+    const texto = (f.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(texto).toContain('Estante Alto');
+    expect(texto).toContain('Gondola');
+    expect(texto).not.toContain('estante alto');
+  });
+
+  it('sin descripción, el relleno queda como estaba', () => {
+    const sinNombre = { ...ZONA_ABIERTA, zona: { id: 11 } as Zona };
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [sinNombre])));
+    const f = montar();
+    const texto = (f.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(texto).toContain('Sin zona');
+    expect(texto).toContain('Sin sector');
+  });
+
   /** El botón «Agregar zona» del cuerpo, con el mismo trato que un «Cargar más». */
   const botonAgregarZona = (f: { nativeElement: HTMLElement }) =>
     f.nativeElement.querySelector('button.mas') as HTMLButtonElement | null;
@@ -197,7 +234,7 @@ describe('Zonas de la toma', () => {
     await f.componentInstance.finalizar();
 
     expect(servicio.finalizar).not.toHaveBeenCalled();
-    expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('estante alto'));
+    expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('Estante Alto'));
     // Ni siquiera se abre la confirmación: no hay nada que confirmar.
     expect(dialogo.confirmar).not.toHaveBeenCalled();
   });

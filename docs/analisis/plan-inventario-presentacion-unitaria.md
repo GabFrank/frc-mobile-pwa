@@ -495,3 +495,12 @@ activa (se ofrecen todas esas). Ninguna presentación con `activo` nulo.
 | Fijo 2 | Una respuesta `null` descartaba lo editado con un aviso falso | Sin respuesta no se escribe ni se descarta |
 | Fijo 3 | El alta rechazada por toma cerrada, sin ediciones, no decía nada | Aviso «La toma ya no está abierta.» |
 | Fijo 3 | El test de solo lectura miraba «Buscar lote» en un producto sin lote: pasaba igual sin el cambio | Producto con lote, contraprueba con la toma abierta y fechas/estado verificados |
+
+## Auditoría del diff de la fase 7 (paso 8)
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 y 2 | Solo presentación: al central viaja `zonaId`; crear zona o sector no pasa por `nombreDeLugar()`; la búsqueda del diálogo compara en minúscula y no se rompe; sin esquema | Sin acción |
+| Fijo 1 | El selector de sector del formulario «crear zona» seguía crudo | `nombreDeLugar()` también ahí |
+| Fijo 3 | `TitleCasePipe` fuera de DI es seguro; sin import circular; `.botones` cae a su línea y a la derecha | Sin acción |
+| Fijo 3 | Códigos alfanuméricos quedan en minúscula («GONDOLA 2B» → «Gondola 2b»), como ya en lugares | Documentado; decisión de Franco si cambiarlo |

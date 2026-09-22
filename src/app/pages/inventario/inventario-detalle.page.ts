@@ -34,7 +34,7 @@ import { DatosQr, QrDialogComponent } from 'src/app/shared/qr/qr-dialog.componen
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { antiguedadEnDias, hayZonaSinConcluir, zonasDisponibles } from './inventario-alta';
+import { antiguedadEnDias, hayZonaSinConcluir, nombreDeLugar, zonasDisponibles } from './inventario-alta';
 import {
   motivoNoConcluir,
   motivoNoFinalizar,
@@ -191,23 +191,25 @@ import { InventarioService } from './inventario.service';
                   <span pie class="concluido">Concluido</span>
                 }
                 <!--
-                  Un bloque por botón, y no uno solo con los dos adentro: un
-                  control de flujo con más de un nodo raíz no proyecta al
-                  slot (NG8011) y los botones caen fuera del pie de la card.
-                  Sale como aviso, no como error, así que el build pasa igual.
+                  Los botones van juntos en UN contenedor, que es el único nodo
+                  raíz del @if y por eso proyecta al pie (un bloque con más de
+                  un nodo raíz no proyecta: NG8011, y sale como aviso, no como
+                  error). Sueltos en el pie —que es flex con wrap— el segundo
+                  bajaba solo a otra fila.
                 -->
-              @if (abierto()) {
-                  <button pie matButton (click)="contar(p)">Contar</button>
-                }
-                @if (abierto() && p.concluido) {
-                  <button pie matButton [disabled]="operando()" (click)="marcarZona(p, false)">
-                    Reabrir
-                  </button>
-                }
-                @if (abierto() && !p.concluido) {
-                  <button pie matButton [disabled]="operando()" (click)="marcarZona(p, true)">
-                    Concluir
-                  </button>
+                @if (abierto()) {
+                  <div pie class="botones">
+                    <button matButton (click)="contar(p)">Contar</button>
+                    @if (p.concluido) {
+                      <button matButton [disabled]="operando()" (click)="marcarZona(p, false)">
+                        Reabrir
+                      </button>
+                    } @else {
+                      <button matButton [disabled]="operando()" (click)="marcarZona(p, true)">
+                        Concluir
+                      </button>
+                    }
+                  </div>
                 }
               </frc-card>
             }
@@ -233,6 +235,16 @@ import { InventarioService } from './inventario.service';
     </frc-pagina>
   `,
   styles: `
+    /*
+     * Su propia línea y a la derecha, siempre: a 360 px no entran al lado del
+     * conteo, así que se decide una vez y se ve igual en cualquier ancho.
+     */
+    .botones {
+      display: flex;
+      flex-basis: 100%;
+      justify-content: flex-end;
+      gap: var(--sp-2);
+    }
     .dif {
       font-family: var(--font-num);
       font-variant-numeric: tabular-nums;
@@ -398,11 +410,11 @@ export class InventarioDetallePage {
 
   // Zona y sector se llaman `descripcion`, no `nombre`.
   zonaDe(p: InventarioProducto): string {
-    return p.zona?.descripcion || 'Sin zona';
+    return nombreDeLugar(p.zona?.descripcion) || 'Sin zona';
   }
 
   sectorDe(p: InventarioProducto): string {
-    return p.zona?.sector?.descripcion || 'Sin sector';
+    return nombreDeLugar(p.zona?.sector?.descripcion) || 'Sin sector';
   }
 
   diferenciaDe(p: InventarioProducto): number {

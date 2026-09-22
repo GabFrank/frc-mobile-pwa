@@ -45,7 +45,7 @@ import {
   type ResultadoCrearLote,
 } from './crear-lote-dialog.component';
 import type { ProductoVencido } from 'src/app/domains/productos/producto-vencido.model';
-import { nuevoItemInput } from './inventario-alta';
+import { nombreDeLugar, nuevoItemInput } from './inventario-alta';
 import { InventarioItemCardComponent, type FilaConteo } from './inventario-item-card.component';
 import { vencimientoSugerido } from './vencimiento-sugerido';
 import { diferenciaDe } from './inventario-conteo';
@@ -295,7 +295,7 @@ export class InventarioCargaPage {
     );
   });
 
-  readonly titulo = computed(() => this.producto()?.zona?.descripcion || 'Conteo');
+  readonly titulo = computed(() => nombreDeLugar(this.producto()?.zona?.descripcion) || 'Conteo');
 
   readonly items = computed<FilaConteo[]>(() => {
     const cambios = this.edicion();

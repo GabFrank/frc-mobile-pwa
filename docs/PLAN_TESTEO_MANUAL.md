@@ -6360,6 +6360,38 @@ quitar un renglón, con el diálogo abierto mientras B finaliza.
 
 ---
 
+## Bloque 69 — Nombres de zona y botones de la card *(nuevo, sin probar)*
+
+**Por qué está acá:** en el detalle de la toma, zonas y sectores salían en
+minúscula («zona gaseosas», «deposito») y «Concluir» caía en una fila aparte,
+debajo de «Contar».
+
+### 69.1 · Zona y sector con mayúscula inicial
+1. Abrir el detalle de una toma con zonas.
+
+**Esperado:** cada card dice, por ejemplo, «Zona Gaseosas» y debajo
+«Deposito»: mayúscula inicial en cada palabra. Una zona sin nombre sigue
+diciendo «Sin zona». Un código con letras y números se ve en minúscula
+(«GONDOLA 2B» → «Gondola 2b»), igual que en Lugares.
+
+### 69.2 · El mismo criterio en todo el recorrido
+1. Tocar **Contar** en una zona.
+2. Volver, y tocar **Finalizar** con una zona sin concluir.
+3. Tocar **Agregar zona**.
+
+**Esperado:** el título del conteo, el aviso de «falta concluir…» y la lista
+del diálogo muestran los nombres con el mismo criterio que la card.
+
+### 69.3 · Los botones juntos, a la derecha
+1. En el detalle de una toma abierta, mirar una card de zona en un teléfono
+   (o a 360 px).
+
+**Esperado:** «Contar» y «Concluir» (o «Reabrir») **juntos en la misma
+fila**, en su propia línea debajo del conteo y alineados a la derecha. Con la
+toma cerrada no hay botones.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6432,7 +6464,8 @@ quitar un renglón, con el diálogo abierto mientras B finaliza.
 | 66 · El conteo ofrece solo la presentación de 1 | 16 | | | |
 | 67 · Un producto abierto a la vez en el buscador | 4 | | | |
 | 68 · Una toma cerrada es de solo lectura | 4 | | | |
-| **Total** | **619** | | | |
+| 69 · Nombres de zona y botones de la card | 3 | | | |
+| **Total** | **622** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

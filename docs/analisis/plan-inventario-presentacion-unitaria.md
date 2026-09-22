@@ -404,6 +404,46 @@ zona» cambiarían, y el aviso de finalizar y el título del conteo quedaban con
 otro criterio. Eje B — la proyección funciona; a 360 px el grupo baja
 siempre, y un contenedor vacío quedaba con la toma cerrada. Incorporado.
 
+**Fase 8** — los botones de la card de zona, al borde. Pedido de Franco
+(2026-09-22), tras probar la fase 7: «Contar» y «Concluir» quedaban con un
+espacio a la derecha; la diferencia tiene que seguir donde está, y los
+botones llegar al borde de la card.
+
+- **Por qué hay espacio:** `frc-card` es una fila flex de tres columnas —ícono,
+  `.main` (título, subtítulo, pie) y `.aside` (la diferencia)—
+  (`card.component.ts:31-55`). El pie vive **dentro de `.main`**: alineados a la
+  derecha, los botones terminan donde empieza la columna de la diferencia.
+  Ningún estilo de la página puede sacarlos de ahí.
+- **Slot nuevo y opcional en `frc-card`: `[botonera]`**, una fila de ancho
+  completo debajo de las tres columnas, alineada a la derecha. La card pasa a
+  `flex-wrap: wrap`; el contenedor (`.card-botonera`, para no confundirse con
+  la clase `.botonera` de la barra de cinco páginas) va en **una línea**
+  —`<div class="card-botonera"><ng-content …/></div>`, como `.pie`— para que
+  `:empty` lo oculte cuando no hay nada, y es flex con `flex-end`.
+  - El `gap` de la card se parte: `column-gap: var(--sp-3)` como hasta ahora y
+    `row-gap: var(--sp-1)`, el mismo aire que el pie tenía con el conteo.
+  - Las 31 pantallas que usan `frc-card` sin el slot no cambian: `.main` es
+    `flex: 1` (base 0) y nunca baja; solo un `aparte` más ancho que la card
+    bajaría de fila en vez de aplastar `.main`, y hoy no hay ninguno así
+    (importes, chips, Deshacer/Quitar).
+  - Un toque en un botón de la botonera no abre una card clickeable:
+    `alAbrir` ya filtra `closest('button, a, …')`.
+- El detalle de la toma mueve su `<div class="botones">` de `pie` a
+  `botonera` y sus estilos se reducen a `display:flex; gap` (la botonera ya
+  alinea). El conteo y «Concluido» siguen en el pie; la diferencia, en
+  `.aside`.
+
+Tests: sin `[botonera]` la card no pinta la fila; con `[botonera]` la fila va
+después de `.main` y `.aside`. **Se reescriben los tres de la fase 7** que
+buscaban los botones en `.pie` (`inventario-zonas.spec.ts`): ahora en
+`frc-card .card-botonera`, con el pie sin botones y la diferencia en `.aside`.
+Docs: `docs/design-system.md` (slots de `frc-card`), un ejemplo en la galería
+y el JSDoc de la card; el bloque 69.
+
+**Auditoría del plan de la fase 8:** los dos ejes: tres tests de la fase 7 que
+se rompen, el `gap` que separaba de más la botonera, el nombre `.botonera` ya
+usado, y la doc y la galería. Verificado e incorporado.
+
 ## Datos nuevos
 
 | Dato | Quién lo escribe | Quién lo lee |

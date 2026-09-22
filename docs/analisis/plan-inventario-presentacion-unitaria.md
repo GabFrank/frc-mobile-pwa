@@ -219,6 +219,56 @@ teniendo otra activa. Eje B — lo mismo, más el aviso «contá en unidades» s
 una x6 (grave) y `aplicarLote()` como tercera puerta. Todo verificado contra
 el código e incorporado arriba.
 
+**Fase 4** — un botón por vez en la barra. Pedido de Franco tras probar las
+fases 2 y 3 (2026-09-22): al guardar, el renglón seguía desplegado, y
+«Guardar conteo» quedaba visible pero deshabilitado.
+
+- **«Guardar conteo» cuenta lo que de verdad se guarda.** Hoy `cambiados()`
+  cuenta cualquier entrada de `edicion` (`:457`), pero `guardar()` solo envía
+  filas con `contado` o una fecha de lote (`:996-1000`): escribir un número y
+  borrarlo dejaba «Guardar conteo (1)» que solo contesta «Escribí al menos una
+  cantidad». Pasa a un `guardables()` con **el mismo filtro que usa
+  `guardar()`**, y el botón, su número y la visibilidad salen de ahí.
+- **La barra muestra uno solo:**
+  - hay algo guardable, o se está guardando → solo «Guardar conteo (n)»;
+  - no hay → solo «Agregar producto» (toma abierta), **salvo** que el renglón
+    abierto espere su lote (conteo bloqueado): ahí el paso siguiente es el
+    menú ⋮, y *Agregar producto* se leería como el siguiente — la confusión
+    que motivó `mostrarAgregar`.
+  - sin ninguno de los dos (toma cerrada), la barra no se pinta: hoy queda
+    una franja vacía con borde.
+- **Al guardar se contrae; lo que falló, no.** `terminar()` hoy vacía toda la
+  `edicion` aunque algo falle (`:1066`), así que «queda abierto para
+  reintentar» no dejaba nada que reintentar. Pasa a juntar los `itemId` que
+  fallaron: de `edicion` salen **solo los que se guardaron**, y el renglón
+  abierto queda en el **primero que falló** (o ninguno, si salió todo). La
+  barra vuelve a «Guardar conteo» con los fallidos. Se limpia
+  `recienAgregadoId`.
+- **Cambia una decisión anterior:** *Agregar producto* se escondía con una
+  card abierta porque, al lado de «Guardar conteo», competía. Con un botón por
+  vez el criterio es «hay algo para guardar» (y el caso del lote de arriba).
+- Agregar un producto con cambios sin guardar ya no se puede: primero se
+  guarda. Hoy no se perdía nada (`cargar()` no toca `edicion`); es una
+  restricción nueva, consecuencia del pedido.
+
+Queda afuera, preexistente: `aplicarLote()`, `crearLote()` y `quitarItem()`
+usan la señal `agregando`, así que mientras aplican el botón dice
+«Agregando…»; y aplicar un lote a un renglón que ya tenía uno borra lo escrito
+en el original (`:877`).
+
+Tests: escribir y borrar no deja «Guardar conteo»; sin guardables se ve solo
+*Agregar producto*; con guardables solo «Guardar conteo (n)» con el n
+correcto; renglón abierto esperando lote → sin *Agregar producto*; toma
+cerrada sin cambios → sin barra; guardar todo contrae y limpia; con un fallo,
+la edición del fallido sobrevive, el renglón abierto es el fallido y vuelve
+«Guardar conteo»; reescribir «mientras se cuenta un renglón el botón no está».
+Revertir y ver fallar. Docs: módulo (la barra y el cierre) y bloque 66.
+
+**Auditoría del plan de la fase 4:** los dos ejes marcaron como bloqueantes
+«Guardar conteo» sin nada guardable (la barra quedaba sin salida) y el
+guardado parcial que borraba lo fallido; el eje B, además, el renglón con lote
+esperando el ⋮. Verificado contra el código e incorporado arriba.
+
 ## Datos nuevos
 
 | Dato | Quién lo escribe | Quién lo lee |

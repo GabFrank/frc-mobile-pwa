@@ -518,12 +518,21 @@ diciendo si se **permite**; `mostrarAgregar`, si corresponde mostrarlo.
 - Sin ninguno de los dos —toma cerrada— la barra no se pinta.
 - Con algo sin guardar no se puede agregar otro producto: primero se guarda.
 
-⚠️ **Pendiente, preexistente:** en un renglón con lote, «Guardar conteo» manda
-en paralelo las fechas al maestro del lote (`actualizarFechas`) y el renglón
-(`guardarItem`, con su copia del vencimiento). Si falla solo la primera —por
-ejemplo, el central rechaza un retiro posterior al vencimiento—, la copia del
-renglón queda distinta del maestro hasta que se reintente con éxito. Reintentar
-es seguro: las dos operaciones pisan valores, no suman.
+⚠️ **En un renglón con lote, primero las fechas y después el renglón**
+(`enviar()`, por renglón y no por operación). Antes iban en paralelo: si el
+central rechazaba las fechas —un retiro posterior al vencimiento, por
+ejemplo—, el renglón igual se guardaba con una fecha que el lote no tenía.
+Ahora:
+
+- si las fechas no entran (error o respuesta vacía), el renglón no se manda y
+  queda con lo escrito para reintentar;
+- si entran, el renglón lleva el vencimiento **que devolvió el maestro**, y de
+  lo editado se quitan las fechas: si después falla el renglón, reintentar no
+  las vuelve a mandar —tocaría otra vez el FEFO de toda la red—;
+- un renglón que cambió solo fechas y **nunca se contó** no manda el renglón:
+  `saveInventarioProductoItem` reemplaza el renglón entero y, sin conteo,
+  pisaría sus marcas. Su copia se corrige en el próximo guardado con conteo,
+  que toma la fecha del maestro.
 
 **Al guardar, el renglón se contrae.** ⚠️ **De `edicion` sale solo lo que se
 guardó**: si un ítem falla, lo escrito se conserva, su renglón queda abierto
@@ -577,10 +586,40 @@ suma `cantidad × presentacion.cantidad`.
   x1 inactiva se ofrece la x6, y ese aviso ahí hacía que 12 unidades contadas
   se registraran como 72.
 
-⚠️ **No es la única vía que crea renglones.** `aplicarLote()` abre un renglón
-nuevo por lote **copiando la presentación de la fila**: un renglón en x6 que ya
-estaba —generado por la toma o cargado antes de este cambio— se replica en x6
-con cada lote. Ahí no hay elección que equivocar, así que no se filtra.
+⚠️ **No es la única vía que crea renglones.** Agregar o crear un lote en un
+renglón que **ya tiene** uno abre un renglón nuevo, y su presentación sale de
+`presentacionParaNuevoLote()` (Franco, 2026-09-22): la x1 activa; si no hay, la
+del renglón original si está activa; si no, la única activa. Sin ninguna
+activa, alerta y no se crea nada; con varias y ninguna que sirva, se pide
+agregar el producto con *Agregar producto* para elegir. Antes copiaba la del
+renglón original, y un renglón en x6 —o en una presentación dada de baja— se
+replicaba así con cada lote.
+
+- Se decide **antes** del diálogo de crear lote o del buscador de lotes, con el
+  detalle del producto: la lista del conteo no trae sus otras presentaciones.
+  Un detalle que falla o vuelve vacío no crea nada y no dice «ninguna activa».
+- Completar un renglón **sin** lote no cambia su presentación.
+- «Crear lote» puede devolver un lote que ya existía: si ya está en la zona,
+  aviso «Ese lote ya está en esta zona.» y no se abre otro renglón. En otra
+  presentación, el central no lo rechazaría (la clave de duplicado incluye la
+  presentación) y el lote se contaría dos veces.
+- Mientras se busca, se crea o se aplica un lote, las acciones de lote y
+  «Quitar» del renglón quedan deshabilitadas: un doble toque creaba dos.
+
+**El «Sistema» se ve en la presentación del renglón; se guarda en unidades**
+(Franco, 2026-09-22). ⚠️ `cantidadFisica` está **en unidades**: así lo define
+el central («el saldo de ese lote en la sucursal», `InventarioProductoItem.java`)
+y así lo leen su reporte y los filtros SOBRA/FALTA/OK de revisión. Lo que se
+convierte es lo que se ve: `enPresentacion()` lo divide por
+`presentacion.cantidad` para mostrar «Sistema» y la diferencia, porque en un
+renglón x6 se cuentan cajas y «Sistema: 12» al lado de «2» parecía una
+diferencia. Las marcas de verificado/revisado comparan **en unidades**
+(`enUnidades()`: lo contado × la presentación), así no dependen de los
+decimales de dividir (7 unidades en una x6 son 1,17). `frc-mobile` convertía
+igual al mostrar. Se descartó guardar en presentación: mezclaba, en una misma
+toma, renglones en unidades y en cajas sin nada que dijera cuál es cuál. El
+ajuste de stock no cambia: `finalizarInventarioEnSucursal()` no usa este
+campo.
 
 ⚠️ **Un código de balanza tampoco pasa por el filtro**: el buscador emite
 directo la presentación que resolvió el código, sin mostrar la card. Hoy no
@@ -592,8 +631,9 @@ presentación entraría en esa. Lo que sí se controla ahí es que esté **activ
 principal sin mirar `activo`, y el producto puede tener otra.
 
 ⚠️ **Los renglones que ya están en una presentación inactiva no se tocan**: se
-siguen contando, guardando y quitando, y `aplicarLote()` copia su presentación
-aunque esté inactiva. Bloquearlos trabaría tomas abiertas.
+siguen contando, guardando y quitando. Bloquearlos trabaría tomas abiertas.
+Lo que sí cambió: un lote **nuevo** sobre uno de esos renglones ya no copia la
+presentación inactiva (ver arriba).
 
 ⚠️ **Es una protección contra el error de toque, no una regla del central.**
 `saveInventarioProductoItem` sigue aceptando cualquier presentación: desde el

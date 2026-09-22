@@ -4,8 +4,12 @@ import { InventarioEstado, TipoInventario } from '../domains/inventario/inventar
 import type { Sector } from '../domains/sector/sector.model';
 import type { Zona } from '../domains/zona/zona.model';
 import {
+  enPresentacion,
+  enUnidades,
   hayZonaSinConcluir,
   nombreDeLugar,
+  nuevoItemInput,
+  presentacionParaNuevoLote,
   nuevoInventarioInput,
   zonasDisponibles,
 } from '../pages/inventario/inventario-alta';
@@ -125,5 +129,86 @@ describe('Zonas sin concluir', () => {
 
   it('una toma sin zonas no tiene ninguna abierta', () => {
     expect(hayZonaSinConcluir([])).toBe(false);
+  });
+});
+
+describe('Presentación del renglón nuevo de un lote', () => {
+  const p = (id: number, cantidad: number | null, activo = true) => ({ id, cantidad, activo }) as never;
+  const id = (r: ReturnType<typeof presentacionParaNuevoLote>) =>
+    'presentacion' in r ? r.presentacion.id : r.motivo;
+
+  it('una x1 activa gana, aunque el renglón original sea una caja', () => {
+    expect(id(presentacionParaNuevoLote([p(9, 1), p(10, 6)], 10))).toBe(9);
+  });
+
+  it('con varias x1 activas prefiere la del renglón original', () => {
+    expect(id(presentacionParaNuevoLote([p(8, 1), p(9, 1)], 9))).toBe(9);
+  });
+
+  it('sin x1 activa, la del renglón original si está activa', () => {
+    expect(id(presentacionParaNuevoLote([p(9, 1, false), p(10, 6), p(11, 12)], 10))).toBe(10);
+  });
+
+  it('sin x1 y con la original inactiva, la única activa', () => {
+    expect(id(presentacionParaNuevoLote([p(10, 6, false), p(11, 12)], 10))).toBe(11);
+  });
+
+  it('ninguna activa', () => {
+    expect(id(presentacionParaNuevoLote([p(9, 1, false), p(10, 6, false)], 10))).toBe('ninguna');
+    expect(id(presentacionParaNuevoLote([], 10))).toBe('ninguna');
+  });
+
+  it('varias activas, ninguna x1 y la original inactiva: no adivina', () => {
+    expect(id(presentacionParaNuevoLote([p(10, 6, false), p(11, 12), p(12, 24)], 10))).toBe('elegir');
+  });
+
+  it('una cantidad nula no es utilizable: el central no puede multiplicarla', () => {
+    expect(id(presentacionParaNuevoLote([p(9, null), p(11, 12)], 9))).toBe(11);
+  });
+});
+
+describe('El stock del sistema, en la presentación del renglón', () => {
+  it('en una caja de 6, 12 unidades son 2', () => {
+    expect(enPresentacion(12, 6)).toBe(2);
+  });
+
+  it('en la x1 no cambia', () => {
+    expect(enPresentacion(12, 1)).toBe(12);
+  });
+
+  it('sin cantidad, o con cero, no divide', () => {
+    expect(enPresentacion(12, null)).toBe(12);
+    expect(enPresentacion(12, 0)).toBe(12);
+  });
+
+  it('lo contado pasa a unidades para compararlo con el sistema', () => {
+    expect(enUnidades(2, 6)).toBe(12);
+    expect(enUnidades(2, 1)).toBe(2);
+    expect(enUnidades(2, null)).toBe(2);
+  });
+
+  it('el alta guarda el sistema en unidades, como lo define el central', () => {
+    const input = nuevoItemInput({
+      inventarioProductoId: 91,
+      presentacionId: 10,
+      cantidadPresentacion: 6,
+      stock: 12,
+      usuarioId: 41,
+    });
+    expect(input.cantidadFisica).toBe(12);
+    expect(input.cantidadAnterior).toBe(12);
+  });
+
+  it('un peso contado se compara en unidades contra el sistema', () => {
+    const input = nuevoItemInput({
+      inventarioProductoId: 91,
+      presentacionId: 10,
+      cantidadPresentacion: 6,
+      stock: 12,
+      usuarioId: 41,
+      peso: 2,
+    });
+    expect(input.verificado).toBe(true);
+    expect(input.revisado).toBe(false);
   });
 });

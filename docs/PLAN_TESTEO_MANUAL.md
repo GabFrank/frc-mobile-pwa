@@ -6394,6 +6394,70 @@ la app (caja, devoluciones, transferencias…) se ven igual que antes.
 
 ---
 
+## Bloque 70 — Lotes en el conteo: presentación, fechas y stock *(nuevo)* — **5/6** (Claude en Chrome, central local, 2026-09-22)
+
+> Probados 70.1 a 70.5 en la toma 7467 (DEPOSITO AQUARIO SDG) con 801 COCA
+> COLA 250ML, a la que se le activó el control de lote en la base local. El
+> renglón en x6, las presentaciones inactivas y el sistema de 12 unidades se
+> armaron directo en la base; la cantidad y las fechas de 70.5 se cargaron por
+> los métodos de la pantalla y «Guardar conteo» se tocó en la interfaz. La
+> conversión del «Sistema» se vio en un renglón x6 («Sistema: 2» con 12
+> unidades). **Falta 70.6** (sin stock en la base local), teléfono real e iOS.
+
+**Por qué está acá:** agregar un segundo lote a un renglón copiaba su
+presentación (una caja, o una dada de baja); las fechas del lote y el renglón
+se guardaban en paralelo y podían quedar distintas; y el stock del sistema de
+un renglón en caja se cargaba en unidades.
+
+Preparación: una toma abierta y un producto **con control de lote** que tenga
+x1 y una caja (x6 o x12), con un renglón ya contado en la caja con un lote.
+
+### 70.1 · El lote nuevo va en la x1
+1. En el renglón de la caja, menú ⋮ → **Agregar otro lote** → elegir un lote.
+
+**Esperado:** aparece un renglón nuevo **en la x1** (Cantidad: 1), no en la
+caja, con el saldo del lote como sistema.
+
+### 70.2 · Sin x1 activa, la caja con el sistema en cajas
+1. Repetir 70.1 con un producto con lote **sin** x1 activa.
+
+**Esperado:** el renglón nuevo en la caja del renglón original, y el
+«Sistema» **mostrado** en cajas (12 unidades en una x6 → 2), no en unidades.
+
+### 70.3 · Sin presentación activa
+1. Repetir 70.1 con un producto con lote que no tenga ninguna presentación
+   activa.
+
+**Esperado:** aviso «Este producto no tiene ninguna presentación activa.»; no
+se abre el buscador de lotes ni se crea nada.
+
+### 70.4 · Crear un lote que ya está en la zona
+1. En un renglón con lote, menú ⋮ → **Crear nuevo lote** y escribir el número
+   de un lote que **ya está** en otro renglón de la zona.
+
+**Esperado:** aviso «Ese lote ya está en esta zona.» y ningún renglón nuevo.
+
+### 70.5 · Las fechas rechazadas no mueven el renglón
+1. En un renglón con lote, escribir una cantidad y poner una fecha de retiro
+   **posterior** al vencimiento.
+2. Tocar **Guardar conteo**.
+
+**Esperado:** el central rechaza la fecha (aviso con su texto); el renglón
+**no** se guarda: sigue abierto con la cantidad escrita y «Guardar conteo».
+Corregir la fecha y guardar: se guarda todo y el vencimiento del renglón
+coincide con el del lote.
+
+### 70.6 · El stock en cajas al agregar un producto
+1. **Agregar producto** → un producto que **solo** tenga caja (por ejemplo
+   8353 CREMER CURITA BEIGE 10UND, x10).
+
+**Esperado:** el «Sistema» del renglón se ve en cajas (el stock dividido por
+10; si no es múltiplo, con decimales, por ejemplo 1,5). Contar las cajas que
+coinciden con el sistema lo marca verificado, no revisado. En el desktop, el
+mismo renglón sigue mostrando el sistema en unidades: lo guardado no cambió.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6467,7 +6531,8 @@ la app (caja, devoluciones, transferencias…) se ven igual que antes.
 | 67 · Un producto abierto a la vez en el buscador | 4 | | | |
 | 68 · Una toma cerrada es de solo lectura | 4 | | | |
 | 69 · Nombres de zona y botones de la card | 3 | | | |
-| **Total** | **622** | | | |
+| 70 · Lotes en el conteo: presentación, fechas y stock | 6 | 5 | | |
+| **Total** | **628** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

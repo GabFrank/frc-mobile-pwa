@@ -20,7 +20,15 @@ import { IconoComponent } from '../icono/icono.component';
  *   <frc-card [titulo]="d.identificador" [subtitulo]="'12 items'" (abrir)="ver(d)">
  *     <frc-estado-chip pie enumerado="EstadoDevolucion" [valor]="d.estado" />
  *     <frc-importe aparte [valor]="d.total" simbolo="₲" />
+ *     <div botonera><button matButton>Contar</button></div>
  *   </frc-card>
+ *
+ * Slots: `[pie]` debajo del título, dentro de la columna del texto;
+ * `[aparte]` la columna de la derecha; `[botonera]` una fila de **ancho
+ * completo** al final, alineada a la derecha, para botones que tienen que
+ * llegar al borde de la card sin mover lo que está en `[aparte]`. No se pinta
+ * si no se usa. (No confundir con la clase `.botonera` de la barra de algunas
+ * páginas: esto es un slot de la card.)
  */
 @Component({
   selector: 'frc-card',
@@ -52,6 +60,7 @@ import { IconoComponent } from '../icono/icono.component';
       </div>
 
       <div class="aside"><ng-content select="[aparte]" /></div>
+      <div class="card-botonera"><ng-content select="[botonera]" /></div>
     </article>
   `,
   styles: `
@@ -62,7 +71,10 @@ import { IconoComponent } from '../icono/icono.component';
       box-shadow: var(--elev-1);
       padding: var(--sp-3);
       display: flex;
-      gap: var(--sp-3);
+      flex-wrap: wrap;
+      /* La fila de la botonera se separa como el pie, no con el aire de las columnas. */
+      column-gap: var(--sp-3);
+      row-gap: var(--sp-1);
       align-items: flex-start;
     }
     .card.clickable { cursor: pointer; }
@@ -110,6 +122,12 @@ import { IconoComponent } from '../icono/icono.component';
       margin-top: var(--sp-1);
       flex-wrap: wrap;
     }
+    .card-botonera:empty { display: none; }
+    .card-botonera {
+      flex-basis: 100%;
+      display: flex;
+      justify-content: flex-end;
+    }
     .aside:empty { display: none; }
     .aside {
       display: flex;
@@ -148,9 +166,11 @@ export class CardComponent {
       return;
     }
     // Un control dentro de los slots (un botón de acción, por ejemplo) no
-    // debe disparar además la apertura de la card.
+    // debe disparar además la apertura de la card. La botonera entera
+    // tampoco: es una fila de ancho completo, y tocar el hueco al lado de sus
+    // botones abría la card.
     const origen = evento?.target as HTMLElement | null;
-    if (origen?.closest('button, a, input, select, textarea')) {
+    if (origen?.closest('button, a, input, select, textarea, .card-botonera')) {
       return;
     }
     evento?.preventDefault();

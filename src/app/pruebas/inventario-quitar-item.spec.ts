@@ -162,6 +162,20 @@ describe('Quitar un producto del conteo', () => {
     expect(f.componentInstance.abiertoId()).toBeNull();
   });
 
+  it('si otro teléfono finaliza la toma con el diálogo abierto, no se borra', async () => {
+    // El chequeo viejo miraba el estado antes de confirmar; `deleteById` en una
+    // toma que ya ajustó stock no se deshace.
+    const f = montar();
+    dialogo.confirmarEliminacion = vi.fn(async () => {
+      servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO)));
+      return true;
+    });
+    await f.componentInstance.quitarItem(f.componentInstance.items()[0]);
+
+    expect(servicio.borrarItem).not.toHaveBeenCalled();
+    expect(f.componentInstance.agregando()).toBe(false);
+  });
+
   it('con la toma cerrada no se puede quitar nada', async () => {
     // El alcance de una toma cerrada ya es un hecho histórico: sacarle un
     // renglón cambiaría qué se contó en una toma que ya ajustó stock.

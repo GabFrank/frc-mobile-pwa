@@ -417,6 +417,59 @@ Con la toma cerrada el menú no aparece: el alcance ya es un hecho histórico y
 sacarle un renglón cambiaría qué se contó en una toma que ya ajustó stock. Es
 la misma condición que habilita *Agregar producto*.
 
+## Nombres de zona y sector
+
+Se muestran con **mayúscula inicial por palabra** («zona gaseosas» → «Zona
+Gaseosas») en todo el recorrido de la toma: la card del detalle, el diálogo
+de concluir, el aviso de finalizar, el título del conteo y el diálogo
+«Agregar zona». Lo hace `nombreDeLugar()` (`inventario-alta.ts`) con
+`TitleCasePipe`, el mismo criterio de `lugares.page.ts` y
+`sector-detalle.page.ts`. Transforma solo la descripción: el relleno («Sin
+zona») queda como está, y lo guardado no cambia. Las siglas y los códigos
+alfanuméricos se aplanan («UPS» → «Ups», «GONDOLA 2B» → «Gondola 2b»): es lo
+que ya hacían lugares y sector, y **se deja así** (Franco, 2026-09-22). Si
+algún día se cambia, va en `nombreDeLugar()` y alcanza a las tres pantallas.
+
+En la card, «Contar» y «Concluir»/«Reabrir» van en **un** contenedor —el único
+nodo raíz de su `@if`, que por eso proyecta— en el slot **`[botonera]`** de
+`frc-card`: una fila de ancho completo al final de la card, a la derecha.
+Sueltos en el pie (flex con wrap) el segundo bajaba solo; y dentro del pie
+—que vive en la columna del texto— terminaban donde empieza la diferencia,
+dejando un espacio a la derecha. La diferencia sigue en `[aparte]`.
+
+## Una toma cerrada es de solo lectura
+
+**En el conteo de una zona, si la toma no está `ABIERTO`** —`CONCLUIDO` o
+`CANCELADO`— **la pantalla se mira y no se edita** (Franco, 2026-09-22).
+«Contado», las fechas y el estado quedan deshabilitados; no hay «usar», ni
+«Buscar/Crear lote», ni barra de acciones.
+
+> ⚠️ **El central no lo frena.** `InventarioProductoItemService.save()` solo
+> mira renglones duplicados, no el estado de la toma. En una `CONCLUIDO` el
+> stock ya se ajustó al finalizar: un conteo cambiado después deja el registro
+> diciendo otra cosa que el ajuste aplicado, y el stock no se recalcula. La
+> barrera es del cliente; desde el desktop, `frc-mobile` o una llamada a mano
+> se sigue pudiendo. Cerrarlo del todo es un cambio del central.
+
+- A esa pantalla se llega por URL (`:id/producto/:productoId` no tiene guard),
+  con «Atrás» después de finalizar, o **teniéndola abierta mientras otro
+  teléfono finaliza la toma**. Por eso no alcanza con la vista:
+  - `editar()` —por donde pasan todos los `cambiarX`— no registra nada;
+  - **toda escritura vuelve a consultar el estado** antes de salir
+    (`conTomaAbierta()`): guardar, agregar un producto, elegir o crear un lote
+    —antes de crear el maestro, o quedaría huérfano— y quitar un renglón. Los
+    chequeos viejos miraban el estado **antes** de abrir su diálogo; otro
+    teléfono podía finalizar mientras tanto. Queda una ventana mínima entre la
+    consulta y la escritura.
+  - Si la consulta no responde, no se escribe **ni se descarta** nada: una
+    respuesta vacía no dice que la toma se cerró. Si la toma se cerró sin nada
+    pendiente, igual se avisa («La toma ya no está abierta.»).
+- ⚠️ **Si la toma llega cerrada con algo sin guardar, se descarta y se avisa**
+  («La toma ya no está abierta: lo que no se había guardado se descartó.»).
+  `items()` mezcla la edición con lo del central: sin esto, los campos de solo
+  lectura mostrarían como registrados valores que nunca se guardaron.
+- Una **zona** concluida dentro de una toma abierta sigue como antes.
+
 ## Agregar un producto a la zona
 
 > ⚠️ **Qué es un renglón duplicado lo decide el central, no la app.**
@@ -431,7 +484,7 @@ la misma condición que habilita *Agregar producto*.
 > | Caso | Por qué es legítimo |
 > |---|---|
 > | El mismo producto contado en dos zonas | Hay stock en góndola y en depósito; los conteos se suman |
-> | «Unidad» y «caja x12» del mismo producto | Son dos presentaciones y dos renglones |
+> | «Unidad» y «caja x12» del mismo producto | Son dos presentaciones y dos renglones — para el central. **Desde la app ya no se agrega la caja**: ver «Solo la presentación de 1», abajo |
 > | Dos renglones sin vencimiento, de presentaciones distintas | El vencimiento es opcional en los dos frentes |
 > | La misma presentación con dos fechas | Son dos lotes |
 >
@@ -450,19 +503,124 @@ la misma condición que habilita *Agregar producto*.
 > la misma fecha para la misma presentación en todas las zonas, así que contar
 > un producto en dos zonas y guardar hacía fallar el segundo.
 
-**El botón se esconde mientras se cuenta.** Con una card desplegada el
-operador está contando ese renglón, y *Agregar producto* justo arriba de
-*Guardar conteo* se lee como si fuera el paso siguiente. Se muestra solo con
-todo colapsado (`mostrarAgregar` = toma abierta **y** ningún ítem desplegado);
-`puedeAgregar` sigue diciendo si se **permite**, que es otra pregunta.
+**La barra muestra un botón por vez** (Franco, 2026-09-22). Con algo para
+guardar, solo «Guardar conteo (n)»; sin nada, solo *Agregar producto*. Los dos
+juntos competían —*Agregar* se leía como el paso siguiente del conteo— y un
+«Guardar» deshabilitado ocupaba el lugar sin decir nada. `puedeAgregar` sigue
+diciendo si se **permite**; `mostrarAgregar`, si corresponde mostrarlo.
+
+- ⚠️ **«Guardar conteo» cuenta lo que `guardar()` va a mandar** (`guardables()`):
+  renglones con un conteo o con fechas de lote cambiadas. Escribir un número y
+  borrarlo deja el renglón en `edicion` con `contado: null`; contarlo dejaba la
+  barra con un «Guardar» que no guardaba nada y sin *Agregar producto*.
+- Con el renglón abierto **esperando su lote** (conteo bloqueado) no se ofrece
+  *Agregar producto*: el paso siguiente es el menú ⋮.
+- Sin ninguno de los dos —toma cerrada— la barra no se pinta.
+- Con algo sin guardar no se puede agregar otro producto: primero se guarda.
+
+⚠️ **Pendiente, preexistente:** en un renglón con lote, «Guardar conteo» manda
+en paralelo las fechas al maestro del lote (`actualizarFechas`) y el renglón
+(`guardarItem`, con su copia del vencimiento). Si falla solo la primera —por
+ejemplo, el central rechaza un retiro posterior al vencimiento—, la copia del
+renglón queda distinta del maestro hasta que se reintente con éxito. Reintentar
+es seguro: las dos operaciones pisan valores, no suman.
+
+**Al guardar, el renglón se contrae.** ⚠️ **De `edicion` sale solo lo que se
+guardó**: si un ítem falla, lo escrito se conserva, su renglón queda abierto
+y la barra vuelve a «Guardar conteo» para reintentar. Antes se vaciaba entera
+y el renglón fallido mostraba el valor viejo del central, sin nada que
+reintentar.
 
 *Agregar producto* abre `frc-buscador-producto-dialog`, el mismo buscador de
 la pestaña Buscar: descripción, código, cámara y códigos de balanza. Recibe la
 sucursal de la toma, así que muestra el stock de cada producto antes de
 elegirlo.
 
+### Solo la presentación de 1
+
+**Al agregar al conteo, el buscador ofrece solo las presentaciones activas de
+cantidad 1.** Es una decisión (Franco, 2026-09-21): el conteo se hace en
+unidades. Existe para evitar el error de toque más caro del módulo: 100
+unidades cargadas en la «x6» se vuelven 600 al finalizar, porque el central
+suma `cantidad × presentacion.cantidad`.
+
+- La enciende `soloPresentacionUnitaria` en las opciones del buscador, y solo
+  la pasa esta pantalla. Buscar, transferencias y devoluciones siguen
+  ofreciendo todas: ahí elegir la caja es legítimo.
+- **Una inactiva no se ofrece nunca.** Sin una x1 activa se ofrecen las demás
+  **activas** —bloquear dejaba sin poder contar lo que solo existe en caja—.
+  Por eso `productoPorCodigo` pide también `activo`.
+- **Sin ninguna presentación activa, no se opera** (Franco, 2026-09-22). En
+  lugar de la lista va una alerta, sin nada para tocar:
+  - sin presentaciones → «Este producto no tiene presentaciones.»
+  - con presentaciones, todas inactivas → «Este producto no tiene ninguna
+    presentación activa.»
+  Sirve para que quien cuenta reporte el producto: está en la góndola y el
+  catálogo no lo deja vender. Llegan al buscador porque la búsqueda por texto
+  (Lucene, `ProductoService.java:158-161`) filtra solo `producto.activo`, y la
+  búsqueda por código no filtra nada. Con Lucene apagado, el camino SQL los
+  excluye y no aparecen.
+- ⚠️ **«No hay» no es «no pude preguntar».** Si el detalle del producto falla,
+  la card dice «No se pudieron cargar las presentaciones» con **Reintentar**, y
+  nunca la alerta: un corte de red no dice nada del catálogo. Por eso el
+  buscador lleva el «cargando» y el fallo **por producto**: con un solo id,
+  abrir dos productos seguidos dejaba a uno vacío mientras viajaba su detalle.
+  Beneficia también a Buscar y a transferencias, donde el fallo se leía como
+  «no tiene presentaciones cargadas».
+- Una `cantidad` **nula** no se ofrece, ni como x1 ni en el respaldo: el
+  central la multiplica como `Double` (`InventarioGraphQL.java:257`) y el renglón haría fallar la
+  finalización.
+- Cuando el filtro escondió una presentación **activa de otra cantidad** y lo
+  ofrecido es de 1, la card lo dice: «Solo la presentación de 1 unidad: contá
+  en unidades.» Sin eso, quien escanea el código de la caja ve solo la x1 y
+  carga la cantidad de cajas como unidades. ⚠️ **Nunca sobre una x6**: con la
+  x1 inactiva se ofrece la x6, y ese aviso ahí hacía que 12 unidades contadas
+  se registraran como 72.
+
+⚠️ **No es la única vía que crea renglones.** `aplicarLote()` abre un renglón
+nuevo por lote **copiando la presentación de la fila**: un renglón en x6 que ya
+estaba —generado por la toma o cargado antes de este cambio— se replica en x6
+con cada lote. Ahí no hay elección que equivocar, así que no se filtra.
+
+⚠️ **Un código de balanza tampoco pasa por el filtro**: el buscador emite
+directo la presentación que resolvió el código, sin mostrar la card. Hoy no
+es un riesgo —en bodega, los 56 productos de balanza activos tienen todas sus
+presentaciones en x1 (consultado el 2026-09-21)—, pero un PLU cargado en otra
+presentación entraría en esa. Lo que sí se controla ahí es que esté **activa**:
+`agregarProducto()` rechaza una inactiva con «Esa presentación está inactiva.»
+— «esa», no «ninguna activa», porque si el código no coincide se resuelve la
+principal sin mirar `activo`, y el producto puede tener otra.
+
+⚠️ **Los renglones que ya están en una presentación inactiva no se tocan**: se
+siguen contando, guardando y quitando, y `aplicarLote()` copia su presentación
+aunque esté inactiva. Bloquearlos trabaría tomas abiertas.
+
+⚠️ **Es una protección contra el error de toque, no una regla del central.**
+`saveInventarioProductoItem` sigue aceptando cualquier presentación: desde el
+desktop, desde `frc-mobile` o con una llamada a mano se puede seguir cargando
+en la caja, y el central la multiplica igual.
+
+La regla vive en `presentacionesContables()`
+(`shared/producto/presentacion.util.ts`).
+
 El ítem se **persiste al elegirlo**, con el stock del sistema y sin conteo, y
-la lista se recarga. Así hay una sola fuente de verdad —lo que dice el
+la lista se recarga. **El renglón nuevo vuelve desplegado**, llevado a la vista
+y con el foco en «Contado»: lo siguiente es contarlo. El `id` sale de la
+respuesta de `saveInventarioProductoItem`; `cargar()` no toca `abiertoId`.
+
+- El foco se da **una vez**. La marca (`recienAgregadoId`) la limpia la card al
+  usarla, porque cada recarga —«Guardar conteo», aplicar un lote, quitar otro
+  renglón— recrea todas las cards. Por eso es `afterNextRender` y no un
+  `effect`: la fila se reconstruye con cada tecla.
+- Sin foco si el campo está bloqueado (producto con lote, sin lote todavía) o
+  ya tiene un número (pesable): solo se lleva a la vista.
+- ⚠️ **En iOS el teclado no sube solo**: el foco llega después de un viaje a la
+  red y Safari ya no lo toma como un gesto. El campo queda enfocado; hay que
+  tocarlo.
+- Con el renglón abierto, *Agregar producto* se esconde, como siempre: para
+  sumar otro se colapsa o se guarda el conteo.
+
+Así hay una sola fuente de verdad —lo que dice el
 central— y no un renglón a medio existir que se pierde si alguien sale de la
 pantalla antes de guardar.
 
@@ -477,8 +635,8 @@ etiqueta y que la cantidad salga del código es el flujo real de la balanza.
 
 **Una presentación que ya está en la zona no se duplica.** La clave real es
 `(inventario_producto, presentacion)`: dos renglones de lo mismo se suman los
-dos al finalizar. Otra presentación del mismo producto sí se puede agregar —
-«unidad» y «caja x12» son dos ítems legítimos.
+dos al finalizar. Otra presentación del mismo producto el central la acepta,
+pero desde la app ya no se ofrece: ver «Solo la presentación de 1».
 
 **Si no se pudo consultar el stock, no se agrega.** Un cero inventado diría que
 el sistema no tiene nada de ese producto, que es una afirmación que nadie hizo.

@@ -5,8 +5,8 @@ import {
   input,
   linkedSignal,
   output,
-  signal,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
@@ -14,7 +14,7 @@ import { Producto } from 'src/app/domains/productos/producto.model';
 import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { IconoComponent } from '../icono/icono.component';
 import { ImporteComponent } from '../importe/importe.component';
-import { etiquetaPresentacion, precioDe } from './presentacion.util';
+import { etiquetaPresentacion, precioDe, presentacionesContables } from './presentacion.util';
 
 /** Una entrada del menú `⋮`. El id lo interpreta la pantalla que la declaró. */
 export interface AccionProducto {
@@ -37,14 +37,14 @@ export interface AccionProducto {
  * entrada: qué acciones tiene el menú, qué se muestra al costado de cada
  * presentación, si hay precio.
  *
- * No carga nada por su cuenta: avisa con `(expandir)` y la pantalla decide
- * qué pedir. Así la carga perezosa de presentaciones y stock queda en un
+ * No carga nada ni decide si está abierta: avisa con `(alternada)` y la
+ * pantalla decide qué abrir y qué pedir. Así la carga perezosa de presentaciones y stock queda en un
  * solo lugar y la card sirve igual con datos ya cargados.
  */
 @Component({
   selector: 'frc-producto-card',
   standalone: true,
-  imports: [MatMenuModule, IconoComponent, ImporteComponent],
+  imports: [MatMenuModule, MatButtonModule, IconoComponent, ImporteComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <article class="card" [class.abierta]="abierta()">
@@ -127,8 +127,24 @@ export interface AccionProducto {
 
       @if (abierta() && expandible()) {
         <div class="presentaciones">
-          @if (cargando()) {
+          <!--
+            «No hay» y «no pude preguntar» son respuestas distintas: un detalle
+            que falló no dice nada del catálogo, así que nunca cae en las
+            alertas de abajo.
+          -->
+          @if (cargando() || (!fallido() && desconocidas())) {
             <p class="aviso">Cargando presentaciones…</p>
+          } @else if (fallido()) {
+            <p class="aviso fallo">
+              No se pudieron cargar las presentaciones.
+              <button matButton type="button" (click)="reintentar.emit()">Reintentar</button>
+            </p>
+          } @else if (soloUnitaria() && todas().length === 0) {
+            <p class="aviso bloqueo" role="alert">Este producto no tiene presentaciones.</p>
+          } @else if (soloUnitaria() && presentaciones().length === 0) {
+            <p class="aviso bloqueo" role="alert">
+              Este producto no tiene ninguna presentación activa.
+            </p>
           } @else if (presentaciones().length === 0) {
             <p class="aviso">Este producto no tiene presentaciones cargadas.</p>
           } @else {
@@ -152,6 +168,9 @@ export interface AccionProducto {
                   }
                 </span>
               </button>
+            }
+            @if (hayOcultas()) {
+              <p class="aviso unitaria">Solo la presentación de 1 unidad: contá en unidades.</p>
             }
           }
         </div>
@@ -278,7 +297,7 @@ export interface AccionProducto {
       text-align: left;
       cursor: pointer;
     }
-    .presentacion:last-child { border-bottom: none; }
+    .presentacion:last-of-type { border-bottom: none; }
     .presentacion:hover { background: var(--surface); }
     .p-datos {
       display: flex;
@@ -308,6 +327,22 @@ export interface AccionProducto {
       padding: var(--sp-3);
       font-size: var(--fs-label);
       color: var(--text-mute);
+    }
+    /* Advierte contra un error caro: no se puede leer como un «cargando…». */
+    .aviso.unitaria {
+      color: var(--warn);
+      background: var(--warn-bg);
+    }
+    /* Sin presentación activa no se puede contar: es un bloqueo, no un aviso. */
+    .aviso.bloqueo {
+      color: var(--danger);
+      background: var(--danger-bg);
+    }
+    .aviso.fallo {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-2);
     }
     .etiqueta-menu { margin-left: var(--sp-2); }
   `,
@@ -346,15 +381,32 @@ export class ProductoCardComponent {
    * descartaban.
    */
   readonly expandible = input(true);
+  /**
+   * Solo las presentaciones activas de cantidad 1 —o todas, si no hay
+   * ninguna—. La pide el conteo de inventario. Ver `presentacionesContables()`.
+   */
+  readonly soloUnitaria = input(false);
+  /**
+   * El detalle con las presentaciones no se pudo traer. Sin esto, un corte de
+   * red se leía como «no tiene presentaciones».
+   */
+  readonly fallido = input(false);
 
-  /** Se emite al abrir, para que la pantalla cargue presentaciones y stock. */
-  readonly expandir = output<Producto>();
+  /**
+   * Se tocó la cabecera. Abrir o cerrar lo decide la pantalla, que pasa
+   * `abierta`: así hay una sola abierta a la vez y una búsqueda nueva no deja
+   * ninguna abierta sin su detalle.
+   */
+  readonly alternada = output<Producto>();
   /** Solo cuando `expandible` es `false`. */
   readonly seleccionar = output<Producto>();
   readonly elegir = output<Presentacion>();
   readonly accion = output<string>();
+  /** Volver a pedir el detalle después de un fallo. */
+  readonly reintentar = output<void>();
 
-  readonly abierta = signal(false);
+  /** La controla la pantalla: ver `alternada`. */
+  readonly abierta = input(false);
 
   /**
    * Una foto que el navegador no pudo decodificar deja de intentarse.
@@ -384,7 +436,36 @@ export class ProductoCardComponent {
     return foto ? foto : null;
   });
 
-  readonly presentaciones = computed(() => this.producto().presentaciones ?? []);
+  /**
+   * Sin presentaciones **todavía**: la búsqueda por texto no las trae y llegan
+   * con el detalle. Es distinto de `[]`, que es el central diciendo «ninguna».
+   */
+  readonly desconocidas = computed(() => this.producto().presentaciones == null);
+  readonly todas = computed(() => this.producto().presentaciones ?? []);
+  readonly presentaciones = computed(() =>
+    this.soloUnitaria() ? presentacionesContables(this.todas()) : this.todas(),
+  );
+  /**
+   * El filtro escondió alguna **activa de otra cantidad** y lo que queda es de
+   * 1. Sin avisarlo, quien escaneó el código de la caja ve solo la x1 y carga
+   * cajas como si fueran unidades.
+   *
+   * ⚠️ **Solo si todo lo ofrecido es de 1.** Con una x6 activa y la x1
+   * inactiva se ofrece la x6: decir «contá en unidades» ahí hacía que 12
+   * unidades contadas se cargaran en la x6 y el central registrara 72.
+   * Esconder solo inactivas tampoco lo dispara: no cambia en qué se cuenta.
+   */
+  readonly hayOcultas = computed(() => {
+    if (!this.soloUnitaria()) {
+      return false;
+    }
+    const ofrecidas = this.presentaciones();
+    return (
+      ofrecidas.length > 0 &&
+      ofrecidas.every((p) => p.cantidad === 1) &&
+      this.todas().some((p) => p.activo !== false && p.cantidad !== 1)
+    );
+  });
   readonly stockLegible = computed(() => formatearCantidad(this.stock(), 0));
   readonly stockDestinoLegible = computed(() => formatearCantidad(this.stockDestino(), 0));
 
@@ -393,11 +474,7 @@ export class ProductoCardComponent {
       this.seleccionar.emit(this.producto());
       return;
     }
-    const proxima = !this.abierta();
-    this.abierta.set(proxima);
-    if (proxima) {
-      this.expandir.emit(this.producto());
-    }
+    this.alternada.emit(this.producto());
   }
 
   etiqueta(p: Presentacion): string {

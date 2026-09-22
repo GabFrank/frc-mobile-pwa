@@ -91,14 +91,53 @@ describe('Zonas de la toma', () => {
    * Por eso se mira **dónde** está el botón, no si su texto aparece: con la
    * proyección rota el texto está igual, en el lugar equivocado.
    */
-  it('los botones de zona van al pie de la card, no sueltos en el cuerpo', () => {
+  it('los botones de zona van a la botonera de la card, no sueltos en el cuerpo', () => {
     const f = montar();
-    const pie = f.nativeElement.querySelector('frc-card .pie') as HTMLElement | null;
+    const botonera = f.nativeElement.querySelector('frc-card .card-botonera') as HTMLElement | null;
 
-    expect(pie).not.toBeNull();
-    const textos = [...pie!.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(botonera).not.toBeNull();
+    const textos = [...botonera!.querySelectorAll('button')].map((b) => b.textContent?.trim());
     expect(textos).toContain('Contar');
     expect(textos).toContain('Concluir');
+  });
+
+  it('los botones llegan al borde: fuera del pie, y la diferencia sigue a la derecha', () => {
+    // En el pie terminaban donde empieza la columna de la diferencia.
+    const f = montar();
+    const html = f.nativeElement as HTMLElement;
+
+    expect(html.querySelector('frc-card .pie button')).toBeNull();
+    expect(html.querySelector('frc-card .aside .dif')).not.toBeNull();
+    const botones = [...html.querySelectorAll('frc-card .card-botonera button')];
+    const contar = botones.find((b) => b.textContent?.trim() === 'Contar')!;
+    const concluir = botones.find((b) => b.textContent?.trim() === 'Concluir')!;
+    expect(contar.parentElement).toBe(concluir.parentElement);
+  });
+
+  it('con la toma cerrada no queda un contenedor de botones vacío', () => {
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO, [ZONA_CONCLUIDA])));
+    const f = montar();
+
+    expect((f.nativeElement as HTMLElement).querySelector('.botones')).toBeNull();
+  });
+
+  it('zona y sector con mayúscula inicial por palabra', () => {
+    const f = montar();
+    const texto = (f.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(texto).toContain('Estante Alto');
+    expect(texto).toContain('Gondola');
+    expect(texto).not.toContain('estante alto');
+  });
+
+  it('sin descripción, el relleno queda como estaba', () => {
+    const sinNombre = { ...ZONA_ABIERTA, zona: { id: 11 } as Zona };
+    servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [sinNombre])));
+    const f = montar();
+    const texto = (f.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(texto).toContain('Sin zona');
+    expect(texto).toContain('Sin sector');
   });
 
   /** El botón «Agregar zona» del cuerpo, con el mismo trato que un «Cargar más». */
@@ -146,8 +185,8 @@ describe('Zonas de la toma', () => {
   it('una zona concluida ofrece reabrir en vez de concluir', () => {
     servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [ZONA_CONCLUIDA])));
     const f = montar();
-    const pie = f.nativeElement.querySelector('frc-card .pie') as HTMLElement;
-    const textos = [...pie.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    const botonera = f.nativeElement.querySelector('frc-card .card-botonera') as HTMLElement;
+    const textos = [...botonera.querySelectorAll('button')].map((b) => b.textContent?.trim());
 
     expect(textos).toContain('Reabrir');
     expect(textos).not.toContain('Concluir');
@@ -197,7 +236,7 @@ describe('Zonas de la toma', () => {
     await f.componentInstance.finalizar();
 
     expect(servicio.finalizar).not.toHaveBeenCalled();
-    expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('estante alto'));
+    expect(notificacion.warn).toHaveBeenCalledWith(expect.stringContaining('Estante Alto'));
     // Ni siquiera se abre la confirmación: no hay nada que confirmar.
     expect(dialogo.confirmar).not.toHaveBeenCalled();
   });

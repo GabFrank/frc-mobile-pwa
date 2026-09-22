@@ -116,8 +116,8 @@ describe('Finalizar la toma', () => {
     const motivo = motivoNoFinalizar([zona(1, 'estante alto', true), zona(2, 'gondola 3', false)]);
 
     expect(motivo).not.toBeNull();
-    expect(motivo).toContain('gondola 3');
-    expect(motivo).not.toContain('estante alto');
+    expect(motivo).toContain('Gondola 3');
+    expect(motivo).not.toContain('Estante Alto');
   });
 
   it('con muchas sin concluir nombra unas pocas y dice cuántas quedan', () => {
@@ -129,8 +129,8 @@ describe('Finalizar la toma', () => {
     ]);
 
     expect(motivo).toContain('4');
-    expect(motivo).toContain('UNA');
-    expect(motivo).not.toContain('CUATRO');
+    expect(motivo).toContain('Una');
+    expect(motivo).not.toContain('Cuatro');
   });
 
   it('una toma sin zonas no se traba', () => {

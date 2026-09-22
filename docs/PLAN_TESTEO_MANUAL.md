@@ -6149,6 +6149,251 @@ salirse.
 
 ---
 
+## Bloque 66 — El conteo ofrece solo la presentación de 1 *(nuevo, sin probar)*
+
+**Por qué está acá:** al agregar un producto al conteo, el buscador mostraba
+todas las presentaciones. Tocar «x6» en vez de «x1» cargaba el conteo en la
+caja: 100 unidades contadas se volvían 600 al finalizar la toma. Ahora, **solo
+en esa pantalla**, se ofrecen las presentaciones activas de cantidad 1; si el
+producto no tiene ninguna, todas.
+
+Preparación: una toma **abierta** con al menos una zona, y tres productos a
+mano: **A**, con presentación x1 y alguna de más unidades (x6, x12); **B**, con
+solo presentaciones de más de 1 (o con la x1 inactiva); y el código de barras
+de la caja de **A**.
+
+### 66.1 · Por descripción, solo la x1
+1. Abrir la zona → **Agregar producto**.
+2. Buscar **A** por descripción y tocar la fila para desplegarla.
+
+**Esperado:** una sola presentación, «Cantidad: 1 (…)», y debajo el aviso
+«Solo la presentación de 1 unidad: contá en unidades.». La x6 **no aparece**.
+
+### 66.2 · Escaneando la caja, igual solo la x1
+1. **Agregar producto** → escanear (o tipear) el código de la **caja** de **A**.
+2. Desplegar la fila.
+
+**Esperado:** igual que 66.1 — solo la x1, con el aviso. El código que se ve en
+la fila es el de la unidad, no el escaneado.
+
+### 66.3 · Elegir la x1 agrega el renglón en unidades
+1. Desde 66.1, tocar la x1.
+
+**Esperado:** el diálogo se cierra y aparece el renglón de **A** en la lista,
+con «Cantidad: 1» como presentación y el stock del sistema en unidades.
+
+### 66.4 · Sin presentación de 1, se ofrecen las activas
+1. **Agregar producto** → buscar **B** (por ejemplo 8353 CREMER CURITA, solo
+   x10) y desplegarlo.
+
+**Esperado:** se ven sus presentaciones **activas** y **sin** el aviso de
+«contá en unidades». Se puede elegir cualquiera.
+
+### 66.5 · Las otras pantallas no cambian
+1. Pestaña **Buscar** → buscar **A** y desplegarlo.
+2. Una transferencia en borrador (o una devolución nueva) → **Agregar
+   producto** → buscar **A**.
+
+**Esperado:** en las dos se ven **todas** las presentaciones de **A** y no hay
+aviso.
+
+### 66.6 · El renglón agregado vuelve desplegado
+1. Desde 66.1, tocar la x1.
+
+**Esperado:** la lista se recarga con el renglón de **A** **ya abierto**, a la
+vista, y el cursor en «Contado». En Android sube el teclado numérico; en un
+iPhone el campo queda enfocado pero hay que tocarlo para que suba.
+
+### 66.7 · El foco no vuelve
+1. Con el renglón de 66.6 abierto, escribir un número y tocar **Guardar
+   conteo**.
+
+**Esperado:** la lista se recarga con el renglón **contraído** y el teclado
+**no** vuelve a subir solo. Escribir en el campo no mueve la pantalla en cada
+tecla.
+
+### 66.8 · Un producto con lote se abre sin foco
+1. **Agregar producto** → elegir un producto con control de lote.
+
+**Esperado:** el renglón vuelve abierto y a la vista, con «Contado» bloqueado y
+el aviso de elegir o crear el lote. No sube el teclado.
+
+### 66.9 · Sin presentaciones, alerta y nada más
+1. **Agregar producto** → buscar un producto activo **sin presentaciones**
+   (en la base local: 5192 SELECTA YERBA MATE ELAB. ESPECIAL 250 G) y
+   desplegarlo.
+
+**Esperado:** en rojo, «Este producto no tiene presentaciones.», y **nada**
+para tocar. No se agrega ningún renglón.
+
+### 66.10 · Ninguna presentación activa, alerta y nada más
+1. **Agregar producto** → buscar un producto con todas sus presentaciones
+   inactivas (921 CARBON BRITEZ KUE GRANDE, cuya única x1 está inactiva) y
+   desplegarlo.
+
+**Esperado:** en rojo, «Este producto no tiene ninguna presentación activa.», y
+nada para tocar.
+
+### 66.11 · Buscar no cambia
+1. Pestaña **Buscar** → buscar 5192 y 921 y desplegarlos.
+
+**Esperado:** sin alertas rojas: 5192 dice «no tiene presentaciones cargadas» y
+921 muestra su x1 inactiva, como antes.
+
+### 66.12 · Sin red no acusa al catálogo
+1. **Agregar producto** → buscar por descripción (`coca cola 250`).
+2. Cortar la red (modo avión, o *Offline* en las herramientas del navegador) y
+   desplegar el producto.
+3. Volver a conectar y tocar **Reintentar**.
+
+**Esperado:** en el paso 2, «No se pudieron cargar las presentaciones» con
+**Reintentar** — **nunca** la alerta roja de «no tiene». En el paso 3 aparece
+la x1.
+
+*Sin dato real en la base local para «x1 inactiva + x6 activa» (se ofrece la
+x6 sin el aviso de unidades): lo cubre un test automático.*
+
+### 66.13 · Un botón por vez
+1. Abrir una zona con la toma abierta y **nada escrito**.
+2. Desplegar un renglón, escribir un número.
+3. Borrar el número.
+4. Volver a escribirlo y tocar **Guardar conteo**.
+
+**Esperado:** en 1, abajo solo *Agregar producto* (aunque haya un renglón
+abierto). En 2, solo «Guardar conteo (1)» — *Agregar producto* desaparece; un
+«Guardar» deshabilitado solo se ve mientras dice «Guardando…». En 3 vuelve *Agregar producto*. En 4,
+el renglón se contrae y vuelve *Agregar producto*.
+
+### 66.14 · Un producto con lote espera su lote
+1. **Agregar producto** → elegir un producto con control de lote.
+
+**Esperado:** el renglón abierto con el conteo bloqueado y **sin** botón
+abajo: el paso siguiente es el menú ⋮ para elegir o crear el lote.
+
+### 66.15 · Si el guardado falla, no se pierde
+1. Escribir un número en un renglón.
+2. Cortar la red y tocar **Guardar conteo**.
+
+**Esperado:** aviso de que no se guardó; el renglón queda **abierto** con el
+número escrito y abajo sigue «Guardar conteo (1)». Al volver la red y tocarlo,
+se guarda y se contrae.
+
+### 66.16 · Finalizar suma en unidades
+1. En la toma de prueba, contar **10** en el renglón de **A** agregado en 66.3,
+   guardar y finalizar la toma.
+
+**Esperado:** el ajuste de stock de **A** parte de **10 unidades**, no de 60 ni
+de 120.
+
+---
+
+## Bloque 67 — Un producto abierto a la vez en el buscador *(nuevo, sin probar)*
+
+**Por qué está acá:** en la lista del buscador se podía desplegar un producto
+con otro ya desplegado, y el primero quedaba abierto. Ahora abrir uno cierra
+el anterior. Vale en Buscar, transferencias, devoluciones y el conteo.
+
+### 67.1 · Abrir otro cierra el anterior
+1. Pestaña **Buscar** → buscar `coca cola`.
+2. Desplegar el primer resultado y después el segundo.
+
+**Esperado:** queda abierto **solo** el segundo; el primero se cerró solo.
+
+### 67.2 · Tocar el abierto lo cierra
+1. Con un producto desplegado, tocar su cabecera.
+
+**Esperado:** se cierra y no queda ninguno abierto.
+
+### 67.3 · Una búsqueda nueva empieza cerrada
+1. Desplegar un producto, cambiar el texto y buscar de nuevo (con el mismo
+   producto entre los resultados).
+
+**Esperado:** la lista nueva aparece **toda cerrada**; ningún producto queda
+en «Cargando presentaciones…».
+
+### 67.4 · En el conteo, igual
+1. En una zona de la toma → **Agregar producto** → repetir 67.1.
+
+**Esperado:** igual que 67.1, y la lista sigue ofreciendo solo la presentación
+de 1.
+
+---
+
+## Bloque 68 — Una toma cerrada es de solo lectura *(nuevo, sin probar)*
+
+**Por qué está acá:** en el conteo de una toma finalizada o cancelada se podía
+escribir y guardar, y el central lo aceptaba: en una finalizada, el registro
+quedaba distinto del ajuste de stock ya aplicado.
+
+### 68.1 · Una toma finalizada no se edita
+1. Abrir el conteo de una zona de una toma **finalizada** (por ejemplo desde
+   una URL guardada, o con «Atrás» después de finalizar).
+2. Desplegar un renglón.
+
+**Esperado:** «Contado», las fechas y el estado deshabilitados; sin «usar»,
+sin «Buscar lote»/«Crear lote»; **sin** barra abajo. Se puede desplegar y
+mirar.
+
+### 68.2 · Una toma cancelada, igual
+1. Repetir 68.1 con una toma **cancelada**.
+
+**Esperado:** igual que 68.1.
+
+### 68.3 · Finalizada desde otro teléfono mientras se cuenta
+1. En el teléfono A, abrir el conteo de una zona de una toma abierta y
+   escribir un número (sin guardar).
+2. En el teléfono B (o el desktop), finalizar esa toma.
+3. En A, tocar **Guardar conteo**.
+
+**Esperado:** en A **no** se guarda; aviso «La toma ya no está abierta: lo que
+no se había guardado se descartó.»; el renglón muestra lo que dice el central
+y la pantalla queda de solo lectura.
+
+### 68.4 · Finalizada mientras se elige un producto
+1. En A, tocar **Agregar producto** y dejar el buscador abierto.
+2. En B, finalizar la toma.
+3. En A, elegir una presentación.
+
+**Esperado:** no se agrega ningún renglón, aviso «La toma ya no está
+abierta.» y A queda de solo lectura. Lo mismo al elegir o crear un lote, o al
+quitar un renglón, con el diálogo abierto mientras B finaliza.
+
+---
+
+## Bloque 69 — Nombres de zona y botones de la card *(nuevo, sin probar)*
+
+**Por qué está acá:** en el detalle de la toma, zonas y sectores salían en
+minúscula («zona gaseosas», «deposito») y «Concluir» caía en una fila aparte,
+debajo de «Contar».
+
+### 69.1 · Zona y sector con mayúscula inicial
+1. Abrir el detalle de una toma con zonas.
+
+**Esperado:** cada card dice, por ejemplo, «Zona Gaseosas» y debajo
+«Deposito»: mayúscula inicial en cada palabra. Una zona sin nombre sigue
+diciendo «Sin zona». Un código con letras y números se ve en minúscula
+(«GONDOLA 2B» → «Gondola 2b»), igual que en Lugares.
+
+### 69.2 · El mismo criterio en todo el recorrido
+1. Tocar **Contar** en una zona.
+2. Volver, y tocar **Finalizar** con una zona sin concluir.
+3. Tocar **Agregar zona**.
+
+**Esperado:** el título del conteo, el aviso de «falta concluir…» y la lista
+del diálogo muestran los nombres con el mismo criterio que la card.
+
+### 69.3 · Los botones juntos, a la derecha
+1. En el detalle de una toma abierta, mirar una card de zona en un teléfono
+   (o a 360 px).
+
+**Esperado:** «Contar» y «Concluir» (o «Reabrir») **juntos en la misma
+fila**, debajo del conteo y **pegados al borde derecho de la card**, sin el
+espacio de la columna de la diferencia; la diferencia sigue arriba a la
+derecha, donde estaba. Con la toma cerrada no hay botones. Las demás cards de
+la app (caja, devoluciones, transferencias…) se ven igual que antes.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6218,7 +6463,11 @@ salirse.
 | 63 · El ícono de la app | 5 | | | |
 | 64 · El solicitante de una transferencia | 9 | | | |
 | 65 · La descripción completa del producto | 6 | 6 | | |
-| **Total** | **595** | | | |
+| 66 · El conteo ofrece solo la presentación de 1 | 16 | | | |
+| 67 · Un producto abierto a la vez en el buscador | 4 | | | |
+| 68 · Una toma cerrada es de solo lectura | 4 | | | |
+| 69 · Nombres de zona y botones de la card | 3 | | | |
+| **Total** | **622** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 
 import { SelectorComponent, type OpcionSeleccion } from 'src/app/shared/selector/selector.component';
 import type { Sector } from 'src/app/domains/sector/sector.model';
-import type { ZonaDisponible } from './inventario-alta';
+import { nombreDeLugar, type ZonaDisponible } from './inventario-alta';
 
 export interface DatosZona {
   /** Las que todavía se pueden sumar. Ya vienen sin las usadas ni las inactivas. */
@@ -221,7 +221,7 @@ export class ZonaDialogComponent {
   readonly opcionesSector = computed<OpcionSeleccion[]>(() =>
     (this.datos.sectores ?? []).map((s) => ({
       valor: s.id,
-      texto: s.descripcion ?? `Sector ${s.id}`,
+      texto: nombreDeLugar(s.descripcion) || `Sector ${s.id}`,
     })),
   );
 

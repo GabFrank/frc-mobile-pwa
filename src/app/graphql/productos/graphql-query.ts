@@ -33,6 +33,7 @@ export const productoPorCodigoQuery = gql`
       presentaciones {
         id
         principal
+        activo
         cantidad
         codigos {
           id

@@ -502,7 +502,21 @@ La regla vive en `presentacionesContables()`
 (`shared/producto/presentacion.util.ts`).
 
 El ítem se **persiste al elegirlo**, con el stock del sistema y sin conteo, y
-la lista se recarga. Así hay una sola fuente de verdad —lo que dice el
+la lista se recarga. **El renglón nuevo vuelve desplegado**, llevado a la vista
+y con el foco en «Contado»: lo siguiente es contarlo. El `id` sale de la
+respuesta de `saveInventarioProductoItem`; `cargar()` no toca `abiertoId`.
+
+- El foco se da **una vez**. La marca (`recienAgregadoId`) la limpia la card al
+  usarla, porque cada recarga —«Guardar conteo», aplicar un lote, quitar otro
+  renglón— recrea todas las cards. Por eso es `afterNextRender` y no un
+  `effect`: la fila se reconstruye con cada tecla.
+- Sin foco si el campo está bloqueado (producto con lote, sin lote todavía) o
+  ya tiene un número (pesable): solo se lleva a la vista.
+- ⚠️ **En iOS el teclado no sube solo**: el foco llega después de un viaje a la
+  red y Safari ya no lo toma como un gesto. El campo queda enfocado; hay que
+  tocarlo.
+- Con el renglón abierto, *Agregar producto* se esconde, como siempre: para
+  sumar otro se colapsa o se guarda el conteo. Así hay una sola fuente de verdad —lo que dice el
 central— y no un renglón a medio existir que se pierde si alguien sale de la
 pantalla antes de guardar.
 

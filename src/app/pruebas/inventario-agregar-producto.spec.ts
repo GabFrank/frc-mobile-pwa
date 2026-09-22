@@ -163,6 +163,65 @@ describe('Agregar un producto al conteo', () => {
     expect(datos.opciones.soloPresentacionUnitaria).toBe(true);
   });
 
+  describe('el renglón nuevo nace desplegado', () => {
+    const conElNuevo = () =>
+      inventario(InventarioEstado.ABIERTO, [
+        { id: 500, cantidad: null, cantidadFisica: 42, presentacion: { id: 9, cantidad: 1 } },
+      ]);
+
+    it('abre el renglón que devolvió el central', async () => {
+      const f = montar();
+      servicio.porId = vi.fn(() => of(conElNuevo()));
+      await f.componentInstance.agregarProducto();
+
+      expect(f.componentInstance.abiertoId()).toBe(500);
+      expect(f.componentInstance.mostrarAgregar()).toBe(false);
+    });
+
+    it('la marca se consume al pintarse: otra recarga no vuelve a enfocar', async () => {
+      const f = montar();
+      servicio.porId = vi.fn(() => of(conElNuevo()));
+      await f.componentInstance.agregarProducto();
+      f.detectChanges();
+      await f.whenStable();
+
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+
+      // «Guardar conteo», aplicar un lote o quitar otro renglón recargan.
+      f.componentInstance.cargar();
+      f.detectChanges();
+      await f.whenStable();
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+      expect(f.componentInstance.abiertoId()).toBe(500);
+    });
+
+    it('sin id en la respuesta no abre nada', async () => {
+      // `Number('')` es 0: sin el guard abriría un renglón que no existe.
+      servicio.guardarItem = vi.fn(() => of({ id: '' }));
+      const f = montar();
+      await f.componentInstance.agregarProducto();
+
+      expect(f.componentInstance.abiertoId()).toBeNull();
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+    });
+
+    it('una respuesta vacía tampoco', async () => {
+      servicio.guardarItem = vi.fn(() => of(null));
+      const f = montar();
+      await f.componentInstance.agregarProducto();
+
+      expect(f.componentInstance.abiertoId()).toBeNull();
+    });
+
+    it('tocar un renglón limpia la marca', () => {
+      const f = montar();
+      f.componentInstance.recienAgregadoId.set(500);
+      f.componentInstance.alternar(500);
+
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+    });
+  });
+
   it('un peso de balanza entra como lo contado', async () => {
     dialogo.abrir = vi.fn(async () => ({ ...SELECCION, peso: 1.235 }));
     const f = montar();

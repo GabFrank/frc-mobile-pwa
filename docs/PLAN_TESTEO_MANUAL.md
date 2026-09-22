@@ -6196,6 +6196,26 @@ aviso de «contá en unidades». Se puede elegir cualquiera.
 **Esperado:** en las dos se ven **todas** las presentaciones de **A** y no hay
 aviso.
 
+### 66.7 · El renglón agregado vuelve desplegado
+1. Desde 66.1, tocar la x1.
+
+**Esperado:** la lista se recarga con el renglón de **A** **ya abierto**, a la
+vista, y el cursor en «Contado». En Android sube el teclado numérico; en un
+iPhone el campo queda enfocado pero hay que tocarlo para que suba.
+
+### 66.8 · El foco no vuelve
+1. Con el renglón de 66.7 abierto, escribir un número y tocar **Guardar
+   conteo**.
+
+**Esperado:** la lista se recarga y el teclado **no** vuelve a subir solo.
+Escribir en el campo no mueve la pantalla en cada tecla.
+
+### 66.9 · Un producto con lote se abre sin foco
+1. **Agregar producto** → elegir un producto con control de lote.
+
+**Esperado:** el renglón vuelve abierto y a la vista, con «Contado» bloqueado y
+el aviso de elegir o crear el lote. No sube el teclado.
+
 ### 66.6 · Finalizar suma en unidades
 1. En la toma de prueba, contar **10** en el renglón de **A** agregado en 66.3,
    guardar y finalizar la toma.
@@ -6274,8 +6294,8 @@ de 120.
 | 63 · El ícono de la app | 5 | | | |
 | 64 · El solicitante de una transferencia | 9 | | | |
 | 65 · La descripción completa del producto | 6 | 6 | | |
-| 66 · El conteo ofrece solo la presentación de 1 | 6 | | | |
-| **Total** | **601** | | | |
+| 66 · El conteo ofrece solo la presentación de 1 | 9 | | | |
+| **Total** | **604** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

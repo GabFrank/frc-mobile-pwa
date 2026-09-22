@@ -152,6 +152,8 @@ const ESTADOS: OpcionSeleccion[] = [
             <frc-inventario-item-card
               [fila]="fila"
               [abierta]="abiertoId() === fila.itemId"
+              [enfocar]="recienAgregadoId() === fila.itemId"
+              (enfocado)="recienAgregadoId.set(null)"
               [estados]="estados"
               [puedeQuitar]="puedeAgregar()"
               (alternar)="alternar(fila.itemId)"
@@ -248,6 +250,12 @@ export class InventarioCargaPage {
 
   /** Qué ítem está desplegado. Uno a la vez: una zona tiene treinta. */
   readonly abiertoId = signal<number | null>(null);
+  /**
+   * El renglón que se acaba de agregar: nace desplegado y con el foco en
+   * «Contado». Se limpia apenas la card lo usa, porque cada recarga de la
+   * lista recrea las cards y el foco volvería con cada una.
+   */
+  readonly recienAgregadoId = signal<number | null>(null);
 
   readonly inventario = signal<Inventario | null>(null);
   readonly cargando = signal(true);
@@ -558,6 +566,7 @@ export class InventarioCargaPage {
    * guarda estado propio.
    */
   alternar(itemId: number): void {
+    this.recienAgregadoId.set(null);
     this.abiertoId.update((actual) => (actual === itemId ? null : itemId));
   }
 
@@ -680,8 +689,15 @@ export class InventarioCargaPage {
             }),
           )
           .subscribe({
-            next: () => {
+            next: (guardado) => {
               this.agregando.set(false);
+              // Lo siguiente es contarlo: el renglón nuevo nace desplegado.
+              // `cargar()` no toca `abiertoId`.
+              const nuevoId = Number(guardado?.id);
+              if (Number.isFinite(nuevoId) && nuevoId > 0) {
+                this.abiertoId.set(nuevoId);
+                this.recienAgregadoId.set(nuevoId);
+              }
               this.cargar();
             },
             error: (err: Error) => {

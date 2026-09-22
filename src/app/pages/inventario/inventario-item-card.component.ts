@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  output,
+  viewChild,
+} from '@angular/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatInputModule } from '@angular/material/input';
@@ -181,6 +191,7 @@ export interface FilaConteo {
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Contado</mat-label>
             <input
+              #campoContado
               matInput
               class="entrada-num"
               type="number"
@@ -469,6 +480,46 @@ export class InventarioItemCardComponent {
    * abierta. Cerrada, el alcance del conteo ya es un hecho histórico.
    */
   readonly puedeQuitar = input(false);
+  /**
+   * El renglón recién agregado: al pintarse se lleva a la vista y, si hay que
+   * contarlo, pone el foco en «Contado».
+   */
+  readonly enfocar = input(false);
+  /** Ya se usó `enfocar`: la pantalla limpia la marca. */
+  readonly enfocado = output<void>();
+
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly campoContado = viewChild<ElementRef<HTMLInputElement>>('campoContado');
+
+  constructor() {
+    /*
+     * ⚠️ **Una sola vez por instancia, no un `effect`.** Un `effect` leería
+     * `fila()`, que la pantalla reconstruye con cada tecla, y devolvería el
+     * foco en cada pulsación. Y que no vuelva con cada recarga de la lista lo
+     * asegura la pantalla, que limpia la marca al recibir `enfocado`: la
+     * recarga recrea todas las cards.
+     *
+     * El foco va solo a un campo habilitado y vacío. Un producto con lote sin
+     * lote todavía tiene el campo bloqueado, y a la vista queda el aviso de
+     * elegirlo; un pesable nace con el peso ya contado.
+     *
+     * En iOS el teclado no sube: el foco llega después de un viaje a la red y
+     * Safari ya no lo toma como un gesto del usuario.
+     */
+    afterNextRender({
+      write: () => {
+        if (!this.enfocar() || !this.abierta()) {
+          return;
+        }
+        this.host.nativeElement.scrollIntoView?.({ block: 'nearest' });
+        const campo = this.campoContado()?.nativeElement;
+        if (campo && !campo.disabled && this.fila().contado === null) {
+          campo.focus({ preventScroll: true });
+        }
+        this.enfocado.emit();
+      },
+    });
+  }
 
   readonly alternar = output<void>();
   readonly contado = output<Event>();

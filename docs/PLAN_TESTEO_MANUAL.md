@@ -6394,7 +6394,15 @@ la app (caja, devoluciones, transferencias…) se ven igual que antes.
 
 ---
 
-## Bloque 70 — Lotes en el conteo: presentación, fechas y stock *(nuevo, sin probar)*
+## Bloque 70 — Lotes en el conteo: presentación, fechas y stock *(nuevo)* — **5/6** (Claude en Chrome, central local, 2026-09-22)
+
+> Probados 70.1 a 70.5 en la toma 7467 (DEPOSITO AQUARIO SDG) con 801 COCA
+> COLA 250ML, a la que se le activó el control de lote en la base local. El
+> renglón en x6, las presentaciones inactivas y el sistema de 12 unidades se
+> armaron directo en la base; la cantidad y las fechas de 70.5 se cargaron por
+> los métodos de la pantalla y «Guardar conteo» se tocó en la interfaz. La
+> conversión del «Sistema» se vio en un renglón x6 («Sistema: 2» con 12
+> unidades). **Falta 70.6** (sin stock en la base local), teléfono real e iOS.
 
 **Por qué está acá:** agregar un segundo lote a un renglón copiaba su
 presentación (una caja, o una dada de baja); las fechas del lote y el renglón
@@ -6523,7 +6531,7 @@ mismo renglón sigue mostrando el sistema en unidades: lo guardado no cambió.
 | 67 · Un producto abierto a la vez en el buscador | 4 | | | |
 | 68 · Una toma cerrada es de solo lectura | 4 | | | |
 | 69 · Nombres de zona y botones de la card | 3 | | | |
-| 70 · Lotes en el conteo: presentación, fechas y stock | 6 | | | |
+| 70 · Lotes en el conteo: presentación, fechas y stock | 6 | 5 | | |
 | **Total** | **628** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

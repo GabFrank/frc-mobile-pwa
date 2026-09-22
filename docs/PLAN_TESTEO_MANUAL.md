@@ -6208,8 +6208,9 @@ iPhone el campo queda enfocado pero hay que tocarlo para que suba.
 1. Con el renglón de 66.6 abierto, escribir un número y tocar **Guardar
    conteo**.
 
-**Esperado:** la lista se recarga y el teclado **no** vuelve a subir solo.
-Escribir en el campo no mueve la pantalla en cada tecla.
+**Esperado:** la lista se recarga con el renglón **contraído** y el teclado
+**no** vuelve a subir solo. Escribir en el campo no mueve la pantalla en cada
+tecla.
 
 ### 66.8 · Un producto con lote se abre sin foco
 1. **Agregar producto** → elegir un producto con control de lote.
@@ -6252,7 +6253,32 @@ la x1.
 *Sin dato real en la base local para «x1 inactiva + x6 activa» (se ofrece la
 x6 sin el aviso de unidades): lo cubre un test automático.*
 
-### 66.13 · Finalizar suma en unidades
+### 66.13 · Un botón por vez
+1. Abrir una zona con la toma abierta y **nada escrito**.
+2. Desplegar un renglón, escribir un número.
+3. Borrar el número.
+4. Volver a escribirlo y tocar **Guardar conteo**.
+
+**Esperado:** en 1, abajo solo *Agregar producto* (aunque haya un renglón
+abierto). En 2, solo «Guardar conteo (1)» — *Agregar producto* desaparece y
+nunca se ve un «Guardar» deshabilitado. En 3 vuelve *Agregar producto*. En 4,
+el renglón se contrae y vuelve *Agregar producto*.
+
+### 66.14 · Un producto con lote espera su lote
+1. **Agregar producto** → elegir un producto con control de lote.
+
+**Esperado:** el renglón abierto con el conteo bloqueado y **sin** botón
+abajo: el paso siguiente es el menú ⋮ para elegir o crear el lote.
+
+### 66.15 · Si el guardado falla, no se pierde
+1. Escribir un número en un renglón.
+2. Cortar la red y tocar **Guardar conteo**.
+
+**Esperado:** aviso de que no se guardó; el renglón queda **abierto** con el
+número escrito y abajo sigue «Guardar conteo (1)». Al volver la red y tocarlo,
+se guarda y se contrae.
+
+### 66.16 · Finalizar suma en unidades
 1. En la toma de prueba, contar **10** en el renglón de **A** agregado en 66.3,
    guardar y finalizar la toma.
 
@@ -6330,8 +6356,8 @@ de 120.
 | 63 · El ícono de la app | 5 | | | |
 | 64 · El solicitante de una transferencia | 9 | | | |
 | 65 · La descripción completa del producto | 6 | 6 | | |
-| 66 · El conteo ofrece solo la presentación de 1 | 13 | | | |
-| **Total** | **608** | | | |
+| 66 · El conteo ofrece solo la presentación de 1 | 16 | | | |
+| **Total** | **611** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

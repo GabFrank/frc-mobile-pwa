@@ -175,21 +175,20 @@ const ESTADOS: OpcionSeleccion[] = [
         con más de un nodo raíz no proyecta al slot (NG8011), y el botón de
         guardar caía en el cuerpo en vez de la barra fija.
       -->
-      @if (!cargando() && !error()) {
+      @if (!cargando() && !error() && (mostrarGuardar() || mostrarAgregar())) {
         <div acciones>
           <!--
-            Con una card abierta el botón desaparece: mientras se cuenta un
-            renglón, «Agregar producto» compite con «Guardar conteo» y se lee
-            como si fuera el paso siguiente del conteo. Vuelve al colapsar.
+            Un botón por vez: con algo para guardar, «Guardar conteo»; sin
+            nada, «Agregar producto». Los dos juntos competían, y un «Guardar»
+            deshabilitado ocupaba el lugar sin decir nada.
           -->
-          @if (mostrarAgregar()) {
-            <button matButton [disabled]="agregando() || guardando()" (click)="agregarProducto()">
-              {{ agregando() ? 'Agregando…' : 'Agregar producto' }}
+          @if (mostrarGuardar()) {
+            <button matButton="filled" [disabled]="guardando()" (click)="guardar()">
+              {{ guardando() ? 'Guardando…' : 'Guardar conteo (' + guardables() + ')' }}
             </button>
-          }
-          @if (items().length > 0) {
-            <button matButton="filled" [disabled]="!hayCambios() || guardando()" (click)="guardar()">
-              {{ guardando() ? 'Guardando…' : 'Guardar conteo (' + cambiados().length + ')' }}
+          } @else {
+            <button matButton [disabled]="agregando()" (click)="agregarProducto()">
+              {{ agregando() ? 'Agregando…' : 'Agregar producto' }}
             </button>
           }
         </div>
@@ -455,7 +454,23 @@ export class InventarioCargaPage {
   });
 
   readonly cambiados = computed(() => this.items().filter((f) => this.edicion().has(f.itemId)));
-  readonly hayCambios = computed(() => this.cambiados().length > 0);
+  /**
+   * Los renglones con un conteo para mandar. Es **el mismo filtro que usa
+   * `guardar()`**: escribir un número y borrarlo deja el renglón en `edicion`
+   * con `contado: null`, y contarlo acá mostraba un «Guardar conteo (1)» que
+   * solo contestaba «Escribí al menos una cantidad».
+   */
+  private readonly filasAGuardar = computed(() =>
+    this.cambiados().filter((f) => f.contado != null),
+  );
+  /** Renglones distintos que «Guardar conteo» va a mandar: conteo o fechas de lote. */
+  readonly guardables = computed(
+    () =>
+      new Set([...this.filasAGuardar(), ...this.fechasDeLoteCambiadas()].map((f) => f.itemId))
+        .size,
+  );
+  readonly hayCambios = computed(() => this.guardables() > 0);
+  readonly mostrarGuardar = computed(() => this.hayCambios() || this.guardando());
 
   constructor() {
     effect(() => {
@@ -613,11 +628,24 @@ export class InventarioCargaPage {
   /**
    * `puedeAgregar` dice si **se permite**; esto, si **corresponde mostrarlo**.
    *
-   * Con un renglón desplegado el operador está contando ese producto, y el
-   * botón ahí arriba de «Guardar conteo» confunde: parece parte de lo que está
-   * haciendo. Se oculta mientras dura la edición y vuelve al colapsar la card.
+   * La barra muestra un botón por vez: mientras haya algo para guardar, el
+   * paso siguiente es «Guardar conteo», y *Agregar producto* al lado se leía
+   * como parte de lo que se estaba contando. Antes se escondía con cualquier
+   * card abierta; con un botón por vez eso ya no hace falta.
    */
-  readonly mostrarAgregar = computed(() => this.puedeAgregar() && this.abiertoId() === null);
+  readonly mostrarAgregar = computed(
+    () => this.puedeAgregar() && !this.mostrarGuardar() && !this.abiertaEsperaLote(),
+  );
+
+  /**
+   * El renglón abierto es de un producto con lote y todavía no tiene: el
+   * conteo está bloqueado y el paso siguiente es el menú ⋮. *Agregar producto*
+   * ahí se leería como lo que sigue.
+   */
+  private readonly abiertaEsperaLote = computed(() => {
+    const abierta = this.items().find((f) => f.itemId === this.abiertoId());
+    return abierta != null && abierta.productoConLote && abierta.lote == null;
+  });
 
   /**
    * Sumar a la zona una presentación que la toma no incluía.
@@ -993,7 +1021,7 @@ export class InventarioCargaPage {
   );
 
   guardar(): void {
-    const filas = this.cambiados().filter((f) => f.contado != null);
+    const filas = this.filasAGuardar();
     const fechas = this.fechasDeLoteCambiadas();
     if (filas.length === 0 && fechas.length === 0) {
       this.notificacion.warn('Escribí al menos una cantidad contada.');
@@ -1005,7 +1033,8 @@ export class InventarioCargaPage {
     this.guardando.set(true);
 
     let pendientes = filas.length + fechas.length;
-    let fallaron = 0;
+    // Por renglón y no un número: lo que falló se conserva para reintentar.
+    const fallidos = new Set<number>();
 
     for (const fila of fechas) {
       this.lotes
@@ -1016,13 +1045,13 @@ export class InventarioCargaPage {
           usuarioId,
         })
         .subscribe({
-          next: () => this.terminar(--pendientes, fallaron),
+          next: () => this.terminar(--pendientes, fallidos),
           error: (err: Error) => {
-            fallaron++;
+            fallidos.add(fila.itemId);
             // El central valida que el retiro no sea posterior al vencimiento y
             // manda el texto listo: se muestra tal cual.
             this.notificacion.danger(err.message);
-            this.terminar(--pendientes, fallaron);
+            this.terminar(--pendientes, fallidos);
           },
         });
     }
@@ -1049,24 +1078,31 @@ export class InventarioCargaPage {
           usuarioId,
         })
         .subscribe({
-          next: () => this.terminar(--pendientes, fallaron),
+          next: () => this.terminar(--pendientes, fallidos),
           error: () => {
-            fallaron++;
-            this.terminar(--pendientes, fallaron);
+            fallidos.add(fila.itemId);
+            this.terminar(--pendientes, fallidos);
           },
         });
     }
   }
 
-  private terminar(pendientes: number, fallaron: number): void {
+  private terminar(pendientes: number, fallidos: ReadonlySet<number>): void {
     if (pendientes > 0) {
       return;
     }
     this.guardando.set(false);
-    this.edicion.set(new Map());
-    if (fallaron > 0) {
+    // ⚠️ **Sale de `edicion` solo lo que se guardó.** Vaciarla entera borraba
+    // también lo que falló: el renglón mostraba el valor viejo del central y
+    // no quedaba nada que reintentar.
+    this.edicion.update((mapa) => new Map([...mapa].filter(([id]) => fallidos.has(id))));
+    this.recienAgregadoId.set(null);
+    // Guardado, el renglón se contrae. Con un fallo queda abierto el primero
+    // que falló, para verlo y reintentar.
+    this.abiertoId.set(fallidos.size > 0 ? [...fallidos][0] : null);
+    if (fallidos.size > 0) {
       this.notificacion.warn(
-        `Se guardaron algunos ítems, ${fallaron} no. Revisá y volvé a intentar.`,
+        `Se guardaron algunos ítems, ${fallidos.size} no. Revisá y volvé a intentar.`,
       );
     } else {
       this.notificacion.ok('Conteo guardado.');

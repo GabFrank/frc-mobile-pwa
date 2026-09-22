@@ -450,11 +450,26 @@ la misma condición que habilita *Agregar producto*.
 > la misma fecha para la misma presentación en todas las zonas, así que contar
 > un producto en dos zonas y guardar hacía fallar el segundo.
 
-**El botón se esconde mientras se cuenta.** Con una card desplegada el
-operador está contando ese renglón, y *Agregar producto* justo arriba de
-*Guardar conteo* se lee como si fuera el paso siguiente. Se muestra solo con
-todo colapsado (`mostrarAgregar` = toma abierta **y** ningún ítem desplegado);
-`puedeAgregar` sigue diciendo si se **permite**, que es otra pregunta.
+**La barra muestra un botón por vez** (Franco, 2026-09-22). Con algo para
+guardar, solo «Guardar conteo (n)»; sin nada, solo *Agregar producto*. Los dos
+juntos competían —*Agregar* se leía como el paso siguiente del conteo— y un
+«Guardar» deshabilitado ocupaba el lugar sin decir nada. `puedeAgregar` sigue
+diciendo si se **permite**; `mostrarAgregar`, si corresponde mostrarlo.
+
+- ⚠️ **«Guardar conteo» cuenta lo que `guardar()` va a mandar** (`guardables()`):
+  renglones con un conteo o con fechas de lote cambiadas. Escribir un número y
+  borrarlo deja el renglón en `edicion` con `contado: null`; contarlo dejaba la
+  barra con un «Guardar» que no guardaba nada y sin *Agregar producto*.
+- Con el renglón abierto **esperando su lote** (conteo bloqueado) no se ofrece
+  *Agregar producto*: el paso siguiente es el menú ⋮.
+- Sin ninguno de los dos —toma cerrada— la barra no se pinta.
+- Con algo sin guardar no se puede agregar otro producto: primero se guarda.
+
+**Al guardar, el renglón se contrae.** ⚠️ **De `edicion` sale solo lo que se
+guardó**: si un ítem falla, lo escrito se conserva, su renglón queda abierto
+y la barra vuelve a «Guardar conteo» para reintentar. Antes se vaciaba entera
+y el renglón fallido mostraba el valor viejo del central, sin nada que
+reintentar.
 
 *Agregar producto* abre `frc-buscador-producto-dialog`, el mismo buscador de
 la pestaña Buscar: descripción, código, cámara y códigos de balanza. Recibe la

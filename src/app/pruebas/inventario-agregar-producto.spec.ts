@@ -97,35 +97,116 @@ describe('Agregar un producto al conteo', () => {
     expect(f.nativeElement.textContent).toContain('Agregar producto');
   });
 
-  it('mientras se cuenta un renglón el botón no está', () => {
-    // Con la card abierta compite con «Guardar conteo» y se lee como si fuera
-    // el paso siguiente del conteo.
-    servicio.porId = vi.fn(() =>
-      of(
-        inventario(InventarioEstado.ABIERTO, [
-          { id: 700, cantidad: null, cantidadFisica: 1, presentacion: { id: 9, cantidad: 1 } },
-        ]),
-      ),
-    );
-    const f = montar();
+  describe('un botón por vez en la barra', () => {
+    const conRenglon = (extra: Record<string, unknown> = {}) =>
+      inventario(InventarioEstado.ABIERTO, [
+        {
+          id: 700,
+          cantidad: null,
+          cantidadFisica: 1,
+          presentacion: { id: 9, cantidad: 1, producto: { id: 200, descripcion: 'COCA COLA 2L' } },
+          ...extra,
+        },
+      ]);
+    const texto = (f: { nativeElement: HTMLElement }) => f.nativeElement.textContent ?? '';
+    const escribir = (f: ReturnType<typeof montar>, valor: string) => {
+      f.componentInstance.cambiarContado(700, { target: { value: valor } } as unknown as Event);
+      f.detectChanges();
+    };
 
-    f.componentInstance.alternar(700);
-    f.detectChanges();
-    expect(f.componentInstance.mostrarAgregar()).toBe(false);
-    expect(f.nativeElement.textContent).not.toContain('Agregar producto');
+    it('sin nada para guardar: solo «Agregar producto», aunque haya un renglón abierto', () => {
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      f.detectChanges();
 
-    // Al colapsar vuelve: la toma sigue abierta.
-    f.componentInstance.alternar(700);
-    f.detectChanges();
-    expect(f.nativeElement.textContent).toContain('Agregar producto');
+      expect(texto(f)).toContain('Agregar producto');
+      expect(texto(f)).not.toContain('Guardar conteo');
+    });
+
+    it('con un conteo escrito: solo «Guardar conteo (1)»', () => {
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      escribir(f, '7');
+
+      expect(texto(f)).toContain('Guardar conteo (1)');
+      expect(texto(f)).not.toContain('Agregar producto');
+    });
+
+    it('escribir y borrar no deja un «Guardar» que no guarda nada', () => {
+      // `guardar()` descarta los renglones sin conteo: el botón quedaba sin salida.
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      escribir(f, '7');
+      escribir(f, '');
+
+      expect(f.componentInstance.hayCambios()).toBe(false);
+      expect(texto(f)).not.toContain('Guardar conteo');
+      expect(texto(f)).toContain('Agregar producto');
+    });
+
+    it('un renglón abierto esperando su lote no ofrece «Agregar producto»', () => {
+      // El paso siguiente es el menú ⋮: el botón se leería como lo que sigue.
+      servicio.porId = vi.fn(() =>
+        of(
+          conRenglon({
+            presentacion: {
+              id: 9,
+              cantidad: 1,
+              producto: { id: 200, descripcion: 'AMOXICILINA', lote: true },
+            },
+          }),
+        ),
+      );
+      const f = montar();
+      f.componentInstance.alternar(700);
+      f.detectChanges();
+
+      expect(f.componentInstance.mostrarAgregar()).toBe(false);
+      expect(texto(f)).not.toContain('Agregar producto');
+      expect(f.nativeElement.querySelector('[acciones]')).toBeFalsy();
+    });
+
+    it('guardar todo contrae el renglón y vuelve «Agregar producto»', () => {
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      escribir(f, '7');
+
+      f.componentInstance.guardar();
+      f.detectChanges();
+
+      expect(f.componentInstance.abiertoId()).toBeNull();
+      expect(f.componentInstance.hayCambios()).toBe(false);
+      expect(texto(f)).toContain('Agregar producto');
+    });
+
+    it('lo que falló se conserva: sigue abierto y con «Guardar conteo»', () => {
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      servicio.guardarItem = vi.fn(() => throwError(() => new Error('sin red')));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      escribir(f, '7');
+      f.componentInstance.alternar(700); // cerrado al guardar: tiene que reabrirse
+
+      f.componentInstance.guardar();
+      f.detectChanges();
+
+      expect(f.componentInstance.abiertoId()).toBe(700);
+      expect(f.componentInstance.items()[0].contado).toBe(7);
+      expect(texto(f)).toContain('Guardar conteo (1)');
+    });
   });
 
-  it('con la toma cerrada no se puede agregar', () => {
+  it('con la toma cerrada no se puede agregar, y la barra no queda vacía', () => {
     // El alcance de una toma cerrada ya es un hecho histórico.
     servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO)));
     const f = montar();
     expect(f.componentInstance.puedeAgregar()).toBe(false);
     expect(f.nativeElement.textContent).not.toContain('Agregar producto');
+    expect(f.nativeElement.querySelector('[acciones]')).toBeFalsy();
   });
 
   it('el stock del sistema va a cantidadFisica y el conteo queda vacío', async () => {
@@ -175,7 +256,8 @@ describe('Agregar un producto al conteo', () => {
       await f.componentInstance.agregarProducto();
 
       expect(f.componentInstance.abiertoId()).toBe(500);
-      expect(f.componentInstance.mostrarAgregar()).toBe(false);
+      // Nada escrito todavía: la barra ofrece agregar otro.
+      expect(f.componentInstance.mostrarAgregar()).toBe(true);
     });
 
     it('la marca se consume al pintarse: otra recarga no vuelve a enfocar', async () => {

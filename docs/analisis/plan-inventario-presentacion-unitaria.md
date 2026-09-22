@@ -75,7 +75,7 @@ Quedan **afuera, a propósito**:
 
 ## Fases
 
-**Fase 1 (única)** — util + opción + card + inventario + tests + docs.
+**Fase 1** — util + opción + card + inventario + tests + docs.
 Menos de 150 líneas netas; partirla no deja nada probable por separado.
 
 Tests (vitest):
@@ -99,11 +99,132 @@ y la tabla de casos legítimos, que hoy lista «Unidad y caja x12» (líneas 64,
 unidades— y se nombra `aplicarLote()` como el camino que hereda presentación;
 bloque nuevo en `docs/PLAN_TESTEO_MANUAL.md` + tabla de totales.
 
+**Fase 2** — el renglón recién agregado nace desplegado. Pedido de Franco tras
+probar la fase 1 (2026-09-22): hoy se elige la presentación, se recarga la
+lista y hay que buscar el renglón y tocarlo para cargar la cantidad.
+
+- `InventarioCargaPage.agregarProducto()`: `saveInventarioProductoItem` ya
+  devuelve el `id` del renglón nuevo (`graphql-query.ts:141`); hoy el `next`
+  lo descarta (`:684`). Con `Number(res?.id)` finito y mayor que 0:
+  `abiertoId.set(id)` y `recienAgregadoId.set(id)` antes de `cargar()`, que no
+  toca `abiertoId`. Un id inválido o una respuesta nula no abre nada.
+- `InventarioItemCardComponent` → `input enfocar = false` y
+  `output enfocado`. En el constructor, **`afterNextRender`** —una sola vez por
+  instancia, con el DOM ya pintado—: si `enfocar` y `abierta`, `scrollIntoView`
+  del host (`block: 'nearest'`) y, si el campo «Contado» está habilitado **y
+  vacío**, `focus({ preventScroll: true })`; después emite `enfocado`.
+  - Nada de `effect`: leería `fila()`, que se reconstruye con cada tecla
+    (`items()` arma objetos nuevos, `:292`), y volvería a enfocar en cada
+    pulsación.
+  - Vacío: un pesable ya nace con el peso como contado (`inventario-alta.ts:231`);
+    subirle el teclado sería de más.
+  - Con lote y sin lote todavía, el campo está deshabilitado: solo scroll, y
+    queda a la vista el aviso de elegir lote.
+- La página limpia `recienAgregadoId` en `(enfocado)`. **La marca vive en la
+  página, no en la card**: `cargar()` cambia la lista por el skeleton y el
+  `@for` recrea todas las cards, así que sin limpiarla al consumirla el foco
+  volvía con cada recarga — «Guardar conteo», `aplicarLote()`, `quitarItem()`.
+  `alternar()` también la limpia.
+- ⚠️ **iOS no sube el teclado**: un `focus()` después de un viaje a la red ya
+  no es un gesto del usuario. El campo queda enfocado y a la vista, pero hay
+  que tocarlo. En Android sí sube.
+- Consecuencia a la vista: con un renglón abierto, *Agregar producto* se
+  esconde (`mostrarAgregar`, `:608`, a propósito desde antes). Para agregar
+  otro, se colapsa el renglón o se guarda el conteo.
+
+Tests: el alta abre el id devuelto (falla con el código viejo, que lo
+descarta); id inválido o respuesta nula no abre; `(enfocado)` limpia la marca y
+una segunda recarga no vuelve a enfocar; la card con `enfocar` enfoca el campo
+vacío y emite `enfocado`; con el campo deshabilitado o ya contado no enfoca y
+emite igual. Revertir y ver fallar.
+Docs: `docs/modulos/inventario.md` (alta) y casos nuevos en el bloque 66.
+
+**Auditoría del plan de la fase 2:** los dos ejes coincidieron en que un
+`effect` en la card reenfocaba en cada tecla y que la marca limpiada solo en
+`alternar()` reenfocaba en cada recarga. Se cambió a `afterNextRender` +
+`enfocado`. Eje A sumó el pesable, el tipo del id y *Agregar producto* oculto;
+eje B, iOS y los tests de recarga. Todo verificado contra el código.
+
+**Fase 3** — sin presentación activa, no se opera. Pedido de Franco
+(2026-09-22): si el producto **no tiene presentaciones**, o **ninguna está
+activa**, el conteo muestra una alerta que lo dice y no deja elegir nada. Sirve
+para que quien cuenta avise al encargado: el producto está en la góndola y el
+catálogo no lo deja vender.
+
+Llegan al buscador, verificado en el central:
+- por texto, Lucene (`app.search.producto.enabled`, por defecto `true`) filtra
+  solo `producto.activo` y no mira presentaciones (`ProductoService.java:158-161`);
+  la PWA no manda `conStock`, así que no pasa por `searchWithFiltersByIds`;
+- por código, `findByCodigo` no filtra nada (`ProductoRepository.java:89-93`);
+- el detalle (`ProductoResolver.java:212`) trae también las inactivas, con `activo`.
+Un producto sin ninguna presentación no tiene código: solo llega por texto.
+El camino SQL (`findbyAll`, con Lucene apagado) los excluye; ahí no aparecen.
+
+**Regla** (`presentacionesContables()`, cambia la de la fase 1): trabaja solo
+sobre las **activas** — las activas de 1; si no hay, las activas; si no hay
+ninguna activa, `[]`. Una x1 inactiva con una x6 activa ofrece la x6; una x1
+inactiva sola ya no se ofrece.
+
+**«No hay» y «no pude preguntar» son distintos** (hallazgo de los dos ejes).
+Hoy, si el detalle falla, la card queda vacía y dice «no tiene presentaciones
+cargadas»; y `cargandoDetalle` guarda **un** id, así que abrir A y enseguida B
+deja a una de las dos vacía mientras su detalle viaja. Con la alerta nueva,
+eso sería acusar al catálogo por un corte de red. Por eso, en el buscador:
+- `cargandoDetalle` pasa a un conjunto de ids, y se suma `detalleFallido`
+  (conjunto de ids) con **Reintentar** en la card. Beneficia a todos los
+  consumidores: hoy el error se muestra como «sin presentaciones».
+- Un detalle que responde sin producto cuenta como fallido, no como vacío.
+- Presentaciones **desconocidas** (`undefined`: la búsqueda por texto no las
+  trae) no son **vacías** (`[]`, dicho por el central).
+
+**La card, con `soloUnitaria`**, en este orden: cargando → «Cargando…»;
+fallido → «No se pudieron cargar las presentaciones» + Reintentar;
+desconocidas → «Cargando…»; `[]` → alerta de error «Este producto no tiene
+presentaciones.»; ninguna activa →
+«Este producto no tiene ninguna presentación activa.».
+Sin botones en las dos alertas. Los textos no mandan a avisar a nadie
+(pedido de Franco, 2026-09-22): dicen qué le falta al producto y nada más. Sin `soloUnitaria`, sin alertas: solo gana el
+estado de error nuevo.
+
+**El aviso «contá en unidades»** se muestra solo si **todo lo ofrecido es de
+cantidad 1** y el filtro escondió alguna **activa de otra cantidad**. Antes
+comparaba contra todas: con x6 activa + x1 inactiva ofrecía la x6 **diciendo
+«contá en unidades»** — el operador contaba 12, tocaba la x6 y el central
+registraba 72. Tampoco se muestra por ocultar solo inactivas.
+
+**El código de balanza** emite su presentación sin pasar por la card.
+`agregarProducto()` rechaza una presentación con `activo === false` (ausente
+pasa) y no guarda, con «Esa presentación está inactiva.»
+— no «ninguna activa»: `resolverPresentacionPorCodigo` cae en la principal sin
+mirar `activo`, y el producto puede tener otra activa.
+
+**Queda afuera, documentado:** `aplicarLote()` crea renglones heredando la
+presentación de la fila aunque esté inactiva; y los renglones que ya están en
+una presentación inactiva se siguen contando, guardando y quitando — bloquear
+eso trabaría tomas abiertas.
+
+Tests: la regla (x1 inactiva + x6 activa → x6; todas inactivas → vacío; sin
+presentaciones → vacío; el test de la fase 1 que esperaba «todas» pasa a
+esperar solo la activa); la card con la opción muestra cada alerta sin
+botones; detalle fallido → estado de error con Reintentar, **sin** alerta de
+catálogo; detalle nulo → fallido; A y B expandidos en paralelo no se pisan el
+cargando; x6 activa + x1 inactiva → x6 **sin** «contá en unidades»; sin la
+opción, sin alertas; `agregarProducto()` con presentación inactiva no guarda y
+avisa. Revertir y ver fallar. Docs: módulo de inventario (regla nueva, las
+alertas, lo que queda afuera) y bloque 66 (921 CARBON BRITEZ pasa a alerta).
+
+**Auditoría del plan de la fase 3:** eje A — alerta falsa si el detalle falla o
+por la carrera de `cargandoDetalle`; el pesable puede resolver una inactiva
+teniendo otra activa. Eje B — lo mismo, más el aviso «contá en unidades» sobre
+una x6 (grave) y `aplicarLote()` como tercera puerta. Todo verificado contra
+el código e incorporado arriba.
+
 ## Datos nuevos
 
 | Dato | Quién lo escribe | Quién lo lee |
 |---|---|---|
 | `OpcionesBuscador.soloPresentacionUnitaria` | `InventarioCargaPage.agregarProducto()` | `BuscadorProductoComponent` → `ProductoCardComponent.soloUnitaria` |
+| `InventarioCargaPage.recienAgregadoId` (fase 2) | `agregarProducto()`; lo limpian `(enfocado)` y `alternar()` | plantilla → `InventarioItemCardComponent.enfocar` |
 
 Nada persiste: no hay migración ni configuración. En GraphQL solo se pide un
 campo que el central ya expone (`activo` en la query por código).

@@ -304,6 +304,62 @@ híbrido dejaba una card abierta sin detalle tras una búsqueda nueva, y que
 «mismo criterio que el conteo» era falso; el eje B recomendó la card
 controlada. Verificado e incorporado arriba.
 
+**Fase 6** — una toma cerrada es de solo lectura. Pedido de Franco
+(2026-09-22), a partir del hallazgo del paso 8 de las fases 4 y 5.
+
+Hoy, en el conteo de una zona de una toma `CONCLUIDO` o `CANCELADO`, el campo
+«Contado», las fechas y el estado siguen editables y «Guardar conteo» manda
+el cambio. El central **no lo frena**: `InventarioProductoItemService.save()`
+(`:293`) solo mira renglones duplicados. En una `CONCLUIDO` el stock ya se
+ajustó al finalizar: cambiar un conteo después deja el registro diciendo otra
+cosa que el ajuste aplicado, y el stock no se recalcula. Se llega a esa
+pantalla por URL directa (`inventario.routes.ts:46`, sin guard), con «Atrás»
+después de finalizar, o **teniéndola abierta mientras otro dispositivo
+finaliza la toma**.
+
+- **La vista.** `InventarioItemCardComponent` → `input soloLectura = false`.
+  Con `soloLectura`: «Contado» deshabilitado (en el mismo `[disabled]`, así el
+  foco de la fase 2 no lo toma); `frc-campo-fecha` y `frc-selector` con su
+  `deshabilitado` (verificado: no emiten); sin «usar» del vencimiento conocido
+  ni «Buscar lote» / «Crear lote». La página pasa
+  `[soloLectura]="!puedeAgregar()"`; `mostrarGuardar` exige `puedeAgregar()`.
+- **Los métodos.** `editar()` —por donde pasan todos los `cambiarX`— no
+  registra nada con la toma cerrada. `agregarProducto()` gana el guard que le
+  faltaba (`agregarLote`/`crearLote` ya lo tienen vía `contextoDeLote()`, y
+  `quitarItem()` también).
+- ⚠️ **El estado se vuelve a consultar antes de escribir.** `inventario` se
+  carga una vez y no se refresca: si otro teléfono finaliza, esta pantalla
+  seguía creyendo `ABIERTO` y el guardado pasaba. `guardar()` y
+  `agregarProducto()` piden `porId` (sin caché, `gql-base.ts:63`) y solo
+  escriben si la toma sigue `ABIERTO`.
+- ⚠️ **Si llega cerrada, lo no guardado se descarta y se avisa.** `items()`
+  mezcla `edicion` con lo del central: con la toma cerrada, los campos
+  deshabilitados mostrarían como registrados valores que nunca se guardaron,
+  sin forma de descartarlos. Al recibir una toma no `ABIERTO` —en `cargar()`
+  o en la consulta previa al guardado— se vacía `edicion` y, si había algo,
+  aviso: «La toma ya no está abierta: lo que no se había guardado se
+  descartó.».
+- Sigue siendo una barrera **del cliente**: el central acepta el guardado si
+  llega de otro lado (desktop, `frc-mobile`, una llamada a mano), y queda una
+  ventana mínima entre la consulta y el guardado. Cerrarlo del todo es un
+  cambio en el central, fuera de esta rama.
+- Queda afuera: una **zona** concluida (`InventarioProducto.concluido`) dentro
+  de una toma abierta sigue como hoy.
+
+Tests: con `CONCLUIDO` y `CANCELADO`, campos deshabilitados, sin «usar», sin
+«Buscar/Crear lote», sin barra; `editar()` no registra; con ediciones y una
+recarga que trae `CONCLUIDO`, se descartan, se avisa y la card muestra el
+valor del central; `guardar()` con la toma finalizada en el medio (la consulta
+previa trae `CONCLUIDO`) no llama a `guardarItem`; `agregarProducto()` igual;
+con `ABIERTO`, todo como antes. Revertir y ver fallar. Docs: módulo y bloque
+nuevo.
+
+**Auditoría del plan de la fase 6:** eje A — la pantalla abierta mientras otro
+finaliza (el guard miraba un estado viejo) y `agregarProducto()` sin guard;
+confirmó que ninguna otra pantalla edita ítems y que los campos compartidos
+respetan `deshabilitado`. Eje B — ediciones pendientes que quedaban mostradas
+como registro, sin salida; guard en `editar()`. Verificado e incorporado.
+
 ## Datos nuevos
 
 | Dato | Quién lo escribe | Quién lo lee |

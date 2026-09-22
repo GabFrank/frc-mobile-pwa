@@ -431,8 +431,11 @@ que ya hacían lugares y sector; si molesta, el cambio va en `nombreDeLugar()` y
 alcanza a las tres pantallas.
 
 En la card, «Contar» y «Concluir»/«Reabrir» van en **un** contenedor —el único
-nodo raíz de su `@if`, que por eso proyecta al pie—, en su propia línea y a la
-derecha. Sueltos en el pie (flex con wrap), el segundo bajaba solo.
+nodo raíz de su `@if`, que por eso proyecta— en el slot **`[botonera]`** de
+`frc-card`: una fila de ancho completo al final de la card, a la derecha.
+Sueltos en el pie (flex con wrap) el segundo bajaba solo; y dentro del pie
+—que vive en la columna del texto— terminaban donde empieza la diferencia,
+dejando un espacio a la derecha. La diferencia sigue en `[aparte]`.
 
 ## Una toma cerrada es de solo lectura
 

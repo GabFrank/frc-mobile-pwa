@@ -80,7 +80,7 @@ Todo se exporta desde `src/app/shared/index.ts`.
 
 | Componente | Uso |
 |---|---|
-| `<frc-card>` | Card de entidad. El más usado. Slots: `[pie]`, `[aparte]` |
+| `<frc-card>` | Card de entidad. El más usado. Slots: `[pie]` (bajo el título), `[aparte]` (columna derecha), `[botonera]` (fila de ancho completo al final, a la derecha: botones que llegan al borde sin mover `[aparte]`) |
 | `<frc-estado-chip>` | Estado, resuelto del registro central |
 | `<frc-importe>` | Importe con la precisión de su moneda |
 | `\| importe` | Pipe equivalente para interpolaciones |

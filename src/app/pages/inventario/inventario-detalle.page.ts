@@ -192,13 +192,14 @@ import { InventarioService } from './inventario.service';
                 }
                 <!--
                   Los botones van juntos en UN contenedor, que es el único nodo
-                  raíz del @if y por eso proyecta al pie (un bloque con más de
-                  un nodo raíz no proyecta: NG8011, y sale como aviso, no como
-                  error). Sueltos en el pie —que es flex con wrap— el segundo
-                  bajaba solo a otra fila.
+                  raíz del @if y por eso proyecta (un bloque con más de un nodo
+                  raíz no proyecta: NG8011, y sale como aviso, no como error).
+                  Van a la botonera, no al pie: el pie vive en la columna del
+                  texto y los botones terminaban donde empieza la diferencia;
+                  la botonera llega al borde de la card.
                 -->
                 @if (abierto()) {
-                  <div pie class="botones">
+                  <div botonera class="botones">
                     <button matButton (click)="contar(p)">Contar</button>
                     @if (p.concluido) {
                       <button matButton [disabled]="operando()" (click)="marcarZona(p, false)">
@@ -235,14 +236,9 @@ import { InventarioService } from './inventario.service';
     </frc-pagina>
   `,
   styles: `
-    /*
-     * Su propia línea y a la derecha, siempre: a 360 px no entran al lado del
-     * conteo, así que se decide una vez y se ve igual en cualquier ancho.
-     */
+    /* La línea y la alineación a la derecha las pone la botonera de la card. */
     .botones {
       display: flex;
-      flex-basis: 100%;
-      justify-content: flex-end;
       gap: var(--sp-2);
     }
     .dif {

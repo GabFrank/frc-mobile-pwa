@@ -140,6 +140,15 @@ import type { ConfigBuscadorLocal } from '../shared/buscador/buscador.component'
           <frc-estado-chip pie enumerado="EstadoDevolucion" valor="RETIRADO" />
         </frc-card>
 
+        <frc-card titulo="Zona Gaseosas" subtitulo="Deposito" icono="inventario">
+          <span pie>8 de 12 contados</span>
+          <span aparte>-3</span>
+          <div botonera>
+            <button matButton (click)="avisar('Contar')">Contar</button>
+            <button matButton (click)="avisar('Concluir')">Concluir</button>
+          </div>
+        </frc-card>
+
         <frc-card
           titulo="Marcela Ayala"
           subtitulo="Entrada 07:58 · Salida 16:02"

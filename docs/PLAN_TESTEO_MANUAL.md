@@ -6387,8 +6387,10 @@ del diálogo muestran los nombres con el mismo criterio que la card.
    (o a 360 px).
 
 **Esperado:** «Contar» y «Concluir» (o «Reabrir») **juntos en la misma
-fila**, en su propia línea debajo del conteo y alineados a la derecha. Con la
-toma cerrada no hay botones.
+fila**, debajo del conteo y **pegados al borde derecho de la card**, sin el
+espacio de la columna de la diferencia; la diferencia sigue arriba a la
+derecha, donde estaba. Con la toma cerrada no hay botones. Las demás cards de
+la app (caja, devoluciones, transferencias…) se ven igual que antes.
 
 ---
 

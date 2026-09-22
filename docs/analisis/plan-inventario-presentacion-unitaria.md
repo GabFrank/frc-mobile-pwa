@@ -544,3 +544,12 @@ activa (se ofrecen todas esas). Ninguna presentación con `activo` nulo.
 | Fijo 1 | El selector de sector del formulario «crear zona» seguía crudo | `nombreDeLugar()` también ahí |
 | Fijo 3 | `TitleCasePipe` fuera de DI es seguro; sin import circular; `.botones` cae a su línea y a la derecha | Sin acción |
 | Fijo 3 | Códigos alfanuméricos quedan en minúscula («GONDOLA 2B» → «Gondola 2b»), como ya en lugares | Documentado; decisión de Franco si cambiarlo |
+
+## Auditoría del diff de la fase 8 (paso 8)
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 y 2 | Solo layout: los botones siguen bajo `@if (abierto())` y hacen lo mismo; sin esquema ni datos | Sin acción |
+| Fijo 1 | En una card clickeable, tocar el hueco de la botonera (fuera de los botones) la abría | `alAbrir` ignora toda la `.card-botonera`; test |
+| Fijo 3 | Ninguna de las otras cards cambia: `.main` no baja, `row-gap` no aplica en una línea, `.card-botonera:empty` se oculta | Verificado; mutación de `:empty` hace fallar el test |
+| Fijo 3 | El test «un botón no abre la card» pasaba por el filtro genérico | Se suma el del hueco, propio de la botonera |

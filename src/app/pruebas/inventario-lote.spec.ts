@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
@@ -25,7 +25,7 @@ import { InventarioService } from '../pages/inventario/inventario.service';
  */
 describe('Conteo por lote', () => {
   let servicio: { porId: ReturnType<typeof vi.fn>; guardarItem: ReturnType<typeof vi.fn> };
-  let busqueda: { stock: ReturnType<typeof vi.fn> };
+  let busqueda: { stock: ReturnType<typeof vi.fn>; detalle: ReturnType<typeof vi.fn> };
   let productos: { vencimientosConocidos: ReturnType<typeof vi.fn> };
   let dialogo: { abrir: ReturnType<typeof vi.fn> };
   let notificacion: {
@@ -90,7 +90,13 @@ describe('Conteo por lote', () => {
       porId: vi.fn(() => of(inventario())),
       guardarItem: vi.fn(() => of({ id: 500 })),
     };
-    busqueda = { stock: vi.fn(() => of(42)) };
+    busqueda = {
+      stock: vi.fn(() => of(42)),
+      // El producto con su x1 activa: el renglón nuevo de un lote va ahí.
+      detalle: vi.fn(() =>
+        of({ id: 200, presentaciones: [{ id: 9, cantidad: 1, activo: true }] }),
+      ),
+    };
     productos = { vencimientosConocidos: vi.fn(() => of([])) };
     dialogo = { abrir: vi.fn(async () => SELECCION) };
     notificacion = { warn: vi.fn(), danger: vi.fn(), ok: vi.fn() };
@@ -252,6 +258,235 @@ describe('Conteo por lote', () => {
 
     expect(notificacion.warn).not.toHaveBeenCalled();
     expect(lotes.actualizarFechas).toHaveBeenCalled();
+  });
+
+  describe('la presentación del renglón nuevo de un lote', () => {
+    /** Un renglón con lote en la x6 del producto. */
+    const enCaja = (id: number, loteId: number) => ({
+      ...itemConLote(id, loteId, 'L-2026-88'),
+      presentacion: { id: 10, cantidad: 6, producto: { id: 200, descripcion: 'PILSEN', lote: true } },
+    });
+    const presentaciones = (lista: unknown[]) =>
+      (busqueda.detalle = vi.fn(() => of({ id: 200, presentaciones: lista })));
+
+    it('con una x1 activa va en la x1, aunque el renglón original sea una caja', async () => {
+      presentaciones([
+        { id: 9, cantidad: 1, activo: true },
+        { id: 10, cantidad: 6, activo: true },
+      ]);
+      const f = montar([enCaja(500, 41)]);
+      dialogo.abrir = vi.fn(async () => ({ loteId: 42, numeroLote: 'L-2026-91', saldo: 13 }));
+
+      await f.componentInstance.agregarLote(f.componentInstance.items()[0]);
+
+      const enviado = servicio.guardarItem.mock.calls[0][0];
+      expect(enviado.presentacionId).toBe(9);
+      expect(enviado.cantidadFisica).toBe(13);
+    });
+
+    it('sin x1 activa va en la del renglón original; el saldo se guarda en unidades', async () => {
+      presentaciones([
+        { id: 9, cantidad: 1, activo: false },
+        { id: 10, cantidad: 6, activo: true },
+        { id: 11, cantidad: 12, activo: true },
+      ]);
+      const f = montar([enCaja(500, 41)]);
+      dialogo.abrir = vi.fn(async () => ({ loteId: 42, numeroLote: 'L-2026-91', saldo: 12 }));
+
+      await f.componentInstance.agregarLote(f.componentInstance.items()[0]);
+
+      const enviado = servicio.guardarItem.mock.calls[0][0];
+      expect(enviado.presentacionId).toBe(10);
+      // En unidades, como lo define el central: la pantalla lo convierte al mostrar.
+      expect(enviado.cantidadFisica).toBe(12);
+    });
+
+    it('sin ninguna activa, avisa y no abre el buscador de lotes', async () => {
+      presentaciones([{ id: 10, cantidad: 6, activo: false }]);
+      const f = montar([enCaja(500, 41)]);
+
+      await f.componentInstance.agregarLote(f.componentInstance.items()[0]);
+
+      expect(dialogo.abrir).not.toHaveBeenCalled();
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(notificacion.warn).toHaveBeenCalledWith('Este producto no tiene ninguna presentación activa.');
+      expect(f.componentInstance.agregando()).toBe(false);
+    });
+
+    it('varias activas, ninguna x1 y la original inactiva: crear lote pide agregar el producto', async () => {
+      presentaciones([
+        { id: 10, cantidad: 6, activo: false },
+        { id: 11, cantidad: 12, activo: true },
+        { id: 12, cantidad: 24, activo: true },
+      ]);
+      const f = montar([enCaja(500, 41)]);
+
+      await f.componentInstance.crearLote(f.componentInstance.items()[0]);
+
+      expect(dialogo.abrir).not.toHaveBeenCalled();
+      expect(lotes.crear).not.toHaveBeenCalled();
+      expect(notificacion.warn.mock.calls[0][0]).toContain('Agregar producto');
+    });
+
+    it('si el detalle viene vacío no dice «ninguna activa» ni crea nada', async () => {
+      busqueda.detalle = vi.fn(() => of(null));
+      const f = montar([enCaja(500, 41)]);
+
+      await f.componentInstance.crearLote(f.componentInstance.items()[0]);
+
+      expect(lotes.crear).not.toHaveBeenCalled();
+      expect(notificacion.warn).toHaveBeenCalledWith(
+        'No se pudieron traer las presentaciones del producto. Probá de nuevo.',
+      );
+      expect(notificacion.warn).not.toHaveBeenCalledWith('Este producto no tiene ninguna presentación activa.');
+      expect(f.componentInstance.agregando()).toBe(false);
+    });
+
+    it('si el detalle falla tampoco se crea nada, y no queda «agregando»', async () => {
+      busqueda.detalle = vi.fn(() => throwError(() => new Error('sin red')));
+      const f = montar([enCaja(500, 41)]);
+
+      await f.componentInstance.crearLote(f.componentInstance.items()[0]);
+
+      expect(dialogo.abrir).not.toHaveBeenCalled();
+      expect(lotes.crear).not.toHaveBeenCalled();
+      expect(f.componentInstance.agregando()).toBe(false);
+    });
+
+    it('completar un renglón sin lote no pide el detalle: sigue en su presentación', async () => {
+      const f = montar([itemSinLote(500)]);
+      dialogo.abrir = vi.fn(async () => ({ loteId: 42, numeroLote: 'L-2026-91', saldo: 13 }));
+
+      await f.componentInstance.agregarLote(f.componentInstance.items()[0]);
+
+      expect(busqueda.detalle).not.toHaveBeenCalled();
+      expect(servicio.guardarItem.mock.calls[0][0].presentacionId).toBe(9);
+    });
+
+    it('crear un lote que ya está en la zona no abre otro renglón', async () => {
+      // «Crear» devuelve el lote existente: en otra presentación, el central
+      // no lo rechazaría como duplicado y el lote se contaría dos veces.
+      const f = montar([enCaja(500, 41)]);
+      dialogo.abrir = vi.fn(async () => ({ numeroLote: 'L-2026-88', fechaVencimiento: '', fechaRetiro: '' }));
+      lotes.crear = vi.fn(() => of({ id: 41, numeroLote: 'L-2026-88' }));
+
+      await f.componentInstance.crearLote(f.componentInstance.items()[0]);
+
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(notificacion.warn).toHaveBeenCalledWith('Ese lote ya está en esta zona.');
+      expect(f.componentInstance.agregando()).toBe(false);
+    });
+  });
+
+  describe('el sistema en la presentación del renglón', () => {
+    /** Un renglón contado en cajas de 6, con 12 unidades en el sistema. */
+    const enCaja = () => ({
+      id: 600,
+      cantidad: null,
+      cantidadFisica: 12,
+      presentacion: { id: 10, cantidad: 6, producto: { id: 300, descripcion: 'CORONITA', lote: false } },
+      lote: null,
+    });
+
+    it('se ve en cajas, aunque se guarde en unidades', () => {
+      const f = montar([enCaja()]);
+      f.componentInstance.cambiarContado(600, { target: { value: '2' } } as unknown as Event);
+
+      expect(f.componentInstance.items()[0].sistema).toBe('2');
+      // 2 cajas contadas contra 12 unidades: coincide.
+      expect(f.componentInstance.items()[0].diferencia).toBe(0);
+    });
+
+    it('las marcas comparan en unidades: 2 cajas contra 12 unidades es verificado', () => {
+      const f = montar([enCaja()]);
+      f.componentInstance.cambiarContado(600, { target: { value: '2' } } as unknown as Event);
+
+      f.componentInstance.guardar();
+
+      const enviado = servicio.guardarItem.mock.calls[0][0];
+      expect(enviado.cantidadFisica).toBe(12);
+      expect(enviado.verificado).toBe(true);
+      expect(enviado.revisado).toBe(false);
+    });
+  });
+
+  describe('primero las fechas del lote, después el renglón', () => {
+    it('el renglón va después de las fechas y con el vencimiento del maestro', () => {
+      const orden: string[] = [];
+      lotes.actualizarFechas = vi.fn(() => {
+        orden.push('fechas');
+        return of({ id: 41, fechaVencimiento: '2027-01-31T00:00:00.000Z', fechaRetiro: '2026-12-15' });
+      });
+      servicio.guardarItem = vi.fn(() => {
+        orden.push('renglon');
+        return of({ id: 500 });
+      });
+      const f = montar([itemConLote(500, 41, 'L-2026-88')]);
+      f.componentInstance.cambiarVencimiento(500, '2027-01-31');
+      f.componentInstance.cambiarContado(500, { target: { value: '7' } } as unknown as Event);
+
+      f.componentInstance.guardar();
+
+      expect(orden).toEqual(['fechas', 'renglon']);
+      expect(servicio.guardarItem.mock.calls[0][0].vencimiento).toBe('2027-01-31');
+      expect(f.componentInstance.guardando()).toBe(false);
+    });
+
+    it('si el central rechaza las fechas, el renglón no se manda y queda para reintentar', () => {
+      lotes.actualizarFechas = vi.fn(() => throwError(() => new Error('El retiro es posterior al vencimiento.')));
+      const f = montar([itemConLote(500, 41, 'L-2026-88')]);
+      f.componentInstance.cambiarFechaRetiro(500, '2027-06-01');
+      f.componentInstance.cambiarContado(500, { target: { value: '7' } } as unknown as Event);
+
+      f.componentInstance.guardar();
+
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(f.componentInstance.hayCambios()).toBe(true);
+      expect(f.componentInstance.items()[0].contado).toBe(7);
+      expect(f.componentInstance.guardando()).toBe(false);
+    });
+
+    it('una respuesta vacía de las fechas cuenta como fallo, no como fecha borrada', () => {
+      lotes.actualizarFechas = vi.fn(() => of(null));
+      const f = montar([itemConLote(500, 41, 'L-2026-88')]);
+      f.componentInstance.cambiarVencimiento(500, '2027-01-31');
+      f.componentInstance.cambiarContado(500, { target: { value: '7' } } as unknown as Event);
+
+      f.componentInstance.guardar();
+
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(f.componentInstance.hayCambios()).toBe(true);
+    });
+
+    it('fechas bien y renglón mal: al reintentar no se vuelven a mandar las fechas', () => {
+      lotes.actualizarFechas = vi.fn(() => of({ id: 41, fechaVencimiento: '2027-01-31' }));
+      servicio.guardarItem = vi.fn(() => throwError(() => new Error('sin red')));
+      const f = montar([itemConLote(500, 41, 'L-2026-88')]);
+      f.componentInstance.cambiarVencimiento(500, '2027-01-31');
+      f.componentInstance.cambiarContado(500, { target: { value: '7' } } as unknown as Event);
+      f.componentInstance.guardar();
+      expect(lotes.actualizarFechas).toHaveBeenCalledTimes(1);
+
+      servicio.guardarItem = vi.fn(() => of({ id: 500 }));
+      f.componentInstance.guardar();
+
+      expect(lotes.actualizarFechas).toHaveBeenCalledTimes(1);
+      expect(servicio.guardarItem).toHaveBeenCalledTimes(1);
+      expect(servicio.guardarItem.mock.calls[0][0].cantidad).toBe(7);
+    });
+
+    it('solo fechas en un renglón sin contar: no se manda el renglón, que pisaría sus marcas', () => {
+      lotes.actualizarFechas = vi.fn(() => of({ id: 41, fechaVencimiento: '2026-12-01' }));
+      const f = montar([itemConLote(500, 41, 'L-2026-88')]);
+      f.componentInstance.cambiarFechaRetiro(500, '2026-10-20');
+
+      f.componentInstance.guardar();
+
+      expect(lotes.actualizarFechas).toHaveBeenCalled();
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(f.componentInstance.guardando()).toBe(false);
+      expect(f.componentInstance.hayCambios()).toBe(false);
+    });
   });
 
   it('con lote no se sugiere ningún vencimiento «anterior»', () => {

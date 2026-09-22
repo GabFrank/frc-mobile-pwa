@@ -325,6 +325,156 @@ describe('Buscador de producto', () => {
       expect(texto(f)).not.toContain('contá en unidades');
     });
 
+    it('x6 activa y x1 inactiva: ofrece la x6 SIN decir «contá en unidades»', () => {
+      // Con el aviso, 12 unidades contadas se cargaban en la x6: 72 en stock.
+      const conX1Inactiva = producto({
+        presentaciones: [presentacion({ activo: false }), caja()] as never,
+      });
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([conX1Inactiva]));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(filas(f)).toHaveLength(1);
+      expect(filas(f)[0]).toContain('Cantidad: 6');
+      expect(texto(f)).not.toContain('contá en unidades');
+    });
+
+    it('esconder solo inactivas no dispara el aviso', () => {
+      const x1Doble = producto({
+        presentaciones: [presentacion(), presentacion({ id: 12, activo: false })] as never,
+      });
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([x1Doble]));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(filas(f)).toHaveLength(1);
+      expect(texto(f)).not.toContain('contá en unidades');
+    });
+
+    it('sin presentaciones: alerta y nada para elegir', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto()]));
+      busqueda.detalle.mockReturnValue(of(producto({ presentaciones: [] as never })));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(texto(f)).toContain('Este producto no tiene presentaciones.');
+      expect(filas(f)).toHaveLength(0);
+      expect(f.nativeElement.querySelector('[role="alert"]')).toBeTruthy();
+    });
+
+    it('ninguna activa: alerta y nada para elegir', () => {
+      const todasInactivas = producto({
+        presentaciones: [presentacion({ activo: false }), caja()].map((x) => ({
+          ...x,
+          activo: false,
+        })) as never,
+      });
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([todasInactivas]));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(texto(f)).toContain('Este producto no tiene ninguna presentación activa.');
+      expect(filas(f)).toHaveLength(0);
+    });
+
+    it('sin la opción no hay alerta: Buscar sigue como antes', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto()]));
+      busqueda.detalle.mockReturnValue(of(producto({ presentaciones: [] as never })));
+      const f = montar({});
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(texto(f)).toContain('no tiene presentaciones cargadas');
+      expect(f.nativeElement.querySelector('[role="alert"]')).toBeFalsy();
+    });
+
+    it('un detalle que falla no acusa al catálogo: ofrece reintentar', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto()]));
+      busqueda.detalle.mockReturnValue(throwError(() => new Error('sin red')));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(texto(f)).toContain('No se pudieron cargar las presentaciones');
+      expect(texto(f)).not.toContain('no tiene presentaciones');
+      expect(f.nativeElement.querySelector('[role="alert"]')).toBeFalsy();
+
+      // Reintentar vuelve a pedir y, si llega, muestra la lista.
+      busqueda.detalle.mockReturnValue(of(producto({ presentaciones: [presentacion()] as never })));
+      const reintentar = Array.from(
+        (f.nativeElement as HTMLElement).querySelectorAll('button'),
+      ).find((b) => b.textContent?.includes('Reintentar'))!;
+      reintentar.click();
+      f.detectChanges();
+
+      expect(busqueda.detalle).toHaveBeenCalledTimes(2);
+      expect(filas(f)).toHaveLength(1);
+    });
+
+    it('un detalle sin producto es un fallo, no un «no tiene»', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto()]));
+      busqueda.detalle.mockReturnValue(of(null));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(texto(f)).toContain('No se pudieron cargar las presentaciones');
+      expect(texto(f)).not.toContain('no tiene presentaciones');
+    });
+
+    it('un «ninguna» del central no se vuelve a pedir', () => {
+      const sinNinguna = producto({ presentaciones: [] as never });
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([sinNinguna]));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(busqueda.detalle).not.toHaveBeenCalled();
+      expect(texto(f)).toContain('Este producto no tiene presentaciones.');
+    });
+
+    it('un producto sin id no queda «cargando» para siempre', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto({ id: undefined })]));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+      abrirCard(f);
+
+      expect(texto(f)).not.toContain('Cargando presentaciones');
+      expect(texto(f)).toContain('No se pudieron cargar las presentaciones');
+      expect(texto(f)).not.toContain('no tiene');
+    });
+
+    it('dos productos abiertos a la vez no se pisan el «cargando»', () => {
+      const a = new Subject<Producto>();
+      const b = new Subject<Producto>();
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(
+        of([producto({ id: 1 }), producto({ id: 2, descripcion: 'PEPSI 2L' })]),
+      );
+      busqueda.detalle.mockImplementation((id: number) => (id === 1 ? a : b));
+      const f = montar({ soloPresentacionUnitaria: true });
+      buscarPor(f, 'coca');
+
+      const cabeceras = Array.from(
+        (f.nativeElement as HTMLElement).querySelectorAll('.chevron'),
+      ).map((c) => c.closest('button')!);
+      cabeceras[0].click();
+      cabeceras[1].click();
+      f.detectChanges();
+
+      // Llega A: B tiene que seguir cargando, no pasar a «no tiene».
+      a.next(producto({ id: 1, presentaciones: [presentacion()] as never }));
+      a.complete();
+      f.detectChanges();
+
+      expect(f.componentInstance.cargandoDetalle().has(2)).toBe(true);
+      expect(texto(f)).not.toContain('no tiene');
+      expect(texto(f)).toContain('Cargando presentaciones');
+    });
+
     it('un producto sin presentación de 1 ofrece todas, sin aviso', () => {
       const soloCaja = producto({ presentaciones: [caja()] as never });
       busqueda.buscarPorCodigoOTexto.mockReturnValue(of([soloCaja]));
@@ -560,8 +710,16 @@ describe('Presentaciones', () => {
       expect(ids(presentacionesContables([p(2, 6), p(3, 12)]))).toEqual([2, 3]);
     });
 
-    it('una x1 inactiva no cuenta: cae en todas', () => {
-      expect(ids(presentacionesContables([p(1, 1, false), p(2, 6, true)]))).toEqual([1, 2]);
+    it('una x1 inactiva no cuenta: cae en las demás activas', () => {
+      expect(ids(presentacionesContables([p(1, 1, false), p(2, 6, true)]))).toEqual([2]);
+    });
+
+    it('una inactiva no se ofrece nunca, tampoco en el «todas»', () => {
+      expect(ids(presentacionesContables([p(1, 6, false), p(2, 12)]))).toEqual([2]);
+    });
+
+    it('sin ninguna activa no queda nada', () => {
+      expect(presentacionesContables([p(1, 1, false), p(2, 6, false)])).toEqual([]);
     });
 
     it('un activo ausente cuenta como activo', () => {
@@ -574,6 +732,11 @@ describe('Presentaciones', () => {
 
     it('una fraccionaria no es unitaria', () => {
       expect(ids(presentacionesContables([p(1, 0.5), p(2, 1.5), p(3, 1)]))).toEqual([3]);
+    });
+
+    it('una cantidad nula tampoco entra en el respaldo', () => {
+      expect(ids(presentacionesContables([p(1, null), p(2, 6)]))).toEqual([2]);
+      expect(presentacionesContables([p(1, null)])).toEqual([]);
     });
 
     it('una lista vacía queda vacía', () => {

@@ -472,15 +472,35 @@ suma `cantidad × presentacion.cantidad`.
 - La enciende `soloPresentacionUnitaria` en las opciones del buscador, y solo
   la pasa esta pantalla. Buscar, transferencias y devoluciones siguen
   ofreciendo todas: ahí elegir la caja es legítimo.
-- **Si el producto no tiene ninguna presentación activa de 1, se ofrecen
-  todas.** Bloquear dejaba sin poder contar lo que solo existe en caja.
-- Una x1 **inactiva** no cuenta, para que caiga en «todas» y no en «solo la
-  que ya no se usa». Por eso `productoPorCodigo` pide también `activo`.
-- Una `cantidad` **nula** tampoco: el central la multiplica como `Double`
-  (`InventarioGraphQL.java:257`) y el renglón haría fallar la finalización.
-- Cuando el filtro escondió presentaciones, la card lo dice: «Solo la
-  presentación de 1 unidad: contá en unidades.» Sin eso, quien escanea el
-  código de la caja ve solo la x1 y carga la cantidad de cajas como unidades.
+- **Una inactiva no se ofrece nunca.** Sin una x1 activa se ofrecen las demás
+  **activas** —bloquear dejaba sin poder contar lo que solo existe en caja—.
+  Por eso `productoPorCodigo` pide también `activo`.
+- **Sin ninguna presentación activa, no se opera** (Franco, 2026-09-22). En
+  lugar de la lista va una alerta, sin nada para tocar:
+  - sin presentaciones → «Este producto no tiene presentaciones.»
+  - con presentaciones, todas inactivas → «Este producto no tiene ninguna
+    presentación activa.»
+  Sirve para que quien cuenta reporte el producto: está en la góndola y el
+  catálogo no lo deja vender. Llegan al buscador porque la búsqueda por texto
+  (Lucene, `ProductoService.java:158-161`) filtra solo `producto.activo`, y la
+  búsqueda por código no filtra nada. Con Lucene apagado, el camino SQL los
+  excluye y no aparecen.
+- ⚠️ **«No hay» no es «no pude preguntar».** Si el detalle del producto falla,
+  la card dice «No se pudieron cargar las presentaciones» con **Reintentar**, y
+  nunca la alerta: un corte de red no dice nada del catálogo. Por eso el
+  buscador lleva el «cargando» y el fallo **por producto**: con un solo id,
+  abrir dos productos seguidos dejaba a uno vacío mientras viajaba su detalle.
+  Beneficia también a Buscar y a transferencias, donde el fallo se leía como
+  «no tiene presentaciones cargadas».
+- Una `cantidad` **nula** no se ofrece, ni como x1 ni en el respaldo: el
+  central la multiplica como `Double` (`InventarioGraphQL.java:257`) y el renglón haría fallar la
+  finalización.
+- Cuando el filtro escondió una presentación **activa de otra cantidad** y lo
+  ofrecido es de 1, la card lo dice: «Solo la presentación de 1 unidad: contá
+  en unidades.» Sin eso, quien escanea el código de la caja ve solo la x1 y
+  carga la cantidad de cajas como unidades. ⚠️ **Nunca sobre una x6**: con la
+  x1 inactiva se ofrece la x6, y ese aviso ahí hacía que 12 unidades contadas
+  se registraran como 72.
 
 ⚠️ **No es la única vía que crea renglones.** `aplicarLote()` abre un renglón
 nuevo por lote **copiando la presentación de la fila**: un renglón en x6 que ya
@@ -491,7 +511,14 @@ con cada lote. Ahí no hay elección que equivocar, así que no se filtra.
 directo la presentación que resolvió el código, sin mostrar la card. Hoy no
 es un riesgo —en bodega, los 56 productos de balanza activos tienen todas sus
 presentaciones en x1 (consultado el 2026-09-21)—, pero un PLU cargado en otra
-presentación entraría en esa.
+presentación entraría en esa. Lo que sí se controla ahí es que esté **activa**:
+`agregarProducto()` rechaza una inactiva con «Esa presentación está inactiva.»
+— «esa», no «ninguna activa», porque si el código no coincide se resuelve la
+principal sin mirar `activo`, y el producto puede tener otra.
+
+⚠️ **Los renglones que ya están en una presentación inactiva no se tocan**: se
+siguen contando, guardando y quitando, y `aplicarLote()` copia su presentación
+aunque esté inactiva. Bloquearlos trabaría tomas abiertas.
 
 ⚠️ **Es una protección contra el error de toque, no una regla del central.**
 `saveInventarioProductoItem` sigue aceptando cualquier presentación: desde el
@@ -516,7 +543,9 @@ respuesta de `saveInventarioProductoItem`; `cargar()` no toca `abiertoId`.
   red y Safari ya no lo toma como un gesto. El campo queda enfocado; hay que
   tocarlo.
 - Con el renglón abierto, *Agregar producto* se esconde, como siempre: para
-  sumar otro se colapsa o se guarda el conteo. Así hay una sola fuente de verdad —lo que dice el
+  sumar otro se colapsa o se guarda el conteo.
+
+Así hay una sola fuente de verdad —lo que dice el
 central— y no un renglón a medio existir que se pierde si alguien sale de la
 pantalla antes de guardar.
 

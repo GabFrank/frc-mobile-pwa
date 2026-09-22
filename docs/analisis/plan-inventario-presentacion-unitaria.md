@@ -273,3 +273,17 @@ activa (se ofrecen todas esas). Ninguna presentación con `activo` nulo.
 | Sin x1, solo otras cantidades | 13 | Todas (fallback) |
 | x1 existe pero inactiva | 2 — 921 CARBON BRITEZ KUE GRANDE, 4532 REXONA CLINICAL MEN… | Todas (fallback): en los dos es la única presentación |
 | Sin ninguna presentación | 7 | «no tiene presentaciones cargadas», como hoy |
+
+## Auditoría del diff de las fases 2 y 3 (paso 8)
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 | Todas las puertas donde se **elige** respetan «sin activa no se opera»: lista, pesable, escaneo, reintentar | Sin acción |
+| Fijo 1 | `aplicarLote()` copia la presentación de la fila aunque esté inactiva; la query de ítems no pide `activo` | Afuera a propósito (plan y doc del módulo); decisión pendiente de Franco |
+| Fijo 2 | Sin esquema ni GraphQL nuevo; `saveInventarioProductoItem` devuelve `id`; `presentaciones` del central nunca es nula | Sin acción |
+| Fijo 2 y 3 | Producto sin `id`: «Cargando…» para siempre | Cuenta como fallido |
+| Fijo 2 | Un `[]` confirmado se volvía a pedir en cada apertura | El detalle se pide solo si las presentaciones son desconocidas |
+| Fijo 2 | Un fallo del detalle muestra el toast global además de Reintentar | Preexistente (`porId` notifica); se deja |
+| Fijo 3 | `cantidad` nula entraba por el respaldo de las activas | Excluida también del respaldo |
+| Fijo 3 | Si `cargar()` fallaba tras agregar, la marca de foco quedaba huérfana | Se limpia en el error |
+| Fijo 3 | Un bullet de la doc quedó pegado a otro párrafo | Corregido |

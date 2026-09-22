@@ -484,6 +484,9 @@ export class InventarioCargaPage {
       error: (err: Error) => {
         this.error.set(err.message);
         this.cargando.set(false);
+        // Sin la lista, la marca quedaría esperando y el foco saltaría en una
+        // recarga cualquiera, sin que nadie acabe de agregar nada.
+        this.recienAgregadoId.set(null);
       },
     });
   }
@@ -661,6 +664,14 @@ export class InventarioCargaPage {
     const presentacionId = Number(elegido?.presentacion?.id);
     const productoId = Number(elegido?.producto?.id);
     if (!Number.isFinite(presentacionId) || presentacionId <= 0) {
+      return;
+    }
+    // El buscador ya no ofrece una inactiva, pero un código de balanza emite
+    // su presentación sin pasar por la lista. «Esa presentación», no «el
+    // producto no tiene ninguna activa»: si el código no coincide, el central
+    // resuelve la principal sin mirar si está activa, y puede haber otra.
+    if (elegido?.presentacion?.activo === false) {
+      this.notificacion.danger('Esa presentación está inactiva.');
       return;
     }
 

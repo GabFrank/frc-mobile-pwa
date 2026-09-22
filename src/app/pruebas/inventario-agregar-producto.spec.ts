@@ -213,6 +213,14 @@ describe('Agregar un producto al conteo', () => {
       expect(f.componentInstance.abiertoId()).toBeNull();
     });
 
+    it('si la recarga falla, la marca no queda esperando', async () => {
+      const f = montar();
+      servicio.porId = vi.fn(() => throwError(() => new Error('sin red')));
+      await f.componentInstance.agregarProducto();
+
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+    });
+
     it('tocar un renglón limpia la marca', () => {
       const f = montar();
       f.componentInstance.recienAgregadoId.set(500);
@@ -220,6 +228,19 @@ describe('Agregar un producto al conteo', () => {
 
       expect(f.componentInstance.recienAgregadoId()).toBeNull();
     });
+  });
+
+  it('una presentación inactiva no entra: el código de balanza no pasa por la lista', async () => {
+    dialogo.abrir = vi.fn(async () => ({
+      ...SELECCION,
+      presentacion: { id: 9, cantidad: 1, activo: false },
+      peso: 1.2,
+    }));
+    const f = montar();
+    await f.componentInstance.agregarProducto();
+
+    expect(servicio.guardarItem).not.toHaveBeenCalled();
+    expect(notificacion.danger).toHaveBeenCalledWith('Esa presentación está inactiva.');
   });
 
   it('un peso de balanza entra como lo contado', async () => {

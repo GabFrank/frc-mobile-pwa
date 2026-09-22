@@ -7,6 +7,7 @@ import {
   input,
   output,
   signal,
+  WritableSignal,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -145,7 +146,9 @@ const LOTE = 10;
           [stockDestino]="stockDestinoDe(producto)"
           [etiquetaStock]="opciones().etiquetaStock ?? 'Stock'"
           [etiquetaStockDestino]="opciones().etiquetaStockDestino ?? 'Destino'"
-          [cargando]="cargandoDetalle() === producto.id"
+          [cargando]="cargandoDetalle().has(producto.id!)"
+          [fallido]="producto.id == null || detalleFallido().has(producto.id)"
+          (reintentar)="alExpandir(producto)"
           [expandible]="opciones().devuelve !== 'producto'"
           [soloUnitaria]="opciones().soloPresentacionUnitaria ?? false"
           (expandir)="alExpandir($event)"
@@ -250,7 +253,14 @@ export class BuscadorProductoComponent {
   readonly pesable = signal<ResultadoPesable | null>(null);
   readonly cargando = signal(false);
   readonly cargandoMas = signal(false);
-  readonly cargandoDetalle = signal<number | null>(null);
+  /**
+   * Productos cuyo detalle está en vuelo, y los que fallaron. **Uno por
+   * producto**: con un solo id, abrir A y enseguida B dejaba a una de las dos
+   * vacía mientras su detalle viajaba, y en el conteo de inventario eso se lee
+   * como «no tiene presentaciones».
+   */
+  readonly cargandoDetalle = signal<ReadonlySet<number>>(new Set());
+  readonly detalleFallido = signal<ReadonlySet<number>>(new Set());
   readonly hayMas = signal(false);
   readonly error = signal<string | null>(null);
   /** Distingue «todavía no buscaste» de «buscaste y no hay nada». */
@@ -399,20 +409,29 @@ export class BuscadorProductoComponent {
       return;
     }
 
-    if ((producto.presentaciones?.length ?? 0) === 0) {
-      this.cargandoDetalle.set(id);
+    // Solo si no se saben: un `[]` ya es el central diciendo «ninguna».
+    if (producto.presentaciones == null && !this.cargandoDetalle().has(id)) {
+      this.marcar(this.cargandoDetalle, id, true);
+      this.marcar(this.detalleFallido, id, false);
       this.busqueda.detalle(id).subscribe({
         next: (completo) => {
-          this.cargandoDetalle.set(null);
-          if (completo?.presentaciones) {
-            this.resultados.update((filas) =>
-              filas.map((p) =>
-                p.id === id ? { ...p, presentaciones: completo.presentaciones } : p,
-              ),
-            );
+          this.marcar(this.cargandoDetalle, id, false);
+          // Sin producto en la respuesta no se sabe nada de sus presentaciones:
+          // es un fallo, no un «no tiene».
+          if (!completo) {
+            this.marcar(this.detalleFallido, id, true);
+            return;
           }
+          this.resultados.update((filas) =>
+            filas.map((p) =>
+              p.id === id ? { ...p, presentaciones: completo.presentaciones ?? [] } : p,
+            ),
+          );
         },
-        error: () => this.cargandoDetalle.set(null),
+        error: () => {
+          this.marcar(this.cargandoDetalle, id, false);
+          this.marcar(this.detalleFallido, id, true);
+        },
       });
     }
 
@@ -433,6 +452,22 @@ export class BuscadorProductoComponent {
         error: () => undefined,
       });
     }
+  }
+
+  private marcar(
+    conjunto: WritableSignal<ReadonlySet<number>>,
+    id: number,
+    presente: boolean,
+  ): void {
+    conjunto.update((previo) => {
+      const copia = new Set(previo);
+      if (presente) {
+        copia.add(id);
+      } else {
+        copia.delete(id);
+      }
+      return copia;
+    });
   }
 
   elegirPresentacion(producto: Producto, presentacion: Presentacion): void {

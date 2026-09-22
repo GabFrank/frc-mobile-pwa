@@ -6182,11 +6182,12 @@ la fila es el de la unidad, no el escaneado.
 **Esperado:** el diálogo se cierra y aparece el renglón de **A** en la lista,
 con «Cantidad: 1» como presentación y el stock del sistema en unidades.
 
-### 66.4 · Sin presentación de 1, se ofrecen todas
-1. **Agregar producto** → buscar **B** y desplegarlo.
+### 66.4 · Sin presentación de 1, se ofrecen las activas
+1. **Agregar producto** → buscar **B** (por ejemplo 8353 CREMER CURITA, solo
+   x10) y desplegarlo.
 
-**Esperado:** se ven **todas** sus presentaciones, como antes, y **sin** el
-aviso de «contá en unidades». Se puede elegir cualquiera.
+**Esperado:** se ven sus presentaciones **activas** y **sin** el aviso de
+«contá en unidades». Se puede elegir cualquiera.
 
 ### 66.5 · Las otras pantallas no cambian
 1. Pestaña **Buscar** → buscar **A** y desplegarlo.
@@ -6196,27 +6197,62 @@ aviso de «contá en unidades». Se puede elegir cualquiera.
 **Esperado:** en las dos se ven **todas** las presentaciones de **A** y no hay
 aviso.
 
-### 66.7 · El renglón agregado vuelve desplegado
+### 66.6 · El renglón agregado vuelve desplegado
 1. Desde 66.1, tocar la x1.
 
 **Esperado:** la lista se recarga con el renglón de **A** **ya abierto**, a la
 vista, y el cursor en «Contado». En Android sube el teclado numérico; en un
 iPhone el campo queda enfocado pero hay que tocarlo para que suba.
 
-### 66.8 · El foco no vuelve
-1. Con el renglón de 66.7 abierto, escribir un número y tocar **Guardar
+### 66.7 · El foco no vuelve
+1. Con el renglón de 66.6 abierto, escribir un número y tocar **Guardar
    conteo**.
 
 **Esperado:** la lista se recarga y el teclado **no** vuelve a subir solo.
 Escribir en el campo no mueve la pantalla en cada tecla.
 
-### 66.9 · Un producto con lote se abre sin foco
+### 66.8 · Un producto con lote se abre sin foco
 1. **Agregar producto** → elegir un producto con control de lote.
 
 **Esperado:** el renglón vuelve abierto y a la vista, con «Contado» bloqueado y
 el aviso de elegir o crear el lote. No sube el teclado.
 
-### 66.6 · Finalizar suma en unidades
+### 66.9 · Sin presentaciones, alerta y nada más
+1. **Agregar producto** → buscar un producto activo **sin presentaciones**
+   (en la base local: 5192 SELECTA YERBA MATE ELAB. ESPECIAL 250 G) y
+   desplegarlo.
+
+**Esperado:** en rojo, «Este producto no tiene presentaciones.», y **nada**
+para tocar. No se agrega ningún renglón.
+
+### 66.10 · Ninguna presentación activa, alerta y nada más
+1. **Agregar producto** → buscar un producto con todas sus presentaciones
+   inactivas (921 CARBON BRITEZ KUE GRANDE, cuya única x1 está inactiva) y
+   desplegarlo.
+
+**Esperado:** en rojo, «Este producto no tiene ninguna presentación activa.», y
+nada para tocar.
+
+### 66.11 · Buscar no cambia
+1. Pestaña **Buscar** → buscar 5192 y 921 y desplegarlos.
+
+**Esperado:** sin alertas rojas: 5192 dice «no tiene presentaciones cargadas» y
+921 muestra su x1 inactiva, como antes.
+
+### 66.12 · Sin red no acusa al catálogo
+1. **Agregar producto** → buscar por descripción (`coca cola 250`).
+2. Cortar la red (modo avión, o *Offline* en las herramientas del navegador) y
+   desplegar el producto.
+3. Volver a conectar y tocar **Reintentar**.
+
+**Esperado:** en el paso 2, «No se pudieron cargar las presentaciones» con
+**Reintentar** — **nunca** la alerta roja de «no tiene». En el paso 3 aparece
+la x1.
+
+*Sin dato real en la base local para «x1 inactiva + x6 activa» (se ofrece la
+x6 sin el aviso de unidades): lo cubre un test automático.*
+
+### 66.13 · Finalizar suma en unidades
 1. En la toma de prueba, contar **10** en el renglón de **A** agregado en 66.3,
    guardar y finalizar la toma.
 
@@ -6294,8 +6330,8 @@ de 120.
 | 63 · El ícono de la app | 5 | | | |
 | 64 · El solicitante de una transferencia | 9 | | | |
 | 65 · La descripción completa del producto | 6 | 6 | | |
-| 66 · El conteo ofrece solo la presentación de 1 | 9 | | | |
-| **Total** | **604** | | | |
+| 66 · El conteo ofrece solo la presentación de 1 | 13 | | | |
+| **Total** | **608** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

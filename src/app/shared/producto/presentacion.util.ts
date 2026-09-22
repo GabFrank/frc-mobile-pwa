@@ -41,27 +41,30 @@ export function tienePresentaciones(producto: Producto): boolean {
 
 /**
  * Las presentaciones en las que se puede contar un inventario: las activas de
- * cantidad 1. Si no hay ninguna, todas.
+ * cantidad 1; si no hay, las demás activas; si ninguna está activa, ninguna.
  *
  * Existe para evitar el error de toque más caro del conteo: 100 unidades
  * cargadas en la «x6» se vuelven 600 al finalizar, porque el central suma
  * `cantidad × presentacion.cantidad`.
  *
- * ⚠️ **Un `cantidad` nulo no cuenta como 1**, aunque `etiquetaPresentacion()`
- * lo muestre así. El central multiplica con un `Double`
+ * ⚠️ **Una inactiva no se ofrece nunca.** Una lista vacía la pantalla la
+ * muestra como alerta —el producto no tiene con qué contarse—, no como «no hay
+ * nada»: ver `ProductoCardComponent`. Un `activo` ausente —la query que no lo
+ * pide— cuenta como activo.
+ *
+ * ⚠️ **Un `cantidad` nulo no se ofrece**, ni como 1 —aunque
+ * `etiquetaPresentacion()` lo muestre así— ni en el respaldo. El central multiplica con un `Double`
  * (`InventarioGraphQL.java:257`): un renglón en esa presentación hace fallar
  * la finalización de la toma entera.
  *
- * ⚠️ **Una x1 inactiva tampoco cuenta**, para que un producto con la x1 dada
- * de baja caiga en «todas» y no en «solo la que ya no se usa». Un `activo`
- * ausente —la query que no lo pide— cuenta como activo.
- *
- * El «todas» del final es decisión de Franco (2026-09-21): bloquear dejaba
+ * Caer en las demás activas es decisión de Franco (2026-09-21): bloquear dejaba
  * sin poder contar los productos que solo existen en caja.
  */
 export function presentacionesContables(presentaciones: Presentacion[]): Presentacion[] {
-  const unitarias = presentaciones.filter((p) => p.activo !== false && p.cantidad === 1);
-  return unitarias.length > 0 ? unitarias : presentaciones;
+  // Una `cantidad` nula tampoco vale en el respaldo: traba la finalización.
+  const activas = presentaciones.filter((p) => p.activo !== false && p.cantidad != null);
+  const unitarias = activas.filter((p) => p.cantidad === 1);
+  return unitarias.length > 0 ? unitarias : activas;
 }
 
 /** Precio de la presentación: el principal, y si no el primero activo. */

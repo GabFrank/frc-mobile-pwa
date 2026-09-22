@@ -156,6 +156,7 @@ const ESTADOS: OpcionSeleccion[] = [
               (enfocado)="recienAgregadoId.set(null)"
               [estados]="estados"
               [puedeQuitar]="puedeAgregar()"
+              [soloLectura]="!puedeAgregar()"
               (alternar)="alternar(fila.itemId)"
               (quitar)="quitarItem(fila)"
               (contado)="cambiarContado(fila.itemId, $event)"
@@ -470,7 +471,9 @@ export class InventarioCargaPage {
         .size,
   );
   readonly hayCambios = computed(() => this.guardables() > 0);
-  readonly mostrarGuardar = computed(() => this.hayCambios() || this.guardando());
+  readonly mostrarGuardar = computed(
+    () => this.puedeAgregar() && (this.hayCambios() || this.guardando()),
+  );
 
   constructor() {
     effect(() => {
@@ -494,6 +497,7 @@ export class InventarioCargaPage {
       next: (inv) => {
         this.inventario.set(inv ?? null);
         this.cargando.set(false);
+        this.descartarSiSeCerro();
         this.cargarVencimientosConocidos();
       },
       error: (err: Error) => {
@@ -554,7 +558,64 @@ export class InventarioCargaPage {
       });
   }
 
+  /**
+   * Con la toma cerrada, lo no guardado se descarta y se avisa.
+   *
+   * ⚠️ `items()` mezcla `edicion` con lo que dice el central: sin esto, los
+   * campos —ya de solo lectura— mostrarían como registrados valores que nunca
+   * se guardaron, sin ninguna forma de descartarlos.
+   */
+  private descartarSiSeCerro(): boolean {
+    // Sin inventario no se sabe si se cerró: no se descarta nada.
+    if (this.inventario() == null || this.puedeAgregar() || this.edicion().size === 0) {
+      return false;
+    }
+    this.edicion.set(new Map());
+    this.notificacion.warn('La toma ya no está abierta: lo que no se había guardado se descartó.');
+    return true;
+  }
+
+  /**
+   * Vuelve a preguntar el estado de la toma y escribe solo si sigue abierta.
+   *
+   * ⚠️ `inventario` se carga una vez: si otro teléfono finaliza la toma, esta
+   * pantalla seguía creyéndola abierta y el guardado pasaba — el central no lo
+   * frena. Queda una ventana mínima entre la consulta y la escritura; cerrarla
+   * del todo es del central.
+   */
+  private conTomaAbierta(escribir: () => void, siNo: () => void): void {
+    this.servicio.porId(Number(this.id())).subscribe({
+      next: (inv) => {
+        // Sin respuesta no se sabe nada del estado: ni se escribe ni se
+        // descarta lo editado —«ya no está abierta» sería afirmar algo que
+        // nadie dijo—, y la pantalla sigue con lo que tenía.
+        if (!inv) {
+          this.notificacion.warn('No se pudo confirmar que la toma siga abierta. Probá de nuevo.');
+          siNo();
+          return;
+        }
+        this.inventario.set(inv);
+        if (this.puedeAgregar()) {
+          escribir();
+          return;
+        }
+        // Sin nada que descartar igual se dice: si no, el operador eligió o
+        // tocó guardar y no pasó nada, sin ninguna explicación.
+        if (!this.descartarSiSeCerro()) {
+          this.notificacion.warn('La toma ya no está abierta.');
+        }
+        siNo();
+      },
+      // El error ya lo avisa `DatosService`: repetirlo sacaba dos iguales.
+      error: () => siNo(),
+    });
+  }
+
   private editar(itemId: number, parche: Record<string, unknown>): void {
+    // Todos los `cambiarX` pasan por acá: con la toma cerrada no se registra nada.
+    if (!this.puedeAgregar()) {
+      return;
+    }
     this.edicion.update((mapa) => {
       const copia = new Map(mapa);
       copia.set(itemId, { ...(copia.get(itemId) ?? {}), ...parche });
@@ -675,6 +736,9 @@ export class InventarioCargaPage {
       this.notificacion.warn('No se pudo identificar la zona o el usuario.');
       return;
     }
+    if (!this.puedeAgregar()) {
+      return;
+    }
 
     const opciones: OpcionesBuscador = {
       devuelve: 'presentacion',
@@ -720,41 +784,47 @@ export class InventarioCargaPage {
      * cosas para borrar. Ahora el renglón nace sin lote y con el conteo
      * BLOQUEADO, y el lote se elige —o se crea— desde el menú ⋮.
      */
-    this.stockDe(productoId, sucursalId).subscribe({
-      next: (stock) => {
-        this.servicio
-          .guardarItem(
-            nuevoItemInput({
-              inventarioProductoId,
-              presentacionId,
-              stock,
-              usuarioId,
-              peso: elegido?.peso,
-            }),
-          )
-          .subscribe({
-            next: (guardado) => {
-              this.agregando.set(false);
-              // Lo siguiente es contarlo: el renglón nuevo nace desplegado.
-              // `cargar()` no toca `abiertoId`.
-              const nuevoId = Number(guardado?.id);
-              if (Number.isFinite(nuevoId) && nuevoId > 0) {
-                this.abiertoId.set(nuevoId);
-                this.recienAgregadoId.set(nuevoId);
-              }
-              this.cargar();
-            },
-            error: (err: Error) => {
-              this.agregando.set(false);
-              this.notificacion.danger(err.message);
-            },
-          });
+    // Otro teléfono pudo haber finalizado la toma mientras se elegía.
+    this.conTomaAbierta(
+      () => {
+        this.stockDe(productoId, sucursalId).subscribe({
+          next: (stock) => {
+            this.servicio
+              .guardarItem(
+                nuevoItemInput({
+                  inventarioProductoId,
+                  presentacionId,
+                  stock,
+                  usuarioId,
+                  peso: elegido?.peso,
+                }),
+              )
+              .subscribe({
+                next: (guardado) => {
+                  this.agregando.set(false);
+                  // Lo siguiente es contarlo: el renglón nuevo nace desplegado.
+                  // `cargar()` no toca `abiertoId`.
+                  const nuevoId = Number(guardado?.id);
+                  if (Number.isFinite(nuevoId) && nuevoId > 0) {
+                    this.abiertoId.set(nuevoId);
+                    this.recienAgregadoId.set(nuevoId);
+                  }
+                  this.cargar();
+                },
+                error: (err: Error) => {
+                  this.agregando.set(false);
+                  this.notificacion.danger(err.message);
+                },
+              });
+          },
+          error: (err: Error) => {
+            this.agregando.set(false);
+            this.notificacion.danger(err.message);
+          },
+        });
       },
-      error: (err: Error) => {
-        this.agregando.set(false);
-        this.notificacion.danger(err.message);
-      },
-    });
+      () => this.agregando.set(false),
+    );
   }
 
   /**
@@ -782,11 +852,18 @@ export class InventarioCargaPage {
       return;
     }
 
-    this.aplicarLote(fila, contexto, {
-      loteId: Number(elegido.loteId),
-      saldo: elegido.saldo ?? 0,
-      vencimiento: elegido.fechaVencimiento,
-    });
+    // El chequeo de `contextoDeLote()` fue antes del buscador: otro teléfono
+    // pudo finalizar la toma mientras se elegía.
+    this.agregando.set(true);
+    this.conTomaAbierta(
+      () =>
+        this.aplicarLote(fila, contexto, {
+          loteId: Number(elegido.loteId),
+          saldo: elegido.saldo ?? 0,
+          vencimiento: elegido.fechaVencimiento,
+        }),
+      () => this.agregando.set(false),
+    );
   }
 
   /**
@@ -814,35 +891,41 @@ export class InventarioCargaPage {
     }
 
     this.agregando.set(true);
-    this.lotes
-      .crear({
-        productoId: contexto.productoId,
-        numeroLote: datos.numeroLote,
-        fechaVencimiento: datos.fechaVencimiento || null,
-        fechaRetiro: datos.fechaRetiro || null,
-        usuarioId: contexto.usuarioId,
-      })
-      .subscribe({
-        next: (lote) => {
-          if (!lote?.id) {
-            this.agregando.set(false);
-            this.notificacion.danger('El central no devolvió el lote creado.');
-            return;
-          }
-          // Saldo cero: el lote acaba de nacer y no tiene movimientos. Si el
-          // central devolvió uno preexistente, el saldo real llega en la
-          // recarga.
-          this.aplicarLote(fila, contexto, {
-            loteId: Number(lote.id),
-            saldo: 0,
-            vencimiento: lote.fechaVencimiento,
+    // Antes de crear el maestro: con la toma cerrada quedaría un lote huérfano.
+    this.conTomaAbierta(
+      () => {
+        this.lotes
+          .crear({
+            productoId: contexto.productoId,
+            numeroLote: datos.numeroLote,
+            fechaVencimiento: datos.fechaVencimiento || null,
+            fechaRetiro: datos.fechaRetiro || null,
+            usuarioId: contexto.usuarioId,
+          })
+          .subscribe({
+            next: (lote) => {
+              if (!lote?.id) {
+                this.agregando.set(false);
+                this.notificacion.danger('El central no devolvió el lote creado.');
+                return;
+              }
+              // Saldo cero: el lote acaba de nacer y no tiene movimientos. Si el
+              // central devolvió uno preexistente, el saldo real llega en la
+              // recarga.
+              this.aplicarLote(fila, contexto, {
+                loteId: Number(lote.id),
+                saldo: 0,
+                vencimiento: lote.fechaVencimiento,
+              });
+            },
+            error: (err: Error) => {
+              this.agregando.set(false);
+              this.notificacion.danger(err.message);
+            },
           });
-        },
-        error: (err: Error) => {
-          this.agregando.set(false);
-          this.notificacion.danger(err.message);
-        },
-      });
+      },
+      () => this.agregando.set(false),
+    );
   }
 
   /**
@@ -968,28 +1051,34 @@ export class InventarioCargaPage {
     }
 
     this.agregando.set(true);
-    this.servicio.borrarItem(fila.itemId).subscribe({
-      next: () => {
-        this.agregando.set(false);
-        // Lo editado de ese renglón deja de existir: si quedara en el mapa,
-        // «Guardar conteo (n)» seguiría contándolo y el guardado fallaría
-        // contra un id que el central ya no tiene.
-        this.edicion.update((mapa) => {
-          const copia = new Map(mapa);
-          copia.delete(fila.itemId);
-          return copia;
+    // Borra de verdad: se confirma que la toma siga abierta después del diálogo.
+    this.conTomaAbierta(
+      () => {
+        this.servicio.borrarItem(fila.itemId).subscribe({
+          next: () => {
+            this.agregando.set(false);
+            // Lo editado de ese renglón deja de existir: si quedara en el mapa,
+            // «Guardar conteo (n)» seguiría contándolo y el guardado fallaría
+            // contra un id que el central ya no tiene.
+            this.edicion.update((mapa) => {
+              const copia = new Map(mapa);
+              copia.delete(fila.itemId);
+              return copia;
+            });
+            if (this.abiertoId() === fila.itemId) {
+              this.abiertoId.set(null);
+            }
+            this.notificacion.ok('Producto quitado del conteo.');
+            this.cargar();
+          },
+          error: (err: Error) => {
+            this.agregando.set(false);
+            this.notificacion.danger(err.message);
+          },
         });
-        if (this.abiertoId() === fila.itemId) {
-          this.abiertoId.set(null);
-        }
-        this.notificacion.ok('Producto quitado del conteo.');
-        this.cargar();
       },
-      error: (err: Error) => {
-        this.agregando.set(false);
-        this.notificacion.danger(err.message);
-      },
-    });
+      () => this.agregando.set(false),
+    );
   }
 
   /**
@@ -1033,9 +1122,20 @@ export class InventarioCargaPage {
       return;
     }
 
+    if (!this.puedeAgregar()) {
+      return;
+    }
+    this.guardando.set(true);
+    // Otro teléfono pudo haber finalizado la toma mientras se contaba.
+    this.conTomaAbierta(
+      () => this.enviar(filas, fechas),
+      () => this.guardando.set(false),
+    );
+  }
+
+  private enviar(filas: FilaConteo[], fechas: FilaConteo[]): void {
     const usuarioId = this.auth.usuario()?.id;
     const inventarioProductoId = Number(this.producto()?.id);
-    this.guardando.set(true);
 
     let pendientes = filas.length + fechas.length;
     // Por renglón y no un número: lo que falló se conserva para reintentar.

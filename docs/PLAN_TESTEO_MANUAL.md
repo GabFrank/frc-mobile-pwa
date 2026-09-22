@@ -6319,6 +6319,47 @@ de 1.
 
 ---
 
+## Bloque 68 — Una toma cerrada es de solo lectura *(nuevo, sin probar)*
+
+**Por qué está acá:** en el conteo de una toma finalizada o cancelada se podía
+escribir y guardar, y el central lo aceptaba: en una finalizada, el registro
+quedaba distinto del ajuste de stock ya aplicado.
+
+### 68.1 · Una toma finalizada no se edita
+1. Abrir el conteo de una zona de una toma **finalizada** (por ejemplo desde
+   una URL guardada, o con «Atrás» después de finalizar).
+2. Desplegar un renglón.
+
+**Esperado:** «Contado», las fechas y el estado deshabilitados; sin «usar»,
+sin «Buscar lote»/«Crear lote»; **sin** barra abajo. Se puede desplegar y
+mirar.
+
+### 68.2 · Una toma cancelada, igual
+1. Repetir 68.1 con una toma **cancelada**.
+
+**Esperado:** igual que 68.1.
+
+### 68.3 · Finalizada desde otro teléfono mientras se cuenta
+1. En el teléfono A, abrir el conteo de una zona de una toma abierta y
+   escribir un número (sin guardar).
+2. En el teléfono B (o el desktop), finalizar esa toma.
+3. En A, tocar **Guardar conteo**.
+
+**Esperado:** en A **no** se guarda; aviso «La toma ya no está abierta: lo que
+no se había guardado se descartó.»; el renglón muestra lo que dice el central
+y la pantalla queda de solo lectura.
+
+### 68.4 · Finalizada mientras se elige un producto
+1. En A, tocar **Agregar producto** y dejar el buscador abierto.
+2. En B, finalizar la toma.
+3. En A, elegir una presentación.
+
+**Esperado:** no se agrega ningún renglón, aviso «La toma ya no está
+abierta.» y A queda de solo lectura. Lo mismo al elegir o crear un lote, o al
+quitar un renglón, con el diálogo abierto mientras B finaliza.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6390,7 +6431,8 @@ de 1.
 | 65 · La descripción completa del producto | 6 | 6 | | |
 | 66 · El conteo ofrece solo la presentación de 1 | 16 | | | |
 | 67 · Un producto abierto a la vez en el buscador | 4 | | | |
-| **Total** | **615** | | | |
+| 68 · Una toma cerrada es de solo lectura | 4 | | | |
+| **Total** | **619** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

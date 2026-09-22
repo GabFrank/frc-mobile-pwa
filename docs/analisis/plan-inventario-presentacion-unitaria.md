@@ -440,3 +440,14 @@ activa (se ofrecen todas esas). Ninguna presentación con `activo` nulo.
 | Fijo 3 | `id: null` hacía `null === null` y la card nacía abierta | `[abierta]` exige id |
 | Fijo 3 | Aplicando un lote a un renglón que lo esperaba, la barra desaparecía sin indicador | Se muestra «Agregando…» |
 | Fijo 3 | Nombre de test viejo, redacción de 66.13, «Cargar más» sin documentar | Corregidos |
+
+## Auditoría del diff de la fase 6 (paso 8)
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 | Elegir/crear lote y quitar un renglón miraban el estado antes de su diálogo y escribían después sin volver a consultar; crear lote dejaba además un maestro huérfano | Las tres escrituras pasan por `conTomaAbierta()` (crear lote, antes de crear el maestro) |
+| Fijo 2 | Sin esquema; `porId` es sin caché | Sin acción |
+| Fijo 2 y 3 | El error de la consulta salía dos veces | Se deja el de `DatosService` |
+| Fijo 2 | Una respuesta `null` descartaba lo editado con un aviso falso | Sin respuesta no se escribe ni se descarta |
+| Fijo 3 | El alta rechazada por toma cerrada, sin ediciones, no decía nada | Aviso «La toma ya no está abierta.» |
+| Fijo 3 | El test de solo lectura miraba «Buscar lote» en un producto sin lote: pasaba igual sin el cambio | Producto con lote, contraprueba con la toma abierta y fechas/estado verificados |

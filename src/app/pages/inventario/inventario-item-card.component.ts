@@ -197,12 +197,12 @@ export interface FilaConteo {
               type="number"
               inputmode="decimal"
               [value]="fila().contado ?? ''"
-              [disabled]="!puedeContar()"
+              [disabled]="!puedeContar() || soloLectura()"
               (input)="contado.emit($event)"
             />
           </mat-form-field>
 
-          @if (!puedeContar()) {
+          @if (!puedeContar() && !soloLectura()) {
             <div class="sin-lote">
               <span>
                 Este producto lleva control de lote. Elegí o creá el lote para
@@ -222,6 +222,7 @@ export interface FilaConteo {
           <frc-campo-fecha
             [etiqueta]="fila().lote ? 'Vencimiento del lote' : 'Vencimiento'"
             [valor]="fila().vencimiento || null"
+            [deshabilitado]="soloLectura()"
             (valorChange)="vencimiento.emit($event ?? '')"
           />
 
@@ -235,6 +236,7 @@ export interface FilaConteo {
             <frc-campo-fecha
               etiqueta="Fecha de retiro"
               [valor]="fila().fechaRetiro || null"
+              [deshabilitado]="soloLectura()"
               (valorChange)="fechaRetiro.emit($event ?? '')"
             />
             <p class="aviso-lote">
@@ -268,7 +270,7 @@ export interface FilaConteo {
                 <span class="anterior-fecha">Anterior {{ legible(c.fecha) }}</span>
                 <span class="anterior-fuente">{{ origen(c) }}</span>
               </span>
-              @if (fila().vencimiento !== c.fecha) {
+              @if (fila().vencimiento !== c.fecha && !soloLectura()) {
                 <button type="button" class="usar" (click)="usarConocido.emit(c.fecha)">usar</button>
               }
             </div>
@@ -278,6 +280,7 @@ export interface FilaConteo {
             etiqueta="Estado"
             [opciones]="estados()"
             [valor]="fila().estado"
+            [deshabilitado]="soloLectura()"
             (valorChange)="estado.emit($event)"
           />
         </div>
@@ -480,6 +483,12 @@ export class InventarioItemCardComponent {
    * abierta. Cerrada, el alcance del conteo ya es un hecho histórico.
    */
   readonly puedeQuitar = input(false);
+  /**
+   * La toma ya no está abierta: el renglón se mira, no se edita. En una
+   * finalizada el stock ya se ajustó, y un conteo cambiado después dejaría el
+   * registro diciendo otra cosa que el ajuste aplicado.
+   */
+  readonly soloLectura = input(false);
   /**
    * El renglón recién agregado: al pintarse se lleva a la vista y, si hay que
    * contarlo, pone el foco en «Contado».

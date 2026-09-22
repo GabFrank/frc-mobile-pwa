@@ -417,6 +417,39 @@ Con la toma cerrada el menú no aparece: el alcance ya es un hecho histórico y
 sacarle un renglón cambiaría qué se contó en una toma que ya ajustó stock. Es
 la misma condición que habilita *Agregar producto*.
 
+## Una toma cerrada es de solo lectura
+
+**En el conteo de una zona, si la toma no está `ABIERTO`** —`CONCLUIDO` o
+`CANCELADO`— **la pantalla se mira y no se edita** (Franco, 2026-09-22).
+«Contado», las fechas y el estado quedan deshabilitados; no hay «usar», ni
+«Buscar/Crear lote», ni barra de acciones.
+
+> ⚠️ **El central no lo frena.** `InventarioProductoItemService.save()` solo
+> mira renglones duplicados, no el estado de la toma. En una `CONCLUIDO` el
+> stock ya se ajustó al finalizar: un conteo cambiado después deja el registro
+> diciendo otra cosa que el ajuste aplicado, y el stock no se recalcula. La
+> barrera es del cliente; desde el desktop, `frc-mobile` o una llamada a mano
+> se sigue pudiendo. Cerrarlo del todo es un cambio del central.
+
+- A esa pantalla se llega por URL (`:id/producto/:productoId` no tiene guard),
+  con «Atrás» después de finalizar, o **teniéndola abierta mientras otro
+  teléfono finaliza la toma**. Por eso no alcanza con la vista:
+  - `editar()` —por donde pasan todos los `cambiarX`— no registra nada;
+  - **toda escritura vuelve a consultar el estado** antes de salir
+    (`conTomaAbierta()`): guardar, agregar un producto, elegir o crear un lote
+    —antes de crear el maestro, o quedaría huérfano— y quitar un renglón. Los
+    chequeos viejos miraban el estado **antes** de abrir su diálogo; otro
+    teléfono podía finalizar mientras tanto. Queda una ventana mínima entre la
+    consulta y la escritura.
+  - Si la consulta no responde, no se escribe **ni se descarta** nada: una
+    respuesta vacía no dice que la toma se cerró. Si la toma se cerró sin nada
+    pendiente, igual se avisa («La toma ya no está abierta.»).
+- ⚠️ **Si la toma llega cerrada con algo sin guardar, se descarta y se avisa**
+  («La toma ya no está abierta: lo que no se había guardado se descartó.»).
+  `items()` mezcla la edición con lo del central: sin esto, los campos de solo
+  lectura mostrarían como registrados valores que nunca se guardaron.
+- Una **zona** concluida dentro de una toma abierta sigue como antes.
+
 ## Agregar un producto a la zona
 
 > ⚠️ **Qué es un renglón duplicado lo decide el central, no la app.**

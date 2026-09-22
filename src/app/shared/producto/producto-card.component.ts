@@ -5,7 +5,6 @@ import {
   input,
   linkedSignal,
   output,
-  signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
@@ -38,8 +37,8 @@ export interface AccionProducto {
  * entrada: qué acciones tiene el menú, qué se muestra al costado de cada
  * presentación, si hay precio.
  *
- * No carga nada por su cuenta: avisa con `(expandir)` y la pantalla decide
- * qué pedir. Así la carga perezosa de presentaciones y stock queda en un
+ * No carga nada ni decide si está abierta: avisa con `(alternada)` y la
+ * pantalla decide qué abrir y qué pedir. Así la carga perezosa de presentaciones y stock queda en un
  * solo lugar y la card sirve igual con datos ya cargados.
  */
 @Component({
@@ -393,8 +392,12 @@ export class ProductoCardComponent {
    */
   readonly fallido = input(false);
 
-  /** Se emite al abrir, para que la pantalla cargue presentaciones y stock. */
-  readonly expandir = output<Producto>();
+  /**
+   * Se tocó la cabecera. Abrir o cerrar lo decide la pantalla, que pasa
+   * `abierta`: así hay una sola abierta a la vez y una búsqueda nueva no deja
+   * ninguna abierta sin su detalle.
+   */
+  readonly alternada = output<Producto>();
   /** Solo cuando `expandible` es `false`. */
   readonly seleccionar = output<Producto>();
   readonly elegir = output<Presentacion>();
@@ -402,7 +405,8 @@ export class ProductoCardComponent {
   /** Volver a pedir el detalle después de un fallo. */
   readonly reintentar = output<void>();
 
-  readonly abierta = signal(false);
+  /** La controla la pantalla: ver `alternada`. */
+  readonly abierta = input(false);
 
   /**
    * Una foto que el navegador no pudo decodificar deja de intentarse.
@@ -470,11 +474,7 @@ export class ProductoCardComponent {
       this.seleccionar.emit(this.producto());
       return;
     }
-    const proxima = !this.abierta();
-    this.abierta.set(proxima);
-    if (proxima) {
-      this.expandir.emit(this.producto());
-    }
+    this.alternada.emit(this.producto());
   }
 
   etiqueta(p: Presentacion): string {

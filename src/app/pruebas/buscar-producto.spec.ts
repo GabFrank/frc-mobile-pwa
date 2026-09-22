@@ -232,6 +232,79 @@ describe('Buscador de producto', () => {
     });
   });
 
+  describe('un producto abierto a la vez', () => {
+    const cabeceras = (f: ReturnType<typeof montar>) =>
+      Array.from((f.nativeElement as HTMLElement).querySelectorAll('.chevron')).map(
+        (c) => c.closest('button')!,
+      );
+    const abiertas = (f: ReturnType<typeof montar>) =>
+      cabeceras(f).map((b) => b.getAttribute('aria-expanded'));
+    const tocar = (f: ReturnType<typeof montar>, i: number) => {
+      cabeceras(f)[i].click();
+      f.detectChanges();
+    };
+    const dos = () => [producto({ id: 1 }), producto({ id: 2, descripcion: 'PEPSI 2L' })];
+
+    it('abrir otro cierra el anterior', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of(dos()));
+      const f = montar();
+      buscarPor(f, 'coca');
+
+      tocar(f, 0);
+      tocar(f, 1);
+
+      expect(abiertas(f)).toEqual(['false', 'true']);
+    });
+
+    it('tocar el abierto lo cierra, y el detalle se pide solo al abrir', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of(dos()));
+      busqueda.detalle.mockReturnValue(of(producto({ presentaciones: [] as never })));
+      const f = montar();
+      buscarPor(f, 'coca');
+
+      tocar(f, 0);
+      tocar(f, 0);
+
+      expect(abiertas(f)).toEqual(['false', 'false']);
+      expect(busqueda.detalle).toHaveBeenCalledTimes(1);
+    });
+
+    it('una búsqueda nueva empieza con todo cerrado', () => {
+      // Con la marca vieja, la card recreada nacía abierta sin su detalle.
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of(dos()));
+      const f = montar();
+      buscarPor(f, 'coca');
+      tocar(f, 0);
+
+      buscarPor(f, 'coca');
+
+      expect(f.componentInstance.abiertoId()).toBeNull();
+      expect(abiertas(f)).toEqual(['false', 'false']);
+      expect(texto(f)).not.toContain('Cargando presentaciones');
+    });
+
+    it('un id nulo no nace abierto (null === null)', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto({ id: null as never })]));
+      const f = montar();
+      buscarPor(f, 'coca');
+
+      expect(abiertas(f)).toEqual(['false']);
+    });
+
+    it('sin expandir, tocar la card sigue eligiendo el producto', () => {
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of(dos()));
+      const f = montar({ devuelve: 'producto' });
+      const emitido = vi.fn();
+      f.componentInstance.seleccion.subscribe(emitido);
+      buscarPor(f, 'coca');
+
+      (f.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.cabecera button')!.click();
+
+      expect(emitido).toHaveBeenCalledWith({ producto: expect.objectContaining({ id: 1 }) });
+      expect(f.componentInstance.abiertoId()).toBeNull();
+    });
+  });
+
   describe('qué devuelve', () => {
     it('modo presentación: emite producto y presentación', () => {
       const f = montar({ devuelve: 'presentacion' });
@@ -443,12 +516,14 @@ describe('Buscador de producto', () => {
       buscarPor(f, 'coca');
       abrirCard(f);
 
+      // Sin id no hay detalle que pedir: no se abre, en vez de quedar
+      // «Cargando…» o acusar al catálogo.
       expect(texto(f)).not.toContain('Cargando presentaciones');
-      expect(texto(f)).toContain('No se pudieron cargar las presentaciones');
       expect(texto(f)).not.toContain('no tiene');
+      expect(f.componentInstance.abiertoId()).toBeNull();
     });
 
-    it('dos productos abiertos a la vez no se pisan el «cargando»', () => {
+    it('el «cargando» es por producto: la respuesta de A no apaga el de B', () => {
       const a = new Subject<Producto>();
       const b = new Subject<Producto>();
       busqueda.buscarPorCodigoOTexto.mockReturnValue(

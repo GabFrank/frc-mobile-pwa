@@ -181,6 +181,8 @@ La card es `frc-producto-card` y el buscador entero, `frc-buscador-producto`
 | **El menú `⋮` se arma por contexto** | «Ver stock por sucursal» siempre; el resto lo declara quien abrió el buscador |
 | **En modo `devuelve: 'producto'` la card no se expande** | Los filtros de control de inventario y productos vencidos solo querían el producto, pero obligaban a expandir y tocar una presentación que después descartaban |
 | **El stock por sucursal se pide en una sola consulta** | `stockPorSucursales` agrupa en la base. La alternativa —una llamada por sucursal— son 18 requests y el navegador da 6 conexiones por origen: ocupan todo el pool mientras duran. Medido: **32 ms contra 83 ms** |
+| **Un producto abierto a la vez** (Franco, 2026-09-22) | La card no decide si está abierta: emite `(alternada)` y el buscador guarda `abiertoId`, como la lista del conteo. ⚠️ **Una búsqueda nueva y el pesable lo limpian**: recrean las cards, y con la marca vieja una nacía abierta sin que nadie pidiera su detalle —«Cargando…» para siempre—. «Cargar más» no la toca: agrega filas y la abierta sigue abierta |
+| **«No hay» no es «no pude»** | El «cargando» y el fallo del detalle van **por producto**; un fallo muestra «No se pudieron cargar las presentaciones» con Reintentar, no «no tiene presentaciones» |
 | **La búsqueda anterior se cancela en vuelo** | `frc-mobile` solo limpiaba el timer del debounce: si dos búsquedas salían, ganaba la que contestara última, no la que se pidió última |
 
 > ⚠️ **`stockPorSucursales` es nueva en el central.** Se agregó en esta ola

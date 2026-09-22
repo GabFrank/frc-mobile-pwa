@@ -372,3 +372,15 @@ activa (se ofrecen todas esas). Ninguna presentación con `activo` nulo.
 | Fijo 3 | `cantidad` nula entraba por el respaldo de las activas | Excluida también del respaldo |
 | Fijo 3 | Si `cargar()` fallaba tras agregar, la marca de foco quedaba huérfana | Se limpia en el error |
 | Fijo 3 | Un bullet de la doc quedó pegado a otro párrafo | Corregido |
+
+## Auditoría del diff de las fases 4 y 5 (paso 8)
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 | La barra nueva no abre agregar a una toma cerrada; los filtros de presentación siguen valiendo con la card controlada | Sin acción |
+| Fijo 1 | **Preexistente**: en una toma cerrada o cancelada el campo de conteo es editable y «Guardar conteo» manda el cambio; no verificado si el central lo rechaza | Fuera de alcance; decisión pendiente de Franco |
+| Fijo 2 | Sin esquema; `guardables()` usa el mismo criterio que `guardar()`; reintentar es idempotente en valor | Sin acción |
+| Fijo 2 | **Preexistente**: si falla `actualizarFechas`, `guardarItem` igual guarda su copia del vencimiento y diverge del maestro del lote | Fuera de alcance; anotado |
+| Fijo 3 | `id: null` hacía `null === null` y la card nacía abierta | `[abierta]` exige id |
+| Fijo 3 | Aplicando un lote a un renglón que lo esperaba, la barra desaparecía sin indicador | Se muestra «Agregando…» |
+| Fijo 3 | Nombre de test viejo, redacción de 66.13, «Cargar más» sin documentar | Corregidos |

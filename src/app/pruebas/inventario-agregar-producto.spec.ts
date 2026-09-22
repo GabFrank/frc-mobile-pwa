@@ -169,6 +169,26 @@ describe('Agregar un producto al conteo', () => {
       expect(f.nativeElement.querySelector('[acciones]')).toBeFalsy();
     });
 
+    it('mientras se aplica el lote, la barra dice «Agregando…» en vez de desaparecer', () => {
+      servicio.porId = vi.fn(() =>
+        of(
+          conRenglon({
+            presentacion: {
+              id: 9,
+              cantidad: 1,
+              producto: { id: 200, descripcion: 'AMOXICILINA', lote: true },
+            },
+          }),
+        ),
+      );
+      const f = montar();
+      f.componentInstance.alternar(700);
+      f.componentInstance.agregando.set(true);
+      f.detectChanges();
+
+      expect(texto(f)).toContain('Agregando…');
+    });
+
     it('guardar todo contrae el renglón y vuelve «Agregar producto»', () => {
       servicio.porId = vi.fn(() => of(conRenglon()));
       const f = montar();

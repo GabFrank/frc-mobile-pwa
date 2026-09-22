@@ -151,7 +151,8 @@ const LOTE = 10;
           (reintentar)="alExpandir(producto)"
           [expandible]="opciones().devuelve !== 'producto'"
           [soloUnitaria]="opciones().soloPresentacionUnitaria ?? false"
-          (expandir)="alExpandir($event)"
+          [abierta]="producto.id != null && abiertoId() === producto.id"
+          (alternada)="alternar($event)"
           (seleccionar)="seleccion.emit({ producto: $event })"
           (elegir)="elegirPresentacion(producto, $event)"
           (accion)="ejecutarAccion($event, producto)"
@@ -260,6 +261,14 @@ export class BuscadorProductoComponent {
    * como «no tiene presentaciones».
    */
   readonly cargandoDetalle = signal<ReadonlySet<number>>(new Set());
+  /**
+   * El producto desplegado: **uno a la vez**, como la lista del conteo.
+   *
+   * ⚠️ **Se limpia con cada búsqueda nueva** (y con el pesable): vacían la
+   * lista y recrean las cards, y con la marca vieja una card nacía abierta sin
+   * que nadie pidiera su detalle ni su stock — «Cargando…» para siempre.
+   */
+  readonly abiertoId = signal<number | null>(null);
   readonly detalleFallido = signal<ReadonlySet<number>>(new Set());
   readonly hayMas = signal(false);
   readonly error = signal<string | null>(null);
@@ -372,6 +381,7 @@ export class BuscadorProductoComponent {
 
     if (!agregando) {
       this.cargando.set(true);
+      this.abiertoId.set(null);
       this.resultados.set([]);
       this.stocks.set({});
       this.stocksDestino.set({});
@@ -394,6 +404,17 @@ export class BuscadorProductoComponent {
         this.cargandoMas.set(false);
       },
     });
+  }
+
+  /** Abre el tocado —cerrando el que estaba— o lo cierra si ya estaba abierto. */
+  alternar(producto: Producto): void {
+    const id = producto.id ?? null;
+    if (id != null && this.abiertoId() === id) {
+      this.abiertoId.set(null);
+      return;
+    }
+    this.abiertoId.set(id);
+    this.alExpandir(producto);
   }
 
   /**
@@ -533,6 +554,7 @@ export class BuscadorProductoComponent {
     this.cargando.set(true);
     this.error.set(null);
     this.resultados.set([]);
+    this.abiertoId.set(null);
     this.pesable.set(null);
 
     this.enVuelo = this.busqueda.pesable(codigo).subscribe({

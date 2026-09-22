@@ -6260,8 +6260,8 @@ x6 sin el aviso de unidades): lo cubre un test automático.*
 4. Volver a escribirlo y tocar **Guardar conteo**.
 
 **Esperado:** en 1, abajo solo *Agregar producto* (aunque haya un renglón
-abierto). En 2, solo «Guardar conteo (1)» — *Agregar producto* desaparece y
-nunca se ve un «Guardar» deshabilitado. En 3 vuelve *Agregar producto*. En 4,
+abierto). En 2, solo «Guardar conteo (1)» — *Agregar producto* desaparece; un
+«Guardar» deshabilitado solo se ve mientras dice «Guardando…». En 3 vuelve *Agregar producto*. En 4,
 el renglón se contrae y vuelve *Agregar producto*.
 
 ### 66.14 · Un producto con lote espera su lote
@@ -6284,6 +6284,38 @@ se guarda y se contrae.
 
 **Esperado:** el ajuste de stock de **A** parte de **10 unidades**, no de 60 ni
 de 120.
+
+---
+
+## Bloque 67 — Un producto abierto a la vez en el buscador *(nuevo, sin probar)*
+
+**Por qué está acá:** en la lista del buscador se podía desplegar un producto
+con otro ya desplegado, y el primero quedaba abierto. Ahora abrir uno cierra
+el anterior. Vale en Buscar, transferencias, devoluciones y el conteo.
+
+### 67.1 · Abrir otro cierra el anterior
+1. Pestaña **Buscar** → buscar `coca cola`.
+2. Desplegar el primer resultado y después el segundo.
+
+**Esperado:** queda abierto **solo** el segundo; el primero se cerró solo.
+
+### 67.2 · Tocar el abierto lo cierra
+1. Con un producto desplegado, tocar su cabecera.
+
+**Esperado:** se cierra y no queda ninguno abierto.
+
+### 67.3 · Una búsqueda nueva empieza cerrada
+1. Desplegar un producto, cambiar el texto y buscar de nuevo (con el mismo
+   producto entre los resultados).
+
+**Esperado:** la lista nueva aparece **toda cerrada**; ningún producto queda
+en «Cargando presentaciones…».
+
+### 67.4 · En el conteo, igual
+1. En una zona de la toma → **Agregar producto** → repetir 67.1.
+
+**Esperado:** igual que 67.1, y la lista sigue ofreciendo solo la presentación
+de 1.
 
 ---
 
@@ -6357,7 +6389,8 @@ de 120.
 | 64 · El solicitante de una transferencia | 9 | | | |
 | 65 · La descripción completa del producto | 6 | 6 | | |
 | 66 · El conteo ofrece solo la presentación de 1 | 16 | | | |
-| **Total** | **611** | | | |
+| 67 · Un producto abierto a la vez en el buscador | 4 | | | |
+| **Total** | **615** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

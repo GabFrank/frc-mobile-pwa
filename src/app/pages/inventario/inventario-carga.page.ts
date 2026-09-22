@@ -634,7 +634,12 @@ export class InventarioCargaPage {
    * card abierta; con un botón por vez eso ya no hace falta.
    */
   readonly mostrarAgregar = computed(
-    () => this.puedeAgregar() && !this.mostrarGuardar() && !this.abiertaEsperaLote(),
+    // Mientras se aplica o crea el lote, la barra sigue con «Agregando…»: sin
+    // eso desaparecía y no había ninguna señal de que algo se estaba guardando.
+    () =>
+      this.puedeAgregar() &&
+      !this.mostrarGuardar() &&
+      (!this.abiertaEsperaLote() || this.agregando()),
   );
 
   /**

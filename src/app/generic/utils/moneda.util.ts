@@ -154,3 +154,32 @@ export function formatearCantidad(
     maximumFractionDigits: decimales,
   }).format(valor);
 }
+
+/** Decimales con los que se muestra el peso de un pesable (kg). */
+export const PRECISION_PESABLE = 3;
+
+/**
+ * Existencia de un producto en una sucursal.
+ *
+ * ⚠️ **Un producto por unidad no lleva decimales.** El stock vuelve del
+ * central como `Double` aunque cuente cajas, y mostrar `12,00` invita a leer
+ * que hay una fracción de unidad en algún lado. Solo el producto de balanza
+ * —el que se vende por peso— tiene decimales que significan algo.
+ *
+ * Si el producto no es de balanza pero la existencia igual llega fraccionada
+ * —un ajuste mal cargado— se muestran los decimales en vez de esconderlos
+ * detrás de un redondeo: es un dato que hay que ver, no uno que hay que
+ * disimular.
+ */
+export function formatearExistencia(
+  valor: number | null | undefined,
+  pesable?: boolean | null,
+): string {
+  if (valor == null || !Number.isFinite(valor)) {
+    return '';
+  }
+  if (pesable) {
+    return formatearCantidad(valor, PRECISION_PESABLE);
+  }
+  return formatearCantidad(valor, esEntero(valor) ? 0 : PRECISION_DECIMAL);
+}

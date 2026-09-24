@@ -128,3 +128,19 @@ export const actualizarPreferenciaMutation = gql`
     )
   }
 `;
+
+/**
+ * Pide al central que mande un push a una persona.
+ *
+ * ⚠️ **Es una `query`, no una `mutation`.** Así está declarada en el central
+ * y así la usaba `frc-mobile`; escribirla como mutation la hace fallar con
+ * un campo desconocido.
+ *
+ * ⚠️ **Va `personaId`, no `usuarioId`.** El push se dirige a la persona, que
+ * es la que tiene los dispositivos registrados.
+ */
+export const solicitarPushQuery = gql`
+  query solicitarPush($entity: NotificacionPushInput!) {
+    data: requestPushNotification(entity: $entity)
+  }
+`;

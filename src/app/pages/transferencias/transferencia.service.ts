@@ -7,18 +7,37 @@ import type { PageInfo } from 'src/app/domains/page-info.model';
 import {
   EtapaTransferencia,
   Transferencia,
+  TransferenciaInput,
   TransferenciaItem,
+  TransferenciaItemInput,
 } from 'src/app/domains/transferencia/transferencia.model';
 import { AvanzarEtapaGQL } from 'src/app/graphql/transferencias/avanzarEtapa';
 import { FinalizarTransferenciaGQL } from 'src/app/graphql/transferencias/finalizarTransferencia';
 import { ItemsPorTransferenciaGQL } from 'src/app/graphql/transferencias/itemsPorTransferencia';
 import { TransferenciaPorIdGQL } from 'src/app/graphql/transferencias/transferenciaPorId';
 import { TransferenciasConFiltrosGQL } from 'src/app/graphql/transferencias/transferenciasConFiltros';
+import { SaveTransferenciaGQL } from 'src/app/graphql/transferencias/saveTransferencia';
+import { SaveTransferenciaItemGQL } from 'src/app/graphql/transferencias/saveTransferenciaItem';
+import { DeleteTransferenciaItemGQL } from 'src/app/graphql/transferencias/deleteTransferenciaItem';
+import { DesconfirmarTransferenciaItemGQL } from 'src/app/graphql/transferencias/desconfirmarTransferenciaItem';
+import { SolicitarPushGQL } from 'src/app/graphql/notificaciones/solicitarPush';
+import { TransferenciaQrEscaneadoGQL } from 'src/app/graphql/transferencias/transferenciaQrEscaneado';
 
 export interface FiltrosTransferencia {
   sucursalOrigenId?: number;
   sucursalDestinoId?: number;
   estado?: string | null;
+  /**
+   * Varios estados a la vez.
+   *
+   * ⚠️ **Estado y etapa son dimensiones distintas**, y para «viene en camino
+   * a esta sucursal» hace falta el estado: una transferencia en tránsito
+   * puede estar en la etapa `TRANSPORTE_EN_CAMINO` o en
+   * `TRANSPORTE_EN_DESTINO`, así que filtrar por una sola etapa deja afuera
+   * justo las que ya llegaron y esperan recepción. `frc-mobile` filtra por
+   * `TRANSPORTE_EN_CAMINO` y no las ve.
+   */
+  estados?: string[] | null;
   tipo?: string | null;
   /** ⚠️ **Etapa, no estado.** Son dimensiones distintas. */
   etapa?: EtapaTransferencia | null;
@@ -42,6 +61,28 @@ export class TransferenciaService {
   private readonly itemsGQL = inject(ItemsPorTransferenciaGQL);
   private readonly avanzarGQL = inject(AvanzarEtapaGQL);
   private readonly finalizarGQL = inject(FinalizarTransferenciaGQL);
+  private readonly guardarGQL = inject(SaveTransferenciaGQL);
+  private readonly guardarItemGQL = inject(SaveTransferenciaItemGQL);
+  private readonly eliminarItemGQL = inject(DeleteTransferenciaItemGQL);
+  private readonly desconfirmarItemGQL = inject(DesconfirmarTransferenciaItemGQL);
+  private readonly pushGQL = inject(SolicitarPushGQL);
+  private readonly qrEscaneadoGQL = inject(TransferenciaQrEscaneadoGQL);
+
+  /**
+   * Le avisa al central que se escaneó el QR de esta transferencia.
+   *
+   * Sirve para que el desktop que lo está mostrando cierre el diálogo solo.
+   * Es un aviso, no una operación: va sin spinner ni cartel de error a
+   * propósito, porque el operario ya está entrando a la transferencia y un
+   * fallo acá no cambia nada de lo que vino a hacer.
+   */
+  avisarQrEscaneado(id: number, sucursalId: number): Observable<boolean> {
+    return this.datos.mutar<boolean>(
+      this.qrEscaneadoGQL,
+      { id, sucursalId },
+      { mostrarCarga: false, notificarError: false },
+    );
+  }
 
   porId(id: number): Observable<Transferencia> {
     return this.datos.porId<Transferencia>(this.porIdGQL, id);
@@ -52,6 +93,7 @@ export class TransferenciaService {
       sucursalOrigenId: filtros.sucursalOrigenId ?? null,
       sucursalDestinoId: filtros.sucursalDestinoId ?? null,
       estado: filtros.estado ?? null,
+      estados: filtros.estados?.length ? filtros.estados : null,
       tipo: filtros.tipo ?? null,
       etapa: filtros.etapa ?? null,
       isOrigen: filtros.isOrigen ?? null,
@@ -86,6 +128,39 @@ export class TransferenciaService {
   }
 
   /**
+   * Crea la transferencia en borrador.
+   *
+   * ⚠️ **Solo para el alta y para editar la cabecera.** No sirve para mover
+   * el workflow: la etapa se cambia con {@link avanzarEtapa}, que es donde el
+   * central valida y genera los movimientos de stock. Un `save` con la etapa
+   * cambiada los saltea.
+   *
+   * ⚠️ **El responsable va en `usuarioPreTransferenciaId`.** El `usuarioId`
+   * que completa `DatosService.guardar()` no lo asigna: el central solo mira
+   * ese campo. Lo arma `nuevaTransferenciaInput()`.
+   */
+  crear(input: TransferenciaInput): Observable<Transferencia> {
+    return this.datos.guardar<Transferencia>(
+      this.guardarGQL,
+      input as unknown as Record<string, unknown>,
+    );
+  }
+
+  /**
+   * Quita un ítem del borrador.
+   *
+   * Borrado real: mientras la transferencia está en creación el renglón
+   * todavía no generó ningún movimiento de stock.
+   */
+  eliminarItem(itemId: number): Observable<boolean> {
+    return this.datos.mutar<boolean>(
+      this.eliminarItemGQL,
+      { id: itemId },
+      { mensajeExito: 'Ítem quitado' },
+    );
+  }
+
+  /**
    * Avanza el workflow.
    *
    * ⚠️ **Es el único camino correcto.** Guardar la transferencia con la etapa
@@ -98,5 +173,58 @@ export class TransferenciaService {
 
   finalizar(id: number, usuarioId: number): Observable<boolean> {
     return this.datos.mutar<boolean>(this.finalizarGQL, { id, usuarioId });
+  }
+
+  /**
+   * Guarda lo verificado de un ítem en la etapa en curso.
+   *
+   * ⚠️ **Es un PATCH: lo que el input no trae, el central lo conserva.**
+   * Mandar `null` no borra nada — para vaciar una etapa está
+   * {@link desconfirmarItem}. `DatosService.guardar()` completa el
+   * `usuarioId`, que el central exige.
+   */
+  guardarItem(input: TransferenciaItemInput): Observable<TransferenciaItem> {
+    return this.datos.guardar<TransferenciaItem>(
+      this.guardarItemGQL,
+      input as unknown as Record<string, unknown>,
+      undefined,
+      { mensajeExito: 'Ítem guardado' },
+    );
+  }
+
+  /**
+   * Deshace la verificación de un ítem en una etapa.
+   *
+   * Vacía las cuatro columnas de esa etapa y desactiva el movimiento de
+   * stock que había generado. Solo aplica a las tres etapas de verificación;
+   * con cualquier otra el central responde error.
+   */
+  desconfirmarItem(
+    itemId: number,
+    etapa: EtapaTransferencia,
+    opciones?: { mensajeExito?: string },
+  ): Observable<TransferenciaItem> {
+    return this.datos.mutar<TransferenciaItem>(
+      this.desconfirmarItemGQL,
+      { id: itemId, etapa },
+      { mensajeExito: opciones?.mensajeExito },
+    );
+  }
+
+  /**
+   * Avisa por push a una persona.
+   *
+   * ⚠️ **Es `personaId`, no `usuarioId`**: los dispositivos cuelgan de la
+   * persona. Y el central lo expone como **query**, no como mutation.
+   *
+   * Se usa para avisar de un rechazo. Que falle no puede voltear la
+   * operación: el rechazo ya quedó guardado, y el aviso es secundario.
+   */
+  avisarPorPush(personaId: number, titulo: string, mensaje: string): Observable<boolean> {
+    return this.datos.consultar<boolean>(
+      this.pushGQL,
+      { entity: { personaId, titulo, mensaje } },
+      { mostrarCarga: false, notificarError: false },
+    );
   }
 }

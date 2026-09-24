@@ -47,6 +47,21 @@ Confundirlos produce exactamente dos síntomas: botones desteñidos, o íconos q
 
 Fuera de eso, no. Las cards por módulo, los formularios por entidad y los layouts de pantalla se resuelven con lo que ya existe.
 
+## Variantes de botón
+
+Cuatro variantes, cada una con un rol fijo — no es cuestión de gusto:
+
+| Variante | Uso | Ejemplos reales en el repo |
+|---|---|---|
+| `filled` | La acción principal de la pantalla | «Guardar solicitud», «Nueva solicitud», «Escanear» cuando es la única acción de una pantalla vacía |
+| `tonal` | Acción secundaria dentro de un formulario: abre un buscador, agrega una fila, dispara una búsqueda | «Elegir tipo de gasto», «Elegir beneficiario», «Agregar detalle», «Buscar», «Agregar nota», «Escanear producto», «Agregar» (verificación) |
+| `outlined` | Una acción secundaria que igual necesita destacarse: reintentar, cargar más, cerrar sesión | «Reintentar», «Cargar más», «Cerrar sesión» |
+| texto (sin variante) | Cancelar/cerrar un diálogo, o navegación terciaria | «Cancelar» (en todos los diálogos de confirmación), «Ver detalle», «Escanear solicitud» (desde una lista) |
+
+⚠️ **`outlined` no es "Cancelar".** Los ~20 diálogos del repo cierran con `matButton` sin variante ("Cancelar" en texto plano); `outlined` se usa para acciones que sí necesitan visibilidad pero no son la principal (reintentar, cargar más, cerrar sesión). Confundirlos le da a un simple "cerrar el diálogo" un peso visual que no le corresponde.
+
+`--mat-sys-secondary-container`/`on-secondary-container` (el par que pinta `tonal`) están reasignados en el puente de `src/styles.scss`, igual que `primary-container`: sin eso, Material genera su propio rojo desde `mat.$red-palette`, ajeno a la marca.
+
 ## Catálogo
 
 Todo se exporta desde `src/app/shared/index.ts`.
@@ -65,7 +80,7 @@ Todo se exporta desde `src/app/shared/index.ts`.
 
 | Componente | Uso |
 |---|---|
-| `<frc-card>` | Card de entidad. El más usado. Slots: `[pie]`, `[aparte]` |
+| `<frc-card>` | Card de entidad. El más usado. Slots: `[pie]` (bajo el título), `[aparte]` (columna derecha), `[botonera]` (fila de ancho completo al final, a la derecha: botones que llegan al borde sin mover `[aparte]`) |
 | `<frc-estado-chip>` | Estado, resuelto del registro central |
 | `<frc-importe>` | Importe con la precisión de su moneda |
 | `\| importe` | Pipe equivalente para interpolaciones |
@@ -78,9 +93,14 @@ Todo se exporta desde `src/app/shared/index.ts`.
 |---|---|
 | `<frc-selector>` | Select. Implementa `ControlValueAccessor` |
 | `<frc-campo-importe>` | Campo de importe. Implementa `ControlValueAccessor` |
+| `<frc-campo-fecha>` | Campo de fecha con calendario. Implementa `ControlValueAccessor` |
 | `BuscadorComponent` | Diálogo de búsqueda de entidad. Modo `local` o `paginado` |
 
 Ambos campos respetan `formControl.disable()`.
+
+> ⚠️ **`<frc-campo-fecha>` entra y sale como texto `yyyy-MM-dd`, nunca como `Date`.** Es lo que manda el central y lo que viajan los inputs de GraphQL; devolver un `Date` obliga a cada llamador a convertir, y ahí es donde aparece el `toISOString()` que corre el día —el 15 a las 21:00 en Asunción ya es el 16 en Greenwich—. Las conversiones viven en `shared/campos/fecha-py.ts`, con sus pruebas.
+>
+> No usa `<input type="date">`: el nativo muestra un `dd/mm/aaaa` gris en Chrome de escritorio, el diálogo del sistema en Android y una ruedita en Safari. Tres pantallas para el mismo campo, y ninguna que se pueda probar sin el aparato. El adaptador de Material tampoco alcanza solo: `NativeDateAdapter.parse` lee `MM/dd/yyyy`, así que escribir `15/03/2026` a mano vaciaba el campo.
 
 > ⚠️ **`<frc-selector>` compara valores con `String(a) === String(b)`**, porque los ids llegan a veces como número y a veces como string desde GraphQL. Por eso **no se pueden usar objetos como valor**: todos colapsarían a `[object Object]`. Usá ids primitivos.
 
@@ -152,6 +172,8 @@ Para agregar un ícono, sumá su `path` al mapa del componente.
 | `CargandoService` | Contador reactivo de operaciones en curso |
 
 La duración del toast la fija el tono, no el llamador: un error necesita más tiempo de lectura que un éxito.
+
+**El margen de un diálogo con caja propia lo pone `styles.scss`**, no el componente: la superficie de Material 21 no trae padding y `mat-dialog-content` sí. Un diálogo que no usa `mat-dialog-content` recibe `--sp-3` en los cuatro lados de una regla global; no le agregues padding a su caja, o queda con el doble. El escáner, a pantalla completa, está excluido.
 
 `CargandoService` alimenta la barra de progreso del shell. **No abre un overlay bloqueante**: las listas muestran skeleton, que es el patrón aprobado.
 

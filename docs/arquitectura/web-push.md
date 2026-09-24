@@ -35,8 +35,36 @@ configuración, no credenciales. Lo que sí es secreto es el service account que
 usa el central para *mandar* (`FCMInitializer`), y ese no vive en este repo.
 
 A la `apiKey` la protege la **restricción por sitio** en Google Cloud Console
-(Credenciales → `Browser key` → Sitios web), no el esconderla. Pendiente
-cargar ahí los dominios de la PWA cuando existan.
+(Credenciales → `Browser key` → Sitios web), no el esconderla. **Ya está
+puesta**, con estos orígenes:
+
+```
+https://*.app.frcsuite.com/*
+http://localhost:4300/*
+```
+
+El patrón cubre los cuatro dominios de la PWA —`alpha`, `beta`, `farmacia` y
+`bodega`— porque todos cuelgan de `app.frcsuite.com`. Los `*.pages.dev` que
+Cloudflare Pages sirve en paralelo quedaron **afuera a propósito**: no son la
+puerta de entrada de nadie. Si algún día se prueba por ahí, las notificaciones
+no van a activar hasta que se agregue el patrón.
+
+⚠️ **El proyecto `bodega-franco-frc` tiene tres claves y cada una es de un
+cliente distinto.** Restringir la que no es rompe una app que nadie estaba
+mirando:
+
+| Clave | Quién la usa | Restricción por sitio |
+|---|---|---|
+| `AIzaSyB7Gv…VEA` | **esta PWA**, y solo ella (`core/notificaciones/firebase.config.ts`) | sí, la de arriba |
+| `AIzaSyDXo7…EKI` | el **desktop**, `frc-sistemas-integrados-angular` (`src/environments/environment*.ts`) | **no — ver abajo** |
+| `AIzaSyDoKe5…AfI` | Android | no aplica: es clave de tipo Android, no de navegador |
+
+⚠️ **La clave del desktop no se restringe por sitio.** Corre en Electron, que
+carga la app desde `file://` o un scheme propio y por eso **no manda cabecera
+`Referer`**. Una restricción de tipo «Sitios web» ahí le corta las
+notificaciones a todo el desktop en producción, y el síntoma no señala la
+causa. Si alguna vez hay que asegurarla, el camino es otro tipo de
+restricción, con su propia prueba.
 
 Si alguno de los valores se vacía, la app **no ofrece** activar las
 notificaciones y dice que no están configuradas. Lo que no hace es pedir el

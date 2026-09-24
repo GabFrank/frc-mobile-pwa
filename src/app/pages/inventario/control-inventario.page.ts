@@ -14,7 +14,7 @@ import {
   ProductosCantidadPositivaGQL,
   ProductosFaltantesGQL,
 } from 'src/app/graphql/inventario/controlInventario';
-import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
@@ -287,9 +287,22 @@ export class ControlInventarioPage {
     this.cargar();
   }
 
+  /**
+   * El saldo, en unidades.
+   *
+   * ⚠️ **`saldoTotal` vuelve como `Float` aunque el producto se cuente por
+   * unidad** — se calcula sobre `movimiento_stock`, cuya columna tiene
+   * decimales. Mostrarlo con dos fijos daba `-3,00`, que se lee como si
+   * faltara una fracción de unidad.
+   *
+   * `ProductoSaldoDto` no trae el `balanza` del producto, así que acá la regla
+   * la decide el valor: entero sin decimales, fraccionado con ellos. En un
+   * pesable el decimal son kilos y en uno por unidad es un ajuste mal cargado
+   * — los dos hay que verlos, no redondearlos.
+   */
   saldo(p: ProductoSaldo): string {
     const valor = p.saldoTotal ?? 0;
-    return `${valor > 0 ? '+' : ''}${formatearCantidad(valor, 2)}`;
+    return `${valor > 0 ? '+' : ''}${formatearExistencia(valor)}`;
   }
 
   /** `yyyy-MM-dd`, que es como el central espera las fechas. */

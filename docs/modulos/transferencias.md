@@ -159,13 +159,17 @@ Cada transferencia concluida genera movimientos de stock de tipo `TRANSFERENCIA`
 
 # Qué cambió en la PWA
 
-> **Estado:** portadas la **lista y el detalle con las cuatro etapas**. El
-> alta, la gestión de ítems y el avance de etapa no.
+> **Estado:** portado el ciclo entero — el **alta**, la **carga de productos**
+> del borrador —con la **elección manual del lote**—, la **lista**, el
+> **detalle con las cuatro etapas** y el **avance de etapa completo hasta
+> recepción concluida**, con la verificación ítem por ítem.
 
-| Ruta | Componente |
-|---|---|
-| `/transferencias` | `TransferenciasListaPage` |
-| `/transferencias/:id` | `TransferenciaDetallePage` |
+| Ruta | Componente | Rol |
+|---|---|---|
+| `/transferencias` | `TransferenciasListaPage` | `VER TRANSFERENCIA` |
+| `/transferencias/nueva` | `TransferenciaNuevaPage` | `CREAR TRANSFERENCIA` |
+| `/transferencias/:id/borrador` | `TransferenciaBorradorPage` | `CREAR TRANSFERENCIA` |
+| `/transferencias/:id` | `TransferenciaDetallePage` | `VER TRANSFERENCIA` |
 
 ## El modo E del buscador, por fin con consumidor
 
@@ -200,14 +204,306 @@ comparando ids de sucursal**, y la lista filtra por esos mismos flags.
 
 Que una sucursal sea origen **y** destino es un caso válido, no un error.
 
+## El avance de etapa
+
+Las reglas viven en [`etapas.ts`](../../src/app/pages/transferencias/etapas.ts),
+en funciones puras y sin UI. Están separadas a propósito: **cada avance
+dispara movimientos de stock en el central**, y una condición mal copiada
+despacha mercadería que nadie preparó.
+
+| Etapa actual | Botón | Destino |
+|---|---|---|
+| `PRE_TRANSFERENCIA_ORIGEN` | Preparar productos | `PREPARACION_MERCADERIA` |
+| `PREPARACION_MERCADERIA` | Concluir preparación | `PREPARACION_MERCADERIA_CONCLUIDA` |
+| `PREPARACION_MERCADERIA_CONCLUIDA` | Verificar para transporte | `TRANSPORTE_VERIFICACION` |
+| `TRANSPORTE_VERIFICACION` | Concluir y despachar | `TRANSPORTE_EN_CAMINO` |
+| `TRANSPORTE_EN_CAMINO` **o** `TRANSPORTE_EN_DESTINO` | Iniciar recepción | `RECEPCION_EN_VERIFICACION` |
+| `RECEPCION_EN_VERIFICACION` | Concluir recepción | `RECEPCION_CONCLUIDA` |
+
+Se muestra **una sola acción**, la que corresponde. Un menú de etapas sería una
+invitación a saltear pasos que mueven stock.
+
+### Quién puede
+
+La etapa la trabaja **quien la tomó**: el que aprieta «Preparar productos»
+queda como `usuarioPreparacion` y es el único que confirma sus ítems. Mientras
+nadie la tomó —responsable en blanco— está abierta a cualquiera.
+
+> ⚠️ **Se recalcula en cada cambio de etapa.** En `frc-mobile` el flag
+> `puedeEditar` se prende y **nunca se apaga**, así que alcanzaba con haber
+> sido responsable de una etapa para poder editar las siguientes.
+
+Las tres etapas que **cierran** una verificación exigen las dos cosas: ser el
+responsable y no dejar ítems sin revisar. El código de la transferencia no
+alcanza: cerrar la etapa ajena es dar por bueno lo que verificó otro.
+
+Las otras tres —tomar la preparación, pasar a transporte, iniciar la
+recepción— son el acto de hacerse cargo, y siguen la regla de `frc-mobile`:
+**una transferencia a nombre de otro solo la toma quien recibió su código**.
+El que termina su parte le muestra el QR al que sigue —o se lo manda por
+WhatsApp—, y el otro lo escanea con el botón flotante o lo carga a mano. El
+código viaja hasta el detalle en el parámetro `qr`, y el detalle compara su
+id con el de la transferencia: el QR de otra no sirve. El responsable actual
+no necesita código, y una etapa sin responsable sigue abierta. La regla está
+en `puedeTomarEtapa()`.
+
+> ⚠️ **En `frc-mobile` la regla estaba en la navegación, no en el detalle.**
+> Su lista mostraba solo las transferencias donde el usuario ya participaba
+> (`transferenciasPorUsuario`), y a las demás se llegaba por «Scanear QR» o
+> «Ingresar código». La lista de la PWA muestra todas las de la sucursal: sin
+> la regla en el detalle, cualquiera que abría una transferencia desde ahí
+> tomaba la preparación de otro. Tampoco es un control de seguridad —el QR
+> lleva solo el id y el central no lo valida—, igual que antes.
+
+### La verificación ítem por ítem
+
+En `PREPARACION_MERCADERIA`, `TRANSPORTE_VERIFICACION` y
+`RECEPCION_EN_VERIFICACION` cada ítem tiene su menú: **verificar con el
+código**, **confirmar como viene**, **modificar**, **rechazar** y **deshacer**.
+
+Un ítem cuenta como revisado con **cualquiera** de las tres marcas de la
+etapa: cantidad, vencimiento o motivo de rechazo. Rechazar también es haberlo
+mirado — es lo que distingue «no va» de «todavía no lo revisé».
+
+> ⚠️ **Los ítems se traen todos de una** (500). El botón «Concluir» necesita
+> saber si están **todos** verificados, y con paginación esa cuenta se haría
+> sobre la página visible: `frc-mobile` la hace así y habilita el botón con
+> ítems sin tocar en las páginas que nadie abrió.
+
+### ⚠️ Qué central hace falta
+
+Todo esto exige un central con el commit `8f29003f` —presente desde
+`v4.7.0-alpha.42`, `v4.8.0-beta.3` y `v4.10.0`—, que trae dos cosas juntas:
+la mutation `desconfirmarTransferenciaItem` y la conversión de
+`saveTransferenciaItem` en un PATCH.
+
+**Contra un central anterior el daño es silencioso.** Ahí el save es un
+reemplazo completo (`ModelMapper` + `service.save`), así que un input que trae
+solo los campos de la etapa en curso **pone en `null` las otras tres**: se
+pierden las cuatro cifras por etapa, que son la razón de ser del módulo, y la
+operación responde OK.
+
+Al 2026-08-15 farmacia corría `4.7.0-beta.2` y bodega `4.8.0`: **ninguna lo
+tiene**. Alpha sí. Las dos mitades se publican juntas.
+
+### ⚠️ El save del central es un PATCH
+
+`saveTransferenciaItem` **conserva lo que el input no trae**: un campo ausente
+significa «no lo toques», nunca «borralo». Mandar `null` no borra nada.
+
+Consecuencias, las dos verificadas contra `TransferenciaItemGraphQL`:
+
+- **Desconfirmar va por `desconfirmarTransferenciaItem(id, etapa)`**, que
+  vacía las columnas de esa etapa y desactiva el movimiento de stock.
+  `frc-mobile` desconfirma poniendo nulos y guardando: contra este central eso
+  no vacía nada, y la pantalla queda mostrando un estado que no se guardó.
+- **Confirmar un ítem antes rechazado son dos llamadas**: primero vaciar la
+  etapa, después guardar. Si no, el ítem sigue rechazado mientras la pantalla
+  lo muestra en verde.
+
+> ⚠️ **Siempre viaja una cantidad y una presentación para la etapa**, incluso
+> al rechazar. El central multiplica `cantidad × presentacion.cantidad` para
+> armar el movimiento de stock —aunque después lo deje inactivo por el
+> rechazo—, y con cualquiera de las dos en `null` responde un error de
+> servidor, no una validación.
+
+### Dos cosas que se apartan de `frc-mobile`
+
+Las dos están anotadas en el código, y se revierten en una línea si el negocio
+prefiere el comportamiento viejo:
+
+| Qué | `frc-mobile` | Acá |
+|---|---|---|
+| Motivo de modificación | Siempre `CANTIDAD_INCORRECTA`, aun cuando lo que cambió fue el vencimiento o la presentación | El que corresponde a lo que cambió — para eso el enum tiene los tres valores |
+| Destinatario del push de rechazo | El responsable de la **etapa en curso**, que es quien acaba de rechazar: se manda un push a sí mismo | El de la **etapa anterior** — el que preparó lo que ahora se rechaza |
+
+Y una que se agrega: `frc-mobile` **no ofrece «Modif. Item» en la recepción**
+—está en el `switch` que lo procesa, pero no en la lista de acciones—. Recibir
+menos de lo despachado es exactamente el caso que el módulo existe para
+registrar, así que acá está en las tres etapas.
+
+## El alta: dos pantallas y un borrador en el central
+
+El input de la cabecera **no acepta ítems anidados**: sin transferencia
+guardada no hay dónde poner el primer producto. Por eso el alta son dos pasos,
+y el primero ya escribe en el central.
+
+1. **`/transferencias/nueva`** — origen y destino, y se crea la transferencia
+   `ABIERTA` en `PRE_TRANSFERENCIA_CREACION`.
+2. **`/transferencias/:id/borrador`** — se le cargan los productos, uno por
+   uno, y se finaliza.
+
+> **Cada ítem se guarda al agregarlo, no al final.** Acumular cuarenta
+> renglones en memoria y confirmarlos juntos es perderlos cuando el service
+> worker se actualiza en el medio, o cuando alguien toca atrás. El costo es que
+> un borrador abandonado queda en la lista como `ABIERTA` — que es lo mismo que
+> pasa en `frc-mobile`.
+
+> **La lista navega siempre a `/transferencias/:id`.** El detalle redirige al
+> borrador si la transferencia todavía está en creación, y el borrador redirige
+> al detalle si ya salió. Así ninguna pantalla necesita saber de antemano en
+> qué estado está lo que se tocó.
+
+⚠️ **Un borrador que ya se finalizó no se edita más acá.** Sus ítems son los
+que otra etapa está verificando: quitarlos por esta pantalla dejaría a alguien
+preparando mercadería que ya no figura.
+
+### Tres cosas que el central hace distinto de lo que parece
+
+| Qué | Qué pasa de verdad |
+|---|---|
+| `usuarioId` en la cabecera | **No asigna el responsable.** `saveTransferencia` solo mira `usuarioPreTransferenciaId`; el `usuarioId` genérico que completa `DatosService.guardar()` lo ignora. `frc-mobile` no lo manda y sus borradores figuran sin responsable hasta que alguien los finaliza. Acá se manda desde el alta |
+| `finalizarTransferencia` | Devuelve **`false` sin error** si el estado no es `ABIERTA`. Tratarlo como éxito llevaría al detalle anunciando algo que no ocurrió |
+| Finalizar sin ítems | **Lo acepta.** La transferencia vacía queda pendiente en origen y alguien la abre para preparar lo que no hay. El botón se apaga del lado del cliente |
+
+### El ítem del borrador escribe **solo** el grupo `PreTransferencia`
+
+`frc-mobile` manda las otras tres etapas en cero o en nulo. Contra este
+central, que trata el save como un PATCH, eso es ruido que puede pisar lo que
+no debe; y el vencimiento y la observación vacíos se **omiten** en vez de
+viajar en `null`, porque un `null` no borra nada y dejaría la pantalla
+mostrando algo que el central no guardó.
+
+Es lo que hace que, recién finalizada, cada ítem muestre solo «Pedido»: las
+otras tres etapas no aparecen en cero porque todavía no pasó nada ahí.
+
+### El aviso de stock
+
+Al cargar la cantidad se consulta la existencia en **origen** y se compara
+`cantidad × presentación` contra ella. Avisa, **no bloquea**: pedir de más es
+un caso real —se repone contra lo que va llegando— y el descuento ocurre recién
+al despachar. Sin stock conocido no se dice nada: «no pude consultarlo» y «no
+hay» son respuestas distintas.
+
+### Crear pide su propio rol
+
+`transferenciasAlta` = `ADMIN` + `CREAR TRANSFERENCIA`, separado de
+`transferencias` (`VER TRANSFERENCIA`, 257 usuarios): mirar el movimiento de
+mercadería no es originar uno. `frc-mobile` declara el rol en su enum y **no lo
+usa en ningún lado**.
+
+⚠️ **Falta confirmar cuántos usuarios lo tienen asignado.** Si fueran cero, el
+alta quedaría visible solo para ADMIN; el arreglo ahí es asignar el rol, no
+sacar el guard.
+
+## De qué lote sale cada ítem
+
+> **Estado:** portada la elección manual **en el borrador**
+> (`PRE_TRANSFERENCIA`). El desktop la ofrece además en la preparación; ver
+> «Lo que falta».
+
+Por defecto el central resuelve el desglose por **FEFO**: sale primero lo que
+vence antes. Eso es lo correcto casi siempre, y es lo que hicieron todos los
+clientes hasta ahora. La elección manual existe para cuando el depósito real no
+coincide con ese orden teórico —el lote que vence antes está al fondo de la
+estiba— y el que se manda es otro.
+
+### El contrato: `lotesAsignados` tiene tres valores
+
+Es lo único de esta funcionalidad que no se puede improvisar. Lo fija
+`TransferenciaItemGraphQL.guardarAsignacionDeLotes` en el central:
+
+| Qué manda el cliente | Qué hace el central |
+|---|---|
+| el campo **ausente** | no toca la asignación — es lo que manda cualquier pantalla que no sabe de lotes |
+| `[]` | **borra** la asignación de esa etapa; el ítem vuelve a FEFO |
+| una lista | reemplaza la asignación de esa etapa |
+
+⚠️ **Un `null` no borra.** Como el resto de `saveTransferenciaItem`, que es un
+PATCH, la ausencia significa «no lo toques». Volver a FEFO exige la lista
+vacía, explícita.
+
+Está aislado en [`asignacionDeLote()`](../../src/app/pages/transferencias/transferencia-alta.ts),
+en una función pura y con test: confundir los tres casos borra en silencio una
+elección que alguien hizo, o deja puesto un lote mientras la pantalla muestra
+otro.
+
+⚠️ **La cantidad viaja en presentaciones**, la misma unidad que
+`cantidadPreTransferencia`. El central multiplica por la presentación de la
+etapa antes de guardar. Mandarla ya en unidades saca del lote tantas veces de
+más como unidades tenga la caja — y no da error.
+
+### `etapaAsignacionLote`
+
+`PRE_TRANSFERENCIA` y `PREPARACION`. **No son las cuatro etapas del módulo**,
+son las dos en las que todavía se puede decidir de dónde sale la mercadería;
+después ya está fijada contra el movimiento de stock. `PREPARACION` pisa a
+`PRE_TRANSFERENCIA` al resolver el desglose, pero las dos quedan guardadas para
+poder auditar que lo pedido y lo preparado salieron de lotes distintos.
+
+Por eso `loteDePreTransferencia()` **filtra por etapa**: la asignación de
+preparación la decide quien prepara, desde el escritorio, y mostrarla en el
+borrador invitaría a pisarla.
+
+### El saldo lo convierte el central
+
+`stockPorLoteEnPresentacion(productoId, sucursalId, presentacionId, numeroLote,
+page, size)` devuelve el saldo **ya expresado en la presentación del renglón**,
+paginado y en orden FEFO. La pantalla no divide nada, y es a propósito: es la
+misma regla con la que el central después reparte el stock contra el lote
+elegido. Tenerla en dos lados es la forma de que el número mostrado y el
+descontado dejen de coincidir.
+
+Devuelve tres cifras y las tres importan:
+
+| Campo | Qué es |
+|---|---|
+| `cantidadDisponiblePresentacion` | presentaciones **completas** — una caja no se parte |
+| `unidadesSobrantes` | lo que queda fuera de esas cajas |
+| `cantidadDisponible` | el saldo en unidades, como vive en el ledger |
+
+⚠️ **Las sobrantes se muestran.** Un lote de 20 unidades en cajas de 6 da 3
+cajas; sin decir que sobran 2, el operador cree que se le perdió stock.
+
+### En la pantalla
+
+El diálogo del ítem gana una fila **Lote**, y solo si `producto.lote` es
+`true` — lo decide el producto, no que existan filas en el ledger, que un
+producto sin control de lote puede tener por una carga vieja.
+
+- **Elegir es opcional.** Salir sin lote no es cancelar: es la opción por
+  defecto del sistema. Obligar trabaría la carga cada vez que el número no se
+  lee en el envase.
+- **Un solo lote por ítem**, igual que el desktop. Repartir un renglón lo
+  acepta el central y no lo hace nadie.
+- **Los lotes que no están `LIBERADO` se listan deshabilitados, no ocultos.**
+  Bloquear es el mecanismo de recall: escondido, el operador busca el que tiene
+  en la mano y no entiende por qué no está.
+- **Con un lote elegido, el aviso de stock compara contra el saldo de ese
+  lote.** El de la sucursal suma todos: contra él, un pedido que vacía el lote
+  elegido parece sobrado. Sigue avisando, no bloqueando.
+- **El vencimiento viene sugerido** del lote, y **no pisa** lo que el operador
+  ya escribió: el papel que tiene en la mano gana sobre el maestro.
+- **El renglón muestra su lote en la lista.** Es lo único que distingue dos
+  cargas del mismo producto.
+
+⚠️ **Al reabrir un renglón, la fila muestra el número de lote pero no un
+saldo.** La asignación guardada dice de qué lote sale y cuánto se le asignó,
+no cuánto queda: eso es otra consulta y de otro momento. Rellenarlo con la
+cantidad asignada mostraría «3 disponible» cuando 3 es lo que se sacó, y
+mostrar cero afirmaría que el lote está vacío.
+
+⚠️ **El central serializa todo `Date` como `yyyy-MM-dd HH:mm`**, incluso un
+vencimiento que es un día y no un instante. Se recorta al tomarlo del lote: sin
+eso vuelve al central tal cual y en pantalla se lee «12/12/2026 00:00».
+
+### ✅ Qué central hace falta
+
+Ninguno nuevo. `lotesAsignados`, `etapaAsignacionLote` y
+`stockPorLoteEnPresentacion` entraron en los commits `b88fc34a` y `10253452`
+del central (2026-07-29) y están desde `v4.7.0-alpha.26`, `v4.7.0-beta.2` y
+`v4.8.0`: **farmacia y bodega ya los tienen**. Es la diferencia con el avance
+de etapa, que sí exige promover el central.
+
 ## Lo que falta
 
 | Qué | Nota |
 |---|---|
-| **Avanzar de etapa** | `avanzarEtapaTransferencia` ya está en el servicio. La UI necesita saber qué etapa sigue según el rol, que es la parte con reglas |
-| Alta de transferencia | usa el buscador en modo E, que ya existe |
-| Gestión y edición de ítems | con motivos de rechazo y modificación |
+| Cambiar las sucursales de un borrador | `frc-mobile` lo ofrece en su menú. Cambiar el origen con ítems ya cargados invalida el stock contra el que se cargaron |
+| Descartar un borrador | `deleteTransferencia` no se portó: un borrador vacío queda en la lista como `ABIERTA` |
 | Impresión | `imprimirTransferencia` devuelve base64 |
+| Elegir el lote en la **preparación** | El escritorio lo ofrece con `etapaAsignacionLote: PREPARACION`, que pisa a la de creación al resolver el desglose. Acá solo se elige al cargar |
+| Repartir un renglón entre **varios** lotes | El central lo acepta; ninguna pantalla lo hace. Se carga el producto dos veces |
 
 > ⚠️ **`onAvanzarEtapa` es el único camino correcto para cambiar de etapa.**
 > Guardar la transferencia con la etapa modificada saltea las validaciones y

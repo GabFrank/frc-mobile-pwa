@@ -35,6 +35,12 @@ export interface OpcionesBuscador {
   acciones?: AccionProducto[];
   /** Texto del campo. Por defecto, «Código o descripción». */
   etiquetaCampo?: string;
+  /**
+   * Ofrece solo las presentaciones activas de cantidad 1 (si el producto no
+   * tiene ninguna, todas). La enciende el conteo de inventario: ahí elegir la
+   * caja por error multiplica el stock. Ver `presentacionesContables()`.
+   */
+  soloPresentacionUnitaria?: boolean;
 }
 
 export interface SeleccionProducto {

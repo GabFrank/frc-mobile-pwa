@@ -19,8 +19,8 @@ Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 | [`manuales-refactor/`](manuales-refactor/) | Histórico de refactors puntuales. No es documentación viva |
 | **[`PATRONES.md`](PATRONES.md)** | **Cómo se escribe el código de este repo**: forma de una pantalla, estado con señales, servicios, errores, pruebas. El compañero del sistema de diseño |
 | [`REGLAS_DESARROLLO.md`](REGLAS_DESARROLLO.md) | Regla crítica para modificar el backend `central` sin romper el desktop |
-| [`TODO_TECNICO.md`](TODO_TECNICO.md) | Los 59 defectos de `frc-mobile`, con cuáles ya están resueltos acá |
-| [`PLAN_TESTEO_MANUAL.md`](PLAN_TESTEO_MANUAL.md) | **169 casos de prueba manual** para validar lo implementado, con el estado de ejecución de cada bloque |
+| [`TODO_TECNICO.md`](TODO_TECNICO.md) | Los 61 hallazgos: los defectos de `frc-mobile`, cuáles ya están resueltos acá, y los propios de este repo |
+| [`PLAN_TESTEO_MANUAL.md`](PLAN_TESTEO_MANUAL.md) | **328 casos de prueba manual** para validar lo implementado, con el estado de ejecución de cada bloque |
 | [`analisis/`](analisis/) | Investigación y plan de la migración a PWA |
 | [`design-system.md`](design-system.md) | **Sistema de diseño de este repo** |
 | [`design-system/`](design-system/) | Galería y pantallas aprobadas en el Gate 1 |
@@ -48,6 +48,7 @@ Documentación técnica de la **PWA** que reemplaza a `frc-mobile`.
 | [capacitor-nativo.md](arquitectura/capacitor-nativo.md) | Histórico: Capacitor 7, plugins, permisos, `cap sync` |
 | [actualizaciones-app.md](arquitectura/actualizaciones-app.md) | Cómo se actualiza la app realmente (Play Store in-app update) y canales |
 | [ui-ionic.md](arquitectura/ui-ionic.md) | Convenciones de UI: servicios wrapper, colores, ciclo de vida Ionic, formularios |
+| **[presupuesto-del-bundle.md](arquitectura/presupuesto-del-bundle.md)** | **Vigente.** De dónde salen los `budgets` de `angular.json`, qué pesa en el arranque y qué hacer cuando el warning vuelva |
 | **[web-push.md](arquitectura/web-push.md)** | **Vigente.** Avisos con la app cerrada: token de FCM, la sesión del dispositivo, y a qué pantalla lleva cada notificación |
 
 ## Índice de infraestructura

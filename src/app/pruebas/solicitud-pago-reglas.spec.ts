@@ -10,6 +10,7 @@ import {
 import { resolverEstado } from '../shared/estado/estado-registry';
 import {
   esEditable,
+  estaDevuelta,
   estaEnColaDePagos,
   faltaParaGuardar,
   fechaParaBackend,
@@ -119,9 +120,11 @@ describe('Monedas mezcladas', () => {
 });
 
 describe('Editable', () => {
-  it('solo en PENDIENTE', () => {
-    // El central tira IllegalStateException con cualquier otro estado.
+  it('en PENDIENTE y en DEVUELTO', () => {
+    // El central tira IllegalStateException con cualquier otro estado. Una
+    // devuelta se corrige antes de reenviarla, igual que un borrador.
     expect(esEditable(SolicitudPagoEstado.PENDIENTE)).toBe(true);
+    expect(esEditable(SolicitudPagoEstado.DEVUELTO)).toBe(true);
     expect(esEditable(SolicitudPagoEstado.SOLICITADO)).toBe(false);
     expect(esEditable(SolicitudPagoEstado.PARCIAL)).toBe(false);
     expect(esEditable(SolicitudPagoEstado.CONCLUIDO)).toBe(false);
@@ -131,19 +134,23 @@ describe('Editable', () => {
 });
 
 describe('Borrador y cola de pagos', () => {
-  it('solo un borrador se puede solicitar', () => {
+  it('se solicita un borrador o una devuelta, nada más', () => {
+    // DEVUELTO → SOLICITADO es el reenvío después de corregirla.
     expect(puedeSolicitar(SolicitudPagoEstado.PENDIENTE)).toBe(true);
+    expect(puedeSolicitar(SolicitudPagoEstado.DEVUELTO)).toBe(true);
     expect(puedeSolicitar(SolicitudPagoEstado.SOLICITADO)).toBe(false);
     expect(puedeSolicitar(null)).toBe(false);
   });
 
-  it('la cola de pagos son SOLICITADO y PARCIAL, no PENDIENTE', () => {
+  it('la cola de pagos son SOLICITADO y PARCIAL, no PENDIENTE ni DEVUELTO', () => {
     // Es exactamente lo que mira PagoProveedorService.listarPendientes en el
     // central. Si PENDIENTE entrara acá, la pantalla diría que una solicitud
-    // está esperando cobro cuando en realidad nadie la ve.
+    // está esperando cobro cuando en realidad nadie la ve. Una devuelta
+    // tampoco: tesorería la sacó de su lista.
     expect(estaEnColaDePagos(SolicitudPagoEstado.SOLICITADO)).toBe(true);
     expect(estaEnColaDePagos(SolicitudPagoEstado.PARCIAL)).toBe(true);
     expect(estaEnColaDePagos(SolicitudPagoEstado.PENDIENTE)).toBe(false);
+    expect(estaEnColaDePagos(SolicitudPagoEstado.DEVUELTO)).toBe(false);
     expect(estaEnColaDePagos(SolicitudPagoEstado.CONCLUIDO)).toBe(false);
     expect(estaEnColaDePagos(SolicitudPagoEstado.CANCELADO)).toBe(false);
   });
@@ -155,14 +162,37 @@ describe('Borrador y cola de pagos', () => {
   });
 });
 
+describe('Devuelta por tesorería', () => {
+  it('solo DEVUELTO: se reenvía como un borrador, pero no está en la cola', () => {
+    expect(estaDevuelta(SolicitudPagoEstado.DEVUELTO)).toBe(true);
+    for (const estado of Object.values(SolicitudPagoEstado)) {
+      if (estado !== SolicitudPagoEstado.DEVUELTO) {
+        expect(estaDevuelta(estado)).toBe(false);
+      }
+    }
+    expect(estaDevuelta(null)).toBe(false);
+    // Tesorería ya la sacó de su lista: reenviarla es lo que la vuelve a meter.
+    expect(puedeSolicitar(SolicitudPagoEstado.DEVUELTO)).toBe(true);
+    expect(estaEnColaDePagos(SolicitudPagoEstado.DEVUELTO)).toBe(false);
+  });
+
+  it('tiene etiqueta propia, no la de borrador', () => {
+    const devuelto = resolverEstado('SolicitudPagoEstado', SolicitudPagoEstado.DEVUELTO);
+    const borrador = resolverEstado('SolicitudPagoEstado', SolicitudPagoEstado.PENDIENTE);
+    expect(devuelto.etiqueta).toBe('Devuelto');
+    expect(devuelto.etiqueta).not.toBe(borrador.etiqueta);
+  });
+});
+
 describe('El enum sigue al backend', () => {
-  it('tiene los cinco estados del central, incluido SOLICITADO', () => {
-    // El central sumó SOLICITADO en la migración V194.5. Sin este valor acá,
-    // el estado que importa —el único pagable— se dibujaba en gris como
-    // desconocido y no se podía filtrar.
+  it('tiene los seis estados del central, incluidos SOLICITADO y DEVUELTO', () => {
+    // El central sumó SOLICITADO en la migración V194.5 y DEVUELTO en la V222.3.
+    // Sin un valor acá, ese estado se dibuja en gris como desconocido y no se
+    // puede filtrar.
     expect(Object.values(SolicitudPagoEstado)).toEqual([
       'PENDIENTE',
       'SOLICITADO',
+      'DEVUELTO',
       'PARCIAL',
       'CONCLUIDO',
       'CANCELADO',

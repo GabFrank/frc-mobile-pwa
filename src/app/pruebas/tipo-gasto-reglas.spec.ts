@@ -9,6 +9,7 @@ import {
   requiereEnteActivo,
   tipoEnteDesdeModuloPadre,
 } from '../domains/gastos/tipo-gasto.reglas';
+import { TipoGasto } from '../domains/gastos/pre-gasto.model';
 
 /**
  * Estas reglas deciden qué le pide el formulario al usuario. Son lógica pura
@@ -127,6 +128,36 @@ describe('Reglas de tipo de gasto', () => {
     it('lo desconocido cae en «Activo», no en vacío', () => {
       expect(etiquetaModuloPadre('LO_QUE_SEA')).toBe('Activo');
       expect(etiquetaModuloPadre(null)).toBe('Activo');
+    });
+  });
+
+  describe('el campo de naturaleza que manda el central', () => {
+    it('lee la naturaleza de `tipoNaturaleza`, que es como se llama en el central', () => {
+      // El central expone `tipoNaturaleza`, no `naturaleza`. El modelo tenía
+      // el nombre corto, así que la naturaleza llegaba siempre `undefined` y
+      // la tarjeta de cuotas no aparecía nunca para un gasto recurrente.
+      const tipo: TipoGasto = {
+        id: 1,
+        descripcion: 'ALQUILER',
+        moduloPadre: 'INMUEBLE',
+        tipoNaturaleza: 'RECURRENTE',
+      };
+
+      expect(mostrarCuotasActivo(tipo.moduloPadre, tipo.tipoNaturaleza, null)).toBe(true);
+    });
+
+    it('un esPagoCuotaActivo explícito manda sobre la naturaleza', () => {
+      const tipo: TipoGasto = {
+        id: 2,
+        descripcion: 'REPARACIÓN',
+        moduloPadre: 'VEHICULO',
+        tipoNaturaleza: 'RECURRENTE',
+        esPagoCuotaActivo: false,
+      };
+
+      expect(
+        mostrarCuotasActivo(tipo.moduloPadre, tipo.tipoNaturaleza, tipo.esPagoCuotaActivo),
+      ).toBe(false);
     });
   });
 });

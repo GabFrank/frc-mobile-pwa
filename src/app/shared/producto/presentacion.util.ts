@@ -39,6 +39,34 @@ export function tienePresentaciones(producto: Producto): boolean {
   return (producto?.presentaciones?.length ?? 0) > 0;
 }
 
+/**
+ * Las presentaciones en las que se puede contar un inventario: las activas de
+ * cantidad 1; si no hay, las demás activas; si ninguna está activa, ninguna.
+ *
+ * Existe para evitar el error de toque más caro del conteo: 100 unidades
+ * cargadas en la «x6» se vuelven 600 al finalizar, porque el central suma
+ * `cantidad × presentacion.cantidad`.
+ *
+ * ⚠️ **Una inactiva no se ofrece nunca.** Una lista vacía la pantalla la
+ * muestra como alerta —el producto no tiene con qué contarse—, no como «no hay
+ * nada»: ver `ProductoCardComponent`. Un `activo` ausente —la query que no lo
+ * pide— cuenta como activo.
+ *
+ * ⚠️ **Un `cantidad` nulo no se ofrece**, ni como 1 —aunque
+ * `etiquetaPresentacion()` lo muestre así— ni en el respaldo. El central multiplica con un `Double`
+ * (`InventarioGraphQL.java:257`): un renglón en esa presentación hace fallar
+ * la finalización de la toma entera.
+ *
+ * Caer en las demás activas es decisión de Franco (2026-09-21): bloquear dejaba
+ * sin poder contar los productos que solo existen en caja.
+ */
+export function presentacionesContables(presentaciones: Presentacion[]): Presentacion[] {
+  // Una `cantidad` nula tampoco vale en el respaldo: traba la finalización.
+  const activas = presentaciones.filter((p) => p.activo !== false && p.cantidad != null);
+  const unitarias = activas.filter((p) => p.cantidad === 1);
+  return unitarias.length > 0 ? unitarias : activas;
+}
+
 /** Precio de la presentación: el principal, y si no el primero activo. */
 export function precioDe(presentacion: Presentacion | null | undefined): number | null {
   if (!presentacion) {

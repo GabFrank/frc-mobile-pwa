@@ -145,6 +145,14 @@ export class InicioPage {
       pendientes: () => this.notificaciones.noLeidas(),
     },
     { etiqueta: 'Marcación', ruta: '/marcacion', icono: 'reloj' },
+    {
+      // El kiosco de la puerta. Lleva rol porque marca **por otros**, a
+      // diferencia de la marcación propia, que es autoservicio.
+      etiqueta: 'Kiosco de marcación',
+      ruta: '/marcacion/kiosco',
+      icono: 'reloj',
+      roles: PERMISOS.kioscoMarcacion,
+    },
     { etiqueta: 'Mi trabajo', ruta: '/mi-trabajo', icono: 'persona' },
     { etiqueta: 'Mis finanzas', ruta: '/mis-finanzas', icono: 'dinero' },
     { etiqueta: 'Mi cuenta', ruta: '/cuenta', icono: 'cuenta' },

@@ -7,26 +7,77 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
+import { AuthService } from 'src/app/core/auth/auth.service';
+import { transferenciaDelQr } from 'src/app/core/dispositivo/escaneo-ruteo';
+import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
+import { FORMATOS_PRODUCTO, FORMATOS_QR } from 'src/app/core/dispositivo/escaner.types';
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import { NotificacionService } from 'src/app/core/ui/notificacion.service';
+import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
+import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
 import {
+  EtapaTransferencia,
+  MotivoRechazo,
   Transferencia,
   TransferenciaItem,
 } from 'src/app/domains/transferencia/transferencia.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { codificarQr, descodificarQr } from 'src/app/generic/utils/qrUtils';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
-import { DatoComponent } from 'src/app/shared/layout/dato.component';
-import { DialogoService } from 'src/app/core/ui/dialogo.service';
-import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
-import { codificarQr } from 'src/app/generic/utils/qrUtils';
-import { DatosQr, QrDialogComponent } from 'src/app/shared/qr/qr-dialog.component';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
+import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
+import { DatosQr, QrDialogComponent } from 'src/app/shared/qr/qr-dialog.component';
+import {
+  AVISO_ETAPA,
+  AccionEtapa,
+  ETAPA_ETIQUETAS,
+  EtapaVerificacion,
+  MOTIVO_RECHAZO_ETIQUETAS,
+  VerificacionItem,
+  accionDeEtapa,
+  esEtapaDeVerificacion,
+  inputDeVerificacion,
+  itemModificado,
+  itemRechazado,
+  itemVerificado,
+  itemsSinVerificar,
+  puedeEditarEtapa,
+  puedeTomarEtapa,
+  requiereDesconfirmarAntes,
+  responsableDeEtapa,
+} from './etapas';
+import {
+  ModificarItemData,
+  ModificarItemDialogComponent,
+} from './modificar-item-dialog.component';
+import { esBorrador } from './transferencia-alta';
+import {
+  RechazarItemData,
+  RechazarItemDialogComponent,
+} from './rechazar-item-dialog.component';
 import { TransferenciaService } from './transferencia.service';
+
+/**
+ * Los ítems se traen todos de una.
+ *
+ * No es una lista para navegar: para habilitar «Concluir» hay que saber si
+ * **todos** están verificados, y con paginación esa cuenta se haría sobre la
+ * página visible. `frc-mobile` la hace así y por eso el botón se habilita con
+ * ítems sin tocar en las páginas que nadie abrió.
+ */
+const TODOS = 500;
 
 /** Lo que registró una etapa sobre un ítem. */
 interface Paso {
@@ -37,8 +88,15 @@ interface Paso {
   rechazo?: string;
 }
 
+/** Cómo se llama cada etapa de verificación cuando se habla de un ítem. */
+const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
+  [EtapaTransferencia.PREPARACION_MERCADERIA]: 'Preparado',
+  [EtapaTransferencia.TRANSPORTE_VERIFICACION]: 'Despachado',
+  [EtapaTransferencia.RECEPCION_EN_VERIFICACION]: 'Recibido',
+};
+
 /**
- * Detalle con **las cuatro etapas de cada ítem**.
+ * Detalle con **las cuatro etapas de cada ítem**, y el avance del workflow.
  *
  * Es la razón de ser del módulo: si se piden 10, se preparan 8, se despachan
  * 8 y llegan 7, las cuatro cifras quedan a la vista. La diferencia 10→8 es
@@ -48,6 +106,11 @@ interface Paso {
  * ⚠️ **Se muestra también la presentación de cada etapa.** Se pide en cajas y
  * se despacha en unidades: comparar cantidades sin mirar la presentación da
  * diferencias falsas.
+ *
+ * ⚠️ **Avanzar de etapa mueve stock.** El central da de baja en origen al
+ * despachar y da de alta en destino al concluir la recepción. Por eso cada
+ * avance pasa por un diálogo que dice qué va a pasar, y las etapas que
+ * cierran una verificación no se habilitan con ítems sin revisar.
  */
 @Component({
   selector: 'frc-transferencia-detalle',
@@ -61,6 +124,8 @@ interface Paso {
     SkeletonComponent,
     EstadoVacioComponent,
     EstadoErrorComponent,
+    MatButtonModule,
+    MatMenuModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -68,6 +133,27 @@ interface Paso {
       <button accionBarra type="button" class="icono-compartir" aria-label="Compartir por QR" (click)="compartir()">
         <frc-icono nombre="codigo" [tamano]="22" />
       </button>
+
+      <!--
+        ⚠️ El atributo de proyección va en un hijo directo, fuera de todo
+        bloque de control: lo que está dentro de un @if no llega al slot con
+        nombre y termina arriba del contenido.
+
+        Una sola acción: la que corresponde a la etapa en la que está. Un menú
+        de etapas sería una invitación a saltear pasos que mueven stock.
+      -->
+      <div acciones class="botonera">
+        @if (accion(); as a) {
+          <button
+            matButton="filled"
+            [disabled]="!accionHabilitada()"
+            (click)="avanzar(a)"
+          >
+            {{ a.texto }}
+          </button>
+        }
+      </div>
+
       @if (cargando()) {
         <frc-skeleton [cantidad]="4" />
       } @else if (error()) {
@@ -85,14 +171,31 @@ interface Paso {
             backend: no se infiere comparando ids de sucursal.
           -->
           <frc-dato etiqueta="Tu rol" [valor]="rol()" />
+          <frc-dato etiqueta="Responsable" [valor]="quien(responsable())" />
           <frc-dato etiqueta="Creada" [valor]="fecha(t.creadoEn)" />
           @if (t.observacion) {
             <frc-dato etiqueta="Observación" [valor]="t.observacion" />
           }
         </frc-seccion>
 
+        <!--
+          Por qué el botón está apagado. Sin esto el operador ve «Concluir»
+          gris y no tiene forma de saber que le falta revisar tres ítems que
+          están más abajo en la lista.
+        -->
+        @if (motivoDeBloqueo(); as motivo) {
+          <p class="bloqueo">{{ motivo }}</p>
+        }
+
+        <!--
+          Solicitante y responsable son dos personas distintas y la etiqueta
+          lo tiene que decir. "Pidio" colgaba de usuarioPreTransferencia, que
+          es quien CREO la transferencia: con el solicitante al lado, las dos
+          filas se contradecian.
+        -->
         <frc-seccion titulo="Quién intervino" [panel]="true">
-          <frc-dato etiqueta="Pidió" [valor]="quien(t.usuarioPreTransferencia)" />
+          <frc-dato etiqueta="Solicitante" [valor]="quien(t.solicitante)" />
+          <frc-dato etiqueta="Creó" [valor]="quien(t.usuarioPreTransferencia)" />
           <frc-dato etiqueta="Preparó" [valor]="quien(t.usuarioPreparacion)" />
           <frc-dato etiqueta="Transportó" [valor]="quien(t.usuarioTransporte)" />
           <frc-dato etiqueta="Recibió" [valor]="quien(t.usuarioRecepcion)" />
@@ -106,9 +209,57 @@ interface Paso {
           />
         } @else {
           <frc-seccion [titulo]="'Productos (' + items().length + ')'">
+            @if (verificando()) {
+              <button matButton="tonal" class="escanear" (click)="escanearParaVerificar()">
+                Escanear producto
+              </button>
+            }
             @for (item of items(); track item.id) {
               <article class="item">
-                <div class="nombre">{{ item.producto?.descripcion ?? 'Producto' }}</div>
+                <div class="cabecera">
+                  <div class="nombre">{{ item.producto?.descripcion ?? 'Producto' }}</div>
+                  @if (verificando()) {
+                    <span class="marca" [class]="'marca-' + marcaDe(item)">
+                      {{ textoDeMarca(item) }}
+                    </span>
+                    @if (editable()) {
+                      <button
+                        type="button"
+                        class="menu-btn"
+                        [matMenuTriggerFor]="menu"
+                        aria-label="Acciones del ítem"
+                      >
+                        <frc-icono nombre="masOpciones" [tamano]="20" />
+                      </button>
+                      <mat-menu #menu="matMenu">
+                        <button mat-menu-item (click)="verificarProducto(item)">
+                          <frc-icono nombre="escanear" [tamano]="18" />
+                          <span class="etiqueta-menu">Verificar con el código</span>
+                        </button>
+                        <button mat-menu-item (click)="confirmar(item)">
+                          <frc-icono nombre="check" [tamano]="18" />
+                          <span class="etiqueta-menu">Confirmar como viene</span>
+                        </button>
+                        <button mat-menu-item (click)="modificar(item)">
+                          <frc-icono nombre="editar" [tamano]="18" />
+                          <span class="etiqueta-menu">Modificar</span>
+                        </button>
+                        <button mat-menu-item (click)="rechazar(item)">
+                          <frc-icono nombre="cancelar" [tamano]="18" />
+                          <span class="etiqueta-menu">Rechazar</span>
+                        </button>
+                        <button
+                          mat-menu-item
+                          [disabled]="!estaVerificado(item)"
+                          (click)="desconfirmar(item)"
+                        >
+                          <frc-icono nombre="atras" [tamano]="18" />
+                          <span class="etiqueta-menu">Deshacer</span>
+                        </button>
+                      </mat-menu>
+                    }
+                  }
+                </div>
                 <ul class="pasos">
                   @for (p of pasosDe(item); track p.etiqueta) {
                     <li class="paso">
@@ -133,13 +284,55 @@ interface Paso {
     </frc-pagina>
   `,
   styles: `
+    .botonera {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: var(--sp-2);
+    }
+    /* Sin acción para esta etapa el envoltorio queda vacío y la barra se oculta. */
+    .botonera:empty { display: none; }
+    .bloqueo {
+      margin: 0;
+      color: var(--warn);
+      font-size: var(--fs-caption);
+    }
+    .escanear { align-self: stretch; }
     .item {
       background: var(--surface);
       border: 1px solid var(--border-light);
       border-radius: var(--radius-md);
       padding: var(--sp-3);
     }
-    .nombre { font-weight: var(--fw-medium); }
+    .cabecera {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .nombre {
+      flex: 1;
+      min-width: 0;
+      font-weight: var(--fw-medium);
+    }
+    .marca {
+      font-size: var(--fs-caption);
+      border-radius: var(--radius-full);
+      padding: 2px var(--sp-2);
+      white-space: nowrap;
+    }
+    .marca-pendiente { background: var(--neutral-bg); color: var(--neutral); }
+    .marca-verificado { background: var(--ok-bg); color: var(--ok); }
+    .marca-modificado { background: var(--warn-bg); color: var(--warn); }
+    .marca-rechazado { background: var(--danger-bg); color: var(--danger); }
+    .menu-btn {
+      background: none;
+      border: 0;
+      color: var(--text-mute);
+      cursor: pointer;
+      padding: var(--sp-1);
+      line-height: 0;
+    }
+    .etiqueta-menu { margin-left: var(--sp-2); }
     .pasos {
       list-style: none;
       margin: var(--sp-2) 0 0;
@@ -173,17 +366,36 @@ interface Paso {
 })
 export class TransferenciaDetallePage {
   private readonly dialogo = inject(DialogoService);
+  private readonly dialog = inject(MatDialog);
   private readonly servicio = inject(TransferenciaService);
+  private readonly auth = inject(AuthService);
+  private readonly escaner = inject(EscanerService);
+  private readonly productos = inject(ProductoBusquedaService);
+  private readonly notificacion = inject(NotificacionService);
+  private readonly router = inject(Router);
 
   /** Input opcional: el router lo asigna después de construir (NG0950). */
   readonly id = input<string>();
+
+  /**
+   * El código con el que se llegó, si vino de un QR o de un enlace compartido.
+   *
+   * Lo pone el escáner universal al leer el QR de una transferencia —o el
+   * código cargado a mano—, y lo trae el enlace de WhatsApp. Es la prueba de
+   * que el responsable le pasó la transferencia a quien la abre: ver
+   * `puedeTomarEtapa`.
+   */
+  readonly qr = input<string>();
 
   readonly transferencia = signal<Transferencia | null>(null);
   readonly items = signal<TransferenciaItem[]>([]);
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
 
-  readonly etapaLegible = computed(() => this.legible(this.transferencia()?.etapa ?? ''));
+  readonly etapaLegible = computed(() => {
+    const etapa = this.transferencia()?.etapa;
+    return etapa ? ETAPA_ETIQUETAS[etapa] : '—';
+  });
   readonly rol = computed(() => {
     const t = this.transferencia();
     if (t?.isOrigen && t?.isDestino) {
@@ -196,6 +408,91 @@ export class TransferenciaDetallePage {
       return 'Destino — recibís y verificás';
     }
     return 'Solo consulta';
+  });
+
+  /** El responsable de la etapa en curso: el que puede tocar los ítems. */
+  readonly responsable = computed(() => responsableDeEtapa(this.transferencia()));
+
+  /** `true` si en esta etapa los ítems se verifican uno por uno. */
+  readonly verificando = computed(() => esEtapaDeVerificacion(this.transferencia()?.etapa));
+
+  /** `true` si este usuario es quien tomó la etapa —o si nadie la tomó—. */
+  readonly puedeEditar = computed(() =>
+    puedeEditarEtapa(this.transferencia(), this.auth.usuario()?.id),
+  );
+
+  /**
+   * `true` si se llegó con el código de **esta** transferencia.
+   *
+   * Se compara el id: el QR de otra transferencia no habilita esta.
+   */
+  readonly conCodigo = computed(() => {
+    const delQr = transferenciaDelQr(this.qr());
+    return delQr != null && delQr === Number(this.id());
+  });
+
+  /** `true` si este usuario puede hacerse cargo de la etapa siguiente. */
+  readonly puedeTomar = computed(() =>
+    puedeTomarEtapa(this.transferencia(), this.auth.usuario()?.id, this.conCodigo()),
+  );
+
+  /** `true` si se pueden tocar los ítems ahora mismo. */
+  readonly editable = computed(() => this.verificando() && this.puedeEditar());
+
+  /** El avance que corresponde desde la etapa actual. */
+  readonly accion = computed<AccionEtapa | null>(() => accionDeEtapa(this.transferencia()));
+
+  /** Los ítems que faltan revisar en la etapa en curso. */
+  readonly pendientes = computed(() =>
+    itemsSinVerificar(this.items(), this.transferencia()?.etapa),
+  );
+
+  /**
+   * `true` si el botón de avance se puede apretar.
+   *
+   * Las etapas que **cierran** una verificación exigen ser el responsable y
+   * no dejar ítems sin revisar. El código de la transferencia no alcanza:
+   * cerrar la etapa ajena es dar por bueno lo que verificó otro.
+   *
+   * Las otras —tomar la preparación, pasar a transporte, iniciar la
+   * recepción— son el acto de hacerse cargo de la etapa siguiente. Esas las
+   * aprieta el responsable actual, o quien llegó con el código: el traspaso
+   * de `frc-mobile`, en el que el que termina le pasa el QR al que sigue.
+   */
+  readonly accionHabilitada = computed(() => {
+    const accion = this.accion();
+    if (!accion) {
+      return false;
+    }
+    if (!accion.exigeItemsVerificados) {
+      return this.puedeTomar();
+    }
+    return this.puedeEditar() && this.pendientes().length === 0;
+  });
+
+  /** Por qué el botón está apagado, en palabras. */
+  readonly motivoDeBloqueo = computed<string | null>(() => {
+    const accion = this.accion();
+    if (!accion || this.accionHabilitada()) {
+      return null;
+    }
+    const nombre = this.responsable()?.persona?.nombre;
+    if (!accion.exigeItemsVerificados) {
+      // Una transferencia ajena abierta sin su código: el camino es pedirlo.
+      const aNombreDe = nombre
+        ? 'Esta transferencia está a nombre de ' + nombre
+        : 'Esta transferencia está a nombre de otra persona';
+      return aNombreDe + '. Para continuar, pedile el QR o el código y escanealo.';
+    }
+    if (!this.puedeEditar()) {
+      return nombre
+        ? 'Esta etapa la está trabajando ' + nombre + '.'
+        : 'Esta etapa la está trabajando otra persona.';
+    }
+    const faltan = this.pendientes().length;
+    return faltan === 1
+      ? 'Falta revisar 1 producto para poder continuar.'
+      : 'Faltan revisar ' + faltan + ' productos para poder continuar.';
   });
 
   constructor() {
@@ -220,6 +517,13 @@ export class TransferenciaDetallePage {
       next: (t) => {
         this.transferencia.set(t ?? null);
         this.cargando.set(false);
+        // Una transferencia en creación todavía no tiene etapas que mostrar:
+        // lo que corresponde es terminar de cargarla. Redirigir acá es lo que
+        // deja que la lista navegue siempre a `/transferencias/:id` sin saber
+        // en qué estado está.
+        if (esBorrador(t)) {
+          void this.router.navigate(['/transferencias', id, 'borrador'], { replaceUrl: true });
+        }
       },
       error: (err: Error) => {
         this.error.set(err.message);
@@ -227,12 +531,358 @@ export class TransferenciaDetallePage {
       },
     });
 
-    this.servicio.items(id).subscribe({
+    this.cargarItems();
+  }
+
+  cargarItems(): void {
+    const id = Number(this.id());
+    if (!Number.isFinite(id)) {
+      return;
+    }
+    this.servicio.items(id, 0, TODOS).subscribe({
       next: (lista) => this.items.set(lista),
       // Los ítems son secundarios respecto de la cabecera: si fallan, el
       // detalle sigue mostrando en qué estado está la transferencia.
       error: () => undefined,
     });
+  }
+
+  // ────────────────────────────────────────────────────── Avance de etapa ──
+
+  /**
+   * Avanza el workflow.
+   *
+   * ⚠️ **`avanzarEtapaTransferencia` es el único camino.** Guardar la
+   * transferencia con la etapa cambiada saltea las validaciones y los
+   * movimientos de stock que el central aplica en el avance.
+   */
+  async avanzar(accion: AccionEtapa): Promise<void> {
+    const transferencia = this.transferencia();
+    const usuarioId = this.auth.usuario()?.id;
+    // El botón ya está apagado; esto cubre que se dispare igual.
+    if (transferencia?.id == null || usuarioId == null || !this.accionHabilitada()) {
+      return;
+    }
+
+    if (accion.exigeQrDeDestino && !(await this.confirmarSucursalDestino())) {
+      return;
+    }
+
+    const confirmado = await this.dialogo.confirmar({
+      titulo: 'Revisá los datos antes de continuar',
+      mensaje: AVISO_ETAPA[accion.destino],
+      confirmar: accion.texto,
+    });
+    if (!confirmado) {
+      return;
+    }
+
+    this.servicio.avanzarEtapa(transferencia.id, accion.destino, usuarioId).subscribe({
+      next: (ok) => {
+        if (ok) {
+          this.notificacion.ok(ETAPA_ETIQUETAS[accion.destino]);
+          // Se recarga en vez de parchear: el avance escribe estado, etapa,
+          // responsable y las cantidades de todos los ítems. Adivinar acá qué
+          // quedó guardado es exactamente lo que hace que la pantalla muestre
+          // algo distinto de lo que tiene el central.
+          this.cargar();
+        }
+      },
+      error: () => undefined,
+    });
+  }
+
+  /**
+   * Pide el QR de la sucursal de destino antes de abrir la recepción.
+   *
+   * ⚠️ **No bloquea si el escaneo se cancela.** Es lo que hace `frc-mobile`, y
+   * a propósito: en varios teléfonos la cámara no abre, y la recepción no
+   * puede quedar clavada por eso. Lo que sí frena es un QR que apunta a otra
+   * sucursal — ahí la mercadería se está abriendo donde no debía llegar.
+   */
+  private async confirmarSucursalDestino(): Promise<boolean> {
+    const destinoId = this.transferencia()?.sucursalDestino?.id;
+    const codigo = await this.escaner.escanear({
+      titulo: 'Escaneá el QR de la sucursal',
+      ayuda: 'Confirmá que estás recibiendo en la sucursal de destino.',
+      formatos: FORMATOS_QR,
+    });
+    if (!codigo) {
+      return true;
+    }
+
+    const qr = descodificarQr(codigo);
+    const tipo = (qr?.tipoEntidad ?? '').trim().toUpperCase();
+    const sucursalId = Number(qr?.sucursalId);
+    if (tipo !== TipoEntidad.SUCURSAL || !Number.isFinite(sucursalId)) {
+      this.notificacion.warn('Ese código no es el QR de una sucursal.');
+      return true;
+    }
+    if (destinoId != null && Number(destinoId) !== sucursalId) {
+      this.notificacion.danger('El QR no es de la sucursal de destino de esta transferencia.');
+      return false;
+    }
+    this.notificacion.ok('Sucursal confirmada.');
+    return true;
+  }
+
+  // ─────────────────────────────────────────────────── Acciones por ítem ──
+
+  /** Toma tal cual lo que declaró la etapa anterior. */
+  confirmar(item: TransferenciaItem): void {
+    void this.guardarVerificacion(item, {});
+  }
+
+  async modificar(item: TransferenciaItem): Promise<void> {
+    const etapa = this.etapaDeVerificacion();
+    if (!etapa) {
+      return;
+    }
+    const data: ModificarItemData = {
+      item,
+      etapa,
+      etiquetaEtapa: ETIQUETA_DE_ETAPA[etapa],
+    };
+    const ref = this.dialog.open<
+      ModificarItemDialogComponent,
+      ModificarItemData,
+      VerificacionItem | undefined
+    >(ModificarItemDialogComponent, { data, width: '420px', maxWidth: '94vw' });
+
+    const cambios = await firstValueFrom(ref.afterClosed());
+    if (cambios) {
+      await this.guardarVerificacion(item, cambios);
+    }
+  }
+
+  async rechazar(item: TransferenciaItem): Promise<void> {
+    const etapa = this.etapaDeVerificacion();
+    if (!etapa) {
+      return;
+    }
+    const data: RechazarItemData = {
+      producto: item.producto?.descripcion ?? 'Producto',
+      etiquetaEtapa: ETIQUETA_DE_ETAPA[etapa],
+    };
+    const ref = this.dialog.open<
+      RechazarItemDialogComponent,
+      RechazarItemData,
+      MotivoRechazo | undefined
+    >(RechazarItemDialogComponent, { data, width: '380px', maxWidth: '94vw' });
+
+    const motivo = await firstValueFrom(ref.afterClosed());
+    if (!motivo) {
+      return;
+    }
+    const guardado = await this.guardarVerificacion(item, { motivoRechazo: motivo });
+    if (guardado) {
+      this.avisarDelRechazo(item, motivo);
+    }
+  }
+
+  /**
+   * Deshace la verificación del ítem en esta etapa.
+   *
+   * ⚠️ **Va por `desconfirmarTransferenciaItem`, no por el save.** El save del
+   * central es un PATCH y mandar `null` no borra: `frc-mobile` desconfirma
+   * poniendo nulos y guardando, y contra este central eso deja el ítem tal
+   * como estaba mientras la pantalla muestra lo contrario.
+   */
+  desconfirmar(item: TransferenciaItem): void {
+    const etapa = this.etapaDeVerificacion();
+    if (etapa == null || item.id == null) {
+      return;
+    }
+    this.servicio
+      .desconfirmarItem(item.id, etapa, { mensajeExito: 'Verificación deshecha' })
+      .subscribe({
+        next: () => this.cargarItems(),
+        error: () => undefined,
+      });
+  }
+
+  /**
+   * Lee un código y avisa si corresponde —o no— al producto del ítem.
+   *
+   * Solo verifica: no confirma nada. Es el control de que se está mirando el
+   * producto correcto antes de confirmarlo a mano.
+   */
+  async verificarProducto(item: TransferenciaItem): Promise<void> {
+    const productoId = item.producto?.id;
+    if (productoId == null) {
+      this.notificacion.warn('El ítem no tiene producto asociado.');
+      return;
+    }
+    const codigo = await this.escaner.escanear({
+      titulo: 'Escaneá el producto',
+      ayuda: item.producto?.descripcion ?? undefined,
+      formatos: FORMATOS_PRODUCTO,
+    });
+    if (!codigo) {
+      return;
+    }
+
+    let leido;
+    try {
+      leido = await firstValueFrom(this.productos.porEscaneo(codigo));
+    } catch {
+      leido = null;
+    }
+    if (!leido?.id) {
+      this.notificacion.danger('Ningún producto tiene ese código.');
+      return;
+    }
+    if (Number(leido.id) === Number(productoId)) {
+      this.notificacion.ok('Producto correcto.');
+    } else {
+      this.notificacion.danger('No corresponde: ese código es de ' + leido.descripcion + '.');
+    }
+  }
+
+  /** Busca el ítem del producto escaneado y abre su verificación. */
+  async escanearParaVerificar(): Promise<void> {
+    const codigo = await this.escaner.escanear({
+      titulo: 'Escaneá el producto',
+      ayuda: 'Se abre el ítem que corresponde a ese código.',
+      formatos: FORMATOS_PRODUCTO,
+    });
+    if (!codigo) {
+      return;
+    }
+
+    let leido;
+    try {
+      leido = await firstValueFrom(this.productos.porEscaneo(codigo));
+    } catch {
+      leido = null;
+    }
+    if (!leido?.id) {
+      this.notificacion.danger('Ningún producto tiene ese código.');
+      return;
+    }
+    const item = this.items().find((i) => Number(i.producto?.id) === Number(leido.id));
+    if (!item) {
+      this.notificacion.warn('Ese producto no está en esta transferencia.');
+      return;
+    }
+    await this.modificar(item);
+  }
+
+  // ────────────────────────────────────────────────────────────── Interno ──
+
+  /**
+   * Guarda lo verificado y recarga los ítems.
+   *
+   * ⚠️ **Si el ítem traía un motivo y deja de tenerlo, primero se
+   * desconfirma.** El save es un PATCH: mandar el motivo en `null` no lo
+   * borra, así que confirmar un ítem antes rechazado lo dejaría rechazado
+   * mientras la pantalla lo muestra en verde.
+   */
+  private async guardarVerificacion(
+    item: TransferenciaItem,
+    cambios: VerificacionItem,
+  ): Promise<boolean> {
+    const etapa = this.etapaDeVerificacion();
+    const transferenciaId = this.transferencia()?.id;
+    if (etapa == null || transferenciaId == null || item.id == null) {
+      return false;
+    }
+
+    try {
+      if (requiereDesconfirmarAntes(item, etapa, cambios)) {
+        await firstValueFrom(this.servicio.desconfirmarItem(item.id, etapa));
+      }
+      const input = inputDeVerificacion(item, transferenciaId, etapa, cambios);
+      await firstValueFrom(this.servicio.guardarItem(input));
+      // Se recarga en vez de parchear la fila: el central recalcula el
+      // movimiento de stock al guardar, y adivinar acá qué quedó sería
+      // mostrar un número que no es el que se guardó.
+      this.cargarItems();
+      return true;
+    } catch {
+      // `DatosService` ya mostró el error.
+      return false;
+    }
+  }
+
+  /**
+   * Avisa por push del rechazo a quien trabajó la etapa anterior.
+   *
+   * ⚠️ **En `frc-mobile` el aviso va al responsable de la etapa en curso**,
+   * que es quien acaba de rechazar: se manda un push a sí mismo. El que
+   * necesita enterarse es el de la etapa anterior — el que preparó lo que
+   * ahora se rechaza—, y es a quien se avisa acá.
+   *
+   * Es best-effort: el rechazo ya está guardado y un push que falla no puede
+   * voltearlo.
+   */
+  private avisarDelRechazo(item: TransferenciaItem, motivo: MotivoRechazo): void {
+    const t = this.transferencia();
+    const personaId = this.responsableAnterior()?.persona?.id;
+    if (personaId == null || t?.id == null) {
+      return;
+    }
+    this.servicio
+      .avisarPorPush(
+        Number(personaId),
+        'Ítem rechazado en la transferencia ' + t.id,
+        (item.producto?.descripcion ?? 'Un ítem') +
+          ' fue rechazado por: ' +
+          MOTIVO_RECHAZO_ETIQUETAS[motivo],
+      )
+      .subscribe({ next: () => undefined, error: () => undefined });
+  }
+
+  /** Quién trabajó la etapa anterior a la que está verificando. */
+  private responsableAnterior(): Transferencia['usuarioPreparacion'] {
+    const t = this.transferencia();
+    switch (t?.etapa) {
+      case EtapaTransferencia.PREPARACION_MERCADERIA:
+        return t?.usuarioPreTransferencia;
+      case EtapaTransferencia.TRANSPORTE_VERIFICACION:
+        return t?.usuarioPreparacion;
+      case EtapaTransferencia.RECEPCION_EN_VERIFICACION:
+        return t?.usuarioTransporte;
+      default:
+        return undefined;
+    }
+  }
+
+  private etapaDeVerificacion(): EtapaVerificacion | null {
+    const etapa = this.transferencia()?.etapa;
+    return esEtapaDeVerificacion(etapa) ? etapa : null;
+  }
+
+  // ───────────────────────────────────────────────────────────── Plantilla ──
+
+  estaVerificado(item: TransferenciaItem): boolean {
+    const etapa = this.etapaDeVerificacion();
+    return etapa != null && itemVerificado(item, etapa);
+  }
+
+  /** `pendiente` · `verificado` · `modificado` · `rechazado`. */
+  marcaDe(item: TransferenciaItem): string {
+    const etapa = this.transferencia()?.etapa;
+    if (itemRechazado(item, etapa)) {
+      return 'rechazado';
+    }
+    if (itemModificado(item, etapa)) {
+      return 'modificado';
+    }
+    return this.estaVerificado(item) ? 'verificado' : 'pendiente';
+  }
+
+  textoDeMarca(item: TransferenciaItem): string {
+    switch (this.marcaDe(item)) {
+      case 'rechazado':
+        return 'Rechazado';
+      case 'modificado':
+        return 'Modificado';
+      case 'verificado':
+        return 'Verificado';
+      default:
+        return 'Sin revisar';
+    }
   }
 
   /**
@@ -301,7 +951,6 @@ export class TransferenciaDetallePage {
     if (id == null) {
       return;
     }
-    const sucursalId = (this.transferencia() as { sucursal?: { id?: number } })?.sucursal?.id;
     await this.dialogo.abrir<QrDialogComponent, DatosQr>(QrDialogComponent, {
       titulo: 'Compartir transferencia',
       subtitulo: 'Transferencia #' + id,

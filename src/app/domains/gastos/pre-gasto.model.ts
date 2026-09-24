@@ -8,9 +8,18 @@ export interface PersonaResumen {
 export interface TipoGasto {
   id?: number;
   descripcion?: string;
+  activo?: boolean;
+  autorizacion?: boolean;
   /** Decide qué activo hace falta. Ver `tipo-gasto.reglas.ts`. */
   moduloPadre?: string;
-  naturaleza?: string;
+  /**
+   * ⚠️ Se llama `tipoNaturaleza`, no `naturaleza`. Es el nombre del campo en
+   * el central (`financiero/tipo_gasto.graphqls`). Con el nombre corto la
+   * naturaleza llegaba `undefined` y `mostrarCuotasActivo` devolvía `false`
+   * para todo gasto recurrente, sin que nada fallara.
+   */
+  tipoNaturaleza?: string;
+  esPagoCuotaActivo?: boolean;
 }
 
 /** Montos retirados y devueltos, **por moneda**, no como lista. */
@@ -93,4 +102,56 @@ export interface ConfirmarRetiroInput {
   sucursalId: number;
   qrToken: string;
   funcionarioPersonaId: number;
+}
+
+export type BeneficiarioTipo = 'PERSONA' | 'PROVEEDOR';
+
+/**
+ * Una fila del detalle financiero **como la maneja el formulario**, con los
+ * campos todavía sin completar. `PreGastoDetalleFinanzasInput` es la versión
+ * ya validada que viaja al central.
+ */
+export interface DetalleFinanciero {
+  monto: number | null;
+  monedaId: number | null;
+  formaPago: string | null;
+}
+
+/** Lo que se necesita de una moneda para formatear un importe. */
+export interface MonedaResumen {
+  // ⚠️ GraphQL serializa el tipo `ID` como string: `monedas` devuelve
+  // `{ id: "1", ... }`, no `{ id: 1, ... }`. El tipo admite las dos formas
+  // para que comparar contra este `id` no asuma cuál llegó.
+  id: number | string;
+  denominacion?: string;
+  simbolo?: string;
+}
+
+/** Una fila del detalle financiero. Una moneda por fila, sin repetir. */
+export interface PreGastoDetalleFinanzasInput {
+  monedaId: number;
+  formaPago: string;
+  monto: number;
+}
+
+/**
+ * Lo que recibe `savePreGasto`.
+ *
+ * ⚠️ Viaja bajo el argumento `entity:`, que es lo que manda `DatosService.guardar`.
+ * `saveEnte`, en el mismo flujo, lo recibe bajo `ente:`.
+ */
+export interface PreGastoInput {
+  id?: number;
+  sucursalId: number;
+  sucursalCajaId?: number;
+  funcionarioId?: number;
+  tipoGastoId?: number;
+  descripcion?: string;
+  usuarioId?: number;
+  nivelUrgencia?: string;
+  beneficiarioProveedorId?: number;
+  beneficiarioPersonaId?: number;
+  fechaVencimiento?: string;
+  enteId?: number;
+  finanzas: PreGastoDetalleFinanzasInput[];
 }

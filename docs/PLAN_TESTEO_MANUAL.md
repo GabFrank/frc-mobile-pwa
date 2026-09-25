@@ -6488,7 +6488,7 @@ diálogo (12 px) en los cuatro lados.
 
 ---
 
-## Bloque 72 — Las horas de la tarjeta «Hoy» en Marcación *(nuevo, sin probar)*
+## Bloque 72 — Las horas de la tarjeta «Hoy» en Marcación *(nuevo)* — **1/2** (Franco, iPhone con Safari, build de producción de la rama por túnel contra alpha, 2026-09-25)
 
 **Por qué está acá:** probado en iPhone contra alpha (2026-09-25), «Salió a
 almorzar» y «Salida» mostraban «—»; «Entrada» y «Volvió» sí tenían hora. Las
@@ -6496,7 +6496,7 @@ dos rotas son las SALIDA: una salida marcada desde la PWA guarda su hora en
 `fechaEntrada` —la PWA no manda fecha y el central completa ese campo para
 cualquier tipo— y la tarjeta la buscaba en `fechaSalida`.
 
-### 72.1 · Las cuatro horas de una jornada completa
+### 72.1 · Las cuatro horas de una jornada completa — ✅ PASÓ
 1. **Marcar entrada**, **Salir a almorzar**, **Volver del almuerzo** y
    **Marcar salida**, esperando un minuto entre cada una.
 2. Mirar la tarjeta **Hoy** después de cada marcación.
@@ -6590,7 +6590,7 @@ almuerzo **no aparecen** (no se muestran con «—»).
 | 69 · Nombres de zona y botones de la card | 3 | | | |
 | 70 · Lotes en el conteo: presentación, fechas y stock | 6 | 5 | | |
 | 71 · Margen de los diálogos | 3 | 3 | | |
-| 72 · Las horas de la tarjeta «Hoy» en Marcación | 2 | | | |
+| 72 · Las horas de la tarjeta «Hoy» en Marcación | 2 | 1 | | |
 | **Total** | **633** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

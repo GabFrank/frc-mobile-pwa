@@ -5,7 +5,8 @@ Rama: `fix/marcacion-horas-almuerzo` (desde `develop` @ `9a5f5f3`). Pieza: **mob
 ## El bug
 
 Probando en iPhone contra alpha (2026-09-25, usuario 410, jornadas 25 y 27): la tarjeta «Hoy»
-muestra «—» en la hora de «Salió a almorzar».
+muestra «—» en la hora de «Salió a almorzar» y de «Salida»; «Entrada» y «Volvió» sí tienen hora
+(confirmado por el usuario). Son exactamente las dos filas de tipo SALIDA.
 
 **Causa, verificada en la base `alpha`:** la PWA no manda ninguna fecha en `saveMarcacion`, y
 `MarcacionService.prepararMarcacion()` del central, cuando las dos vienen nulas, completa
@@ -70,11 +71,7 @@ existente se lee]`. Migraciones: N/A, no hay persistencia.
 
 ## Qué queda sin verificar
 
-- **La fila «Volvió».** El reporte dice que también salía «—», pero en la base la marcación de
-  retorno (ENTRADA) tiene `fecha_entrada`, que es lo que la plantilla lee; no es caché
-  (`fetchPolicy: 'no-cache'`, `app.config.ts:78`), y si faltara la marcación el `@if` ocultaría la
-  fila. Con el fix las cuatro filas usan la misma regla. Re-prueba en el iPhone anotando la versión
-  (Mi cuenta) y, si vuelve a salir «—», capturando la respuesta de `estadoMarcacionUsuario`.
+- El fix en un teléfono real (bloque 72 del plan de testeo): alpha no lo tiene hasta el merge.
 - Las 12 filas ya escritas no se tocan: con la regla de lectura se muestran bien en la PWA.
 
 ## Auditoría (paso 5)
@@ -86,5 +83,5 @@ existente se lee]`. Migraciones: N/A, no hay persistencia.
 | A + B | «`sucursal_salida_id` queda vacía» era falso: `MarcacionGraphQL.java:102-106` la completa | Observación quitada |
 | B | Test «ningún —» poco discriminante («Trabajadas» también puede dar «—») | Horas distintas por fila y texto exacto |
 | B | Filas viejas de frc-mobile con la salida ~1 h antes de la entrada (reloj del dispositivo) | Gotcha en `docs/modulos/marcacion.md`; el test no promete la hora |
-| B | «Volvió = —» sin explicación en datos ni caché | Queda sin verificar; re-prueba con versión anotada |
+| B | «Volvió = —» sin explicación en datos ni caché | Resuelto: el usuario aclaró que «Volvió» sí tenía hora; solo fallaban las dos SALIDA, que es lo que dicen los datos |
 | B | Sin migración, sin datos tocados, query igual: revertible con `git revert`; convivencia de 2 h sin daño | N/A justificado |

@@ -6491,15 +6491,10 @@ diálogo (12 px) en los cuatro lados.
 ## Bloque 72 — Las horas de la tarjeta «Hoy» en Marcación *(nuevo, sin probar)*
 
 **Por qué está acá:** probado en iPhone contra alpha (2026-09-25), «Salió a
-almorzar» mostraba «—». Una salida marcada desde la PWA guarda su hora en
+almorzar» y «Salida» mostraban «—»; «Entrada» y «Volvió» sí tenían hora. Las
+dos rotas son las SALIDA: una salida marcada desde la PWA guarda su hora en
 `fechaEntrada` —la PWA no manda fecha y el central completa ese campo para
 cualquier tipo— y la tarjeta la buscaba en `fechaSalida`.
-
-> Se prueba con la app **actualizada**: antes de empezar, mirá la versión en
-> **Mi cuenta** y anotala en el reporte. El «—» en «Volvió» que se reportó
-> junto con este bug no se pudo explicar con los datos (la marcación de
-> retorno sí tenía su hora); si vuelve a aparecer con esta versión, es otro
-> problema.
 
 ### 72.1 · Las cuatro horas de una jornada completa
 1. **Marcar entrada**, **Salir a almorzar**, **Volver del almuerzo** y
@@ -6517,14 +6512,6 @@ orden creciente.
 
 **Esperado:** aparecen **Entrada** y **Salida** con hora. Las filas del
 almuerzo **no aparecen** (no se muestran con «—»).
-
-### 72.3 · Si «Volvió» vuelve a salir «—»
-1. Solo si en 72.1 alguna fila dice «—»: repetir en Chrome de escritorio con
-   las herramientas de desarrollo abiertas, pestaña **Red**, y buscar la
-   respuesta de `estadoMarcacionUsuario`.
-
-**Esperado:** no hace falta. Si hace falta, adjuntar en el reporte esa
-respuesta, la versión de la app y cuál fila falló.
 
 ---
 
@@ -6603,8 +6590,8 @@ respuesta, la versión de la app y cuál fila falló.
 | 69 · Nombres de zona y botones de la card | 3 | | | |
 | 70 · Lotes en el conteo: presentación, fechas y stock | 6 | 5 | | |
 | 71 · Margen de los diálogos | 3 | 3 | | |
-| 72 · Las horas de la tarjeta «Hoy» en Marcación | 3 | | | |
-| **Total** | **634** | | | |
+| 72 · Las horas de la tarjeta «Hoy» en Marcación | 2 | | | |
+| **Total** | **633** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

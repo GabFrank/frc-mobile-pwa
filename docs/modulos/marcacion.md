@@ -52,6 +52,10 @@ Es el módulo con más integración de hardware del repo: cámara, GPS y motor d
 
 > **Regla clave — `esSalidaAlmuerzo` cambia el cálculo de horas.** Una salida de almuerzo no cierra la jornada. Tratarla como salida normal parte la jornada en dos y descuadra las horas trabajadas.
 
+> ⚠️ **Gotcha — la hora de una salida no está necesariamente en `fechaSalida`.** Cada marcación es un evento con **una sola** fecha, y cuál de los dos campos la lleva depende de quién la escribió. La PWA no manda fecha: `MarcacionService.prepararMarcacion()` del central completa `fechaEntrada = now()` **para cualquier tipo**, así que una SALIDA de la PWA tiene la hora en `fecha_entrada` y `fecha_salida` nula. frc-mobile, en cambio, mandaba `fechaSalida` en las salidas. La regla de lectura es **`fechaSalida ?? fechaEntrada`** —la de `HorasTrabajadasCalculator` y `TardanzaCalculator` del central— y en la PWA vive en `momentoDeMarcacion()`: leer el campo por el tipo muestra «—». **No la aplican todavía** el desktop (`marcar-horario.component.ts`, que toma una salida así como entrada, y `resumen-marcaciones`, que la muestra «En Curso») ni frc-mobile. Lo que las arregla a todas es que el central complete `fecha_salida` en las SALIDA sin fecha: pendiente, en un PR aparte del central.
+
+> ⚠️ **Gotcha — las salidas viejas de frc-mobile tienen la hora del teléfono.** La mandaba el cliente, así que en alpha hay jornadas (7, 9, 11, 13) con la salida ~1 h **antes** que la entrada, que sí puso el servidor. Por eso no conviene que la PWA mande la fecha: el reloj del teléfono lo controla el funcionario.
+
 > ⚠️ **Gotcha — `sucursalId`, `sucursalEntrada` y `sucursalSalida` coexisten.** Entrada y salida pueden ser en sucursales distintas (un funcionario que se traslada). `sucursalId` es la de la marcación puntual.
 
 ## Sucursal persistida

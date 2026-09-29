@@ -16,8 +16,10 @@ import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
+  Marcacion,
   MarcacionInput,
   MetodoMarcacion,
+  momentoDeMarcacion,
   TipoMarcacion,
 } from 'src/app/domains/marcacion/marcacion.model';
 import { convertMsToTime, fechaLegible } from 'src/app/generic/utils/dateUtils';
@@ -131,15 +133,15 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
         <frc-seccion titulo="Hoy" [panel]="true">
           <frc-dato etiqueta="Estado" [valor]="resumenEstado()" />
           @if (jornada(); as j) {
-            <frc-dato etiqueta="Entrada" [valor]="hora(j.marcacionEntrada?.fechaEntrada)" />
+            <frc-dato etiqueta="Entrada" [valor]="hora(j.marcacionEntrada)" />
             @if (j.marcacionSalidaAlmuerzo) {
-              <frc-dato etiqueta="Salió a almorzar" [valor]="hora(j.marcacionSalidaAlmuerzo.fechaSalida)" />
+              <frc-dato etiqueta="Salió a almorzar" [valor]="hora(j.marcacionSalidaAlmuerzo)" />
             }
             @if (j.marcacionEntradaAlmuerzo) {
-              <frc-dato etiqueta="Volvió" [valor]="hora(j.marcacionEntradaAlmuerzo.fechaEntrada)" />
+              <frc-dato etiqueta="Volvió" [valor]="hora(j.marcacionEntradaAlmuerzo)" />
             }
             @if (j.marcacionSalida) {
-              <frc-dato etiqueta="Salida" [valor]="hora(j.marcacionSalida.fechaSalida)" />
+              <frc-dato etiqueta="Salida" [valor]="hora(j.marcacionSalida)" />
             }
             <frc-dato etiqueta="Trabajadas" [valor]="trabajadas()" />
           }
@@ -286,8 +288,12 @@ export class MarcacionPage {
     return this.det.detectar();
   }
 
-  hora(valor: string | undefined): string {
-    return fechaLegible(valor) ?? '—';
+  /**
+   * La hora de una marcación, sin elegir el campo por el tipo: una salida
+   * marcada desde la PWA la tiene en `fechaEntrada`. Ver `momentoDeMarcacion`.
+   */
+  hora(m: Marcacion | undefined): string {
+    return fechaLegible(momentoDeMarcacion(m)) ?? '—';
   }
 
   redondear(n: number): string {

@@ -49,13 +49,28 @@ build: una sola compilación sirve todas las puertas.
 
 | Canal | Puerta | API por defecto |
 |---|---|---|
-| alpha | `alpha.app.frcsuite.com` — detrás de **Cloudflare Access** | `alpha-api.frcsuite.com` → `mauro`, por túnel |
-| beta | `beta.app.frcsuite.com` | `farmacia-api.frcsuite.com` |
-| prod | `farmacia.app.frcsuite.com` · `bodega.app.frcsuite.com` | `farmacia-api` · `bodega-api` |
+| alpha | `alpha.app.frcsuite.com` — **sin Cloudflare Access** | `alpha-api.frcsuite.com` → `mauro`, por túnel |
+| beta | `beta.app.frcsuite.com` · **`farmacia.app.frcsuite.com`** | `farmacia-api.frcsuite.com` |
+| prod | `bodega.app.frcsuite.com` | `bodega-api.frcsuite.com` |
+
+> ⚠️ **Access se sacó de `alpha.app` y no vuelve.** Interceptaba **todas** las rutas del
+> hostname, así que el service worker pedía el shell (`index.html`, `manifest.webmanifest`, los
+> `.js`) y Access respondía 302 al dominio de login: CORS lo bloqueaba, `fetchAndCacheOnce`
+> tiraba, el grupo `prefetch` nunca terminaba de instalarse y **la app dejaba de poder
+> actualizarse** — sin que se viera como falla, porque la navegación inicial sí funcionaba.
+> No tiene arreglo limpio (bypassear los assets obliga a bypassear `index.html`, que el
+> `_redirects` sirve para toda ruta). La protección real es el login del ERP: el central rechaza
+> con 401 todo lo que llegue sin `Authorization: Token`. Verificado el 2026-09-02:
+> `GET https://alpha.app.frcsuite.com/` → `200`, sin redirección.
 
 > ⚠️ **El alpha del central vive en `mauro`, no en `159.203.86.103`.** En esa VM
 > había una instancia vieja en el puerto 8083 que se apagó el 2026-08-14. Si
 > algún documento todavía manda ahí, está viejo.
+
+> ⚠️ **`farmacia.app` cuelga del proyecto `frc-pwa-beta`, no de `frc-pwa-prod`** (re-mapeado el
+> 2026-08-20, verificado contra la API de Cloudflare el 2026-09-02). La red de farmacia corre la
+> serie **beta** del central, así que servirle builds estables la dejaba pidiéndole al backend
+> operaciones de otra versión. **«beta» acá es la farmacia y factura** — no es un canal de ensayo.
 
 El plan completo del pipeline —canales, aprobaciones, caché del service worker y
 los gotchas— está en `frc-cicd/plan-cicd-mobile-pwa.md`.

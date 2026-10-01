@@ -6082,6 +6082,439 @@ solicitante». Este caso existe porque la PWA finaliza con
 `finalizarTransferencia`, que movía la etapa **sin pasar por las validaciones**
 del otro camino.
 
+## Bloque 65 — La descripción completa del producto en las listas *(nuevo)* — **6/6** (Claude en Chrome, central local, usuario MAURO, 2026-09-21)
+
+> Probado en un viewport real de 390 px (la app dentro de un iframe de
+> 390×844: la ventana del navegador no se dejaba achicar). 65.4 se probó
+> desde devolución nueva; 65.5 sobre la zona «estante destilados» de la toma
+> 2522, concluida (solo lectura). La palabra sin espacios de 65.6 se simuló
+> cambiando el texto de una fila en pantalla: no hay ningún producto así en
+> la base. Falta un teléfono real, y iOS.
+
+**Por qué está acá:** en la lista de productos la descripción se cortaba en
+una línea con «…». Dos productos que comparten el principio del nombre
+(«COCA COLA 500ML…» y «COCA COLA 500ML ZERO…») eran la misma fila a la vista.
+Ahora el nombre baja a las líneas que necesite. Cambia en la card del
+buscador —pestaña **Buscar** y todo lo que la reusa: agregar producto a una
+transferencia, a una devolución, al conteo— y en la lista del conteo de
+inventario, que tiene su propia card.
+
+### 65.1 · Un nombre largo se lee entero en Buscar
+1. Ir a la pestaña **Buscar**.
+2. Buscar un producto de nombre largo (probar `coca`, `leche`, o cualquiera
+   con presentación y sabor en el nombre).
+
+**Esperado:** el nombre completo, en dos o más líneas si no entra en una.
+**Ningún** «…» al final del nombre. El código y el stock de abajo siguen en
+una línea.
+
+### 65.2 · La fila no se deforma
+1. En la misma lista, mirar una fila de nombre largo al lado de una de
+   nombre corto.
+
+**Esperado:** la foto (o el ícono) conserva su tamaño cuadrado y queda
+centrada a la altura de la fila; el chevron y el botón **⋮** quedan a la
+derecha, sin encimarse con el texto. La fila de nombre corto se ve igual que
+antes.
+
+### 65.3 · Expandir y cerrar una fila de nombre largo
+1. Tocar una fila de nombre largo para desplegar sus presentaciones.
+2. Volver a tocarla.
+
+**Esperado:** se despliega y se cierra como antes; el nombre sigue entero en
+los dos estados.
+
+### 65.4 · El diálogo de búsqueda de las otras pantallas
+1. Abrir una devolución nueva (o una zona de una toma de inventario) y tocar
+   **Agregar producto**.
+2. Buscar un producto de nombre largo.
+
+**Esperado:** igual que 65.1 — nombre entero, sin «…», y el diálogo sigue
+haciendo scroll si los resultados no entran.
+
+### 65.5 · La lista del conteo de inventario
+1. Abrir una toma de inventario con productos cargados en una zona.
+2. Mirar un renglón de nombre largo, y uno vencido (con el ícono rojo).
+
+**Esperado:** el nombre completo en varias líneas; el ícono de vencido sigue
+visible al lado del nombre, no empujado fuera de la card.
+
+### 65.6 · Teléfono angosto y tema oscuro
+1. Repetir 65.1 en un teléfono chico (o Chrome en 360 px de ancho) y en
+   tema oscuro.
+
+**Esperado:** sin scroll horizontal en ninguna fila; un nombre con una
+palabra muy larga sin espacios también corta dentro de la card en vez de
+salirse.
+
+---
+
+## Bloque 66 — El conteo ofrece solo la presentación de 1 *(nuevo, sin probar)*
+
+**Por qué está acá:** al agregar un producto al conteo, el buscador mostraba
+todas las presentaciones. Tocar «x6» en vez de «x1» cargaba el conteo en la
+caja: 100 unidades contadas se volvían 600 al finalizar la toma. Ahora, **solo
+en esa pantalla**, se ofrecen las presentaciones activas de cantidad 1; si el
+producto no tiene ninguna, todas.
+
+Preparación: una toma **abierta** con al menos una zona, y tres productos a
+mano: **A**, con presentación x1 y alguna de más unidades (x6, x12); **B**, con
+solo presentaciones de más de 1 (o con la x1 inactiva); y el código de barras
+de la caja de **A**.
+
+### 66.1 · Por descripción, solo la x1
+1. Abrir la zona → **Agregar producto**.
+2. Buscar **A** por descripción y tocar la fila para desplegarla.
+
+**Esperado:** una sola presentación, «Cantidad: 1 (…)», y debajo el aviso
+«Solo la presentación de 1 unidad: contá en unidades.». La x6 **no aparece**.
+
+### 66.2 · Escaneando la caja, igual solo la x1
+1. **Agregar producto** → escanear (o tipear) el código de la **caja** de **A**.
+2. Desplegar la fila.
+
+**Esperado:** igual que 66.1 — solo la x1, con el aviso. El código que se ve en
+la fila es el de la unidad, no el escaneado.
+
+### 66.3 · Elegir la x1 agrega el renglón en unidades
+1. Desde 66.1, tocar la x1.
+
+**Esperado:** el diálogo se cierra y aparece el renglón de **A** en la lista,
+con «Cantidad: 1» como presentación y el stock del sistema en unidades.
+
+### 66.4 · Sin presentación de 1, se ofrecen las activas
+1. **Agregar producto** → buscar **B** (por ejemplo 8353 CREMER CURITA, solo
+   x10) y desplegarlo.
+
+**Esperado:** se ven sus presentaciones **activas** y **sin** el aviso de
+«contá en unidades». Se puede elegir cualquiera.
+
+### 66.5 · Las otras pantallas no cambian
+1. Pestaña **Buscar** → buscar **A** y desplegarlo.
+2. Una transferencia en borrador (o una devolución nueva) → **Agregar
+   producto** → buscar **A**.
+
+**Esperado:** en las dos se ven **todas** las presentaciones de **A** y no hay
+aviso.
+
+### 66.6 · El renglón agregado vuelve desplegado
+1. Desde 66.1, tocar la x1.
+
+**Esperado:** la lista se recarga con el renglón de **A** **ya abierto**, a la
+vista, y el cursor en «Contado». En Android sube el teclado numérico; en un
+iPhone el campo queda enfocado pero hay que tocarlo para que suba.
+
+### 66.7 · El foco no vuelve
+1. Con el renglón de 66.6 abierto, escribir un número y tocar **Guardar
+   conteo**.
+
+**Esperado:** la lista se recarga con el renglón **contraído** y el teclado
+**no** vuelve a subir solo. Escribir en el campo no mueve la pantalla en cada
+tecla.
+
+### 66.8 · Un producto con lote se abre sin foco
+1. **Agregar producto** → elegir un producto con control de lote.
+
+**Esperado:** el renglón vuelve abierto y a la vista, con «Contado» bloqueado y
+el aviso de elegir o crear el lote. No sube el teclado.
+
+### 66.9 · Sin presentaciones, alerta y nada más
+1. **Agregar producto** → buscar un producto activo **sin presentaciones**
+   (en la base local: 5192 SELECTA YERBA MATE ELAB. ESPECIAL 250 G) y
+   desplegarlo.
+
+**Esperado:** en rojo, «Este producto no tiene presentaciones.», y **nada**
+para tocar. No se agrega ningún renglón.
+
+### 66.10 · Ninguna presentación activa, alerta y nada más
+1. **Agregar producto** → buscar un producto con todas sus presentaciones
+   inactivas (921 CARBON BRITEZ KUE GRANDE, cuya única x1 está inactiva) y
+   desplegarlo.
+
+**Esperado:** en rojo, «Este producto no tiene ninguna presentación activa.», y
+nada para tocar.
+
+### 66.11 · Buscar no cambia
+1. Pestaña **Buscar** → buscar 5192 y 921 y desplegarlos.
+
+**Esperado:** sin alertas rojas: 5192 dice «no tiene presentaciones cargadas» y
+921 muestra su x1 inactiva, como antes.
+
+### 66.12 · Sin red no acusa al catálogo
+1. **Agregar producto** → buscar por descripción (`coca cola 250`).
+2. Cortar la red (modo avión, o *Offline* en las herramientas del navegador) y
+   desplegar el producto.
+3. Volver a conectar y tocar **Reintentar**.
+
+**Esperado:** en el paso 2, «No se pudieron cargar las presentaciones» con
+**Reintentar** — **nunca** la alerta roja de «no tiene». En el paso 3 aparece
+la x1.
+
+*Sin dato real en la base local para «x1 inactiva + x6 activa» (se ofrece la
+x6 sin el aviso de unidades): lo cubre un test automático.*
+
+### 66.13 · Un botón por vez
+1. Abrir una zona con la toma abierta y **nada escrito**.
+2. Desplegar un renglón, escribir un número.
+3. Borrar el número.
+4. Volver a escribirlo y tocar **Guardar conteo**.
+
+**Esperado:** en 1, abajo solo *Agregar producto* (aunque haya un renglón
+abierto). En 2, solo «Guardar conteo (1)» — *Agregar producto* desaparece; un
+«Guardar» deshabilitado solo se ve mientras dice «Guardando…». En 3 vuelve *Agregar producto*. En 4,
+el renglón se contrae y vuelve *Agregar producto*.
+
+### 66.14 · Un producto con lote espera su lote
+1. **Agregar producto** → elegir un producto con control de lote.
+
+**Esperado:** el renglón abierto con el conteo bloqueado y **sin** botón
+abajo: el paso siguiente es el menú ⋮ para elegir o crear el lote.
+
+### 66.15 · Si el guardado falla, no se pierde
+1. Escribir un número en un renglón.
+2. Cortar la red y tocar **Guardar conteo**.
+
+**Esperado:** aviso de que no se guardó; el renglón queda **abierto** con el
+número escrito y abajo sigue «Guardar conteo (1)». Al volver la red y tocarlo,
+se guarda y se contrae.
+
+### 66.16 · Finalizar suma en unidades
+1. En la toma de prueba, contar **10** en el renglón de **A** agregado en 66.3,
+   guardar y finalizar la toma.
+
+**Esperado:** el ajuste de stock de **A** parte de **10 unidades**, no de 60 ni
+de 120.
+
+---
+
+## Bloque 67 — Un producto abierto a la vez en el buscador *(nuevo, sin probar)*
+
+**Por qué está acá:** en la lista del buscador se podía desplegar un producto
+con otro ya desplegado, y el primero quedaba abierto. Ahora abrir uno cierra
+el anterior. Vale en Buscar, transferencias, devoluciones y el conteo.
+
+### 67.1 · Abrir otro cierra el anterior
+1. Pestaña **Buscar** → buscar `coca cola`.
+2. Desplegar el primer resultado y después el segundo.
+
+**Esperado:** queda abierto **solo** el segundo; el primero se cerró solo.
+
+### 67.2 · Tocar el abierto lo cierra
+1. Con un producto desplegado, tocar su cabecera.
+
+**Esperado:** se cierra y no queda ninguno abierto.
+
+### 67.3 · Una búsqueda nueva empieza cerrada
+1. Desplegar un producto, cambiar el texto y buscar de nuevo (con el mismo
+   producto entre los resultados).
+
+**Esperado:** la lista nueva aparece **toda cerrada**; ningún producto queda
+en «Cargando presentaciones…».
+
+### 67.4 · En el conteo, igual
+1. En una zona de la toma → **Agregar producto** → repetir 67.1.
+
+**Esperado:** igual que 67.1, y la lista sigue ofreciendo solo la presentación
+de 1.
+
+---
+
+## Bloque 68 — Una toma cerrada es de solo lectura *(nuevo, sin probar)*
+
+**Por qué está acá:** en el conteo de una toma finalizada o cancelada se podía
+escribir y guardar, y el central lo aceptaba: en una finalizada, el registro
+quedaba distinto del ajuste de stock ya aplicado.
+
+### 68.1 · Una toma finalizada no se edita
+1. Abrir el conteo de una zona de una toma **finalizada** (por ejemplo desde
+   una URL guardada, o con «Atrás» después de finalizar).
+2. Desplegar un renglón.
+
+**Esperado:** «Contado», las fechas y el estado deshabilitados; sin «usar»,
+sin «Buscar lote»/«Crear lote»; **sin** barra abajo. Se puede desplegar y
+mirar.
+
+### 68.2 · Una toma cancelada, igual
+1. Repetir 68.1 con una toma **cancelada**.
+
+**Esperado:** igual que 68.1.
+
+### 68.3 · Finalizada desde otro teléfono mientras se cuenta
+1. En el teléfono A, abrir el conteo de una zona de una toma abierta y
+   escribir un número (sin guardar).
+2. En el teléfono B (o el desktop), finalizar esa toma.
+3. En A, tocar **Guardar conteo**.
+
+**Esperado:** en A **no** se guarda; aviso «La toma ya no está abierta: lo que
+no se había guardado se descartó.»; el renglón muestra lo que dice el central
+y la pantalla queda de solo lectura.
+
+### 68.4 · Finalizada mientras se elige un producto
+1. En A, tocar **Agregar producto** y dejar el buscador abierto.
+2. En B, finalizar la toma.
+3. En A, elegir una presentación.
+
+**Esperado:** no se agrega ningún renglón, aviso «La toma ya no está
+abierta.» y A queda de solo lectura. Lo mismo al elegir o crear un lote, o al
+quitar un renglón, con el diálogo abierto mientras B finaliza.
+
+---
+
+## Bloque 69 — Nombres de zona y botones de la card *(nuevo, sin probar)*
+
+**Por qué está acá:** en el detalle de la toma, zonas y sectores salían en
+minúscula («zona gaseosas», «deposito») y «Concluir» caía en una fila aparte,
+debajo de «Contar».
+
+### 69.1 · Zona y sector con mayúscula inicial
+1. Abrir el detalle de una toma con zonas.
+
+**Esperado:** cada card dice, por ejemplo, «Zona Gaseosas» y debajo
+«Deposito»: mayúscula inicial en cada palabra. Una zona sin nombre sigue
+diciendo «Sin zona». Un código con letras y números se ve en minúscula
+(«GONDOLA 2B» → «Gondola 2b»), igual que en Lugares.
+
+### 69.2 · El mismo criterio en todo el recorrido
+1. Tocar **Contar** en una zona.
+2. Volver, y tocar **Finalizar** con una zona sin concluir.
+3. Tocar **Agregar zona**.
+
+**Esperado:** el título del conteo, el aviso de «falta concluir…» y la lista
+del diálogo muestran los nombres con el mismo criterio que la card.
+
+### 69.3 · Los botones juntos, a la derecha
+1. En el detalle de una toma abierta, mirar una card de zona en un teléfono
+   (o a 360 px).
+
+**Esperado:** «Contar» y «Concluir» (o «Reabrir») **juntos en la misma
+fila**, debajo del conteo y **pegados al borde derecho de la card**, sin el
+espacio de la columna de la diferencia; la diferencia sigue arriba a la
+derecha, donde estaba. Con la toma cerrada no hay botones. Las demás cards de
+la app (caja, devoluciones, transferencias…) se ven igual que antes.
+
+---
+
+## Bloque 70 — Lotes en el conteo: presentación, fechas y stock *(nuevo)* — **5/6** (Claude en Chrome, central local, 2026-09-22)
+
+> Probados 70.1 a 70.5 en la toma 7467 (DEPOSITO AQUARIO SDG) con 801 COCA
+> COLA 250ML, a la que se le activó el control de lote en la base local. El
+> renglón en x6, las presentaciones inactivas y el sistema de 12 unidades se
+> armaron directo en la base; la cantidad y las fechas de 70.5 se cargaron por
+> los métodos de la pantalla y «Guardar conteo» se tocó en la interfaz. La
+> conversión del «Sistema» se vio en un renglón x6 («Sistema: 2» con 12
+> unidades). **Falta 70.6** (sin stock en la base local), teléfono real e iOS.
+
+**Por qué está acá:** agregar un segundo lote a un renglón copiaba su
+presentación (una caja, o una dada de baja); las fechas del lote y el renglón
+se guardaban en paralelo y podían quedar distintas; y el stock del sistema de
+un renglón en caja se cargaba en unidades.
+
+Preparación: una toma abierta y un producto **con control de lote** que tenga
+x1 y una caja (x6 o x12), con un renglón ya contado en la caja con un lote.
+
+### 70.1 · El lote nuevo va en la x1
+1. En el renglón de la caja, menú ⋮ → **Agregar otro lote** → elegir un lote.
+
+**Esperado:** aparece un renglón nuevo **en la x1** (Cantidad: 1), no en la
+caja, con el saldo del lote como sistema.
+
+### 70.2 · Sin x1 activa, la caja con el sistema en cajas
+1. Repetir 70.1 con un producto con lote **sin** x1 activa.
+
+**Esperado:** el renglón nuevo en la caja del renglón original, y el
+«Sistema» **mostrado** en cajas (12 unidades en una x6 → 2), no en unidades.
+
+### 70.3 · Sin presentación activa
+1. Repetir 70.1 con un producto con lote que no tenga ninguna presentación
+   activa.
+
+**Esperado:** aviso «Este producto no tiene ninguna presentación activa.»; no
+se abre el buscador de lotes ni se crea nada.
+
+### 70.4 · Crear un lote que ya está en la zona
+1. En un renglón con lote, menú ⋮ → **Crear nuevo lote** y escribir el número
+   de un lote que **ya está** en otro renglón de la zona.
+
+**Esperado:** aviso «Ese lote ya está en esta zona.» y ningún renglón nuevo.
+
+### 70.5 · Las fechas rechazadas no mueven el renglón
+1. En un renglón con lote, escribir una cantidad y poner una fecha de retiro
+   **posterior** al vencimiento.
+2. Tocar **Guardar conteo**.
+
+**Esperado:** el central rechaza la fecha (aviso con su texto); el renglón
+**no** se guarda: sigue abierto con la cantidad escrita y «Guardar conteo».
+Corregir la fecha y guardar: se guarda todo y el vencimiento del renglón
+coincide con el del lote.
+
+### 70.6 · El stock en cajas al agregar un producto
+1. **Agregar producto** → un producto que **solo** tenga caja (por ejemplo
+   8353 CREMER CURITA BEIGE 10UND, x10).
+
+**Esperado:** el «Sistema» del renglón se ve en cajas (el stock dividido por
+10; si no es múltiplo, con decimales, por ejemplo 1,5). Contar las cajas que
+coinciden con el sistema lo marca verificado, no revisado. En el desktop, el
+mismo renglón sigue mostrando el sistema en unidades: lo guardado no cambió.
+
+---
+
+## Bloque 71 — Margen de los diálogos *(nuevo)* — **3/3** (Claude en Chrome, central local, 2026-09-22)
+
+> Medido en el navegador, no a ojo: el padding calculado de la superficie y la
+> distancia del título y los botones al borde. El escáner se verificó sobre la
+> misma estructura de clases que arma Material, sin abrir la cámara. Falta
+> teléfono real e iOS (`:has()` necesita Safari 15.4+).
+
+**Por qué está acá:** los diálogos que arman su propia caja —crear y buscar
+lote, zona, lugar, seleccionar lote, kiosco, QR, verificación facial— tenían
+el contenido pegado al borde en los cuatro lados.
+
+### 71.1 · Crear lote con margen
+1. En una zona, menú ⋮ de un renglón con lote → **Crear nuevo lote**.
+
+**Esperado:** el título, los campos y los botones separados del borde del
+diálogo (12 px) en los cuatro lados.
+
+### 71.2 · Los que ya tenían margen, igual
+1. **Agregar producto** (o cualquier diálogo con título y contenido de
+   Material: confirmar, devoluciones, transferencias).
+
+**Esperado:** se ve igual que antes, sin margen doble.
+
+### 71.3 · El escáner sigue a pantalla completa
+1. Tocar el botón de escanear.
+
+**Esperado:** el video ocupa todo el ancho, sin franjas a los costados.
+
+---
+
+## Bloque 72 — Las horas de la tarjeta «Hoy» en Marcación *(nuevo)* — **1/2** (Franco, iPhone con Safari, build de producción de la rama por túnel contra alpha, 2026-09-25)
+
+**Por qué está acá:** probado en iPhone contra alpha (2026-09-25), «Salió a
+almorzar» y «Salida» mostraban «—»; «Entrada» y «Volvió» sí tenían hora. Las
+dos rotas son las SALIDA: una salida marcada desde la PWA guarda su hora en
+`fechaEntrada` —la PWA no manda fecha y el central completa ese campo para
+cualquier tipo— y la tarjeta la buscaba en `fechaSalida`.
+
+### 72.1 · Las cuatro horas de una jornada completa — ✅ PASÓ
+1. **Marcar entrada**, **Salir a almorzar**, **Volver del almuerzo** y
+   **Marcar salida**, esperando un minuto entre cada una.
+2. Mirar la tarjeta **Hoy** después de cada marcación.
+
+**Esperado:** cada fila muestra fecha y hora (`dd/MM/yyyy HH:mm`) en cuanto
+se marca, y ninguna dice «—»: **Entrada**, **Salió a almorzar**, **Volvió**,
+**Salida**. Las horas coinciden con el momento de cada marcación y van en
+orden creciente.
+
+### 72.2 · Una jornada sin almuerzo
+1. Con otro usuario, o al día siguiente: **Marcar entrada** y **Marcar
+   salida**, sin almuerzo.
+
+**Esperado:** aparecen **Entrada** y **Salida** con hora. Las filas del
+almuerzo **no aparecen** (no se muestran con «—»).
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6150,7 +6583,15 @@ del otro camino.
 | 62 · Método, similitud y margen | 9 | | | |
 | 63 · El ícono de la app | 5 | | | |
 | 64 · El solicitante de una transferencia | 9 | | | |
-| **Total** | **589** | | | |
+| 65 · La descripción completa del producto | 6 | 6 | | |
+| 66 · El conteo ofrece solo la presentación de 1 | 16 | | | |
+| 67 · Un producto abierto a la vez en el buscador | 4 | | | |
+| 68 · Una toma cerrada es de solo lectura | 4 | | | |
+| 69 · Nombres de zona y botones de la card | 3 | | | |
+| 70 · Lotes en el conteo: presentación, fechas y stock | 6 | 5 | | |
+| 71 · Margen de los diálogos | 3 | 3 | | |
+| 72 · Las horas de la tarjeta «Hoy» en Marcación | 2 | 1 | | |
+| **Total** | **633** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -97,35 +97,136 @@ describe('Agregar un producto al conteo', () => {
     expect(f.nativeElement.textContent).toContain('Agregar producto');
   });
 
-  it('mientras se cuenta un renglón el botón no está', () => {
-    // Con la card abierta compite con «Guardar conteo» y se lee como si fuera
-    // el paso siguiente del conteo.
-    servicio.porId = vi.fn(() =>
-      of(
-        inventario(InventarioEstado.ABIERTO, [
-          { id: 700, cantidad: null, cantidadFisica: 1, presentacion: { id: 9, cantidad: 1 } },
-        ]),
-      ),
-    );
-    const f = montar();
+  describe('un botón por vez en la barra', () => {
+    const conRenglon = (extra: Record<string, unknown> = {}) =>
+      inventario(InventarioEstado.ABIERTO, [
+        {
+          id: 700,
+          cantidad: null,
+          cantidadFisica: 1,
+          presentacion: { id: 9, cantidad: 1, producto: { id: 200, descripcion: 'COCA COLA 2L' } },
+          ...extra,
+        },
+      ]);
+    const texto = (f: { nativeElement: HTMLElement }) => f.nativeElement.textContent ?? '';
+    const escribir = (f: ReturnType<typeof montar>, valor: string) => {
+      f.componentInstance.cambiarContado(700, { target: { value: valor } } as unknown as Event);
+      f.detectChanges();
+    };
 
-    f.componentInstance.alternar(700);
-    f.detectChanges();
-    expect(f.componentInstance.mostrarAgregar()).toBe(false);
-    expect(f.nativeElement.textContent).not.toContain('Agregar producto');
+    it('sin nada para guardar: solo «Agregar producto», aunque haya un renglón abierto', () => {
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      f.detectChanges();
 
-    // Al colapsar vuelve: la toma sigue abierta.
-    f.componentInstance.alternar(700);
-    f.detectChanges();
-    expect(f.nativeElement.textContent).toContain('Agregar producto');
+      expect(texto(f)).toContain('Agregar producto');
+      expect(texto(f)).not.toContain('Guardar conteo');
+    });
+
+    it('con un conteo escrito: solo «Guardar conteo (1)»', () => {
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      escribir(f, '7');
+
+      expect(texto(f)).toContain('Guardar conteo (1)');
+      expect(texto(f)).not.toContain('Agregar producto');
+    });
+
+    it('escribir y borrar no deja un «Guardar» que no guarda nada', () => {
+      // `guardar()` descarta los renglones sin conteo: el botón quedaba sin salida.
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      escribir(f, '7');
+      escribir(f, '');
+
+      expect(f.componentInstance.hayCambios()).toBe(false);
+      expect(texto(f)).not.toContain('Guardar conteo');
+      expect(texto(f)).toContain('Agregar producto');
+    });
+
+    it('un renglón abierto esperando su lote no ofrece «Agregar producto»', () => {
+      // El paso siguiente es el menú ⋮: el botón se leería como lo que sigue.
+      servicio.porId = vi.fn(() =>
+        of(
+          conRenglon({
+            presentacion: {
+              id: 9,
+              cantidad: 1,
+              producto: { id: 200, descripcion: 'AMOXICILINA', lote: true },
+            },
+          }),
+        ),
+      );
+      const f = montar();
+      f.componentInstance.alternar(700);
+      f.detectChanges();
+
+      expect(f.componentInstance.mostrarAgregar()).toBe(false);
+      expect(texto(f)).not.toContain('Agregar producto');
+      expect(f.nativeElement.querySelector('[acciones]')).toBeFalsy();
+    });
+
+    it('mientras se aplica el lote, la barra dice «Agregando…» en vez de desaparecer', () => {
+      servicio.porId = vi.fn(() =>
+        of(
+          conRenglon({
+            presentacion: {
+              id: 9,
+              cantidad: 1,
+              producto: { id: 200, descripcion: 'AMOXICILINA', lote: true },
+            },
+          }),
+        ),
+      );
+      const f = montar();
+      f.componentInstance.alternar(700);
+      f.componentInstance.agregando.set(true);
+      f.detectChanges();
+
+      expect(texto(f)).toContain('Agregando…');
+    });
+
+    it('guardar todo contrae el renglón y vuelve «Agregar producto»', () => {
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      escribir(f, '7');
+
+      f.componentInstance.guardar();
+      f.detectChanges();
+
+      expect(f.componentInstance.abiertoId()).toBeNull();
+      expect(f.componentInstance.hayCambios()).toBe(false);
+      expect(texto(f)).toContain('Agregar producto');
+    });
+
+    it('lo que falló se conserva: sigue abierto y con «Guardar conteo»', () => {
+      servicio.porId = vi.fn(() => of(conRenglon()));
+      servicio.guardarItem = vi.fn(() => throwError(() => new Error('sin red')));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      escribir(f, '7');
+      f.componentInstance.alternar(700); // cerrado al guardar: tiene que reabrirse
+
+      f.componentInstance.guardar();
+      f.detectChanges();
+
+      expect(f.componentInstance.abiertoId()).toBe(700);
+      expect(f.componentInstance.items()[0].contado).toBe(7);
+      expect(texto(f)).toContain('Guardar conteo (1)');
+    });
   });
 
-  it('con la toma cerrada no se puede agregar', () => {
+  it('con la toma cerrada no se puede agregar, y la barra no queda vacía', () => {
     // El alcance de una toma cerrada ya es un hecho histórico.
     servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO)));
     const f = montar();
     expect(f.componentInstance.puedeAgregar()).toBe(false);
     expect(f.nativeElement.textContent).not.toContain('Agregar producto');
+    expect(f.nativeElement.querySelector('[acciones]')).toBeFalsy();
   });
 
   it('el stock del sistema va a cantidadFisica y el conteo queda vacío', async () => {
@@ -151,6 +252,238 @@ describe('Agregar un producto al conteo', () => {
     const datos = dialogo.abrir.mock.calls[0][1] as { opciones: { sucursalId: number; devuelve: string } };
     expect(datos.opciones.sucursalId).toBe(3);
     expect(datos.opciones.devuelve).toBe('presentacion');
+  });
+
+  it('el buscador ofrece solo la presentación de 1', async () => {
+    // Tocar la «x6» en vez de la «x1» multiplicaba el stock por seis al
+    // finalizar la toma.
+    const f = montar();
+    await f.componentInstance.agregarProducto();
+
+    const datos = dialogo.abrir.mock.calls[0][1] as { opciones: { soloPresentacionUnitaria?: boolean } };
+    expect(datos.opciones.soloPresentacionUnitaria).toBe(true);
+  });
+
+  describe('el renglón nuevo nace desplegado', () => {
+    const conElNuevo = () =>
+      inventario(InventarioEstado.ABIERTO, [
+        { id: 500, cantidad: null, cantidadFisica: 42, presentacion: { id: 9, cantidad: 1 } },
+      ]);
+
+    it('abre el renglón que devolvió el central', async () => {
+      const f = montar();
+      servicio.porId = vi.fn(() => of(conElNuevo()));
+      await f.componentInstance.agregarProducto();
+
+      expect(f.componentInstance.abiertoId()).toBe(500);
+      // Nada escrito todavía: la barra ofrece agregar otro.
+      expect(f.componentInstance.mostrarAgregar()).toBe(true);
+    });
+
+    it('la marca se consume al pintarse: otra recarga no vuelve a enfocar', async () => {
+      const f = montar();
+      servicio.porId = vi.fn(() => of(conElNuevo()));
+      await f.componentInstance.agregarProducto();
+      f.detectChanges();
+      await f.whenStable();
+
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+
+      // «Guardar conteo», aplicar un lote o quitar otro renglón recargan.
+      f.componentInstance.cargar();
+      f.detectChanges();
+      await f.whenStable();
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+      expect(f.componentInstance.abiertoId()).toBe(500);
+    });
+
+    it('sin id en la respuesta no abre nada', async () => {
+      // `Number('')` es 0: sin el guard abriría un renglón que no existe.
+      servicio.guardarItem = vi.fn(() => of({ id: '' }));
+      const f = montar();
+      await f.componentInstance.agregarProducto();
+
+      expect(f.componentInstance.abiertoId()).toBeNull();
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+    });
+
+    it('una respuesta vacía tampoco', async () => {
+      servicio.guardarItem = vi.fn(() => of(null));
+      const f = montar();
+      await f.componentInstance.agregarProducto();
+
+      expect(f.componentInstance.abiertoId()).toBeNull();
+    });
+
+    it('si la recarga falla, la marca no queda esperando', async () => {
+      const f = montar();
+      // La consulta previa al alta sale bien (la toma sigue abierta); falla la
+      // recarga de después.
+      servicio.porId = vi
+        .fn()
+        .mockReturnValueOnce(of(inventario(InventarioEstado.ABIERTO)))
+        .mockReturnValue(throwError(() => new Error('sin red')));
+      await f.componentInstance.agregarProducto();
+
+      expect(servicio.guardarItem).toHaveBeenCalled();
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+    });
+
+    it('tocar un renglón limpia la marca', () => {
+      const f = montar();
+      f.componentInstance.recienAgregadoId.set(500);
+      f.componentInstance.alternar(500);
+
+      expect(f.componentInstance.recienAgregadoId()).toBeNull();
+    });
+  });
+
+  it('una presentación inactiva no entra: el código de balanza no pasa por la lista', async () => {
+    dialogo.abrir = vi.fn(async () => ({
+      ...SELECCION,
+      presentacion: { id: 9, cantidad: 1, activo: false },
+      peso: 1.2,
+    }));
+    const f = montar();
+    await f.componentInstance.agregarProducto();
+
+    expect(servicio.guardarItem).not.toHaveBeenCalled();
+    expect(notificacion.danger).toHaveBeenCalledWith('Esa presentación está inactiva.');
+  });
+
+  describe('una toma cerrada es de solo lectura', () => {
+    const renglon = {
+      id: 700,
+      cantidad: 5,
+      cantidadFisica: 1,
+      presentacion: { id: 9, cantidad: 1, producto: { id: 200, descripcion: 'COCA COLA 2L' } },
+    };
+    const conEstado = (estado: InventarioEstado) => inventario(estado, [renglon]);
+    const html = (f: { nativeElement: HTMLElement }) => f.nativeElement as HTMLElement;
+
+    for (const estado of [InventarioEstado.CONCLUIDO, InventarioEstado.CANCELADO]) {
+      it(`${estado}: nada editable y sin barra`, () => {
+        // Con control de lote y sin lote: abierta, ofrecería «Buscar lote».
+        const conLote = {
+          ...renglon,
+          presentacion: { ...renglon.presentacion, producto: { id: 200, descripcion: 'AMOXICILINA', lote: true } },
+        };
+        servicio.porId = vi.fn(() => of(inventario(estado, [conLote])));
+        const f = montar();
+        f.componentInstance.alternar(700);
+        f.detectChanges();
+
+        const campos = Array.from(html(f).querySelectorAll<HTMLInputElement>('.cuerpo input'));
+        expect(campos.length).toBeGreaterThan(1);
+        expect(campos.every((c) => c.disabled)).toBe(true);
+        expect(html(f).querySelector('mat-select')?.getAttribute('aria-disabled')).toBe('true');
+        expect(html(f).querySelector('[acciones]')).toBeFalsy();
+        expect(html(f).textContent).not.toContain('Buscar lote');
+      });
+    }
+
+    it('con la toma abierta, el mismo renglón sí ofrece «Buscar lote»', () => {
+      // Contraprueba de la anterior: sin esto, «no dice Buscar lote» pasaría igual.
+      const conLote = {
+        ...renglon,
+        presentacion: { ...renglon.presentacion, producto: { id: 200, descripcion: 'AMOXICILINA', lote: true } },
+      };
+      servicio.porId = vi.fn(() => of(inventario(InventarioEstado.ABIERTO, [conLote])));
+      const f = montar();
+      f.componentInstance.alternar(700);
+      f.detectChanges();
+
+      expect(html(f).textContent).toContain('Buscar lote');
+    });
+
+    it('escribir no registra nada', () => {
+      servicio.porId = vi.fn(() => of(conEstado(InventarioEstado.CONCLUIDO)));
+      const f = montar();
+      f.componentInstance.cambiarContado(700, { target: { value: '9' } } as unknown as Event);
+
+      expect(f.componentInstance.hayCambios()).toBe(false);
+      expect(f.componentInstance.items()[0].contado).toBe(5);
+    });
+
+    it('si la toma se finaliza en el medio, guardar no escribe y descarta lo no guardado', () => {
+      servicio.porId = vi.fn(() => of(conEstado(InventarioEstado.ABIERTO)));
+      const f = montar();
+      f.componentInstance.cambiarContado(700, { target: { value: '9' } } as unknown as Event);
+      expect(f.componentInstance.items()[0].contado).toBe(9);
+
+      // Otro teléfono la finalizó: la consulta previa al guardado lo dice.
+      servicio.porId = vi.fn(() => of(conEstado(InventarioEstado.CONCLUIDO)));
+      f.componentInstance.guardar();
+      f.detectChanges();
+
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(f.componentInstance.guardando()).toBe(false);
+      // Lo que se ve es lo del central, no lo que nunca se guardó.
+      expect(f.componentInstance.items()[0].contado).toBe(5);
+      expect(notificacion.warn).toHaveBeenCalledWith(
+        'La toma ya no está abierta: lo que no se había guardado se descartó.',
+      );
+    });
+
+    it('una recarga que trae la toma cerrada descarta lo no guardado', () => {
+      servicio.porId = vi.fn(() => of(conEstado(InventarioEstado.ABIERTO)));
+      const f = montar();
+      f.componentInstance.cambiarContado(700, { target: { value: '9' } } as unknown as Event);
+
+      servicio.porId = vi.fn(() => of(conEstado(InventarioEstado.CONCLUIDO)));
+      f.componentInstance.cargar();
+
+      expect(f.componentInstance.items()[0].contado).toBe(5);
+      expect(notificacion.warn).toHaveBeenCalled();
+    });
+
+    it('si la toma se finaliza mientras se elige el producto, no se agrega', async () => {
+      const f = montar();
+      servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO)));
+      await f.componentInstance.agregarProducto();
+
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(f.componentInstance.agregando()).toBe(false);
+      // Sin nada que descartar igual se explica por qué no pasó nada.
+      expect(notificacion.warn).toHaveBeenCalledWith('La toma ya no está abierta.');
+    });
+
+    it('una respuesta vacía al consultar el estado no descarta nada ni escribe', () => {
+      servicio.porId = vi.fn(() => of(conEstado(InventarioEstado.ABIERTO)));
+      const f = montar();
+      f.componentInstance.cambiarContado(700, { target: { value: '9' } } as unknown as Event);
+
+      servicio.porId = vi.fn(() => of(null));
+      f.componentInstance.guardar();
+
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(f.componentInstance.guardando()).toBe(false);
+      expect(f.componentInstance.items()[0].contado).toBe(9);
+      expect(notificacion.warn).not.toHaveBeenCalledWith(
+        'La toma ya no está abierta: lo que no se había guardado se descartó.',
+      );
+    });
+
+    it('si la consulta del estado falla, no se escribe y se puede reintentar', () => {
+      servicio.porId = vi.fn(() => of(conEstado(InventarioEstado.ABIERTO)));
+      const f = montar();
+      f.componentInstance.cambiarContado(700, { target: { value: '9' } } as unknown as Event);
+
+      servicio.porId = vi.fn(() => throwError(() => new Error('sin red')));
+      f.componentInstance.guardar();
+
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(f.componentInstance.guardando()).toBe(false);
+      expect(f.componentInstance.hayCambios()).toBe(true);
+    });
+
+    it('con la toma cerrada, agregar ni siquiera abre el buscador', async () => {
+      servicio.porId = vi.fn(() => of(inventario(InventarioEstado.CONCLUIDO)));
+      const f = montar();
+      await f.componentInstance.agregarProducto();
+
+      expect(dialogo.abrir).not.toHaveBeenCalled();
+    });
   });
 
   it('un peso de balanza entra como lo contado', async () => {

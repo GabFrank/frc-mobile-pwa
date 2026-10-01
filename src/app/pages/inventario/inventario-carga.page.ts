@@ -7,7 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
 
@@ -35,6 +35,7 @@ import type { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/product
 import { ProductoService } from 'src/app/pages/producto/producto.service';
 import { LoteService } from 'src/app/domains/lote/lote.service';
 import { EstadoLote, type LoteDeProducto, type StockLote } from 'src/app/domains/lote/lote.model';
+import type { Producto } from 'src/app/domains/productos/producto.model';
 import {
   BuscadorLoteDialogComponent,
   type DatosBuscadorLote,
@@ -45,7 +46,13 @@ import {
   type ResultadoCrearLote,
 } from './crear-lote-dialog.component';
 import type { ProductoVencido } from 'src/app/domains/productos/producto-vencido.model';
-import { nuevoItemInput } from './inventario-alta';
+import {
+  enPresentacion,
+  enUnidades,
+  nombreDeLugar,
+  nuevoItemInput,
+  presentacionParaNuevoLote,
+} from './inventario-alta';
 import { InventarioItemCardComponent, type FilaConteo } from './inventario-item-card.component';
 import { vencimientoSugerido } from './vencimiento-sugerido';
 import { diferenciaDe } from './inventario-conteo';
@@ -152,8 +159,12 @@ const ESTADOS: OpcionSeleccion[] = [
             <frc-inventario-item-card
               [fila]="fila"
               [abierta]="abiertoId() === fila.itemId"
+              [enfocar]="recienAgregadoId() === fila.itemId"
+              (enfocado)="recienAgregadoId.set(null)"
               [estados]="estados"
               [puedeQuitar]="puedeAgregar()"
+              [soloLectura]="!puedeAgregar()"
+              [ocupado]="agregando()"
               (alternar)="alternar(fila.itemId)"
               (quitar)="quitarItem(fila)"
               (contado)="cambiarContado(fila.itemId, $event)"
@@ -173,21 +184,20 @@ const ESTADOS: OpcionSeleccion[] = [
         con más de un nodo raíz no proyecta al slot (NG8011), y el botón de
         guardar caía en el cuerpo en vez de la barra fija.
       -->
-      @if (!cargando() && !error()) {
+      @if (!cargando() && !error() && (mostrarGuardar() || mostrarAgregar())) {
         <div acciones>
           <!--
-            Con una card abierta el botón desaparece: mientras se cuenta un
-            renglón, «Agregar producto» compite con «Guardar conteo» y se lee
-            como si fuera el paso siguiente del conteo. Vuelve al colapsar.
+            Un botón por vez: con algo para guardar, «Guardar conteo»; sin
+            nada, «Agregar producto». Los dos juntos competían, y un «Guardar»
+            deshabilitado ocupaba el lugar sin decir nada.
           -->
-          @if (mostrarAgregar()) {
-            <button matButton [disabled]="agregando() || guardando()" (click)="agregarProducto()">
-              {{ agregando() ? 'Agregando…' : 'Agregar producto' }}
+          @if (mostrarGuardar()) {
+            <button matButton="filled" [disabled]="guardando()" (click)="guardar()">
+              {{ guardando() ? 'Guardando…' : 'Guardar conteo (' + guardables() + ')' }}
             </button>
-          }
-          @if (items().length > 0) {
-            <button matButton="filled" [disabled]="!hayCambios() || guardando()" (click)="guardar()">
-              {{ guardando() ? 'Guardando…' : 'Guardar conteo (' + cambiados().length + ')' }}
+          } @else {
+            <button matButton [disabled]="agregando()" (click)="agregarProducto()">
+              {{ agregando() ? 'Agregando…' : 'Agregar producto' }}
             </button>
           }
         </div>
@@ -248,6 +258,12 @@ export class InventarioCargaPage {
 
   /** Qué ítem está desplegado. Uno a la vez: una zona tiene treinta. */
   readonly abiertoId = signal<number | null>(null);
+  /**
+   * El renglón que se acaba de agregar: nace desplegado y con el foco en
+   * «Contado». Se limpia apenas la card lo usa, porque cada recarga de la
+   * lista recrea las cards y el foco volvería con cada una.
+   */
+  readonly recienAgregadoId = signal<number | null>(null);
 
   readonly inventario = signal<Inventario | null>(null);
   readonly cargando = signal(true);
@@ -287,7 +303,7 @@ export class InventarioCargaPage {
     );
   });
 
-  readonly titulo = computed(() => this.producto()?.zona?.descripcion || 'Conteo');
+  readonly titulo = computed(() => nombreDeLugar(this.producto()?.zona?.descripcion) || 'Conteo');
 
   readonly items = computed<FilaConteo[]>(() => {
     const cambios = this.edicion();
@@ -347,7 +363,9 @@ export class InventarioCargaPage {
       // Lo contado es `cantidad` y el stock del sistema `cantidadFisica`:
       // los nombres engañan, pero es el par que usa el central al finalizar.
       const contado = cambio?.contado !== undefined ? cambio.contado : item.cantidad ?? null;
-      const sistema = item.cantidadFisica ?? 0;
+      // Guardado en unidades; se ve en la presentación del renglón, que es en
+      // lo que se cuenta. Ver `enPresentacion()`.
+      const sistema = enPresentacion(item.cantidadFisica ?? 0, item.presentacion?.cantidad);
 
       const presentacionId = String(item.presentacion?.id ?? '');
       // ⚠️ `undefined` es «nadie lo tocó»; la cadena vacía es «lo borró a
@@ -447,7 +465,25 @@ export class InventarioCargaPage {
   });
 
   readonly cambiados = computed(() => this.items().filter((f) => this.edicion().has(f.itemId)));
-  readonly hayCambios = computed(() => this.cambiados().length > 0);
+  /**
+   * Los renglones con un conteo para mandar. Es **el mismo filtro que usa
+   * `guardar()`**: escribir un número y borrarlo deja el renglón en `edicion`
+   * con `contado: null`, y contarlo acá mostraba un «Guardar conteo (1)» que
+   * solo contestaba «Escribí al menos una cantidad».
+   */
+  private readonly filasAGuardar = computed(() =>
+    this.cambiados().filter((f) => f.contado != null),
+  );
+  /** Renglones distintos que «Guardar conteo» va a mandar: conteo o fechas de lote. */
+  readonly guardables = computed(
+    () =>
+      new Set([...this.filasAGuardar(), ...this.fechasDeLoteCambiadas()].map((f) => f.itemId))
+        .size,
+  );
+  readonly hayCambios = computed(() => this.guardables() > 0);
+  readonly mostrarGuardar = computed(
+    () => this.puedeAgregar() && (this.hayCambios() || this.guardando()),
+  );
 
   constructor() {
     effect(() => {
@@ -471,11 +507,15 @@ export class InventarioCargaPage {
       next: (inv) => {
         this.inventario.set(inv ?? null);
         this.cargando.set(false);
+        this.descartarSiSeCerro();
         this.cargarVencimientosConocidos();
       },
       error: (err: Error) => {
         this.error.set(err.message);
         this.cargando.set(false);
+        // Sin la lista, la marca quedaría esperando y el foco saltaría en una
+        // recarga cualquiera, sin que nadie acabe de agregar nada.
+        this.recienAgregadoId.set(null);
       },
     });
   }
@@ -528,7 +568,64 @@ export class InventarioCargaPage {
       });
   }
 
+  /**
+   * Con la toma cerrada, lo no guardado se descarta y se avisa.
+   *
+   * ⚠️ `items()` mezcla `edicion` con lo que dice el central: sin esto, los
+   * campos —ya de solo lectura— mostrarían como registrados valores que nunca
+   * se guardaron, sin ninguna forma de descartarlos.
+   */
+  private descartarSiSeCerro(): boolean {
+    // Sin inventario no se sabe si se cerró: no se descarta nada.
+    if (this.inventario() == null || this.puedeAgregar() || this.edicion().size === 0) {
+      return false;
+    }
+    this.edicion.set(new Map());
+    this.notificacion.warn('La toma ya no está abierta: lo que no se había guardado se descartó.');
+    return true;
+  }
+
+  /**
+   * Vuelve a preguntar el estado de la toma y escribe solo si sigue abierta.
+   *
+   * ⚠️ `inventario` se carga una vez: si otro teléfono finaliza la toma, esta
+   * pantalla seguía creyéndola abierta y el guardado pasaba — el central no lo
+   * frena. Queda una ventana mínima entre la consulta y la escritura; cerrarla
+   * del todo es del central.
+   */
+  private conTomaAbierta(escribir: () => void, siNo: () => void): void {
+    this.servicio.porId(Number(this.id())).subscribe({
+      next: (inv) => {
+        // Sin respuesta no se sabe nada del estado: ni se escribe ni se
+        // descarta lo editado —«ya no está abierta» sería afirmar algo que
+        // nadie dijo—, y la pantalla sigue con lo que tenía.
+        if (!inv) {
+          this.notificacion.warn('No se pudo confirmar que la toma siga abierta. Probá de nuevo.');
+          siNo();
+          return;
+        }
+        this.inventario.set(inv);
+        if (this.puedeAgregar()) {
+          escribir();
+          return;
+        }
+        // Sin nada que descartar igual se dice: si no, el operador eligió o
+        // tocó guardar y no pasó nada, sin ninguna explicación.
+        if (!this.descartarSiSeCerro()) {
+          this.notificacion.warn('La toma ya no está abierta.');
+        }
+        siNo();
+      },
+      // El error ya lo avisa `DatosService`: repetirlo sacaba dos iguales.
+      error: () => siNo(),
+    });
+  }
+
   private editar(itemId: number, parche: Record<string, unknown>): void {
+    // Todos los `cambiarX` pasan por acá: con la toma cerrada no se registra nada.
+    if (!this.puedeAgregar()) {
+      return;
+    }
     this.edicion.update((mapa) => {
       const copia = new Map(mapa);
       copia.set(itemId, { ...(copia.get(itemId) ?? {}), ...parche });
@@ -558,6 +655,7 @@ export class InventarioCargaPage {
    * guarda estado propio.
    */
   alternar(itemId: number): void {
+    this.recienAgregadoId.set(null);
     this.abiertoId.update((actual) => (actual === itemId ? null : itemId));
   }
 
@@ -601,11 +699,29 @@ export class InventarioCargaPage {
   /**
    * `puedeAgregar` dice si **se permite**; esto, si **corresponde mostrarlo**.
    *
-   * Con un renglón desplegado el operador está contando ese producto, y el
-   * botón ahí arriba de «Guardar conteo» confunde: parece parte de lo que está
-   * haciendo. Se oculta mientras dura la edición y vuelve al colapsar la card.
+   * La barra muestra un botón por vez: mientras haya algo para guardar, el
+   * paso siguiente es «Guardar conteo», y *Agregar producto* al lado se leía
+   * como parte de lo que se estaba contando. Antes se escondía con cualquier
+   * card abierta; con un botón por vez eso ya no hace falta.
    */
-  readonly mostrarAgregar = computed(() => this.puedeAgregar() && this.abiertoId() === null);
+  readonly mostrarAgregar = computed(
+    // Mientras se aplica o crea el lote, la barra sigue con «Agregando…»: sin
+    // eso desaparecía y no había ninguna señal de que algo se estaba guardando.
+    () =>
+      this.puedeAgregar() &&
+      !this.mostrarGuardar() &&
+      (!this.abiertaEsperaLote() || this.agregando()),
+  );
+
+  /**
+   * El renglón abierto es de un producto con lote y todavía no tiene: el
+   * conteo está bloqueado y el paso siguiente es el menú ⋮. *Agregar producto*
+   * ahí se leería como lo que sigue.
+   */
+  private readonly abiertaEsperaLote = computed(() => {
+    const abierta = this.items().find((f) => f.itemId === this.abiertoId());
+    return abierta != null && abierta.productoConLote && abierta.lote == null;
+  });
 
   /**
    * Sumar a la zona una presentación que la toma no incluía.
@@ -630,6 +746,9 @@ export class InventarioCargaPage {
       this.notificacion.warn('No se pudo identificar la zona o el usuario.');
       return;
     }
+    if (!this.puedeAgregar()) {
+      return;
+    }
 
     const opciones: OpcionesBuscador = {
       devuelve: 'presentacion',
@@ -638,6 +757,9 @@ export class InventarioCargaPage {
       sucursalId: Number.isFinite(sucursalId) ? sucursalId : undefined,
       mostrarPrecio: false,
       etiquetaCampo: 'Código, descripción o escaneo',
+      // Se cuenta en unidades: tocar la «x6» en vez de la «x1» multiplicaba
+      // el stock por seis al finalizar la toma.
+      soloPresentacionUnitaria: true,
     };
 
     const elegido = await this.dialogo.abrir<
@@ -649,6 +771,14 @@ export class InventarioCargaPage {
     const presentacionId = Number(elegido?.presentacion?.id);
     const productoId = Number(elegido?.producto?.id);
     if (!Number.isFinite(presentacionId) || presentacionId <= 0) {
+      return;
+    }
+    // El buscador ya no ofrece una inactiva, pero un código de balanza emite
+    // su presentación sin pasar por la lista. «Esa presentación», no «el
+    // producto no tiene ninguna activa»: si el código no coincide, el central
+    // resuelve la principal sin mirar si está activa, y puede haber otra.
+    if (elegido?.presentacion?.activo === false) {
+      this.notificacion.danger('Esa presentación está inactiva.');
       return;
     }
 
@@ -664,34 +794,48 @@ export class InventarioCargaPage {
      * cosas para borrar. Ahora el renglón nace sin lote y con el conteo
      * BLOQUEADO, y el lote se elige —o se crea— desde el menú ⋮.
      */
-    this.stockDe(productoId, sucursalId).subscribe({
-      next: (stock) => {
-        this.servicio
-          .guardarItem(
-            nuevoItemInput({
-              inventarioProductoId,
-              presentacionId,
-              stock,
-              usuarioId,
-              peso: elegido?.peso,
-            }),
-          )
-          .subscribe({
-            next: () => {
-              this.agregando.set(false);
-              this.cargar();
-            },
-            error: (err: Error) => {
-              this.agregando.set(false);
-              this.notificacion.danger(err.message);
-            },
-          });
+    // Otro teléfono pudo haber finalizado la toma mientras se elegía.
+    this.conTomaAbierta(
+      () => {
+        this.stockDe(productoId, sucursalId).subscribe({
+          next: (stock) => {
+            this.servicio
+              .guardarItem(
+                nuevoItemInput({
+                  inventarioProductoId,
+                  presentacionId,
+                  cantidadPresentacion: elegido?.presentacion?.cantidad,
+                  stock,
+                  usuarioId,
+                  peso: elegido?.peso,
+                }),
+              )
+              .subscribe({
+                next: (guardado) => {
+                  this.agregando.set(false);
+                  // Lo siguiente es contarlo: el renglón nuevo nace desplegado.
+                  // `cargar()` no toca `abiertoId`.
+                  const nuevoId = Number(guardado?.id);
+                  if (Number.isFinite(nuevoId) && nuevoId > 0) {
+                    this.abiertoId.set(nuevoId);
+                    this.recienAgregadoId.set(nuevoId);
+                  }
+                  this.cargar();
+                },
+                error: (err: Error) => {
+                  this.agregando.set(false);
+                  this.notificacion.danger(err.message);
+                },
+              });
+          },
+          error: (err: Error) => {
+            this.agregando.set(false);
+            this.notificacion.danger(err.message);
+          },
+        });
       },
-      error: (err: Error) => {
-        this.agregando.set(false);
-        this.notificacion.danger(err.message);
-      },
-    });
+      () => this.agregando.set(false),
+    );
   }
 
   /**
@@ -713,17 +857,29 @@ export class InventarioCargaPage {
     if (!contexto) {
       return;
     }
+    // Antes del buscador: no hacer elegir un lote que después no se puede usar.
+    const destino = await this.presentacionDelLote(fila, contexto);
+    if (!destino) {
+      return;
+    }
 
     const elegido = await this.elegirLote(contexto.productoId, fila.etiqueta, contexto.sucursalId);
     if (!elegido?.loteId) {
       return;
     }
 
-    this.aplicarLote(fila, contexto, {
-      loteId: Number(elegido.loteId),
-      saldo: elegido.saldo ?? 0,
-      vencimiento: elegido.fechaVencimiento,
-    });
+    // El chequeo de `contextoDeLote()` fue antes del buscador: otro teléfono
+    // pudo finalizar la toma mientras se elegía.
+    this.agregando.set(true);
+    this.conTomaAbierta(
+      () =>
+        this.aplicarLote(fila, contexto, destino, {
+          loteId: Number(elegido.loteId),
+          saldo: elegido.saldo ?? 0,
+          vencimiento: elegido.fechaVencimiento,
+        }),
+      () => this.agregando.set(false),
+    );
   }
 
   /**
@@ -735,6 +891,12 @@ export class InventarioCargaPage {
   async crearLote(fila: FilaConteo): Promise<void> {
     const contexto = this.contextoDeLote(fila);
     if (!contexto) {
+      return;
+    }
+    // Antes del diálogo, y sobre todo antes de crear el maestro: sin
+    // presentación posible, el lote quedaría huérfano.
+    const destino = await this.presentacionDelLote(fila, contexto);
+    if (!destino) {
       return;
     }
 
@@ -751,35 +913,100 @@ export class InventarioCargaPage {
     }
 
     this.agregando.set(true);
-    this.lotes
-      .crear({
-        productoId: contexto.productoId,
-        numeroLote: datos.numeroLote,
-        fechaVencimiento: datos.fechaVencimiento || null,
-        fechaRetiro: datos.fechaRetiro || null,
-        usuarioId: contexto.usuarioId,
-      })
-      .subscribe({
-        next: (lote) => {
-          if (!lote?.id) {
-            this.agregando.set(false);
-            this.notificacion.danger('El central no devolvió el lote creado.');
-            return;
-          }
-          // Saldo cero: el lote acaba de nacer y no tiene movimientos. Si el
-          // central devolvió uno preexistente, el saldo real llega en la
-          // recarga.
-          this.aplicarLote(fila, contexto, {
-            loteId: Number(lote.id),
-            saldo: 0,
-            vencimiento: lote.fechaVencimiento,
+    // Antes de crear el maestro: con la toma cerrada quedaría un lote huérfano.
+    this.conTomaAbierta(
+      () => {
+        this.lotes
+          .crear({
+            productoId: contexto.productoId,
+            numeroLote: datos.numeroLote,
+            fechaVencimiento: datos.fechaVencimiento || null,
+            fechaRetiro: datos.fechaRetiro || null,
+            usuarioId: contexto.usuarioId,
+          })
+          .subscribe({
+            next: (lote) => {
+              if (!lote?.id) {
+                this.agregando.set(false);
+                this.notificacion.danger('El central no devolvió el lote creado.');
+                return;
+              }
+              // «Crear» puede devolver un lote que ya existía. Si ya está en la
+              // zona, un renglón nuevo en otra presentación no choca con la
+              // clave de duplicado del central (incluye la presentación) y
+              // el lote se contaría dos veces. «Buscar lote» ya los excluye.
+              if (this.items().some((f) => f.lote?.id === Number(lote.id))) {
+                this.agregando.set(false);
+                this.notificacion.warn('Ese lote ya está en esta zona.');
+                return;
+              }
+              // Saldo cero: el lote acaba de nacer y no tiene movimientos. Si el
+              // central devolvió uno preexistente, el saldo real llega en la
+              // recarga.
+              this.aplicarLote(fila, contexto, destino, {
+                loteId: Number(lote.id),
+                saldo: 0,
+                vencimiento: lote.fechaVencimiento,
+              });
+            },
+            error: (err: Error) => {
+              this.agregando.set(false);
+              this.notificacion.danger(err.message);
+            },
           });
-        },
-        error: (err: Error) => {
-          this.agregando.set(false);
-          this.notificacion.danger(err.message);
-        },
-      });
+      },
+      () => this.agregando.set(false),
+    );
+  }
+
+  /**
+   * En qué presentación va el lote. `null` —y avisa— si no hay una posible.
+   *
+   * Sin lote, se completa **este** renglón: su presentación no cambia. Con
+   * lote se abre uno nuevo, y ahí manda `presentacionParaNuevoLote()`: copiar
+   * la del original esquivaba contar en unidades y no operar sin presentación
+   * activa. Se pide el detalle porque la lista del conteo no trae las otras
+   * presentaciones del producto, ni si están activas.
+   *
+   * ⚠️ Un detalle que falla o vuelve vacío **no** es «ninguna activa»: sería
+   * afirmar algo que nadie dijo.
+   */
+  private async presentacionDelLote(
+    fila: FilaConteo,
+    contexto: { productoId: number; presentacionId: number },
+  ): Promise<{ id: number; cantidad: number | null } | null> {
+    if (!fila.lote) {
+      return {
+        id: contexto.presentacionId,
+        cantidad: fila.original.presentacion?.cantidad ?? null,
+      };
+    }
+
+    this.agregando.set(true);
+    let producto: Producto | null | undefined;
+    try {
+      producto = await firstValueFrom(this.busqueda.detalle(contexto.productoId));
+    } catch {
+      // El error ya lo avisó `DatosService`.
+      this.agregando.set(false);
+      return null;
+    }
+    this.agregando.set(false);
+
+    if (!producto) {
+      this.notificacion.warn('No se pudieron traer las presentaciones del producto. Probá de nuevo.');
+      return null;
+    }
+    const eleccion = presentacionParaNuevoLote(producto.presentaciones ?? [], contexto.presentacionId);
+    if ('motivo' in eleccion) {
+      this.notificacion.warn(
+        eleccion.motivo === 'ninguna'
+          ? 'Este producto no tiene ninguna presentación activa.'
+          : 'No se puede decidir sola la presentación del lote nuevo: agregá el producto con «Agregar producto» y elegí la presentación.',
+      );
+      return null;
+    }
+    return { id: Number(eleccion.presentacion.id), cantidad: eleccion.presentacion.cantidad ?? null };
   }
 
   /**
@@ -817,18 +1044,22 @@ export class InventarioCargaPage {
    */
   private aplicarLote(
     fila: FilaConteo,
-    contexto: { presentacionId: number; inventarioProductoId: number; usuarioId: number },
+    contexto: { inventarioProductoId: number; usuarioId: number },
+    destino: { id: number; cantidad: number | null },
     lote: { loteId: number; saldo: number; vencimiento?: string },
   ): void {
     this.agregando.set(true);
 
+    // En unidades, como lo define el central; la pantalla lo convierte al
+    // mostrarlo. Ver `enPresentacion()`.
+    const sistema = lote.saldo;
     const base = {
       inventarioProductoId: contexto.inventarioProductoId,
-      presentacionId: contexto.presentacionId,
+      presentacionId: destino.id,
       usuarioId: contexto.usuarioId,
       loteId: lote.loteId,
-      cantidadFisica: lote.saldo,
-      cantidadAnterior: lote.saldo,
+      cantidadFisica: sistema,
+      cantidadAnterior: sistema,
       vencimiento: lote.vencimiento?.slice(0, 10),
     };
 
@@ -905,28 +1136,34 @@ export class InventarioCargaPage {
     }
 
     this.agregando.set(true);
-    this.servicio.borrarItem(fila.itemId).subscribe({
-      next: () => {
-        this.agregando.set(false);
-        // Lo editado de ese renglón deja de existir: si quedara en el mapa,
-        // «Guardar conteo (n)» seguiría contándolo y el guardado fallaría
-        // contra un id que el central ya no tiene.
-        this.edicion.update((mapa) => {
-          const copia = new Map(mapa);
-          copia.delete(fila.itemId);
-          return copia;
+    // Borra de verdad: se confirma que la toma siga abierta después del diálogo.
+    this.conTomaAbierta(
+      () => {
+        this.servicio.borrarItem(fila.itemId).subscribe({
+          next: () => {
+            this.agregando.set(false);
+            // Lo editado de ese renglón deja de existir: si quedara en el mapa,
+            // «Guardar conteo (n)» seguiría contándolo y el guardado fallaría
+            // contra un id que el central ya no tiene.
+            this.edicion.update((mapa) => {
+              const copia = new Map(mapa);
+              copia.delete(fila.itemId);
+              return copia;
+            });
+            if (this.abiertoId() === fila.itemId) {
+              this.abiertoId.set(null);
+            }
+            this.notificacion.ok('Producto quitado del conteo.');
+            this.cargar();
+          },
+          error: (err: Error) => {
+            this.agregando.set(false);
+            this.notificacion.danger(err.message);
+          },
         });
-        if (this.abiertoId() === fila.itemId) {
-          this.abiertoId.set(null);
-        }
-        this.notificacion.ok('Producto quitado del conteo.');
-        this.cargar();
       },
-      error: (err: Error) => {
-        this.agregando.set(false);
-        this.notificacion.danger(err.message);
-      },
-    });
+      () => this.agregando.set(false),
+    );
   }
 
   /**
@@ -963,41 +1200,62 @@ export class InventarioCargaPage {
   );
 
   guardar(): void {
-    const filas = this.cambiados().filter((f) => f.contado != null);
+    const filas = this.filasAGuardar();
     const fechas = this.fechasDeLoteCambiadas();
     if (filas.length === 0 && fechas.length === 0) {
       this.notificacion.warn('Escribí al menos una cantidad contada.');
       return;
     }
 
+    if (!this.puedeAgregar()) {
+      return;
+    }
+    this.guardando.set(true);
+    // Otro teléfono pudo haber finalizado la toma mientras se contaba.
+    this.conTomaAbierta(
+      () => this.enviar(filas, fechas),
+      () => this.guardando.set(false),
+    );
+  }
+
+  /**
+   * Manda el conteo **por renglón**, no por operación.
+   *
+   * ⚠️ **En un renglón con lote, primero las fechas y después el renglón.**
+   * Mandarlas en paralelo dejaba el renglón con una fecha que el maestro no
+   * tenía cuando el central rechazaba las fechas (un retiro posterior al
+   * vencimiento, por ejemplo). Ahora, si las fechas no entran, el renglón no se
+   * manda y queda para reintentar; si entran, el renglón lleva el vencimiento
+   * **que devolvió el maestro**, no el tipeado.
+   *
+   * Un renglón que cambió solo fechas y nunca se contó no manda el renglón:
+   * el central lo reemplaza entero, y sin conteo pisaría sus marcas. Su copia
+   * del vencimiento se corrige en el próximo guardado con conteo, que ya toma
+   * la fecha del maestro.
+   */
+  private enviar(filas: FilaConteo[], fechas: FilaConteo[]): void {
     const usuarioId = this.auth.usuario()?.id;
     const inventarioProductoId = Number(this.producto()?.id);
-    this.guardando.set(true);
 
-    let pendientes = filas.length + fechas.length;
-    let fallaron = 0;
-
-    for (const fila of fechas) {
-      this.lotes
-        .actualizarFechas({
-          loteId: fila.lote!.id,
-          fechaVencimiento: fila.vencimiento || null,
-          fechaRetiro: fila.fechaRetiro || null,
-          usuarioId,
-        })
-        .subscribe({
-          next: () => this.terminar(--pendientes, fallaron),
-          error: (err: Error) => {
-            fallaron++;
-            // El central valida que el retiro no sea posterior al vencimiento y
-            // manda el texto listo: se muestra tal cual.
-            this.notificacion.danger(err.message);
-            this.terminar(--pendientes, fallaron);
-          },
-        });
+    const conConteo = new Set(filas.map((f) => f.itemId));
+    const conFechas = new Set(fechas.map((f) => f.itemId));
+    const renglones = new Map<number, FilaConteo>();
+    for (const fila of [...filas, ...fechas]) {
+      renglones.set(fila.itemId, fila);
     }
 
-    for (const fila of filas) {
+    // Renglones, no operaciones: contando operaciones, un renglón con las dos
+    // terminaba antes de tiempo o nunca, y «Guardando…» quedaba trabado.
+    let pendientes = renglones.size;
+    // Por renglón y no un número: lo que falló se conserva para reintentar.
+    const fallidos = new Set<number>();
+    const listo = () => this.terminar(--pendientes, fallidos);
+    const fallo = (itemId: number) => {
+      fallidos.add(itemId);
+      this.terminar(--pendientes, fallidos);
+    };
+
+    const guardarRenglon = (fila: FilaConteo, vencimiento: string) => {
       const item: InventarioProductoItem = fila.original;
       this.servicio
         .guardarItem({
@@ -1012,31 +1270,87 @@ export class InventarioCargaPage {
           cantidadAnterior: item.cantidadAnterior,
           // Con lote la fecha vive en el maestro; acá va la copia que sostiene
           // la clave de duplicado del central.
-          vencimiento: fila.vencimiento || undefined,
+          vencimiento: vencimiento || undefined,
           ...(fila.lote ? { loteId: fila.lote.id } : {}),
           estado: fila.estado as InventarioProductoEstado,
-          ...marcasDeConteo(fila.contado ?? 0, item.cantidadFisica),
+          // Se compara en unidades: `cantidadFisica` está en unidades.
+          ...marcasDeConteo(
+            enUnidades(fila.contado ?? 0, item.presentacion?.cantidad),
+            item.cantidadFisica,
+          ),
+          usuarioId,
+        })
+        .subscribe({ next: listo, error: () => fallo(fila.itemId) });
+    };
+
+    for (const fila of renglones.values()) {
+      if (!conFechas.has(fila.itemId)) {
+        guardarRenglon(fila, fila.vencimiento);
+        continue;
+      }
+      this.lotes
+        .actualizarFechas({
+          loteId: fila.lote!.id,
+          fechaVencimiento: fila.vencimiento || null,
+          fechaRetiro: fila.fechaRetiro || null,
           usuarioId,
         })
         .subscribe({
-          next: () => this.terminar(--pendientes, fallaron),
-          error: () => {
-            fallaron++;
-            this.terminar(--pendientes, fallaron);
+          next: (lote) => {
+            // Sin respuesta no se sabe si entraron: no es lo mismo que una
+            // respuesta con el vencimiento en blanco.
+            if (!lote) {
+              this.notificacion.warn('No se pudieron confirmar las fechas del lote. Probá de nuevo.');
+              fallo(fila.itemId);
+              return;
+            }
+            // Ya están en el maestro: si después falla el renglón, reintentar
+            // no las vuelve a mandar —tocaría otra vez el FEFO de toda la red, y
+            // pisaría una corrección hecha entre medio—.
+            this.olvidarFechas(fila.itemId);
+            if (!conConteo.has(fila.itemId)) {
+              listo();
+              return;
+            }
+            guardarRenglon(fila, String(lote.fechaVencimiento ?? '').slice(0, 10));
           },
+          // El central valida que el retiro no sea posterior al vencimiento y
+          // manda el texto listo; lo muestra `DatosService`.
+          error: () => fallo(fila.itemId),
         });
     }
   }
 
-  private terminar(pendientes: number, fallaron: number): void {
+  /** Saca de lo editado las fechas del lote de un renglón: ya se guardaron. */
+  private olvidarFechas(itemId: number): void {
+    this.edicion.update((mapa) => {
+      const cambio = mapa.get(itemId);
+      if (!cambio) {
+        return mapa;
+      }
+      const copia = new Map(mapa);
+      const { vencimiento: _v, fechaRetiro: _r, ...resto } = cambio;
+      copia.set(itemId, resto);
+      return copia;
+    });
+  }
+
+  private terminar(pendientes: number, fallidos: ReadonlySet<number>): void {
     if (pendientes > 0) {
       return;
     }
     this.guardando.set(false);
-    this.edicion.set(new Map());
-    if (fallaron > 0) {
+    // ⚠️ **Sale de `edicion` solo lo que se guardó.** Vaciarla entera borraba
+    // también lo que falló: el renglón mostraba el valor viejo del central y
+    // no quedaba nada que reintentar.
+    this.edicion.update((mapa) => new Map([...mapa].filter(([id]) => fallidos.has(id))));
+    this.recienAgregadoId.set(null);
+    // Guardado, el renglón se contrae. Con un fallo queda abierto el primero
+    // que falló, para verlo y reintentar.
+    this.abiertoId.set(fallidos.size > 0 ? [...fallidos][0] : null);
+    if (fallidos.size > 0) {
       this.notificacion.warn(
-        `Se guardaron algunos ítems, ${fallaron} no. Revisá y volvé a intentar.`,
+        `Se guardaron algunos ítems, ${fallidos.size} no. Revisá y volvé a intentar.`,
       );
     } else {
       this.notificacion.ok('Conteo guardado.');

@@ -5,8 +5,10 @@ on:
     branches: [develop, 'release/*', master]
 
 # Una corrida por rama: si se pushea encima de una PR, la anterior se cancela.
-# Este repo es privado y los minutos de Actions se facturan, a diferencia de los
-# otros cuatro componentes.
+# No es por costo --este repo es PUBLICO y los minutos de Actions no se facturan,
+# al reves de lo que decia este comentario--, sino para que el unico verde que
+# quede sea el del SHA actual. Ojo al leer el estado: un `cancelled` aca es
+# normal, pero el check que vale es el de la ultima corrida.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

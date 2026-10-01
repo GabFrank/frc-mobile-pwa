@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  output,
+  viewChild,
+} from '@angular/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatInputModule } from '@angular/material/input';
@@ -151,18 +161,18 @@ export interface FilaConteo {
               ya asignado abre otro: es cómo se cuentan dos lotes del mismo
               producto en la misma zona sin volver a «Agregar producto».
             -->
-            <button mat-menu-item (click)="agregarLote.emit()">
+            <button mat-menu-item [disabled]="ocupado()" (click)="agregarLote.emit()">
               <frc-icono nombre="buscar" [tamano]="18" />
               <span class="etiqueta-menu">
                 {{ fila().lote ? 'Agregar otro lote' : 'Agregar lote' }}
               </span>
             </button>
-            <button mat-menu-item (click)="crearLote.emit()">
+            <button mat-menu-item [disabled]="ocupado()" (click)="crearLote.emit()">
               <frc-icono nombre="producto" [tamano]="18" />
               <span class="etiqueta-menu">Crear nuevo lote</span>
             </button>
           }
-          <button mat-menu-item (click)="quitar.emit()">
+          <button mat-menu-item [disabled]="ocupado()" (click)="quitar.emit()">
             <frc-icono nombre="tirar" [tamano]="18" />
             <span class="etiqueta-menu">Quitar del conteo</span>
           </button>
@@ -181,27 +191,28 @@ export interface FilaConteo {
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Contado</mat-label>
             <input
+              #campoContado
               matInput
               class="entrada-num"
               type="number"
               inputmode="decimal"
               [value]="fila().contado ?? ''"
-              [disabled]="!puedeContar()"
+              [disabled]="!puedeContar() || soloLectura()"
               (input)="contado.emit($event)"
             />
           </mat-form-field>
 
-          @if (!puedeContar()) {
+          @if (!puedeContar() && !soloLectura()) {
             <div class="sin-lote">
               <span>
                 Este producto lleva control de lote. Elegí o creá el lote para
                 poder contarlo.
               </span>
               <span class="sin-lote-acciones">
-                <button type="button" class="usar" (click)="agregarLote.emit()">
+                <button type="button" class="usar" [disabled]="ocupado()" (click)="agregarLote.emit()">
                   Buscar lote
                 </button>
-                <button type="button" class="usar" (click)="crearLote.emit()">
+                <button type="button" class="usar" [disabled]="ocupado()" (click)="crearLote.emit()">
                   Crear lote
                 </button>
               </span>
@@ -211,6 +222,7 @@ export interface FilaConteo {
           <frc-campo-fecha
             [etiqueta]="fila().lote ? 'Vencimiento del lote' : 'Vencimiento'"
             [valor]="fila().vencimiento || null"
+            [deshabilitado]="soloLectura()"
             (valorChange)="vencimiento.emit($event ?? '')"
           />
 
@@ -224,6 +236,7 @@ export interface FilaConteo {
             <frc-campo-fecha
               etiqueta="Fecha de retiro"
               [valor]="fila().fechaRetiro || null"
+              [deshabilitado]="soloLectura()"
               (valorChange)="fechaRetiro.emit($event ?? '')"
             />
             <p class="aviso-lote">
@@ -257,7 +270,7 @@ export interface FilaConteo {
                 <span class="anterior-fecha">Anterior {{ legible(c.fecha) }}</span>
                 <span class="anterior-fuente">{{ origen(c) }}</span>
               </span>
-              @if (fila().vencimiento !== c.fecha) {
+              @if (fila().vencimiento !== c.fecha && !soloLectura()) {
                 <button type="button" class="usar" (click)="usarConocido.emit(c.fecha)">usar</button>
               }
             </div>
@@ -267,6 +280,7 @@ export interface FilaConteo {
             etiqueta="Estado"
             [opciones]="estados()"
             [valor]="fila().estado"
+            [deshabilitado]="soloLectura()"
             (valorChange)="estado.emit($event)"
           />
         </div>
@@ -331,11 +345,15 @@ export interface FilaConteo {
       gap: var(--sp-2);
       min-width: 0;
     }
+    /*
+      La descripción baja a las líneas que necesite: truncada con «…», dos
+      productos que comparten el principio del nombre no se distinguían.
+      anywhere corta también un código sin espacios, que con min-width: 0
+      en el contenedor se saldría de la card.
+    */
     .titulo {
       font-weight: var(--fw-medium);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
     }
     .marca-vencido { color: var(--danger); flex-shrink: 0; line-height: 0; }
     .fila-2 {
@@ -465,6 +483,57 @@ export class InventarioItemCardComponent {
    * abierta. Cerrada, el alcance del conteo ya es un hecho histórico.
    */
   readonly puedeQuitar = input(false);
+  /**
+   * La toma ya no está abierta: el renglón se mira, no se edita. En una
+   * finalizada el stock ya se ajustó, y un conteo cambiado después dejaría el
+   * registro diciendo otra cosa que el ajuste aplicado.
+   */
+  readonly soloLectura = input(false);
+  /**
+   * La pantalla está agregando, aplicando un lote o quitando: las acciones de
+   * lote y «Quitar» esperan. Un doble toque creaba dos lotes o dos renglones.
+   */
+  readonly ocupado = input(false);
+  /**
+   * El renglón recién agregado: al pintarse se lleva a la vista y, si hay que
+   * contarlo, pone el foco en «Contado».
+   */
+  readonly enfocar = input(false);
+  /** Ya se usó `enfocar`: la pantalla limpia la marca. */
+  readonly enfocado = output<void>();
+
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly campoContado = viewChild<ElementRef<HTMLInputElement>>('campoContado');
+
+  constructor() {
+    /*
+     * ⚠️ **Una sola vez por instancia, no un `effect`.** Un `effect` leería
+     * `fila()`, que la pantalla reconstruye con cada tecla, y devolvería el
+     * foco en cada pulsación. Y que no vuelva con cada recarga de la lista lo
+     * asegura la pantalla, que limpia la marca al recibir `enfocado`: la
+     * recarga recrea todas las cards.
+     *
+     * El foco va solo a un campo habilitado y vacío. Un producto con lote sin
+     * lote todavía tiene el campo bloqueado, y a la vista queda el aviso de
+     * elegirlo; un pesable nace con el peso ya contado.
+     *
+     * En iOS el teclado no sube: el foco llega después de un viaje a la red y
+     * Safari ya no lo toma como un gesto del usuario.
+     */
+    afterNextRender({
+      write: () => {
+        if (!this.enfocar() || !this.abierta()) {
+          return;
+        }
+        this.host.nativeElement.scrollIntoView?.({ block: 'nearest' });
+        const campo = this.campoContado()?.nativeElement;
+        if (campo && !campo.disabled && this.fila().contado === null) {
+          campo.focus({ preventScroll: true });
+        }
+        this.enfocado.emit();
+      },
+    });
+  }
 
   readonly alternar = output<void>();
   readonly contado = output<Event>();

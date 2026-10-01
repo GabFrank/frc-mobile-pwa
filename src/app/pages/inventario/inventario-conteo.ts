@@ -3,6 +3,8 @@ import {
   InventarioProductoItem,
 } from 'src/app/domains/inventario/inventario.model';
 
+import { nombreDeLugar } from './inventario-alta';
+
 /** Cómo va el conteo de una zona o de todo el inventario. */
 export interface ResumenConteo {
   /** Ítems con cantidad contada. */
@@ -140,7 +142,7 @@ export function motivoNoFinalizar(zonas: InventarioProducto[] | undefined | null
 
   const nombres = abiertas
     .slice(0, NOMBRES_EN_EL_AVISO)
-    .map((z) => z.zona?.descripcion ?? 'una zona')
+    .map((z) => nombreDeLugar(z.zona?.descripcion) || 'una zona')
     .join(', ');
   const resto = abiertas.length - Math.min(abiertas.length, NOMBRES_EN_EL_AVISO);
   const lista = resto > 0 ? `${nombres} y ${resto} más` : nombres;

@@ -80,7 +80,7 @@ Todo se exporta desde `src/app/shared/index.ts`.
 
 | Componente | Uso |
 |---|---|
-| `<frc-card>` | Card de entidad. El más usado. Slots: `[pie]`, `[aparte]` |
+| `<frc-card>` | Card de entidad. El más usado. Slots: `[pie]` (bajo el título), `[aparte]` (columna derecha), `[botonera]` (fila de ancho completo al final, a la derecha: botones que llegan al borde sin mover `[aparte]`) |
 | `<frc-estado-chip>` | Estado, resuelto del registro central |
 | `<frc-importe>` | Importe con la precisión de su moneda |
 | `\| importe` | Pipe equivalente para interpolaciones |
@@ -172,6 +172,8 @@ Para agregar un ícono, sumá su `path` al mapa del componente.
 | `CargandoService` | Contador reactivo de operaciones en curso |
 
 La duración del toast la fija el tono, no el llamador: un error necesita más tiempo de lectura que un éxito.
+
+**El margen de un diálogo con caja propia lo pone `styles.scss`**, no el componente: la superficie de Material 21 no trae padding y `mat-dialog-content` sí. Un diálogo que no usa `mat-dialog-content` recibe `--sp-3` en los cuatro lados de una regla global; no le agregues padding a su caja, o queda con el doble. El escáner, a pantalla completa, está excluido.
 
 `CargandoService` alimenta la barra de progreso del shell. **No abre un overlay bloqueante**: las listas muestran skeleton, que es el patrón aprobado.
 

@@ -279,6 +279,8 @@ Verificación: **96 archivos de test, 1.182 tests**, cero errores de tipos, AOT 
 
 ⚠️ **Las notificaciones push necesitan las dos mitades.** El cliente acuña un token de FCM —no una suscripción cruda— y lo ata al `idDispositivo` de **su** sesión; sin esa fila, el central escribe el token en la primera sesión abierta del usuario, que puede ser la de otro aparato. Y el destino del aviso viaja **dentro** del `notification`, no en el `data` del mensaje, o tocarlo no abre nada. Ver [`docs/arquitectura/web-push.md`](docs/arquitectura/web-push.md).
 
+⚠️ **Las monedas del kiosco necesitan un central con `convertirPreciosMobile`** (rama `feat/kiosco-precios-en-moneda` del central, 2026-10-01). Es una query nueva y sin migración: contra un central viejo el selector de banderas **no aparece** y el kiosco sigue en guaraníes, así que publicar la PWA antes no rompe nada.
+
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
 Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.

@@ -38,7 +38,52 @@ class ConBotonera {
   readonly abierta = signal(0);
 }
 
+@Component({
+  standalone: true,
+  imports: [CardComponent],
+  template: `<frc-card titulo="Producto" icono="vencido" [imagen]="imagen()" />`,
+})
+class ConImagen {
+  readonly imagen = signal<string | null>('data:image/jpg;base64,AAAA');
+}
+
 describe('CardComponent', () => {
+  describe('[imagen]', () => {
+    const crear = () => {
+      TestBed.configureTestingModule({ imports: [ConImagen] });
+      const fixture = TestBed.createComponent(ConImagen);
+      fixture.detectChanges();
+      return fixture;
+    };
+    const thumb = (fixture: ReturnType<typeof crear>) =>
+      (fixture.nativeElement as HTMLElement).querySelector('.thumb')!;
+
+    it('con foto, la muestra en lugar del ícono', () => {
+      const fixture = crear();
+      expect(thumb(fixture).querySelector('img')?.getAttribute('src')).toBe('data:image/jpg;base64,AAAA');
+      expect(thumb(fixture).querySelector('frc-icono')).toBeNull();
+    });
+
+    it('sin foto, o con cadena vacía, queda el ícono: un src vacío pide la página', () => {
+      const fixture = crear();
+      fixture.componentInstance.imagen.set('  ');
+      fixture.detectChanges();
+      expect(thumb(fixture).querySelector('img')).toBeNull();
+      expect(thumb(fixture).querySelector('frc-icono')).not.toBeNull();
+    });
+
+    it('si la foto falla vuelve al ícono, y la próxima foto se intenta de nuevo', () => {
+      const fixture = crear();
+      thumb(fixture).querySelector('img')!.dispatchEvent(new Event('error'));
+      fixture.detectChanges();
+      expect(thumb(fixture).querySelector('img')).toBeNull();
+
+      fixture.componentInstance.imagen.set('data:image/jpg;base64,BBBB');
+      fixture.detectChanges();
+      expect(thumb(fixture).querySelector('img')).not.toBeNull();
+    });
+  });
+
   describe('[botonera]', () => {
     it('sin usarla no se pinta: las cards de siempre no cambian', () => {
       TestBed.configureTestingModule({ imports: [SinAccion] });

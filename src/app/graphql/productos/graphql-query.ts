@@ -291,6 +291,7 @@ export const productosVencidosQuery = gql`
         diasVencimiento
         diasVencimientoTexto
         diasVencimientoClase
+        imagenPrincipal
       }
     }
   }

@@ -6515,6 +6515,162 @@ almuerzo **no aparecen** (no se muestran con «—»).
 
 ---
 
+## Bloque 73 — Fotos de las presentaciones en el kiosco de precios *(nuevo)*
+
+**Por qué está acá:** el kiosco mostraba solo cantidad y precio de cada
+presentación. Ahora muestra la foto de cada una en una tira al costado, la
+elegida en grande sobre una «vitrina» blanca, y debajo su precio. Las fotos
+llegan **después** del precio, con una consulta aparte
+(`presentacionesPorProductoId`), así que el central no cambia.
+
+Datos de prueba en el central local (2026-10-01): **PILSEN CLASICA LATA 269
+ML** — unidad `7840050006385`, pack de 12 `7840050005005`, las dos con foto —
+y **PILSEN EXTRA LATA 269ML** — pack de 6 `7840050007900`, **sin foto**.
+
+### 73.1 · Arranca en la presentación escaneada
+1. Abrir `/kiosco` en el teléfono, en vertical.
+2. Escanear el código **del pack** (`7840050005005`).
+
+**Esperado:** nombre arriba; a la izquierda, la tira con dos miniaturas
+(«×1» y «×12»); a la derecha, la foto grande del **pack**. La miniatura ×12
+tiene borde rojo y la otra está atenuada. Debajo: «Cantidad: 12 (PACK)» y
+«₲ 42.000» en rojo grande, en una sola línea.
+
+### 73.2 · Tocar otra presentación
+1. Con la ficha de 73.1 en pantalla, tocar la miniatura **×1**.
+
+**Esperado:** la foto grande pasa a la lata suelta con un fundido corto; el
+precio cambia a «₲ 3.500» y la etiqueta a «Cantidad: 1 (UNIDAD)». El borde
+rojo pasa a ×1.
+
+### 73.3 · El lector sigue escribiendo después del toque
+1. Después de 73.2, **sin tocar el campo**, pasar otro producto por el lector
+   HID.
+
+**Esperado:** busca el producto nuevo. El toque en la miniatura no le sacó
+el foco al campo.
+
+### 73.4 · Tocar reinicia los 20 segundos
+1. Escanear un producto con varias presentaciones.
+2. A los ~15 s, tocar otra miniatura.
+
+**Esperado:** la ficha sigue en pantalla unos 20 s **contados desde el
+toque**, no desde el escaneo.
+
+### 73.5 · Una presentación sin foto
+1. Escanear `7840050007900` (pack de PILSEN EXTRA).
+
+**Esperado:** la vitrina del pack muestra el ícono de producto en gris sobre
+blanco, **no** el dibujo genérico de «sin imagen» del central. La miniatura
+de la unidad sí tiene foto.
+
+### 73.6 · Un producto con una sola presentación
+1. Escanear un producto que tenga una sola presentación con precio.
+
+**Esperado:** no aparece la tira; la foto ocupa el ancho, con el precio
+debajo.
+
+### 73.7 · Tablet o teléfono acostado
+1. Repetir 73.1 con la tablet en horizontal (o el teléfono acostado, si mide
+   720 px o más de ancho).
+
+**Esperado:** disposición de ficha de tienda: tira | foto | nombre y precio
+a la derecha, alineados a la izquierda. La foto ocupa casi todo el alto
+libre de la pantalla, sin aire de sobra arriba y abajo. El precio entra en
+una línea.
+
+### 73.8 · Red lenta
+1. En Chrome, DevTools → Network → «Slow 3G». Escanear un producto.
+
+**Esperado:** el precio aparece primero, con el ícono en la vitrina; la foto
+aparece sola cuando llega. **No sale ningún aviso de error** si la foto
+tarda o falla.
+
+### 73.9 · El precio no se mezcla con fotos de otro producto
+1. Con «Slow 3G», escanear un producto y, **antes** de que llegue su foto,
+   escanear otro.
+
+**Esperado:** la ficha muestra la foto del **segundo** producto o el ícono;
+nunca la foto del primero con el precio del segundo.
+
+### 73.10 · Tablet en vertical
+1. Repetir 73.1 en una tablet en vertical (800 px de ancho o más).
+
+**Esperado:** la ficha ocupa el ancho de la pantalla, sin franjas vacías a
+los costados: la foto es grande, la tira y las miniaturas crecen, y el
+nombre y el precio son notoriamente más grandes que en el teléfono. Todo
+entra sin scroll: nombre, foto, etiqueta y precio.
+
+---
+
+## Bloque 74 — Precios en otra moneda en el kiosco *(nuevo)*
+
+**Por qué está acá:** el kiosco vuelve a tener el selector de banderas de
+`frc-mobile` (₲, R$, US$, AR$), pero **la conversión la hace el central**
+con la query nueva `convertirPreciosMobile`: última cotización y los
+decimales de cada moneda. `frc-mobile` multiplicaba en el teléfono.
+
+⚠️ **Necesita el central de la rama `feat/kiosco-precios-en-moneda`.**
+Contra un central sin esa query el selector no aparece (caso 74.6).
+
+### 74.1 · El botón aparece al entrar
+1. Abrir `/kiosco`, sin escanear nada.
+
+**Esperado:** justo debajo de la barra roja, a la izquierda, un botón rojo
+redondo con la bandera de Paraguay. No tapa el nombre del producto cuando se
+escanea uno.
+
+### 74.2 · Abrir y cerrar el selector
+1. Tocar el botón.
+2. Tocar la X.
+
+**Esperado:** al tocar, el botón pasa a ser una X y a su derecha aparecen
+las banderas de las monedas con cotización cargada, en orden de id, todas en
+una línea en un teléfono de 360 px o más (en uno más angosto bajan a una
+segunda línea, sin salirse de la pantalla). La de
+Paraguay tiene un anillo blanco. La X cierra la fila.
+
+### 74.3 · Ver un precio en reales
+1. Escanear `7840050006385` (PILSEN CLASICA, unidad).
+2. Abrir el selector y tocar Brasil.
+
+**Esperado:** el precio grande pasa a «R$ x,xx», con los decimales de la
+moneda; debajo aparece «₲ 3.500» chico como referencia. La fila de banderas
+se cierra sola. El botón muestra ahora la bandera de Brasil. El importe
+coincide con `3500 / cotización del real` redondeado a los decimales de la
+moneda.
+
+### 74.4 · La moneda queda elegida entre escaneos
+1. Con reales elegidos, escanear otro producto.
+2. Tocar la miniatura del pack.
+
+**Esperado:** el producto nuevo sale directamente en reales, y el pack
+también. Volver a guaraní (bandera de Paraguay) muestra «₲» sin la línea de
+referencia.
+
+### 74.5 · Un precio largo entra en una línea
+1. Elegir pesos argentinos o la moneda con el importe más largo y escanear
+   el pack más caro que tengas.
+
+**Esperado:** el precio se achica para entrar en **una** línea; no se corta
+ni se sale de la pantalla, en el teléfono en vertical.
+
+### 74.6 · Central sin la query
+1. Apuntar la PWA a un central que **no** tenga `convertirPreciosMobile`
+   (por ejemplo producción hoy).
+2. Abrir `/kiosco` y escanear.
+
+**Esperado:** **no aparece** el botón de monedas y los precios salen en
+guaraníes como antes. Ningún aviso de error en pantalla.
+
+### 74.7 · Moneda sin cotización
+1. En el desktop, una moneda activa sin ninguna cotización cargada.
+2. Abrir el selector.
+
+**Esperado:** esa moneda **no aparece** en la fila. Las demás sí.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6591,7 +6747,9 @@ almuerzo **no aparecen** (no se muestran con «—»).
 | 70 · Lotes en el conteo: presentación, fechas y stock | 6 | 5 | | |
 | 71 · Margen de los diálogos | 3 | 3 | | |
 | 72 · Las horas de la tarjeta «Hoy» en Marcación | 2 | 1 | | |
-| **Total** | **633** | | | |
+| 73 · Fotos de las presentaciones en el kiosco | 10 | | | |
+| 74 · Precios en otra moneda en el kiosco | 7 | | | |
+| **Total** | **650** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

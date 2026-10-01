@@ -508,3 +508,23 @@ export const productoDescripcionExistsQuery = gql`
     data: productoDescripcionExists(descripcion: $descripcion)
   }
 `;
+
+/**
+ * Las fotos de las presentaciones de un producto, y nada más.
+ *
+ * ⚠️ **Va aparte de `productoPorCodigo` a propósito.** Cada foto es un data
+ * URI de varios KB; sumarlas a esa query las haría viajar en cada escaneo de
+ * recepción y de transferencias, que no las muestran. El kiosco pinta el
+ * precio con la query liviana y pide esto después.
+ *
+ * El central devuelve la miniatura (250 px de lado mayor) y, si no hay foto,
+ * un PNG genérico en vez de `null`: ver `imagenDePresentacion()`.
+ */
+export const presentacionesImagenesQuery = gql`
+  query ($id: Int) {
+    data: presentacionesPorProductoId(id: $id) {
+      id
+      imagenPrincipal
+    }
+  }
+`;

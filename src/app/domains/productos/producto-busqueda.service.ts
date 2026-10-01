@@ -16,12 +16,17 @@ import { CodigoPorCodigoGQL } from 'src/app/graphql/productos/codigoPorCodigo';
 import { ProductoPorCodigoGQL } from 'src/app/graphql/productos/productoPorCodigo';
 import { ProductoPorIdGQL } from 'src/app/graphql/productos/productoPorId';
 import { ProductoSearchGQL } from 'src/app/graphql/productos/productoSearch';
+import { PresentacionesImagenesGQL } from 'src/app/graphql/productos/presentacionesImagenes';
 import { ProductoStockGQL } from 'src/app/graphql/productos/productoStock';
 import {
   StockPorSucursal,
   StockPorSucursalesGQL,
 } from 'src/app/graphql/productos/stockPorSucursales';
-import { resolverPresentacionPorCodigo, tienePresentaciones } from 'src/app/shared/producto/presentacion.util';
+import {
+  imagenDePresentacion,
+  resolverPresentacionPorCodigo,
+  tienePresentaciones,
+} from 'src/app/shared/producto/presentacion.util';
 
 /** Un pesable devuelve producto **y** cantidad: el peso viene en el código. */
 export interface ResultadoPesable {
@@ -57,6 +62,7 @@ export class ProductoBusquedaService {
   private readonly codigoGQL = inject(CodigoPorCodigoGQL);
   private readonly stockGQL = inject(ProductoStockGQL);
   private readonly stockTodasGQL = inject(StockPorSucursalesGQL);
+  private readonly imagenesGQL = inject(PresentacionesImagenesGQL);
 
   /**
    * Búsqueda general: primero por código, después por descripción.
@@ -170,6 +176,35 @@ export class ProductoBusquedaService {
     return this.datos
       .consultar<number>(this.stockGQL, { proId: productoId, sucId: sucursalId })
       .pipe(map((valor) => valor ?? 0));
+  }
+
+  /**
+   * La foto de cada presentación del producto, por id de presentación.
+   *
+   * Las que no tienen foto quedan **fuera del mapa**: el central manda un PNG
+   * genérico en su lugar, y mostrarlo como si fuera la foto del producto es
+   * peor que no mostrar nada.
+   *
+   * Silenciosa: una foto que no llega no es un error para quien mira la
+   * pantalla, que ya tiene el precio.
+   */
+  imagenesDePresentaciones(productoId: number): Observable<Map<number, string>> {
+    return this.datos
+      .consultar(this.imagenesGQL, { id: productoId }, { mostrarCarga: false, notificarError: false })
+      .pipe(
+        map((filas) => {
+          const porPresentacion = new Map<number, string>();
+          for (const fila of filas ?? []) {
+            const imagen = imagenDePresentacion(fila.imagenPrincipal);
+            if (fila.id != null && imagen) {
+              // Number(): el id llega como string desde GraphQL.
+              porPresentacion.set(Number(fila.id), imagen);
+            }
+          }
+          return porPresentacion;
+        }),
+        catchError(() => of(new Map<number, string>())),
+      );
   }
 
   detalle(id: number): Observable<Producto> {

@@ -54,6 +54,13 @@ Consulta y edición de productos, y **el modo consulta de precios** — una pant
 
 > ⚠️ **Gotcha — el foco se re-fuerza con `setTimeout` en cuatro lugares.** Es frágil pero necesario: sin eso, cualquier interacción táctil roba el foco y el lector deja de funcionar. Si tocás este componente, verificá el foco en device real, no en navegador.
 
+**En la PWA (`kiosco.page.ts`) cada presentación muestra su foto.** Hay una tira de miniaturas al costado, la elegida se ve en grande y su precio va debajo; arranca en la presentación escaneada. Tres cosas que no se ven en el código a primera vista:
+
+- **Las fotos se piden aparte**, con `presentacionesPorProductoId { id imagenPrincipal }`, después de mostrar el precio. No van en `productoPorCodigo` porque esa query la usan también recepción y transferencias, y cada foto es un data URI de varios KB.
+- **`Presentacion.imagenPrincipal` nunca es `null`.** Sin foto, el central devuelve un PNG genérico; las fotos reales vienen como `data:image/jpg`. `imagenDePresentacion()` descarta el PNG.
+- **El selector de moneda no convierte en el cliente.** `frc-mobile` multiplicaba por `1 / cambio`; acá `convertirPreciosMobile(montosGs)` devuelve cada precio ya convertido y redondeado con `Moneda.decimales`, en una sola consulta para todas las monedas. Una moneda inactiva o sin cotización no se ofrece. Contra un central sin la query, no hay selector.
+- **Es la miniatura de 250 px**, no el original: en la vitrina de un teléfono alcanza, y en una tablet grande se nota algo blanda. Para mostrar el original habría que agregar un campo al central.
+
 ### `PrecioConfigComponent` — configuración del kiosco
 
 Permite apuntar el kiosco a un servidor concreto. Escribe `serverIp`, `serverPort` y **borra la sesión** (`usuarioId`, `token`), igual que `ChangeServerIpDialogComponent`.

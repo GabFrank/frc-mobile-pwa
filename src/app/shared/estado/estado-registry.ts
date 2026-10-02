@@ -109,6 +109,8 @@ const REGISTRO: Record<ClaveEstado, EstadoVisual> = {
   // PENDIENTE para el que mira la lista.
   'SolicitudPagoEstado.PENDIENTE': { etiqueta: 'Borrador',  tono: 'neutral', icono: 'editar' },
   'SolicitudPagoEstado.SOLICITADO':{ etiqueta: 'Solicitado', tono: 'warn',   icono: 'reloj' },
+  // DEVUELTO: tesorería no la va a pagar así; espera que compras la corrija.
+  'SolicitudPagoEstado.DEVUELTO':  { etiqueta: 'Devuelto',  tono: 'danger', icono: 'atras' },
   'SolicitudPagoEstado.PARCIAL':   { etiqueta: 'Parcial',   tono: 'info',   icono: 'reloj' },
   'SolicitudPagoEstado.CONCLUIDO': { etiqueta: 'Concluido', tono: 'ok',     icono: 'checkCirculo' },
   'SolicitudPagoEstado.CANCELADO': { etiqueta: 'Cancelado', tono: 'danger', icono: 'cancelar' },

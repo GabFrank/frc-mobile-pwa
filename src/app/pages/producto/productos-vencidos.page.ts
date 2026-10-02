@@ -11,7 +11,7 @@ import {
   toneDeVencimiento,
 } from 'src/app/domains/productos/producto-vencido.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
-import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
@@ -257,7 +257,9 @@ export class ProductosVencidosPage {
   }
 
   cantidad(v: ProductoVencido): string {
-    const unidades = formatearCantidad(v.cantidad, 2);
+    // Sin decimales fijos: son unidades por vencer, y `3,00` se lee como si
+    // hubiera una fracción de envase. Ver `formatearExistencia`.
+    const unidades = formatearExistencia(v.cantidad);
     const presentacion = v.presentacionCantidad;
     // La cantidad manda y la presentación es contexto, igual que en el
     // buscador: es lo que se compara entre filas.

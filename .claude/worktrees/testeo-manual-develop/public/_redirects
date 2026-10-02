@@ -1,0 +1,6 @@
+# Fallback de la SPA: cualquier ruta que no sea un archivo real devuelve
+# index.html y deja que el router de Angular resuelva.
+#
+# Sin esto, recargar en /inventario/12 o abrir un link directo devuelve 404.
+# No se ve en desarrollo porque `ng serve` ya hace el fallback por su cuenta.
+/*    /index.html   200

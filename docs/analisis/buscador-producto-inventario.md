@@ -218,7 +218,7 @@ vencidos — cinco pantallas de módulos distintos.
 | 8 | Expandir → presentaciones | ✅ |
 | 9 | Expandir → stock | ✅ |
 | 10 | Ver stock por sucursal | ✅ una sola consulta |
-| 11 | **Ver imagen ampliada** | ⏸ |
+| 11 | **Ver imagen ampliada** | ⏸ la miniatura ya se muestra; falta el visor al tocarla |
 | 12 | Elegir presentación | ✅ |
 | 13 | Mostrar precio | ✅ |
 | 14 | Stock de la presentación | ✅ |
@@ -239,7 +239,7 @@ uso, que es exactamente lo que llevó al componente original a 442 líneas.
 |---|---|---|
 | **Abrirlo como diálogo selector** | Con devolución, el primer consumidor real | `(seleccion)` ya emite; falta el `DialogoService.abrir()` que lo envuelva y devuelva. Sin un llamador no se sabe qué ancho ni qué título necesita |
 | **Foco automático en el campo** (7) | Con el modo diálogo y con el kiosco | En una pestaña que se abre por navegación, robar el foco levanta el teclado sin que nadie lo pida. En un diálogo de selección **sí** corresponde |
-| **Ver imagen ampliada** (11) | Con el detalle de producto | Hoy la card muestra un ícono genérico. `imagenPrincipal` viene en la query pero no se usa |
+| **Ver imagen ampliada** (11) | Cuando alguien necesite mirar la foto de cerca | La card **ya muestra la foto** en su miniatura de 44px, que es para lo que alcanza al reconocer un producto en la góndola. Lo que falta es el `PhotoViewer` que `frc-mobile` abría al tocar el avatar, y eso es un diálogo nuevo del sistema de diseño |
 | **FAB «subir»** (21) | Si las listas se vuelven largas | Con 10 por tanda no hace falta. Aparece cuando alguien se queje de scrollear |
 | **Stock de dos sucursales** (modo E) | Con transferencias | La card recibe un `stock`. Para origen y destino hay que decidir si son dos inputs o una lista de pares — con la pantalla real delante |
 | **Modo inventario** (D, 16–20) | Con el módulo de inventario | Es un formulario de carga, no un selector. Ver §4 |

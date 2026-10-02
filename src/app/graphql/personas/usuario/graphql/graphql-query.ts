@@ -317,6 +317,8 @@ export const incorporarEmbeddingMarcacionQuery = gql`
 export const usuarioPorEmbeddingQuery = gql`
   query ($embedding: [Float], $excludeIds: [Int]) {
     data: usuarioPorEmbedding(embedding: $embedding, excludeIds: $excludeIds) {
+      similitudSegundo
+      margen
       usuario {
         id
         nickname

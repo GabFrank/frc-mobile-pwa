@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, 'release/*', master]
+
+# Una corrida por rama: si se pushea encima de una PR, la anterior se cancela.
+# Este repo es privado y los minutos de Actions se facturan, a diferencia de los
+# otros cuatro componentes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # El gate real. `tsc --noEmit` NO alcanza: no typechequea las plantillas,
+      # así que un `p.ciudad.nombre` inexistente pasa limpio y solo lo caza el
+      # AOT. Esto además valida los budgets (1 MB de initial).
+      #
+      # `prebuild` corre sello-version.mjs y face-models.mjs, que copia ~10 MB
+      # desde node_modules — por eso va después de `npm ci`, no antes.
+      - name: Build de producción (gate AOT)
+        run: npm run build
+
+      - name: Tests
+        run: npm test
+
+      # ⚠️ No hay paso de `prettier --check`, y es a propósito: al 2026-08-14
+      # hay 214 archivos del repo que no pasan el formateo. Agregarlo hoy
+      # tumbaría toda PR por código ajeno al cambio. El orden correcto es una
+      # PR de `chore` que corra `prettier --write .` sobre todo el repo, y
+      # recién ahí sumar el paso acá.

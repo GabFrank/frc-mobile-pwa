@@ -1,0 +1,21 @@
+# Salida de compilación y dependencias
+dist/
+.angular/
+node_modules/
+coverage/
+
+# Generado antes de cada build por scripts/sello-version.mjs
+src/app/core/sello-version.ts
+
+# Copiados desde node_modules por scripts/face-models.mjs
+public/face-models/
+
+# Configuración de Cloudflare Pages: no tienen extensión y prettier no puede
+# inferir un parser, así que `prettier --check .` falla con "No parser could be
+# inferred" y tumba el CI entero.
+public/_headers
+public/_redirects
+.nvmrc
+
+# El lockfile lo escribe npm
+package-lock.json

@@ -9,7 +9,26 @@
       name="description"
       content="Operaciones del ERP Franco Systems: recepción, caja, inventario, devoluciones y marcación."
     />
+    <!--
+      Ícono de la pestaña: el logo de Bodega Franco, no el de Angular.
+
+      `assets/images/frc.png` es el original de 512×512 y es la referencia que
+      usan los navegadores modernos. `favicon.ico` queda porque el navegador lo
+      pide solo, sin mirar el HTML, cuando el link falla o todavía no parseó la
+      cabecera; se regeneró desde el mismo PNG (48/32/16) para que en ese
+      camino tampoco aparezca el logo de Angular.
+    -->
+    <link rel="icon" type="image/png" sizes="512x512" href="assets/images/frc.png" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+    <!--
+      iOS no lee `rel="icon"`: para «Compartir → Añadir a inicio» busca
+      `apple-touch-icon`, y sin él usa una captura de la pantalla como ícono.
+      Reusa el PNG de 192 del juego de la PWA en lugar de sumar otro archivo;
+      Safari lo escala a los 180 que pide Apple. Es el mismo logo que
+      `assets/images/frc.png`, recortado al tamaño que ya existía.
+    -->
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
     <link rel="manifest" href="manifest.webmanifest" />
 
     <!--

@@ -35,6 +35,21 @@ export const PERMISOS = {
   inventario: [ROLES.ADMIN, ROLES.VER_INVENTARIO],
 
   /**
+   * Abrir una toma.
+   *
+   * ⚠️ **Más restrictivo que `inventario`, por el mismo motivo que
+   * `lugares`.** `VER INVENTARIO` (36 usuarios) es mirar un conteo; abrir una
+   * toma define el alcance de lo que se va a contar y termina, al
+   * finalizarla, ajustando el stock de la sucursal contra lo contado.
+   * `CREAR INVENTARIO` (29 usuarios) es exactamente el rol de quien arma la
+   * toma.
+   *
+   * `frc-mobile` no pide ninguno: el botón «Nuevo inventario» cuelga del hub
+   * y lo ve cualquiera que llegue al módulo.
+   */
+  inventarioAlta: [ROLES.ADMIN, ROLES.CREAR_INVENTARIO],
+
+  /**
    * Sectores y zonas del depósito.
    *
    * ⚠️ **Más restrictivo que `inventario`, a propósito.** `VER INVENTARIO`
@@ -51,6 +66,26 @@ export const PERMISOS = {
 
   /** 257 usuarios tienen VER TRANSFERENCIA. */
   transferencias: [ROLES.ADMIN, ROLES.VER_TRANSFERENCIA],
+
+  /**
+   * Crear una transferencia.
+   *
+   * ⚠️ **Más restrictivo que `transferencias`, por el mismo motivo que
+   * `inventarioAlta`.** `VER TRANSFERENCIA` (257 usuarios) es mirar el
+   * movimiento de mercadería; crear una origina un documento que después
+   * descuenta stock en una sucursal y lo carga en otra. `CREAR TRANSFERENCIA`
+   * es exactamente el rol de quien la origina.
+   *
+   * `frc-mobile` declara el rol en su enum y **no lo usa en ningún lado**: el
+   * botón «Crear una nueva transferencia» cuelga del hub y lo ve cualquiera
+   * que entre al módulo.
+   *
+   * ⚠️ **Falta confirmar cuántos usuarios lo tienen asignado.** Si fueran cero
+   * —como pasa con `TESORERIA CPP PAGAR`—, el alta quedaría visible solo para
+   * ADMIN. El arreglo en ese caso es **asignar el rol**, no sacar el guard,
+   * igual que con `recepcion`.
+   */
+  transferenciasAlta: [ROLES.ADMIN, ROLES.CREAR_TRANSFERENCIA],
 
   /**
    * ⚠️ **Solo 2 usuarios tienen RECIBIR PEDIDOS**, más los 28 ADMIN.
@@ -74,6 +109,56 @@ export const PERMISOS = {
    * puede dar**.
    */
   aprobacionesRrhh: [ROLES.ADMIN, ROLES.RRHH_APROBAR],
+
+  /**
+   * Kiosco de marcación: la tablet de la puerta.
+   *
+   * ⚠️ **Marcación no lleva rol y el kiosco sí**, y no es una inconsistencia.
+   * La marcación propia es autoservicio: el filtro es la persona en sesión y
+   * cada uno ve lo suyo. El kiosco **marca por otros** —identifica un rostro
+   * y registra la asistencia de quien reconoció—, así que esa premisa no lo
+   * cubre. Dejarlo sin rol pondría en manos de cualquiera con sesión el
+   * registro de asistencia de todo el personal.
+   *
+   * `RRHH GESTIONAR` es quien administra la asistencia. `frc-mobile` protege
+   * la pantalla equivalente comparando `nickname === 'ADMIN'`, que además de
+   * frágil no se puede delegar a nadie.
+   */
+  kioscoMarcacion: [ROLES.ADMIN, ROLES.RRHH_GESTIONAR],
+
+  /**
+   * Editar un producto: descripción, categoría, presentaciones y códigos.
+   *
+   * ⚠️ **El rol NO es `NUEVO-PRODUCTO`.** Ese nombre solo existe en el texto
+   * del issue #10, de donde lo copiaron `docs/modulos/producto.md` y el
+   * comentario de la ficha. `personas.role` no lo tiene —consultado el
+   * 2026-09-04 contra `bodega`, 492 usuarios—, así que guardar con ese
+   * nombre dejaría entrar solo a ADMIN: el mismo caso `DIRECTIVO` de
+   * `aprobacionesRrhh`, unas líneas más arriba.
+   *
+   * `EDITAR PRODUCTOS` (32 usuarios) sí existe, y es el que el escritorio ya
+   * usa para habilitar el alta (`list-producto.component.ts:494`).
+   */
+  productoEdicion: [ROLES.ADMIN, ROLES.EDITAR_PRODUCTOS],
+
+  /**
+   * Editar el precio de una presentación.
+   *
+   * ⚠️ **Más restrictivo que `productoEdicion`, a propósito.** El modelo de
+   * roles del sistema ya separa editar un producto (32 usuarios) de editar su
+   * precio (26): son conjuntos distintos, y la diferencia es exactamente la
+   * gente a la que la empresa no le confió los precios.
+   *
+   * El escritorio declara `EDITAR PRECIOS` en su enum y en el menú lateral, y
+   * **no lo aplica en ningún lado** del módulo de productos — el mismo patrón
+   * que `CREAR TRANSFERENCIA` en `frc-mobile`. Acá se aplica.
+   *
+   * Esto atiende la mitad «desde el salón» de la objeción del issue #10. La
+   * otra mitad —costo y margen a la vista, para los 24 usuarios con
+   * `VER PRECIO COSTO`— quedó fuera de esta entrega por decisión del
+   * 2026-09-04. Ver la spec.
+   */
+  productoPrecios: [ROLES.ADMIN, ROLES.EDITAR_PRECIOS],
 } as const satisfies Record<string, readonly ROLES[]>;
 
 export type AreaProtegida = keyof typeof PERMISOS;

@@ -7,6 +7,7 @@ import {
   input,
   output,
   signal,
+  WritableSignal,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -145,9 +146,13 @@ const LOTE = 10;
           [stockDestino]="stockDestinoDe(producto)"
           [etiquetaStock]="opciones().etiquetaStock ?? 'Stock'"
           [etiquetaStockDestino]="opciones().etiquetaStockDestino ?? 'Destino'"
-          [cargando]="cargandoDetalle() === producto.id"
+          [cargando]="cargandoDetalle().has(producto.id!)"
+          [fallido]="producto.id == null || detalleFallido().has(producto.id)"
+          (reintentar)="alExpandir(producto)"
           [expandible]="opciones().devuelve !== 'producto'"
-          (expandir)="alExpandir($event)"
+          [soloUnitaria]="opciones().soloPresentacionUnitaria ?? false"
+          [abierta]="producto.id != null && abiertoId() === producto.id"
+          (alternada)="alternar($event)"
           (seleccionar)="seleccion.emit({ producto: $event })"
           (elegir)="elegirPresentacion(producto, $event)"
           (accion)="ejecutarAccion($event, producto)"
@@ -173,6 +178,13 @@ const LOTE = 10;
       gap: var(--sp-2);
     }
     .campo { flex: 1; min-width: 0; }
+    /*
+      Mayúsculas, como en frc-mobile: los códigos de barra y las descripciones
+      del catálogo están cargados en mayúsculas, y el central compara con
+      UPPER() de los dos lados. Es solo presentación — el valor que viaja
+      conserva lo que se tipeó, y la búsqueda no distingue mayúsculas.
+    */
+    .campo input { text-transform: uppercase; }
     .escanear {
       flex-shrink: 0;
       width: 48px;
@@ -242,7 +254,22 @@ export class BuscadorProductoComponent {
   readonly pesable = signal<ResultadoPesable | null>(null);
   readonly cargando = signal(false);
   readonly cargandoMas = signal(false);
-  readonly cargandoDetalle = signal<number | null>(null);
+  /**
+   * Productos cuyo detalle está en vuelo, y los que fallaron. **Uno por
+   * producto**: con un solo id, abrir A y enseguida B dejaba a una de las dos
+   * vacía mientras su detalle viajaba, y en el conteo de inventario eso se lee
+   * como «no tiene presentaciones».
+   */
+  readonly cargandoDetalle = signal<ReadonlySet<number>>(new Set());
+  /**
+   * El producto desplegado: **uno a la vez**, como la lista del conteo.
+   *
+   * ⚠️ **Se limpia con cada búsqueda nueva** (y con el pesable): vacían la
+   * lista y recrean las cards, y con la marca vieja una card nacía abierta sin
+   * que nadie pidiera su detalle ni su stock — «Cargando…» para siempre.
+   */
+  readonly abiertoId = signal<number | null>(null);
+  readonly detalleFallido = signal<ReadonlySet<number>>(new Set());
   readonly hayMas = signal(false);
   readonly error = signal<string | null>(null);
   /** Distingue «todavía no buscaste» de «buscaste y no hay nada». */
@@ -354,6 +381,7 @@ export class BuscadorProductoComponent {
 
     if (!agregando) {
       this.cargando.set(true);
+      this.abiertoId.set(null);
       this.resultados.set([]);
       this.stocks.set({});
       this.stocksDestino.set({});
@@ -378,6 +406,17 @@ export class BuscadorProductoComponent {
     });
   }
 
+  /** Abre el tocado —cerrando el que estaba— o lo cierra si ya estaba abierto. */
+  alternar(producto: Producto): void {
+    const id = producto.id ?? null;
+    if (id != null && this.abiertoId() === id) {
+      this.abiertoId.set(null);
+      return;
+    }
+    this.abiertoId.set(id);
+    this.alExpandir(producto);
+  }
+
   /**
    * Al expandir se cargan presentaciones y stock, no antes.
    *
@@ -391,20 +430,29 @@ export class BuscadorProductoComponent {
       return;
     }
 
-    if ((producto.presentaciones?.length ?? 0) === 0) {
-      this.cargandoDetalle.set(id);
+    // Solo si no se saben: un `[]` ya es el central diciendo «ninguna».
+    if (producto.presentaciones == null && !this.cargandoDetalle().has(id)) {
+      this.marcar(this.cargandoDetalle, id, true);
+      this.marcar(this.detalleFallido, id, false);
       this.busqueda.detalle(id).subscribe({
         next: (completo) => {
-          this.cargandoDetalle.set(null);
-          if (completo?.presentaciones) {
-            this.resultados.update((filas) =>
-              filas.map((p) =>
-                p.id === id ? { ...p, presentaciones: completo.presentaciones } : p,
-              ),
-            );
+          this.marcar(this.cargandoDetalle, id, false);
+          // Sin producto en la respuesta no se sabe nada de sus presentaciones:
+          // es un fallo, no un «no tiene».
+          if (!completo) {
+            this.marcar(this.detalleFallido, id, true);
+            return;
           }
+          this.resultados.update((filas) =>
+            filas.map((p) =>
+              p.id === id ? { ...p, presentaciones: completo.presentaciones ?? [] } : p,
+            ),
+          );
         },
-        error: () => this.cargandoDetalle.set(null),
+        error: () => {
+          this.marcar(this.cargandoDetalle, id, false);
+          this.marcar(this.detalleFallido, id, true);
+        },
       });
     }
 
@@ -425,6 +473,22 @@ export class BuscadorProductoComponent {
         error: () => undefined,
       });
     }
+  }
+
+  private marcar(
+    conjunto: WritableSignal<ReadonlySet<number>>,
+    id: number,
+    presente: boolean,
+  ): void {
+    conjunto.update((previo) => {
+      const copia = new Set(previo);
+      if (presente) {
+        copia.add(id);
+      } else {
+        copia.delete(id);
+      }
+      return copia;
+    });
   }
 
   elegirPresentacion(producto: Producto, presentacion: Presentacion): void {
@@ -490,6 +554,7 @@ export class BuscadorProductoComponent {
     this.cargando.set(true);
     this.error.set(null);
     this.resultados.set([]);
+    this.abiertoId.set(null);
     this.pesable.set(null);
 
     this.enVuelo = this.busqueda.pesable(codigo).subscribe({

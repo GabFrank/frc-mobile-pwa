@@ -91,6 +91,24 @@ function idDeRegistro(valor: unknown): number | null {
 }
 
 /**
+ * El id de la transferencia que abre este código, o `null` si no es el QR de
+ * una transferencia.
+ *
+ * Es la prueba de que a quien abre la transferencia **le pasaron el código**:
+ * el escáner y el enlace de WhatsApp lo llevan hasta el detalle en el
+ * parámetro `qr`, y el detalle solo deja tomar una transferencia ajena si el
+ * código es el de ella. Lee el id con la misma regla que `rutearEscaneo`, así
+ * que un QR que abre la transferencia 88 no puede habilitar la 99.
+ */
+export function transferenciaDelQr(texto: string | null | undefined): number | null {
+  const qr = descodificarQr((texto ?? '').trim());
+  if (qr?.tipoEntidad !== TipoEntidad.TRANSFERENCIA) {
+    return null;
+  }
+  return idDeRegistro(REGLAS[TipoEntidad.TRANSFERENCIA].id(qr));
+}
+
+/**
  * Decide adónde va lo que se leyó, sin tocar el router ni el servidor.
  *
  * Es una función pura para poder probar la tabla entera sin montar Angular:
@@ -172,4 +190,42 @@ export function rutearEscaneo(texto: string): DestinoEscaneo {
   }
 
   return { clase: 'desconocido', mensaje: 'Ese QR no abre ninguna pantalla de la app.' };
+}
+
+/**
+ * El camino inverso: de un QR del sistema a un enlace que abre esa pantalla.
+ *
+ * Sirve para mandar un registro por WhatsApp. **Un enlace le gana al QR
+ * cuando el otro no está enfrente**: lo toca y la app se le abre en la
+ * transferencia, sin cámara de por medio. El QR sigue siendo lo que sirve
+ * cuando están los dos con el teléfono en la mano.
+ *
+ * Sale de `rutearEscaneo` a propósito, y no de una tabla propia: es la misma
+ * ruta a la que llega quien lo escanea. Si mañana cambia dónde vive el
+ * detalle de transferencias, el enlace cambia con ella.
+ *
+ * ⚠️ **Los QR con `queryParams` no dan enlace.** Ahí viaja el token que
+ * autoriza un retiro de caja chica: en un mensaje de WhatsApp queda escrito
+ * para siempre, y quien lea la conversación puede usarlo. Devuelve `null` y
+ * el que comparte manda solo el código.
+ */
+export function enlaceAlRegistro(texto: string): string | null {
+  const destino = rutearEscaneo(texto);
+  if (destino.clase !== 'navegar' || destino.queryParams) {
+    return null;
+  }
+  const ruta = destino.ruta.map(String).join('/').replace(/^\/+/, '');
+  try {
+    const url = new URL(ruta, document.baseURI);
+    // El enlace de una transferencia lleva su código, igual que el escaneo:
+    // mandarlo por WhatsApp es pasarle la transferencia al otro, y sin el
+    // código la abriría sin poder tomarla. No agrega nada secreto: el mismo
+    // código ya va escrito en el mensaje.
+    if (transferenciaDelQr(texto) != null) {
+      url.searchParams.set('qr', texto.trim());
+    }
+    return url.href;
+  } catch {
+    return null;
+  }
 }

@@ -80,6 +80,14 @@ export const routes: Routes = [
           import('./pages/marcacion/marcacion.page').then((m) => m.MarcacionPage),
       },
       {
+        // El kiosco de la puerta. Va **antes** que nada suyo anidado y lleva
+        // rol, a diferencia de `marcacion`: acá se marca por otros.
+        path: 'marcacion/kiosco',
+        canActivate: [rolGuard('kioscoMarcacion')],
+        loadComponent: () =>
+          import('./pages/marcacion/kiosco-marcacion.page').then((m) => m.KioscoMarcacionPage),
+      },
+      {
         path: 'mis-finanzas',
         loadChildren: () =>
           import('./pages/mis-finanzas/mis-finanzas.routes').then((m) => m.rutasMisFinanzas),

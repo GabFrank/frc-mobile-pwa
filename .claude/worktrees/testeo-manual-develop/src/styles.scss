@@ -1,0 +1,254 @@
+// ═══════════════════════════════════════════════════════════════
+//  Estilos globales — FRC Mobile PWA
+//
+//  Los valores viven en styles/_tokens.scss. Acá solo se aplican.
+// ═══════════════════════════════════════════════════════════════
+
+@use '@angular/material' as mat;
+@use 'styles/tokens';
+
+html {
+  height: 100%;
+
+  // Paleta de Material alineada con la marca FRC.
+  // density 0 = targets táctiles cómodos: el desktop usa -3 (denso),
+  // esto es una app de mano.
+  @include mat.theme((
+    color: (
+      primary: mat.$red-palette,
+      tertiary: mat.$orange-palette,
+    ),
+    typography: system-ui,
+    density: 0,
+  ));
+}
+
+// ⚠️ `border-box` en todo. Faltaba, y con el default `content-box` el padding
+// se SUMA al ancho declarado: un footer con `width: 100%` y 16 px de padding
+// medía 32 px más que su contenedor y se desbordaba. Lo mismo con cualquier
+// panel al que se le dé un ancho y un padding a la vez, que es casi todo.
+//
+// Es la línea que hace que `width` signifique lo que uno espera.
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  // Sigue la preferencia del sistema; el toggle in-app la pisa
+  // vía [data-theme] en :root (ver _tokens.scss).
+  color-scheme: light dark;
+
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+
+  // Evita el rebote al final de una lista, que en una PWA instalada
+  // delata que es web.
+  overscroll-behavior-y: none;
+}
+
+// El cuerpo nunca scrollea de costado: el contenido ancho —tablas, código—
+// scrollea dentro de su propio contenedor. En una pantalla de 320 px, un
+// desborde horizontal deja controles fuera de alcance.
+body {
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PUENTE ENTRE MATERIAL Y NUESTROS TOKENS
+//
+//  `mat.theme()` genera su propia paleta a partir de `mat.$red-palette`,
+//  que NO es el rojo de marca: en tema oscuro daba `#ffb4a8` donde nuestro
+//  `--brand` es `#e8544a`. El resultado eran botones rosados con texto de
+//  bajo contraste, ajenos al sistema de diseño aprobado.
+//
+//  Acá se reasignan los tokens de sistema de Material a los nuestros. Como
+//  nuestras variables ya cambian con el tema, alcanza con apuntarlas una vez.
+// ═══════════════════════════════════════════════════════════════════════
+html {
+  // Marca y acción principal
+  --mat-sys-primary: var(--brand-fill);
+  --mat-sys-on-primary: var(--on-brand);
+  --mat-sys-primary-container: var(--danger-bg);
+  --mat-sys-on-primary-container: var(--brand-text);
+  --mat-sys-inverse-primary: var(--brand-text);
+
+  // Semántica de error
+  --mat-sys-error: var(--danger-fill);
+  --mat-sys-on-error: var(--on-tono);
+  --mat-sys-error-container: var(--danger-bg);
+  --mat-sys-on-error-container: var(--danger);
+
+  // Acento
+  --mat-sys-tertiary: var(--warn-fill);
+  --mat-sys-on-tertiary: var(--on-tono);
+
+  // Superficies y texto
+  --mat-sys-surface: var(--surface);
+  --mat-sys-surface-container: var(--surface);
+  --mat-sys-surface-container-low: var(--surface);
+  --mat-sys-surface-container-high: var(--surface-sunken);
+  --mat-sys-surface-container-highest: var(--surface-sunken);
+  --mat-sys-surface-variant: var(--surface-sunken);
+  --mat-sys-on-surface: var(--text);
+  --mat-sys-on-surface-variant: var(--text-soft);
+  --mat-sys-outline: var(--border);
+  --mat-sys-outline-variant: var(--border-light);
+  --mat-sys-background: var(--bg);
+  --mat-sys-on-background: var(--text);
+
+  // Radios. Material 3 usa forma de píldora por defecto (`9999px`); el
+  // diseño aprobado usa 8 px en botones y campos.
+  --mat-sys-corner-extra-small: var(--radius-sm);
+  --mat-sys-corner-small: var(--radius-sm);
+  --mat-sys-corner-medium: var(--radius-md);
+  --mat-sys-corner-large: var(--radius-md);
+}
+
+// Los botones de texto y contorno pintan la marca como TEXTO sobre la
+// superficie, donde el rojo de relleno no alcanza el contraste mínimo.
+.mat-mdc-button,
+.mat-mdc-outlined-button {
+  --mat-button-text-label-text-color: var(--brand-text);
+  --mat-button-outlined-label-text-color: var(--brand-text);
+}
+
+// Los botones de Material traen su propio radio de píldora, que no sale de
+// `--mat-sys-corner-*`.
+//
+// ⚠️ Los tokens son `--mat-button-*`, NO `--mdc-*-button-*`. Con los nombres
+// viejos las reglas se aplicaban sin error y los botones seguían saliendo
+// como píldoras, contra los 8 px del diseño aprobado. Mismo caso que el
+// snackbar: Material 21 renombró la familia y el CSS no avisa.
+.mat-mdc-button-base {
+  --mat-button-filled-container-shape: var(--radius-sm);
+  --mat-button-outlined-container-shape: var(--radius-sm);
+  --mat-button-text-container-shape: var(--radius-sm);
+  --mat-button-protected-container-shape: var(--radius-sm);
+  --mat-button-tonal-container-shape: var(--radius-sm);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  La pantalla ruteada puede encogerse
+//
+//  Un item de grid trae `min-width: auto`, que significa "no me encojas por
+//  debajo de mi min-content". Con una pantalla cuyo contenido no baja de
+//  cierto ancho —acá, un contenedor con scroll vertical, que suma el ancho
+//  de su barra al min-content— el item se desbordaba de su celda y la app
+//  scrolleaba de costado, dejando la última columna cortada.
+//
+//  Esta regla NO puede vivir en los estilos del shell: la pantalla la crea
+//  el router, no la plantilla del shell, así que no lleva su atributo de
+//  encapsulación y ningún selector scopeado la alcanza. Va acá, global.
+//
+//  Lo que no entre igual no se pierde: cada bloque ancho scrollea dentro de
+//  su propio contenedor.
+// ═══════════════════════════════════════════════════════════════════════
+frc-shell .area > *:not(router-outlet) {
+  min-width: 0;
+}
+
+// El autocompletado de Chrome pinta el campo con su propio color y rompe el
+// tema. Se fuerza la superficie y el texto del sistema.
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+  caret-color: var(--text);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+// Cifras alineadas donde se comparan.
+.frc-num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+// Foco visible en todo lo interactivo. Requisito de accesibilidad y,
+// en una app operada a las apuradas, de usabilidad.
+:focus-visible {
+  outline: 2px solid var(--brand-text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// ─── Toasts por tono ───────────────────────────────────────────────────
+// El color lo define el tono semántico, no cada llamador.
+//
+// ⚠️ Los tokens son `--mat-snack-bar-*`, NO `--mdc-snackbar-*`. Los `mdc-`
+// son de la implementación vieja y Material 21 ya no los lee: las reglas
+// se aplicaban sin error y el toast seguía saliendo con el gris de
+// `--mat-sys-inverse-surface`. Los nombres van en el contenedor, que es
+// donde Material los resuelve.
+.frc-snack--ok      { --mat-snack-bar-container-color: var(--ok-fill); }
+.frc-snack--warn    { --mat-snack-bar-container-color: var(--warn-fill); }
+.frc-snack--danger  { --mat-snack-bar-container-color: var(--danger-fill); }
+.frc-snack--neutral { --mat-snack-bar-container-color: var(--neutral-fill); }
+.frc-snack--ok, .frc-snack--warn, .frc-snack--danger, .frc-snack--neutral {
+  --mat-snack-bar-supporting-text-color: var(--on-tono);
+  --mat-snack-bar-button-color: var(--on-tono);
+}
+
+// ─── Escáner a pantalla completa ───────────────────────────────────────
+// La superficie del diálogo trae padding y esquinas redondeadas, que sobre
+// una imagen de cámara dejan un marco blanco y recortan el video. El panel
+// se anula acá porque es la superficie que crea Material, no una plantilla
+// nuestra: ningún estilo encapsulado del componente la alcanza.
+.frc-escaner-panel .mat-mdc-dialog-surface {
+  padding: 0;
+  border-radius: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Los botones de la barra de acciones ocupan su columna entera
+//
+//  `.acciones` es un grid de columnas iguales, así que un hijo directo ya
+//  se estira solo. Pero casi todas las pantallas envuelven los botones en
+//  un `<div acciones>` —hace falta para que el atributo de proyección viva
+//  en un hijo directo, fuera de cualquier @if—, y adentro de ese envoltorio
+//  el botón vuelve a su ancho natural: chico y pegado a la izquierda.
+//
+//  Ocho pantallas lo resolvían con un `.ancho { width: 100% }` propio y
+//  once no, así que el mismo botón se veía de dos formas según la pantalla.
+//
+//  Esta regla NO puede vivir en `pagina.component.ts`: lo que se proyecta
+//  lleva el atributo de encapsulación de la PANTALLA, no el de `frc-pagina`,
+//  y ningún selector scopeado de aquel componente lo alcanza. Va acá, global,
+//  igual que la de `frc-shell .area`.
+// ═══════════════════════════════════════════════════════════════════════
+frc-pagina .acciones button {
+  width: 100%;
+}
+
+// Un envoltorio vacío —el @if no eligió ninguna acción para este estado—
+// dejaba la barra visible como una franja con borde y sin nada adentro.
+// `.acciones:empty` no alcanza: el envoltorio existe aunque esté vacío.
+frc-pagina .acciones:has(> div:empty) {
+  display: none;
+}

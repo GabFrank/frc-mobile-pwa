@@ -4,6 +4,7 @@ import { map, Observable, tap } from 'rxjs';
 import { Mutation } from 'src/app/core/graphql/gql-base';
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
+import { Usuario } from 'src/app/domains/personas/usuario.model';
 import {
   CajaBalance,
   CajaFilialOperacionResult,
@@ -13,6 +14,7 @@ import {
 import { AbrirCajaGQL } from './graphql/abrirCaja';
 import { BalancePorFechaGQL } from './graphql/balancePorFecha';
 import { CajaAbiertoPorUsuarioIdLocalGQL } from './graphql/cajaAbiertoPorUsuarioIdLocal';
+import { CajerosConCajaAbiertaGQL } from './graphql/cajerosConCajaAbierta';
 import { CajaPorIdGQL } from './graphql/cajaPorId';
 import { CajasPorUsuarioIdGQL } from './graphql/cajasPorUsuario';
 import { CerrarCajaGQL } from './graphql/cerrarCaja';
@@ -31,6 +33,7 @@ export class CajaService {
   private readonly datos = inject(DatosService);
   private readonly notificacion = inject(NotificacionService);
   private readonly porIdGQL = inject(CajaPorIdGQL);
+  private readonly cajerosConCajaAbiertaGQL = inject(CajerosConCajaAbiertaGQL);
   private readonly porUsuarioGQL = inject(CajasPorUsuarioIdGQL);
   private readonly abiertaLocalGQL = inject(CajaAbiertoPorUsuarioIdLocalGQL);
   private readonly abrirGQL = inject(AbrirCajaGQL);
@@ -132,5 +135,15 @@ export class CajaService {
   /** El central lo expone como query, no como mutation. */
   imprimirBalance(id: number, sucursalId?: number): Observable<unknown> {
     return this.datos.consultar(this.imprimirGQL, { id, sucursalId });
+  }
+
+  /**
+   * Los cajeros que hoy están en caja en una sucursal, ya deduplicados.
+   *
+   * El filtro lo hace el central: «caja abierta» no es `activo = true`, que
+   * incluye cajas que quedaron sin cerrar hace años.
+   */
+  cajerosConCajaAbierta(sucursalId: number): Observable<Usuario[]> {
+    return this.datos.consultar<Usuario[]>(this.cajerosConCajaAbiertaGQL, { sucursalId });
   }
 }

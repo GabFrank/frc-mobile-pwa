@@ -122,7 +122,7 @@ export class AuthService {
 
     try {
       const res = await firstValueFrom(
-        this.http.post<RespuestaLogin>(this.serverConfig.loginUrl, { nickname, password }),
+        this.http.post<RespuestaLogin>(this.serverConfig.loginUrl(), { nickname, password }),
       );
 
       if (!res?.token || res.usuarioId == null) {

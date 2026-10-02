@@ -261,7 +261,7 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
                   }
                 </div>
                 <ul class="pasos">
-                  @for (p of pasosDe(item); track p.etiqueta) {
+                  @for (p of pasosPorItem().get(item.id) ?? []; track p.etiqueta) {
                     <li class="paso">
                       <span class="etapa">{{ p.etiqueta }}</span>
                       <span class="cifra">
@@ -443,6 +443,14 @@ export class TransferenciaDetallePage {
   readonly accion = computed<AccionEtapa | null>(() => accionDeEtapa(this.transferencia()));
 
   /** Los ítems que faltan revisar en la etapa en curso. */
+  /**
+   * Los pasos de cada ítem, armados una vez por cada carga de `items` en vez
+   * de en cada render: `pasosDe` crea un array nuevo y el `@for` lo diffearía.
+   */
+  readonly pasosPorItem = computed(
+    () => new Map(this.items().map((item) => [item.id, this.pasosDe(item)])),
+  );
+
   readonly pendientes = computed(() =>
     itemsSinVerificar(this.items(), this.transferencia()?.etapa),
   );

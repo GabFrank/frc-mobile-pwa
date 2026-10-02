@@ -107,6 +107,7 @@ const MS_ANTES_DE_REARMAR = 2_500;
           <p class="mensaje error">{{ e }}</p>
         } @else if (producto(); as p) {
           @if (seleccionada(); as sel) {
+            @let v = vitrina();
             <section class="ficha" [class.unica]="presentaciones().length === 1">
               <h1 class="nombre">{{ p.descripcion }}</h1>
 
@@ -128,8 +129,8 @@ const MS_ANTES_DE_REARMAR = 2_500;
               -->
               <div class="vitrina">
                 @for (actual of [sel]; track actual.id) {
-                  @if (imagen(actual); as src) {
-                    <img class="foto" [src]="src" [alt]="p.descripcion + ', ' + etiqueta(actual)" />
+                  @if (v?.imagen; as src) {
+                    <img class="foto" [src]="src" [alt]="p.descripcion + ', ' + v?.etiqueta" />
                   } @else {
                     <frc-icono class="sin-foto" nombre="producto" [tamano]="96" />
                   }
@@ -138,9 +139,9 @@ const MS_ANTES_DE_REARMAR = 2_500;
 
               <div class="importe" aria-live="polite">
                 @for (actual of [sel]; track actual.id) {
-                  <span class="cantidad">{{ etiqueta(actual) }}</span>
-                  <span class="precio" [style.--largo]="precio(actual).length">{{ precio(actual) }}</span>
-                  @if (precioReferencia(actual); as ref) {
+                  <span class="cantidad">{{ v?.etiqueta }}</span>
+                  <span class="precio" [style.--largo]="v?.precio?.length">{{ v?.precio }}</span>
+                  @if (v?.referencia; as ref) {
                     <span class="referencia">{{ ref }}</span>
                   }
                 }
@@ -459,6 +460,27 @@ export class KioscoPage implements AfterViewInit {
     );
   });
 
+  /**
+   * Lo que se muestra de la presentación en la vitrina, armado una vez por
+   * cambio de selección, moneda, conversión o foto en vez de en cada render.
+   */
+  readonly vitrina = computed(() => {
+    const p = this.seleccionada();
+    if (!p) {
+      return null;
+    }
+    const c = this.convertido(p);
+    return {
+      imagen: this.imagen(p),
+      etiqueta: etiquetaPresentacion(p),
+      precio: c
+        ? `${c.fila.moneda.simbolo ?? ''} ${formatearCantidad(c.monto, c.fila.decimales)}`.trim()
+        : this.precioGs(p),
+      // En otra moneda, el guaraní queda abajo como referencia.
+      referencia: c ? this.precioGs(p) : null,
+    };
+  });
+
   /** Fotos por id de presentación. Llegan después del precio. */
   private readonly imagenes = signal<Map<number, string>>(new Map());
   readonly imagenesPorId = this.imagenes.asReadonly();
@@ -734,11 +756,6 @@ export class KioscoPage implements AfterViewInit {
     return monto != null ? { monto, fila } : null;
   }
 
-  /** En otra moneda, el guaraní queda abajo como referencia. */
-  precioReferencia(p: Presentacion): string | null {
-    return this.convertido(p) ? this.precioGs(p) : null;
-  }
-
   /**
    * El cliente toca otra presentación en la tira.
    *
@@ -750,21 +767,8 @@ export class KioscoPage implements AfterViewInit {
     this.programarLimpieza();
   }
 
-  imagen(p: Presentacion): string | null {
+  private imagen(p: Presentacion): string | null {
     return p.id != null ? (this.imagenes().get(Number(p.id)) ?? null) : null;
-  }
-
-
-  etiqueta(p: Presentacion): string {
-    return etiquetaPresentacion(p);
-  }
-
-  precio(p: Presentacion): string {
-    const c = this.convertido(p);
-    if (c) {
-      return `${c.fila.moneda.simbolo ?? ''} ${formatearCantidad(c.monto, c.fila.decimales)}`.trim();
-    }
-    return this.precioGs(p);
   }
 
   private precioGs(p: Presentacion): string {

@@ -6669,6 +6669,111 @@ guaraníes como antes. Ningún aviso de error en pantalla.
 
 **Esperado:** esa moneda **no aparece** en la fila. Las demás sí.
 
+## Bloque 75 — El chofer en la verificación para transporte *(nuevo, sin probar)*
+
+**Por qué está acá:** al tocar **Verificar para transporte** la PWA ya no
+toma al usuario logueado como responsable. Pide antes **chofer, vehículo y
+acompañantes**: el chofer elegido queda como responsable de la verificación
+(«Transportó») y como chofer de una **hoja de ruta nueva**, la misma que el
+desktop muestra en **Entregadores**. El desktop sigue asignando choferes como
+siempre; esto es solo de la PWA.
+
+⚠️ **Necesita el central de la rama `feature/chofer-verificacion-transporte`**
+(mutation `verificarParaTransporteMobile`). Contra un central sin ella, el
+diálogo muestra el error y la transferencia **no avanza** (caso 75.9).
+
+⚠️ **El chofer es el responsable, pero la etapa la trabaja cualquiera.**
+Verificar los ítems y «Concluir y despachar» lo puede hacer quien lo eligió,
+sin entrar con el usuario del chofer: si no, el destino no podría recibir.
+
+Preparación: una transferencia en **Preparación concluida**, un usuario con
+persona asociada para usar de chofer, un vehículo cargado en el desktop y una
+segunda persona para acompañante.
+
+### 75.1 · El botón abre el diálogo del chofer
+1. Abrir la transferencia preparada y tocar **Verificar para transporte**.
+
+**Esperado:** se abre «Verificar para transporte» con tres campos —Chofer,
+Vehículo y Acompañantes— todos sin elegir. **No** aparece la confirmación de
+siempre ni avanza la etapa. **Confirmar y verificar** está apagado.
+
+### 75.2 · Sin vehículo no se confirma
+1. Tocar **Elegir chofer**, buscar al usuario y elegirlo.
+
+**Esperado:** el nombre del chofer aparece en el campo y el botón cambia a
+«Cambiar chofer». **Confirmar y verificar** sigue apagado hasta elegir el
+vehículo.
+
+### 75.3 · Elegir el vehículo
+1. Tocar **Elegir vehículo** y buscar por chapa.
+
+**Esperado:** la lista muestra «chapa · marca modelo» y deja cargar más si
+hay muchos. Al elegir, aparece en el campo y **Confirmar y verificar** se
+enciende.
+
+### 75.4 · Acompañantes: agregar y quitar
+1. Tocar **Agregar acompañante**, buscar a una persona por nombre o documento
+   y elegirla.
+2. Agregar otra y quitarla con la ✕.
+
+**Esperado:** cada persona aparece en la lista con su ✕; al quitarla
+desaparece. Sin ninguna dice «Sin acompañantes».
+
+### 75.5 · El chofer no va dos veces
+1. Agregar como acompañante a la **persona del chofer**.
+2. Agregar dos veces a la misma persona.
+3. Agregar a una persona como acompañante y después **elegirla como chofer**.
+
+**Esperado:** en 1 y 2 la lista no cambia. En 3 la persona sale de los
+acompañantes al quedar como chofer.
+
+### 75.6 · Cancelar no cambia nada
+1. Con todo cargado, tocar **Cancelar**.
+
+**Esperado:** el diálogo se cierra y la transferencia sigue en **Preparación
+concluida**, sin responsable de transporte nuevo.
+
+### 75.7 · Confirmar: el chofer queda como responsable
+1. Volver a abrir el diálogo, cargar chofer, vehículo y un acompañante.
+2. Tocar **Confirmar y verificar**.
+3. Leer el aviso y aceptarlo.
+
+**Esperado:** el aviso dice «‹chofer› queda como chofer y responsable de la
+verificación para transporte» seguido del texto de siempre de la etapa. Al
+aceptar sale «Chofer asignado, verificando para transporte», la etapa pasa a
+**Verificando para transporte**, **Responsable** y **Transportó** muestran
+al **chofer** —no al usuario logueado— y aparece la sección **Viaje** con
+chofer, vehículo, acompañantes y hora de salida.
+
+### 75.8 · Despacha cualquiera, no solo el chofer
+1. Con el usuario que eligió al chofer —**sin** entrar como el chofer—,
+   verificar todos los ítems.
+2. Tocar **Concluir y despachar** y aceptar.
+3. Con un usuario de la sucursal de destino, abrir la transferencia.
+
+**Esperado:** en 1 las acciones por ítem están disponibles y **no** aparece
+el aviso «Esta etapa la está trabajando…». En 2 la transferencia pasa a **En
+tránsito** y **Responsable** / **Transportó** siguen mostrando al chofer, no
+a quien despachó. En 3 el destino puede **Iniciar recepción**.
+
+### 75.9 · Un error deja el diálogo abierto
+1. Abrir la misma transferencia en dos teléfonos en **Preparación concluida**.
+2. Confirmar el chofer en el primero.
+3. En el segundo, sin recargar, confirmar otro chofer.
+
+**Esperado:** el segundo muestra el error del central («… solo se verifica
+para transporte después de concluir la preparación») y el diálogo **queda
+abierto** con lo cargado. La transferencia conserva el chofer del primero.
+
+### 75.10 · El desktop ve la hoja de ruta
+1. En el desktop, abrir **Transferencias → Entregadores** y buscar por la
+   chapa del vehículo.
+
+**Esperado:** una hoja de ruta **nueva** con el chofer, el vehículo y los
+acompañantes elegidos en la PWA; al expandirla aparece la transferencia. Si
+el desktop le había asignado otra hoja antes, esa sigue existiendo con sus
+otras transferencias.
+
 ---
 
 ## Resumen para completar
@@ -6749,7 +6854,8 @@ guaraníes como antes. Ningún aviso de error en pantalla.
 | 72 · Las horas de la tarjeta «Hoy» en Marcación | 2 | 1 | | |
 | 73 · Fotos de las presentaciones en el kiosco | 10 | | | |
 | 74 · Precios en otra moneda en el kiosco | 7 | | | |
-| **Total** | **650** | | | |
+| 75 · El chofer en la verificación para transporte | 10 | | | |
+| **Total** | **660** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

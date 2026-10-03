@@ -1,16 +1,22 @@
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { DatosService } from 'src/app/core/graphql/datos.service';
+import { Query } from 'src/app/core/graphql/gql-base';
+import type { Vehiculo } from 'src/app/domains/gastos/ente.model';
 import type { PageInfo } from 'src/app/domains/page-info.model';
+import type { Persona } from 'src/app/domains/personas/persona.model';
 import {
   EtapaTransferencia,
   Transferencia,
   TransferenciaInput,
   TransferenciaItem,
   TransferenciaItemInput,
+  VerificarParaTransporteInput,
 } from 'src/app/domains/transferencia/transferencia.model';
+import { VehiculoSearchPageGQL } from 'src/app/graphql/operaciones/gastos/activosSearchPage';
+import { PersonaSearchPageGQL } from 'src/app/graphql/personas/persona/personaSearchPage';
 import { AvanzarEtapaGQL } from 'src/app/graphql/transferencias/avanzarEtapa';
 import { FinalizarTransferenciaGQL } from 'src/app/graphql/transferencias/finalizarTransferencia';
 import { ItemsPorTransferenciaGQL } from 'src/app/graphql/transferencias/itemsPorTransferencia';
@@ -22,6 +28,7 @@ import { DeleteTransferenciaItemGQL } from 'src/app/graphql/transferencias/delet
 import { DesconfirmarTransferenciaItemGQL } from 'src/app/graphql/transferencias/desconfirmarTransferenciaItem';
 import { SolicitarPushGQL } from 'src/app/graphql/notificaciones/solicitarPush';
 import { TransferenciaQrEscaneadoGQL } from 'src/app/graphql/transferencias/transferenciaQrEscaneado';
+import { VerificarParaTransporteGQL } from 'src/app/graphql/transferencias/verificarParaTransporte';
 
 export interface FiltrosTransferencia {
   sucursalOrigenId?: number;
@@ -67,6 +74,9 @@ export class TransferenciaService {
   private readonly desconfirmarItemGQL = inject(DesconfirmarTransferenciaItemGQL);
   private readonly pushGQL = inject(SolicitarPushGQL);
   private readonly qrEscaneadoGQL = inject(TransferenciaQrEscaneadoGQL);
+  private readonly verificarTransporteGQL = inject(VerificarParaTransporteGQL);
+  private readonly vehiculosGQL = inject(VehiculoSearchPageGQL);
+  private readonly personasGQL = inject(PersonaSearchPageGQL);
 
   /**
    * Le avisa al central que se escaneó el QR de esta transferencia.
@@ -169,6 +179,41 @@ export class TransferenciaService {
    */
   avanzarEtapa(id: number, etapa: EtapaTransferencia, usuarioId: number): Observable<boolean> {
     return this.datos.mutar<boolean>(this.avanzarGQL, { id, etapa, usuarioId });
+  }
+
+  /**
+   * Pasa a la verificación para transporte con el chofer elegido.
+   *
+   * ⚠️ **Reemplaza a `avanzarEtapa` solo en este paso.** El responsable que
+   * queda es `choferUsuarioId`, no el usuario logueado, y el central crea una
+   * hoja de ruta nueva con el vehículo y los acompañantes.
+   */
+  verificarParaTransporte(input: VerificarParaTransporteInput): Observable<Transferencia> {
+    return this.datos.mutar<Transferencia>(this.verificarTransporteGQL, { input }, {
+      mensajeExito: 'Chofer asignado, verificando para transporte',
+    });
+  }
+
+  /** Una página de vehículos para `frc-buscador`. */
+  buscarVehiculos(texto: string, pagina: number) {
+    return this.pagina<Vehiculo>(this.vehiculosGQL, texto, pagina);
+  }
+
+  /** Una página de personas para `frc-buscador`: los acompañantes del chofer. */
+  buscarPersonas(texto: string, pagina: number) {
+    return this.pagina<Persona>(this.personasGQL, texto, pagina);
+  }
+
+  /** ⚠️ `hayMas` sale de `hasNext`: de más, «Cargar más» pide páginas vacías sin fin. */
+  private async pagina<T>(
+    gql: Query<{ data?: PageInfo<T> }>,
+    texto: string,
+    pagina: number,
+  ): Promise<{ items: T[]; hayMas: boolean }> {
+    const page = await firstValueFrom(
+      this.datos.consultar<PageInfo<T>>(gql, { texto, page: pagina, size: 20 }, { mostrarCarga: false }),
+    );
+    return { items: page?.getContent ?? [], hayMas: page?.hasNext === true };
   }
 
   finalizar(id: number, usuarioId: number): Observable<boolean> {

@@ -1,5 +1,7 @@
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
+import type { Vehiculo } from 'src/app/domains/gastos/ente.model';
 import { EstadoLote } from 'src/app/domains/lote/lote.model';
+import type { Persona } from 'src/app/domains/personas/persona.model';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
@@ -190,7 +192,38 @@ export interface Transferencia {
   isOrigen?: boolean;
   isDestino?: boolean;
   creadoEn?: string;
+  /**
+   * El viaje: chofer, vehículo y acompañantes.
+   *
+   * ⚠️ **El chofer es una `Persona`, el responsable de transporte un
+   * `Usuario`.** Desde la PWA los dos salen del mismo usuario elegido; desde
+   * el desktop la hoja se asigna aparte y pueden no coincidir.
+   */
+  hojaRuta?: HojaRuta;
   items?: TransferenciaItem[];
+}
+
+/** Hoja de ruta: el vehículo, quién maneja y quién lo acompaña. */
+export interface HojaRuta {
+  id: number;
+  chofer?: Pick<Persona, 'id' | 'nombre'>;
+  vehiculo?: Vehiculo;
+  fechaSalida?: string;
+  acompanantes?: Pick<Persona, 'id' | 'nombre'>[];
+}
+
+/**
+ * Lo que pide `verificarParaTransporteMobile`.
+ *
+ * El usuario chofer queda como responsable de la verificación para
+ * transporte —no el que tiene la sesión abierta— y su persona como chofer de
+ * una hoja de ruta nueva.
+ */
+export interface VerificarParaTransporteInput {
+  transferenciaId: number;
+  choferUsuarioId: number;
+  vehiculoId: number;
+  acompanantesIds: number[];
 }
 
 /**

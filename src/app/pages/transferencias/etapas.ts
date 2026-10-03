@@ -115,6 +115,13 @@ export interface AccionEtapa {
    * abriendo donde debía llegar.
    */
   exigeQrDeDestino: boolean;
+  /**
+   * `true` si antes hay que elegir chofer, vehículo y acompañantes.
+   *
+   * Solo al pasar a transporte: el chofer elegido —no el que tiene la sesión
+   * abierta— queda como responsable de la verificación.
+   */
+  exigeChofer: boolean;
 }
 
 /**
@@ -146,7 +153,9 @@ export function accionDeEtapa(transferencia: Transferencia | null): AccionEtapa 
         { exigeItemsVerificados: true },
       );
     case EtapaTransferencia.PREPARACION_MERCADERIA_CONCLUIDA:
-      return accion(EtapaTransferencia.TRANSPORTE_VERIFICACION, 'Verificar para transporte');
+      return accion(EtapaTransferencia.TRANSPORTE_VERIFICACION, 'Verificar para transporte', {
+        exigeChofer: true,
+      });
     case EtapaTransferencia.TRANSPORTE_VERIFICACION:
       return accion(EtapaTransferencia.TRANSPORTE_EN_CAMINO, 'Concluir y despachar', {
         exigeItemsVerificados: true,
@@ -170,13 +179,14 @@ export function accionDeEtapa(transferencia: Transferencia | null): AccionEtapa 
 function accion(
   destino: EtapaTransferencia,
   texto: string,
-  extra: { exigeItemsVerificados?: boolean; exigeQrDeDestino?: boolean } = {},
+  extra: { exigeItemsVerificados?: boolean; exigeQrDeDestino?: boolean; exigeChofer?: boolean } = {},
 ): AccionEtapa {
   return {
     destino,
     texto,
     exigeItemsVerificados: extra.exigeItemsVerificados ?? false,
     exigeQrDeDestino: extra.exigeQrDeDestino ?? false,
+    exigeChofer: extra.exigeChofer ?? false,
   };
 }
 
@@ -224,11 +234,20 @@ export function responsableDeEtapa(
  * ⚠️ **Se recalcula en cada cambio de etapa.** En `frc-mobile` el flag se
  * prende y nunca se apaga, así que alcanzaba con haber sido responsable de
  * una etapa para poder editar las siguientes.
+ *
+ * ⚠️ **La verificación para transporte es la excepción: la trabaja cualquiera.**
+ * Su responsable es el chofer elegido, que muchas veces no tiene el teléfono
+ * en la mano; si solo él pudiera despachar, la transferencia quedaría clavada
+ * en origen y el destino no podría recibirla. El chofer sigue figurando como
+ * responsable aunque la revise y despache otro.
  */
 export function puedeEditarEtapa(
   transferencia: Transferencia | null,
   usuarioId: number | null | undefined,
 ): boolean {
+  if (transferencia?.etapa === EtapaTransferencia.TRANSPORTE_VERIFICACION) {
+    return usuarioId != null;
+  }
   const responsable = responsableDeEtapa(transferencia);
   if (responsable?.id == null) {
     return true;

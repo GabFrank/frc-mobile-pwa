@@ -151,6 +151,26 @@ El arreglo va en `FCMService.getWebpushConfig`, anidando el destino dentro del
 inventar un dato que nunca recibió, y agregar un segundo manejador de `push`
 al service worker mostraría el aviso dos veces.
 
+### El ícono y el badge los manda el central, y los archivos viven acá
+
+El service worker de Angular solo pasa a `showNotification` lo que venga en
+`payload.notification`. Sin `icon` ni `badge`, Android muestra la campanita
+genérica y un círculo con la inicial (central #218).
+
+El central manda las dos como **rutas relativas** —`/icons/icon-192x192.png` y
+`/icons/badge-96x96.png`—: el service worker las resuelve contra su propio
+origen, así que el mismo payload sirve en todas las puertas.
+
+**El badge no es un ícono más.** Android usa **solo su canal alfa** y lo tiñe
+con el color del sistema: cualquiera de los íconos a color se vería como un
+cuadrado gris. `public/icons/badge-96x96.png` es la botella del logo, blanca
+sobre transparente. Si se cambia el logo, se regenera a mano; no sale del
+manifest.
+
+⚠️ **Renombrar o mover esos dos archivos rompe las notificaciones sin error**:
+el `_redirects` responde `index.html` con 200 y el navegador vuelve a la
+campanita. Las rutas están escritas en `FCMService` del central.
+
 ### El SDK entra por `import()` dinámico
 
 No tiene por qué pesar en el arranque de quien nunca activa las

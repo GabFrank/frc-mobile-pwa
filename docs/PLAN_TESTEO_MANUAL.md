@@ -2997,6 +2997,29 @@ no va a preguntar.
 
 **Esperado:** funciona igual que en Android.
 
+### 38.10 · El aviso lleva la marca, no la campanita
+1. Antes de probar, confirmar que el badge está publicado **como imagen**:
+   `curl -sI https://<puerta>/icons/badge-96x96.png` tiene que responder
+   `content-type: image/png`.
+2. En un Android real, con la app **cerrada**, disparar una notificación desde
+   el central.
+3. Mirar la barra de estado y después desplegar la bandeja.
+
+**Esperado:** en la barra de estado aparece la **silueta de la botella**, no la
+campanita genérica. En la bandeja, el ícono grande es el logo de Bodega Franco,
+no un círculo con la inicial. Tocarla sigue abriendo la pantalla del aviso
+(38.8).
+
+> ⚠️ **Un 200 no alcanza para el paso 1.** El `_redirects` devuelve
+> `index.html` con 200 para todo archivo que no existe, así que un badge sin
+> publicar responde `200 text/html` y el navegador vuelve a la campanita sin
+> error. Hay que mirar el `content-type`.
+>
+> ⚠️ **Necesita las dos mitades, y en orden: primero la PWA, después el
+> central.** El central manda `icon` y `badge` como rutas relativas
+> (central #218); si llega antes que el archivo, el cambio parece no haber
+> funcionado.
+
 ---
 
 ## Bloque 39 — Abrir una toma de inventario *(nuevo)*
@@ -6817,7 +6840,7 @@ otras transferencias.
 | 35 · Revisión de inventario | 6 | 3 | | |
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
-| 38 · Notificaciones push | 9 | 6 | | |
+| 38 · Notificaciones push | 10 | 6 | | |
 | 39 · Abrir una toma de inventario | 10 | | | |
 | 40 · Zonas de la toma | 11 | | | |
 | 41 · Lo contado llega al stock | 6 | | | |
@@ -6855,7 +6878,7 @@ otras transferencias.
 | 73 · Fotos de las presentaciones en el kiosco | 10 | | | |
 | 74 · Precios en otra moneda en el kiosco | 7 | | | |
 | 75 · El chofer en la verificación para transporte | 10 | | | |
-| **Total** | **660** | | | |
+| **Total** | **661** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

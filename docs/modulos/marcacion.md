@@ -170,6 +170,36 @@ pide confirmación y se guarda igual — con `precisionGps` y
 calibrado dejaría gente sin poder marcar; guardar la evidencia permite
 recalibrarlo con datos reales, que es lo que el módulo ya hacía.
 
+**El aviso salta a más de 110 m** (`DISTANCIA_AVISO_M`, en
+`deteccion-sucursal.util.ts`), y **no es la precisión del GPS**: los ±33 m de
+`PRECISION_MAXIMA_M` filtran qué lecturas son confiables, no qué tan lejos
+quedó la persona. Fueron el mismo número hasta el 05/10/2026, mientras la
+pantalla reutilizó aquella constante.
+
+Lo recalibraron las marcaciones de producción de bodega del 02 al 05/10/2026
+(81, casi todas del depósito Aquario):
+
+- 18 de las 46 hechas con iPhone quedaron a más de 33 m; ninguna de las 29 de
+  Android pasó de 25 m.
+- Las 18 declaraban buena precisión, de ±9,5 a ±21 m: filtrar más fuerte por
+  precisión no las descarta.
+- El mismo usuario caía entre días en la misma coordenada, al metro. Eso no es
+  GPS: adentro, el iPhone se ubica por las redes Wi-Fi que ve. Desde la oficina
+  del segundo piso ve otras que desde la planta baja y cae en otro punto.
+- La más lejana quedó a 100 m.
+
+> ⚠️ **Está calibrado con un solo edificio.** Fuera de Aquario había 6
+> marcaciones, todas de Android. Cuando más sucursales marquen con iPhone hay
+> que volver a mirar `distancia_sucursal` y `precision_gps` en
+> `administrativo.marcacion`.
+
+> ⚠️ **El aviso no es un control antifraude.** No bloquea, el central guarda la
+> distancia sin validarla y el desktop la trae pero no la muestra en ninguna
+> pantalla. Achicar el umbral no frena a nadie y molesta a quien está adentro.
+
+`frc-mobile` no sirve de referencia para este número: tiene su propio radio de
+33 m en la pantalla de ubicación y manda `distanciaSucursalMetros: 0` fijo.
+
 ## La sucursal sale del GPS, no de una lista
 
 `deteccion-sucursal.util.ts` toma la posición y devuelve la **operable más
@@ -203,9 +233,10 @@ llama.** `SERVIDOR` y `COMPRAS` son virtuales y llevan las coordenadas del
 central: dejarlas competir les daría todas las marcaciones de quien esté cerca
 de la casa central. Que el filtro sea interno hace imposible olvidarlo.
 
-⚠️ **La util no aplica ningún radio.** Devuelve la más cercana aunque queden
-kilómetros; el corte lo decide la pantalla, que avisa y deja marcar. Recortar
-ahí convertiría un GPS malo —lo normal en un interior— en «no podés marcar».
+⚠️ **`detectarSucursal` no aplica ningún radio.** Devuelve la más cercana
+aunque queden kilómetros; la pantalla avisa con `estaLejos()` y deja marcar.
+Recortar ahí convertiría un GPS malo —lo normal en un interior— en «no podés
+marcar».
 
 ## La posición se toma dos veces, y es a propósito
 

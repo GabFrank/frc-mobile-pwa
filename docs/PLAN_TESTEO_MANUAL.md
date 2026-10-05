@@ -1032,8 +1032,10 @@ inferior ofreció «Salir a almorzar» / «Marcar salida».
 **Esperado:** avisa la distancia y la precisión y **pide confirmación** — no
 bloquea. Al confirmar, queda registrado con esos datos.
 
-> Anotá qué distancia y qué precisión te dio: son los números con los que hay
-> que decidir si el umbral de ±33 m sirve o hay que cambiarlo.
+> Anotá qué distancia y qué precisión te dio: son los números con los que se
+> calibra el umbral del aviso. Hoy es de **110 m** (`DISTANCIA_AVISO_M`); fue
+> de 33 m hasta que las marcaciones de producción mostraron que le saltaba a
+> quien marcaba desde adentro con un iPhone. Ver el caso 59.14.
 
 No se pudo forzar una ubicación lejana desde el navegador de escritorio;
 necesita un dispositivo real o GPS simulado.
@@ -5569,8 +5571,8 @@ y te deje marcar igual — eso es exactamente el bug que esto corrige.
 anterior. Es el caso del funcionario que cubre en otro local.
 
 ### 59.7 · Lejos de la sucursal avisa, pero deja marcar
-1. Desde un punto a más de 33 m de cualquier sucursal —la vereda de enfrente
-   alcanza— tocar el botón de marcar.
+1. Desde un punto a más de 110 m de cualquier sucursal —una cuadra de
+   distancia alcanza— tocar el botón de marcar.
 
 **Esperado:** un diálogo **«Estás lejos de la sucursal»** con los metros, la
 sucursal y la precisión. Confirmando, **la marcación se registra**. La
@@ -5626,6 +5628,17 @@ reintentar. Ninguno muestra una sucursal.
 
 **Esperado:** el texto del vacío se lee en los dos, y el botón **Recalcular**
 tiene contraste suficiente.
+
+### 59.14 · Desde adentro del edificio, con iPhone, no avisa
+1. Con un iPhone, marcar desde un interior donde la ubicación quede corrida
+   —la oficina del segundo piso del depósito Aquario daba 58–59 m—.
+
+**Esperado:** marca **sin** el diálogo «Estás lejos de la sucursal». En la
+sección **Dónde estás** se sigue viendo la distancia real, y es la que queda
+guardada.
+
+> Si igual avisa, anotá los metros y la precisión del diálogo: con más de
+> 110 m desde adentro, el umbral quedó corto para ese edificio.
 
 ---
 
@@ -6861,7 +6874,7 @@ otras transferencias.
 | 56 · La foto del producto en el buscador | 6 | | | |
 | 57 · Edición de producto | 10 | | | |
 | 58 · Alta de producto | 10 | | | |
-| 59 · La sucursal de la marcación sale del GPS | 13 | | | |
+| 59 · La sucursal de la marcación sale del GPS | 14 | | | |
 | 60 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
 | 61 · Kiosco de marcación | 15 | | | |
 | 62 · Método, similitud y margen | 9 | | | |
@@ -6878,7 +6891,7 @@ otras transferencias.
 | 73 · Fotos de las presentaciones en el kiosco | 10 | | | |
 | 74 · Precios en otra moneda en el kiosco | 7 | | | |
 | 75 · El chofer en la verificación para transporte | 10 | | | |
-| **Total** | **661** | | | |
+| **Total** | **662** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

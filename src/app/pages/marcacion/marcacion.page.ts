@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
-import { PRECISION_MAXIMA_M, Posicion } from 'src/app/core/dispositivo/geo.service';
+import { Posicion } from 'src/app/core/dispositivo/geo.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { IncorporarEmbeddingMarcacionGQL } from 'src/app/graphql/personas/usuario/graphql/incorporarEmbeddingMarcacion';
 import {
@@ -31,6 +31,7 @@ import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { DeteccionSucursalService } from './deteccion-sucursal.service';
+import { estaLejos } from './deteccion-sucursal.util';
 import { MarcacionService } from './marcacion.service';
 
 /** Qué texto lleva el botón según lo que el backend diga que falta. */
@@ -51,12 +52,12 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
  * propósito— y quién elige es el funcionario, con `esSalidaAlmuerzo`. Ver
  * {@link puedeElegirSalida}.
  *
- * ⚠️ **La distancia no bloquea, se registra.** El umbral de precisión de la
- * web es peor que el del plugin nativo que se reemplaza —sobre todo en
- * interiores, que es donde se marca—, así que marcar lejos avisa y pide
- * confirmación en vez de impedirlo. Lo que queda es la evidencia:
- * `precisionGps` y `distanciaSucursalMetros` viajan con la marcación y
- * permiten recalibrar el umbral con datos reales. Ver `geo.service.ts`.
+ * ⚠️ **La distancia no bloquea, se registra.** La ubicación de la web es
+ * peor que la del plugin nativo que se reemplaza —sobre todo en interiores,
+ * que es donde se marca—, así que marcar lejos avisa y pide confirmación en
+ * vez de impedirlo. Lo que queda es la evidencia: `precisionGps` y
+ * `distanciaSucursalMetros` viajan con la marcación y permiten recalibrar el
+ * umbral del aviso con datos reales. Ver `DISTANCIA_AVISO_M`.
  *
  * ⚠️ **La sucursal sale de la posición, no de una lista.** Mientras se elegía
  * de un desplegable, la distancia no medía nada: alcanzaba con seleccionar la
@@ -393,7 +394,7 @@ export class MarcacionPage {
       return;
     }
 
-    if (ahora.metros > PRECISION_MAXIMA_M) {
+    if (estaLejos(ahora.metros)) {
       const seguir = await this.dialogo.confirmar({
         titulo: 'Estás lejos de la sucursal',
         mensaje: `La ubicación da ${Math.round(ahora.metros)} m de distancia de ${this.nombreDetectada()}, con una precisión de ±${Math.round(posicion.precision)} m. La marcación queda registrada con esos datos.`,

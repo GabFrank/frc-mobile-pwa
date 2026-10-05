@@ -38,7 +38,8 @@ export interface ProgresoGeo {
  * nativo, la precisión en interiores empeora — y marcar asistencia se hace
  * justo adentro. Por eso la marcación **guarda la evidencia** (`precisionGps`
  * y `distanciaSucursalMetros`) además del veredicto: permite recalibrar el
- * umbral con datos reales en vez de adivinarlo.
+ * umbral del aviso de distancia —que no es `PRECISION_MAXIMA_M`— con datos
+ * reales en vez de adivinarlo.
  *
  * ⚠️ **Contexto seguro obligatorio**, igual que la cámara: `geolocation` solo
  * existe en HTTPS o `localhost`. Funciona en Safari e iOS sin nada especial.

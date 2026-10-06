@@ -6888,6 +6888,54 @@ iba contra la caja con el mismo número de otra sucursal.
 
 ---
 
+## Bloque 77 — El balance impreso al cerrar caja *(nuevo, sin probar)*
+
+**Por qué está acá:** al cerrar caja desde el teléfono no salía ningún
+ticket. `frc-mobile` lo pedía después de cerrar y ese paso no se había
+portado. Ahora, cerrada la caja, la PWA pide el balance: el central lo deriva
+a **la filial**, que lo imprime en la **impresora de tickets que tiene
+configurada el escritorio de ese mismo equipo** (modo «imprimir por
+servidor»). El teléfono no elige impresora.
+
+⚠️ **No imprime en las PCs que están en «Imprimir desde esta PC».** Ese modo
+imprime por el USB de cada PC y el teléfono no tiene cómo llegar ahí. Si en
+el equipo de la filial no hay una impresora de tickets a su alcance, el
+cierre funciona y el ticket no sale (caso 77.3).
+
+⚠️ **El aviso de «no se pudo imprimir» necesita la filial de la rama
+`fix/imprimir-balance-avisa-si-no-imprimio`.** Contra una filial anterior, la
+PWA dice «Balance enviado a imprimir» aunque la impresora no haya respondido.
+
+### 77.1 · Cerrar imprime el balance
+1. Con una caja abierta: detalle → **Cerrar caja** → cargar el arqueo → confirmar
+
+**Esperado:** el botón pasa por «Cerrando…» e «Imprimiendo…». Sale el ticket
+de balance en la impresora de tickets de la sucursal, con el aviso «Balance
+enviado a imprimir». La app queda en el **detalle de la caja cerrada**, con
+su balance y su diferencia.
+
+### 77.2 · Reimprimir desde el detalle
+1. En el detalle de la caja recién cerrada, tocar **Imprimir balance**
+
+**Esperado:** sale otra vez el mismo ticket. En una caja cerrada el botón es
+**Imprimir balance**; **Cerrar caja** ya no aparece.
+
+### 77.3 · La impresora no responde *(el que importa)*
+1. Apagar o desconectar la impresora de tickets de la sucursal
+2. Cerrar una caja
+
+**Esperado:** la caja **se cierra igual** y el aviso dice «La caja se cerró,
+pero no se pudo imprimir el balance». Queda en el detalle, donde **Imprimir
+balance** permite reintentar cuando la impresora vuelva. **Nunca** dice que
+el cierre falló.
+
+### 77.4 · Una caja abierta no ofrece imprimir
+1. Abrir el detalle de una caja abierta
+
+**Esperado:** el único botón es **Cerrar caja**.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6968,7 +7016,8 @@ iba contra la caja con el mismo número de otra sucursal.
 | 74 · Precios en otra moneda en el kiosco | 7 | | | |
 | 75 · El chofer en la verificación para transporte | 10 | | | |
 | 76 · Abrir caja: elegir la sucursal | 7 | | | |
-| **Total** | **669** | | | |
+| 77 · El balance impreso al cerrar caja | 4 | | | |
+| **Total** | **673** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

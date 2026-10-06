@@ -300,6 +300,8 @@ Verificación: **96 archivos de test, 1.182 tests**, cero errores de tipos, AOT 
 
 ⚠️ **Abrir caja necesita un central con `maletinesDisponiblesPorSucursal`** (rama `fix/abrir-caja-maletines-de-la-filial` del central, 2026-10-06). Es una query nueva y sin migración: el central le pregunta los maletines a **la filial** de la sucursal elegida. Contra un central viejo, al elegir la sucursal la pantalla muestra el error y **no se puede abrir caja**. Las dos mitades se publican juntas. Ver «La apertura elige la sucursal» en [`docs/modulos/operaciones-caja.md`](docs/modulos/operaciones-caja.md).
 
+⚠️ **El aviso de «no se pudo imprimir el balance» necesita la filial con `fix/imprimir-balance-avisa-si-no-imprimio`** (2026-10-06). Al cerrar caja la PWA pide el balance a la filial, que lo imprime por servidor. Contra una filial anterior el ticket sale igual si hay impresora, pero si no la hay la PWA dice «Balance enviado a imprimir» de todos modos: publicar la PWA antes no rompe nada, solo miente en ese caso. Ver «El balance impreso al cerrar» en [`docs/modulos/operaciones-caja.md`](docs/modulos/operaciones-caja.md).
+
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
 Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.

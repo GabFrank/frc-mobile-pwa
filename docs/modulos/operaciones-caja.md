@@ -275,6 +275,29 @@ Desde el 2026-10-06 `caja-abrir.page.ts`:
 
 `searchMaletin` del central queda como estaba: lo usa el escritorio.
 
+## El balance impreso al cerrar
+
+Cerrar e imprimir son **dos pasos**, como en `frc-mobile`
+(`caja-info.component.ts`): el central cierra con `imprimirBalance: false` y,
+si el cierre salió bien, la PWA llama a `imprimirBalance(id, sucId)`.
+
+- Sin `printerName`, el central deriva a la filial
+  (`FilialCajaProxyService.imprimirBalanceEnFilial`), y la filial imprime en
+  `printers.ticket` del `config-backup.json` del escritorio instalado en su
+  mismo equipo (`DesktopPrinterConfigService`). Es impresión **por servidor**:
+  el modo «Imprimir desde esta PC» del escritorio no participa, porque el
+  teléfono no llega al USB de ninguna PC.
+- `CajaService.imprimirBalance` **no tira**: devuelve `false`. Si la impresora
+  falla la caja ya está cerrada; se avisa y se deja reintentar.
+- Después de cerrar se navega al **detalle** de la caja, no a la lista: una
+  caja cerrada ya no figura entre las abiertas, y el detalle de una caja
+  cerrada cambia «Cerrar caja» por **Imprimir balance**.
+- La variable de la query es `sucId`. El servicio mandaba `sucursalId`, que
+  la query no declara: el central no recibía la sucursal y no derivaba.
+
+⚠️ El detalle sale de la copia replicada del central. Si la replicación viene
+atrasada, por un momento la caja recién cerrada todavía figura abierta.
+
 ## Cierre y apertura son la misma mutation
 
 El central **no tiene** `cerrarCajaDesdeServidor`. Las dos operaciones llaman

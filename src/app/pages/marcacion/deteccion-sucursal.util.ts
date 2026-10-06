@@ -83,6 +83,8 @@ export function coordenadasDe(localizacion: string | null | undefined): Coordena
  * kilómetros: la pantalla avisa con {@link estaLejos} y deja marcar igual
  * con la distancia registrada. Recortar acá convertiría un GPS malo —que es
  * lo normal en un interior— en «no podés marcar».
+ * Lo que no dice dónde está nadie se descarta antes, en `GeoService`
+ * (`PRECISION_DESCARTE_M`): acá ya llega una posición que vale la pena medir.
  *
  * ⚠️ **Filtra con `soloOperables()` adentro, no en quien llama.** `SERVIDOR`
  * y `COMPRAS` son virtuales y llevan las coordenadas del central: dejarlas

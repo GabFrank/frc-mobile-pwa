@@ -3,7 +3,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
 import { GeoService } from '../core/dispositivo/geo.service';
@@ -16,7 +16,13 @@ import {
   MetodoMarcacion,
 } from '../domains/marcacion/marcacion.model';
 import { Usuario } from '../domains/personas/usuario.model';
-import { MarcacionPage } from '../pages/marcacion/marcacion.page';
+import {
+  MarcacionPage,
+  TITULO_CAMBIO_SUCURSAL,
+  TITULO_SIN_UBICACION,
+  TOMAS_MAXIMAS,
+  VIGENCIA_ROSTRO_MS,
+} from '../pages/marcacion/marcacion.page';
 import { MarcacionService } from '../pages/marcacion/marcacion.service';
 import {
   coordenadasDe,
@@ -225,6 +231,15 @@ describe('Marcación: la sucursal sale del GPS', () => {
   let confirmaciones: string[];
   /** Qué se responde al aviso de distancia. Al resto, siempre que sí. */
   let aceptaMarcarLejos: boolean;
+  /** Qué se responde a cada diálogo, por título. Lo que no figura, que sí. */
+  let respuestas: Record<string, boolean>;
+  /** El botón de confirmar que ofreció cada diálogo, en orden. */
+  let botonesOfrecidos: string[];
+  /** Corre cada vez que se pide una confirmación: lo que pasa mientras está abierta. */
+  let alPreguntar: (titulo: string) => void;
+  /** Lo que devuelve la verificación facial. `null` es «sin rostro cargado». */
+  let rostro: unknown;
+  let verificacionesDeRostro: number;
 
   const AVISO_LEJOS = 'Estás lejos de la sucursal';
 
@@ -283,6 +298,11 @@ describe('Marcación: la sucursal sale del GPS', () => {
     sucursales = [KM7, ROTONDA];
     confirmaciones = [];
     aceptaMarcarLejos = true;
+    respuestas = {};
+    botonesOfrecidos = [];
+    alPreguntar = () => undefined;
+    rostro = null;
+    verificacionesDeRostro = 0;
 
     servicio = {
       estado: vi.fn(() => of(enJornada)),
@@ -307,10 +327,18 @@ describe('Marcación: la sucursal sale del GPS', () => {
           // lo que se prueba es la sucursal, no la cara ni los avisos.
           provide: DialogoService,
           useValue: {
-            abrir: () => Promise.resolve(null),
-            confirmar: (datos: { titulo: string }) => {
+            abrir: () => {
+              verificacionesDeRostro++;
+              return Promise.resolve(rostro);
+            },
+            confirmar: (datos: { titulo: string; confirmar?: string }) => {
               confirmaciones.push(datos.titulo);
-              return Promise.resolve(datos.titulo === AVISO_LEJOS ? aceptaMarcarLejos : true);
+              botonesOfrecidos.push(datos.confirmar ?? '');
+              alPreguntar(datos.titulo);
+              if (datos.titulo === AVISO_LEJOS) {
+                return Promise.resolve(aceptaMarcarLejos);
+              }
+              return Promise.resolve(respuestas[datos.titulo] ?? true);
             },
           },
         },
@@ -456,27 +484,175 @@ describe('Marcación: la sucursal sale del GPS', () => {
     expect(guardado?.sucursalId).toBe(3);
   });
 
-  it('si al marcar la sucursal más cercana cambió, no marca contra la vieja', async () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const ROSTRO = { embedding: [1, 0], score: 0.9, similitud: 0.93, similitudCentral: 0.88, margen: 0.26 };
+
+  /** Ni marcando ni con un botón en «Marcando…»: la pantalla quedó usable. */
+  const quedoUsable = (f: { componentInstance: MarcacionPage }) => {
+    expect(f.componentInstance.marcando()).toBe(false);
+    expect(f.componentInstance.enCurso()).toBeNull();
+  };
+
+  it('si al marcar la sucursal cambió a una cercana, ofrece marcar en la nueva y la guarda', async () => {
+    const f = await montar();
+    rostro = ROSTRO;
+    posicion = { ...AQUI_LEJOS, precision: 7 };
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(confirmaciones).toContain(TITULO_CAMBIO_SUCURSAL);
+    expect(botonesOfrecidos).toContain('Marcar en SUC. KM 7');
+    expect(guardado?.sucursalId).toBe(4);
+    expect(guardado?.latitud).toBe(AQUI_LEJOS.latitud);
+    expect(guardado?.precisionGps).toBe(7);
+    expect(guardado?.metodoRegistro).toBe(MetodoMarcacion.FACIAL_1A1);
+    expect(verificacionesDeRostro).toBe(1);
+  });
+
+  it('si la sucursal cambió y no se acepta la nueva, no marca en ninguna', async () => {
     const f = await montar();
     posicion = AQUI_LEJOS;
+    respuestas[TITULO_CAMBIO_SUCURSAL] = false;
 
     await tocarPorTexto(f, 'Marcar entrada');
 
     expect(servicio.guardar).not.toHaveBeenCalled();
     expect(texto(f)).toContain('SUC. KM 7');
+    quedoUsable(f);
   });
 
-  it('si al marcar se pierde la ubicación, no se marca igual', async () => {
+  it('si la sucursal cambió y la nueva queda lejos, no ofrece marcar ahí', async () => {
+    const f = await montar();
+    // A 150 m del Km 7: es la más cercana, pero lejos.
+    posicion = { ...AQUI_LEJOS, latitud: AQUI_LEJOS.latitud - 0.00135, precision: 15 };
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(confirmaciones).toContain(TITULO_CAMBIO_SUCURSAL);
+    expect(botonesOfrecidos.some((b) => b.startsWith('Marcar en'))).toBe(false);
+    expect(confirmaciones).not.toContain(AVISO_LEJOS);
+    expect(servicio.guardar).not.toHaveBeenCalled();
+    // Aceptando «Volver a ubicar» cada vez, se rinde al agotar las tomas.
+    expect(pedidosDePosicion).toBe(1 + TOMAS_MAXIMAS);
+    quedoUsable(f);
+  });
+
+  it('si la sucursal cambió por una lectura mala y la siguiente vuelve, marca en la de siempre', async () => {
+    const f = await montar();
+    posicion = { ...AQUI_LEJOS, latitud: AQUI_LEJOS.latitud - 0.00135, precision: 15 };
+    alPreguntar = (titulo) => {
+      if (titulo === TITULO_CAMBIO_SUCURSAL) {
+        posicion = AQUI_CERCA;
+      }
+    };
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(guardado?.sucursalId).toBe(3);
+    expect(guardado?.latitud).toBe(AQUI_CERCA.latitud);
+  });
+
+  it('si al marcar se pierde la ubicación, reintentando marca sin pedir el rostro de nuevo', async () => {
+    const f = await montar();
+    rostro = ROSTRO;
+    posicion = null;
+    alPreguntar = (titulo) => {
+      if (titulo === TITULO_SIN_UBICACION) {
+        posicion = AQUI_CERCA;
+      }
+    };
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(confirmaciones).toContain(TITULO_SIN_UBICACION);
+    expect(guardado?.sucursalId).toBe(3);
+    expect(guardado?.metodoRegistro).toBe(MetodoMarcacion.FACIAL_1A1);
+    expect(verificacionesDeRostro).toBe(1);
+  });
+
+  it('si la ubicación no vuelve, deja de ofrecer reintentar y no marca', async () => {
     const f = await montar();
     posicion = null;
 
     await tocarPorTexto(f, 'Marcar entrada');
 
     expect(servicio.guardar).not.toHaveBeenCalled();
+    expect(pedidosDePosicion).toBe(1 + TOMAS_MAXIMAS);
+    expect(confirmaciones.filter((t) => t === TITULO_SIN_UBICACION).length).toBe(TOMAS_MAXIMAS - 1);
     // Y la pantalla queda usable: si `marcando` se traba en true, el botón
     // se queda en «Marcando…» para siempre y hay que recargar la app.
-    expect(f.componentInstance.marcando()).toBe(false);
+    quedoUsable(f);
     expect(f.componentInstance.deteccion()).toBe('sin-posicion');
+  });
+
+  it('si al marcar se pierde la ubicación y no se reintenta, no se marca', async () => {
+    const f = await montar();
+    posicion = null;
+    respuestas[TITULO_SIN_UBICACION] = false;
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(servicio.guardar).not.toHaveBeenCalled();
+    expect(pedidosDePosicion).toBe(2);
+    quedoUsable(f);
+  });
+
+  it('si al marcar faltan las coordenadas de las sucursales, no ofrece reintentar', async () => {
+    const rotonda = { ...ROTONDA };
+    sucursales = [rotonda];
+    const f = await montar();
+    // Hay posición, pero ya no hay contra qué compararla: volver a tomarla
+    // no lo arregla, así que no se pregunta nada.
+    rotonda.localizacion = '';
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(f.componentInstance.deteccion()).toBe('sin-coordenadas');
+    expect(confirmaciones).not.toContain(TITULO_SIN_UBICACION);
+    expect(pedidosDePosicion).toBe(2);
+    expect(servicio.guardar).not.toHaveBeenCalled();
+    quedoUsable(f);
+  });
+
+  it('un rostro verificado hace más de dos minutos ya no vale para marcar', async () => {
+    const f = await montar();
+    rostro = ROSTRO;
+    posicion = null;
+    const real = Date.now.bind(Date);
+    let desfase = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => real() + desfase);
+    // El diálogo de reintento queda abierto más de lo que vale el rostro.
+    alPreguntar = (titulo) => {
+      if (titulo === TITULO_SIN_UBICACION) {
+        desfase = VIGENCIA_ROSTRO_MS + 1000;
+        posicion = AQUI_CERCA;
+      }
+    };
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(confirmaciones).toContain(TITULO_SIN_UBICACION);
+    expect(servicio.guardar).not.toHaveBeenCalled();
+    quedoUsable(f);
+  });
+
+  it('sin rostro verificado, la demora no impide marcar: no hay cara que venza', async () => {
+    const f = await montar();
+    posicion = null;
+    const real = Date.now.bind(Date);
+    let desfase = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => real() + desfase);
+    alPreguntar = (titulo) => {
+      if (titulo === TITULO_SIN_UBICACION) {
+        desfase = VIGENCIA_ROSTRO_MS + 1000;
+        posicion = AQUI_CERCA;
+      }
+    };
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(guardado?.metodoRegistro).toBe(MetodoMarcacion.MANUAL);
   });
 });
 

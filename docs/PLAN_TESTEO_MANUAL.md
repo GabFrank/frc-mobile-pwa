@@ -5600,19 +5600,22 @@ marcar**, no a dónde estabas al abrir la pantalla.
 2. Sin cerrar la pantalla, trasladarse hasta quedar más cerca de otra.
 3. Tocar el botón de marcar.
 
-**Esperado:** **no se marca**. Avisa que ahora estás más cerca de la otra
-sucursal, la pantalla pasa a mostrar esa, y hay que volver a tocar el botón.
+**Esperado:** **no se marca contra la vieja**. Un diálogo dice en cuál
+figurabas y cuál da ahora; si la nueva queda cerca ofrece **Marcar en** esa.
+El detalle está en el bloque 76.
 ⚠️ Es el caso más difícil de armar: necesita dos sucursales cercanas o mucha
 paciencia.
 
 ### 59.11 · Si se pierde la ubicación al marcar, no se marca igual
 1. Abrir Marcación con permiso dado y esperar la detección.
-2. Apagar el GPS del teléfono (o poner modo avión) sin cerrar la pantalla.
+2. Apagar la ubicación del teléfono sin cerrar la pantalla. **No** usar modo
+   avión: sin red falla antes la verificación del rostro.
 3. Tocar marcar.
 
-**Esperado:** después del paso del rostro, avisa que se perdió la ubicación y
-**no registra nada**. El botón vuelve a su texto normal — **no** se queda en
-«Marcando…».
+**Esperado:** después del paso del rostro, un diálogo avisa que no se pudo
+obtener la ubicación y ofrece **Reintentar**. Cancelando **no registra nada**
+y el botón vuelve a su texto normal — **no** se queda en «Marcando…». El
+detalle está en el bloque 76.
 
 ### 59.12 · Los tres estados
 1. Recorrer: pantalla cargando, sin permiso de ubicación, y con el central

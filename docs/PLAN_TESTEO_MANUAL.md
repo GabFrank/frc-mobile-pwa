@@ -517,9 +517,9 @@ publicada. Cuando `semantic-release` empiece a numerar, ahí va a decir
 ## Bloque 7 — Abrir y cerrar caja *(nuevo, sin probar)*
 
 ⚠️ **Nada de este bloque se probó contra el central real.** La apertura se
-proxea a la filial y necesita que la sucursal tenga IP configurada; si tu
-sesión está en una sucursal sin filial detrás, el central va a rechazar la
-operación. Ahora lo dice en vez de festejar un éxito falso.
+proxea a la filial y necesita que la sucursal tenga IP configurada. Desde el
+2026-10-06 **la sucursal se elige en la pantalla** (bloque 76): en los casos
+de abajo, «elegir maletín» supone haber elegido antes la sucursal.
 
 ### 7.1 · La pantalla carga
 1. Operaciones → Caja → **Abrir caja**
@@ -6815,117 +6815,78 @@ otras transferencias.
 
 ---
 
-## Bloque 76 — Lectura imprecisa y cambio de sucursal al marcar *(nuevo, sin probar)*
+## Bloque 76 — Abrir caja: elegir la sucursal *(nuevo, sin probar)*
 
-**Por qué está acá:** en bodega, el 06/10/2026, alguien parado en el depósito
-abrió Marcación y la pantalla mostró una sucursal a más de un kilómetro. Tocó
-marcar, pasó el rostro y **no se guardó nada**: el aviso era un cartel que se
-iba solo. Eran dos fallas: el GPS aceptaba cualquier lectura al agotarse el
-tiempo, y lo que salía mal al marcar no se decía de forma que se viera.
+**Por qué está acá:** «Abrir caja» tomaba la sucursal de la sesión, y contra
+el central esa es siempre la 0 (`SERVIDOR`). Ofrecía siete maletines viejos
+que no son de ninguna sucursal real (`soporte`, `COSTANERA`, `deposito`,
+`0020221504`…`07`) y mandaba la apertura a `localhost` en vez de a la filial.
+Ahora el cajero **elige la sucursal** —como en `frc-mobile`— y los maletines
+se le preguntan a **la filial**, con la IP y el **puerto servidor** de la
+sucursal.
 
-⚠️ **Anotar en cada caso la versión instalada** (Mi cuenta → Aplicación). Si
-el teléfono sigue con la versión anterior, el resultado no dice nada del fix.
+⚠️ **Necesita el central de la rama `fix/abrir-caja-maletines-de-la-filial`**
+(query `maletinesDisponiblesPorSucursal`). Contra un central sin ella, al
+elegir la sucursal aparece el error con «Reintentar» y no se puede abrir.
 
-⚠️ **Una lectura mala no se provoca a pedido.** Los casos 76.1 a 76.3 son de
-observar varias mañanas, no de armar. En Chrome de escritorio se puede forzar
-con DevTools → Sensors → Location, pero ahí la precisión que informa el
-navegador no se elige: sirve para los casos 76.5 a 76.9, no para los primeros.
+⚠️ **La filial tiene que estar levantada y alcanzable desde el central**, en
+la IP y el puerto servidor que figuran en Sucursales (escritorio).
 
-### 76.1 · En frío, adentro del edificio, no aparece otra sucursal *(el que importa)*
-1. Con el teléfono recién sacado del bolsillo, sin haber usado mapas antes,
-   abrir Marcación dentro de la sucursal. Repetir varias mañanas.
+### 76.1 · No hay sucursal elegida de entrada
+1. Operaciones → Caja → **Abrir caja**
 
-**Esperado:** muestra **la sucursal donde estás**, o tarda unos segundos más
-en «Buscando» y después la muestra, o dice que la ubicación es poco precisa.
-**Nunca** el nombre de otra sucursal.
+**Esperado:** el selector **Sucursal** está vacío y el de **Maletín**
+deshabilitado, con el texto «Elegí la sucursal para ver sus maletines».
+En la lista de sucursales **no** están `SERVIDOR`, `COMPRAS` ni las que no
+tienen IP.
 
-### 76.2 · La espera más larga cuando el teléfono informa mal
-1. Mismo arranque en frío. Mirar el renglón «Sucursal» mientras busca.
+### 76.2 · Los maletines son los de la filial
+1. Elegir una sucursal con la filial levantada
 
-**Esperado:** si el teléfono empieza informando mal, el renglón dice
-«Ubicación poco precisa todavía… ±N m» y la búsqueda dura hasta unos **13
-segundos** en vez de 6. Con una lectura buena termina antes.
+**Esperado:** mientras consulta dice «Consultando los maletines de …». Después
+el selector ofrece **solo los maletines de esa sucursal** que están activos y
+sin uso. Ninguno de los viejos de `SERVIDOR`. Comparar contra
+`select id, descripcion, abierto from financiero.maletin` **en la base de la
+filial**.
 
-### 76.3 · Poca precisión se dice como tal
-1. En el iPhone: Ajustes → Privacidad → Localización → Safari (o la app
-   instalada) → apagar **Ubicación precisa**.
-2. Abrir Marcación.
+### 76.3 · Cambiar de sucursal
+1. Elegir una sucursal y un maletín
+2. Cambiar a otra sucursal
 
-**Esperado:** después de la espera, «No se pudo obtener la ubicación» con el
-detalle «La ubicación es poco precisa (±N m). Revisá que «Ubicación precisa»
-esté activada…». Los botones de marcar quedan **deshabilitados**. **No** dice
-«revisá el permiso».
-3. Volver a activar el ajuste y tocar **Recalcular**: detecta la sucursal.
+**Esperado:** el maletín elegido se borra y la lista pasa a ser la de la
+sucursal nueva. No queda seleccionado un maletín de la anterior.
 
-### 76.4 · El permiso negado sigue diciendo permiso
-1. Negar el permiso de ubicación al sitio y abrir Marcación.
+### 76.4 · Filial apagada *(el que importa)*
+1. Elegir una sucursal cuya filial esté apagada o sin red
 
-**Esperado:** enseguida, sin esperar, «No se pudo obtener la ubicación.
-Revisá el permiso.»
-2. Dar el permiso, apagar la **ubicación del teléfono** y tocar Recalcular.
+**Esperado:** un mensaje que dice que no se pudo conectar con esa sucursal y
+un botón **Reintentar**. **No** dice «No hay maletines disponibles»: eso
+afirmaría que están todos en uso.
 
-**Esperado:** tras unos 6 segundos, pide revisar que la ubicación del
-teléfono esté encendida. No habla de precisión.
+### 76.5 · Abrir sin sucursal
+1. Sin elegir sucursal, tocar **Abrir caja**
 
-### 76.5 · Se pierde la ubicación al marcar: Reintentar no pide el rostro otra vez
-1. Abrir Marcación y esperar la detección.
-2. Apagar la **ubicación del teléfono** sin cerrar la pantalla y tocar marcar.
-   Pasar el rostro. ⚠️ **No** usar modo avión: sin red el rostro no se puede
-   verificar, la marcación sale como manual y este caso no prueba nada.
-3. Cuando sale el diálogo, encender la ubicación, esperar unos segundos y
-   tocar **Reintentar**.
+**Esperado:** avisa «Elegí la sucursal antes de abrir la caja». No llama al
+servidor.
 
-**Esperado:** el diálogo «No se pudo obtener la ubicación» dice que todavía no
-se marcó nada. Al reintentar **no vuelve a abrir la cámara**, toma la posición
-y registra la marcación. En el desktop queda con método **facial**.
+### 76.6 · **Apertura real en la sucursal elegida**
+1. Elegir sucursal y maletín, cargar el arqueo, **Abrir caja**
 
-### 76.6 · Tres tomas y se rinde
-1. Mismo arranque, pero sin encender la ubicación. Tocar **Reintentar** cada
-   vez.
+**Esperado:** la confirmación **nombra la sucursal**. Al confirmar, la caja
+queda abierta **en esa filial** (verla en el POS de la sucursal) y en el log
+del central la línea `ABRIR CAJA … URL filial a conectar` muestra la IP y el
+puerto servidor de esa sucursal, no `localhost`. Al volver a **Abrir caja** y
+elegir la misma sucursal, ese maletín ya no aparece.
 
-**Esperado:** ofrece reintentar **dos veces**; a la tercera toma fallida avisa
-que no se marcó nada y deja de preguntar. El botón vuelve a su texto normal.
+### 76.7 · El cierre lleva la sucursal
+1. Lista de cajas → tocar la caja abierta → **Cerrar caja**
 
-### 76.7 · Cancelar el reintento no marca
-1. Mismo arranque. En el diálogo, **Cancelar**.
+**Esperado:** la dirección termina en `/cerrar?suc=<id de la sucursal>` y el
+formulario muestra **Esperado** y **Diferencia**. Al confirmar, la caja se
+cierra **en esa filial**. Antes la sucursal se perdía en este paso y el cierre
+iba contra la caja con el mismo número de otra sucursal.
 
-**Esperado:** no registra nada; la pantalla queda en «No se pudo obtener la
-ubicación» con **Recalcular** a mano.
-
-### 76.8 · Cambió la sucursal y la nueva queda cerca: se puede marcar ahí
-1. Abrir Marcación dentro de una sucursal y esperar la detección.
-2. Sin cerrar la pantalla, ir hasta **adentro** de otra. Tocar marcar y pasar
-   el rostro.
-
-**Esperado:** diálogo «Cambió la sucursal detectada»: nombra la de la apertura
-y la de ahora, con la distancia y la precisión, y ofrece **Marcar en** la
-nueva. Confirmando, la marcación queda en la **nueva**, con la posición del
-momento. Cancelando no se marca en ninguna.
-
-### 76.9 · Cambió la sucursal y la nueva queda lejos: no se ofrece marcar
-1. Abrir Marcación dentro de una sucursal.
-2. Alejarse hasta quedar más cerca de otra, pero a más de 110 m de ella.
-   Tocar marcar y pasar el rostro.
-
-**Esperado:** el mismo diálogo, pero dice que queda demasiado lejos para
-marcar ahí y el botón es **Volver a ubicar**, no «Marcar en». En ese toque no
-se puede marcar en la nueva. Si al volver a ubicar la posición vuelve a la
-sucursal de la apertura, sigue con esa (con el aviso de «Estás lejos» si
-corresponde). Cancelando, la pantalla queda mostrando la nueva con su
-distancia: un toque nuevo marca ahí, con el aviso de lejos.
-
-### 76.10 · El rostro vence a los dos minutos
-1. Provocar el diálogo de reintento (76.5) y dejarlo abierto más de dos
-   minutos. Encender la ubicación y tocar **Reintentar**.
-
-**Esperado:** toma la posición pero **no marca**: avisa que pasó demasiado
-tiempo desde que se verificó el rostro y que hay que volver a marcar.
-
-### 76.11 · El kiosco dice lo mismo
-1. En el kiosco de marcación, con «Ubicación precisa» apagada (76.3).
-
-**Esperado:** «No se pudo obtener la ubicación» con el detalle de poca
-precisión, no el de revisar el permiso. **Marcar** deshabilitado.
+---
 
 ## Resumen para completar
 
@@ -7006,8 +6967,8 @@ precisión, no el de revisar el permiso. **Marcar** deshabilitado.
 | 73 · Fotos de las presentaciones en el kiosco | 10 | | | |
 | 74 · Precios en otra moneda en el kiosco | 7 | | | |
 | 75 · El chofer en la verificación para transporte | 10 | | | |
-| 76 · Lectura imprecisa y cambio de sucursal al marcar | 11 | | | |
-| **Total** | **673** | | | |
+| 76 · Abrir caja: elegir la sucursal | 7 | | | |
+| **Total** | **669** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

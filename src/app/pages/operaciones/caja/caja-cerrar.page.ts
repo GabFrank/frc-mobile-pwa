@@ -161,7 +161,9 @@ export class CajaCerrarPage {
     // La sucursal sale de la caja, NO de la sesión: se puede cerrar una caja
     // de otra sucursal, y usar la de la sesión mandaría el cierre a la
     // filial equivocada.
-    const sucursalId = caja?.sucursal?.id ?? caja?.sucursalId ?? Number(this.suc());
+    // `Number(...)` por fuera: el id llega como string desde GraphQL y
+    // `Number.isFinite('24')` es `false`.
+    const sucursalId = Number(caja?.sucursal?.id ?? caja?.sucursalId ?? this.suc());
 
     if (!form || caja?.id == null) {
       return;
@@ -189,7 +191,7 @@ export class CajaCerrarPage {
     const conteo = form.armar();
     const input = new PdvCajaInput();
     input.id = caja.id;
-    input.sucursalId = Number(sucursalId);
+    input.sucursalId = sucursalId;
     input.usuarioId = usuarioId;
 
     this.guardando.set(true);

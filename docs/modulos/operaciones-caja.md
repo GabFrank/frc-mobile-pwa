@@ -248,6 +248,32 @@ nuevo en `ConteoInput`.
 | `imprimirBalance` no aliaseaba su raíz a `data:` | `DatosService` no podía desenvolver la respuesta |
 | `pdvCaja` no pedía los seis totales que el detalle muestra | El balance mostraba ₲ 0 en todo |
 | La lista navegaba solo con el id de caja | El id se repite entre filiales: abría la caja de otra sucursal. Ahora viaja `?suc=` |
+| Detalle → «Cerrar caja» validaba la sucursal con `Number.isFinite` sobre el id crudo | GraphQL manda `ID` como string: la sucursal se caía de la URL y el cierre resolvía la caja de otra filial. Ahora se convierte antes de validar |
+
+## La apertura elige la sucursal, y los maletines son de la filial
+
+`frc-mobile` abría una lista de sucursales antes de pedir el maletín
+(`caja.component.ts`, `seleccionarSucursal()`). La primera versión de la PWA
+reemplazó ese paso por la sucursal de la sesión, que contra el central es
+siempre la 0 (`SERVIDOR`): ofrecía los maletines de la tabla del central con
+`sucursal_id = 0` —viejos, de ninguna sucursal real— y la apertura se
+proxeaba a `localhost`.
+
+Desde el 2026-10-06 `caja-abrir.page.ts`:
+
+- **pide la sucursal**, sin preseleccionar ninguna. Ofrece las operables
+  (`soloOperables()`) que tienen IP;
+- consulta los maletines con **`maletinesDisponiblesPorSucursal(sucId)`**, que
+  el central resuelve preguntándole a **la filial** (`http://<ip>:<puertoServidor>/graphql`,
+  `FilialCajaProxyService.maletinesDisponiblesEnFilial`). Ya vienen filtrados:
+  activos y sin uso. El maletín y su `abierto` viven en la filial; la tabla
+  del central no se mantiene al día;
+- si la filial no responde, el central devuelve un **error con el motivo** y
+  la pantalla lo muestra con «Reintentar». Una lista vacía querría decir «están
+  todos en uso», que es otra cosa;
+- manda esa misma sucursal en `input.sucursalId`.
+
+`searchMaletin` del central queda como estaba: lo usa el escritorio.
 
 ## Cierre y apertura son la misma mutation
 

@@ -298,6 +298,8 @@ Verificación: **96 archivos de test, 1.182 tests**, cero errores de tipos, AOT 
 
 ⚠️ **«Verificar para transporte» necesita un central con `verificarParaTransporteMobile`** (rama `feature/chofer-verificacion-transporte` del central, 2026-10-02). Es una mutation nueva y sin migración, pero **reemplaza al avance de esa etapa**: contra un central viejo el diálogo del chofer muestra el error y la transferencia **no pasa a transporte**. Las dos mitades se publican juntas. Ver «Pasar a transporte: el chofer» en [`docs/modulos/transferencias.md`](docs/modulos/transferencias.md).
 
+⚠️ **Abrir caja necesita un central con `maletinesDisponiblesPorSucursal`** (rama `fix/abrir-caja-maletines-de-la-filial` del central, 2026-10-06). Es una query nueva y sin migración: el central le pregunta los maletines a **la filial** de la sucursal elegida. Contra un central viejo, al elegir la sucursal la pantalla muestra el error y **no se puede abrir caja**. Las dos mitades se publican juntas. Ver «La apertura elige la sucursal» en [`docs/modulos/operaciones-caja.md`](docs/modulos/operaciones-caja.md).
+
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
 Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.

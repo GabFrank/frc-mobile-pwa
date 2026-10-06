@@ -170,7 +170,9 @@ export class CajaDetallePage {
 
   /** La sucursal viaja con el id: el id de caja no es único entre filiales. */
   irACerrar(caja: PdvCaja): void {
-    const suc = caja.sucursal?.id ?? caja.sucursalId ?? Number(this.suc());
+    // `Number(...)` por fuera: GraphQL serializa `ID` como string, y
+    // `Number.isFinite('24')` es `false` — la sucursal se caía de la URL.
+    const suc = Number(caja.sucursal?.id ?? caja.sucursalId ?? this.suc());
     void this.router.navigate(['/operaciones/caja', caja.id, 'cerrar'], {
       queryParams: Number.isFinite(suc) ? { suc } : undefined,
     });

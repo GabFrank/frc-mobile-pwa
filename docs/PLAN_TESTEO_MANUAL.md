@@ -517,9 +517,9 @@ publicada. Cuando `semantic-release` empiece a numerar, ahí va a decir
 ## Bloque 7 — Abrir y cerrar caja *(nuevo, sin probar)*
 
 ⚠️ **Nada de este bloque se probó contra el central real.** La apertura se
-proxea a la filial y necesita que la sucursal tenga IP configurada; si tu
-sesión está en una sucursal sin filial detrás, el central va a rechazar la
-operación. Ahora lo dice en vez de festejar un éxito falso.
+proxea a la filial y necesita que la sucursal tenga IP configurada. Desde el
+2026-10-06 **la sucursal se elige en la pantalla** (bloque 76): en los casos
+de abajo, «elegir maletín» supone haber elegido antes la sucursal.
 
 ### 7.1 · La pantalla carga
 1. Operaciones → Caja → **Abrir caja**
@@ -6812,6 +6812,79 @@ otras transferencias.
 
 ---
 
+## Bloque 76 — Abrir caja: elegir la sucursal *(nuevo, sin probar)*
+
+**Por qué está acá:** «Abrir caja» tomaba la sucursal de la sesión, y contra
+el central esa es siempre la 0 (`SERVIDOR`). Ofrecía siete maletines viejos
+que no son de ninguna sucursal real (`soporte`, `COSTANERA`, `deposito`,
+`0020221504`…`07`) y mandaba la apertura a `localhost` en vez de a la filial.
+Ahora el cajero **elige la sucursal** —como en `frc-mobile`— y los maletines
+se le preguntan a **la filial**, con la IP y el **puerto servidor** de la
+sucursal.
+
+⚠️ **Necesita el central de la rama `fix/abrir-caja-maletines-de-la-filial`**
+(query `maletinesDisponiblesPorSucursal`). Contra un central sin ella, al
+elegir la sucursal aparece el error con «Reintentar» y no se puede abrir.
+
+⚠️ **La filial tiene que estar levantada y alcanzable desde el central**, en
+la IP y el puerto servidor que figuran en Sucursales (escritorio).
+
+### 76.1 · No hay sucursal elegida de entrada
+1. Operaciones → Caja → **Abrir caja**
+
+**Esperado:** el selector **Sucursal** está vacío y el de **Maletín**
+deshabilitado, con el texto «Elegí la sucursal para ver sus maletines».
+En la lista de sucursales **no** están `SERVIDOR`, `COMPRAS` ni las que no
+tienen IP.
+
+### 76.2 · Los maletines son los de la filial
+1. Elegir una sucursal con la filial levantada
+
+**Esperado:** mientras consulta dice «Consultando los maletines de …». Después
+el selector ofrece **solo los maletines de esa sucursal** que están activos y
+sin uso. Ninguno de los viejos de `SERVIDOR`. Comparar contra
+`select id, descripcion, abierto from financiero.maletin` **en la base de la
+filial**.
+
+### 76.3 · Cambiar de sucursal
+1. Elegir una sucursal y un maletín
+2. Cambiar a otra sucursal
+
+**Esperado:** el maletín elegido se borra y la lista pasa a ser la de la
+sucursal nueva. No queda seleccionado un maletín de la anterior.
+
+### 76.4 · Filial apagada *(el que importa)*
+1. Elegir una sucursal cuya filial esté apagada o sin red
+
+**Esperado:** un mensaje que dice que no se pudo conectar con esa sucursal y
+un botón **Reintentar**. **No** dice «No hay maletines disponibles»: eso
+afirmaría que están todos en uso.
+
+### 76.5 · Abrir sin sucursal
+1. Sin elegir sucursal, tocar **Abrir caja**
+
+**Esperado:** avisa «Elegí la sucursal antes de abrir la caja». No llama al
+servidor.
+
+### 76.6 · **Apertura real en la sucursal elegida**
+1. Elegir sucursal y maletín, cargar el arqueo, **Abrir caja**
+
+**Esperado:** la confirmación **nombra la sucursal**. Al confirmar, la caja
+queda abierta **en esa filial** (verla en el POS de la sucursal) y en el log
+del central la línea `ABRIR CAJA … URL filial a conectar` muestra la IP y el
+puerto servidor de esa sucursal, no `localhost`. Al volver a **Abrir caja** y
+elegir la misma sucursal, ese maletín ya no aparece.
+
+### 76.7 · El cierre lleva la sucursal
+1. Lista de cajas → tocar la caja abierta → **Cerrar caja**
+
+**Esperado:** la dirección termina en `/cerrar?suc=<id de la sucursal>` y el
+formulario muestra **Esperado** y **Diferencia**. Al confirmar, la caja se
+cierra **en esa filial**. Antes la sucursal se perdía en este paso y el cierre
+iba contra la caja con el mismo número de otra sucursal.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6891,7 +6964,8 @@ otras transferencias.
 | 73 · Fotos de las presentaciones en el kiosco | 10 | | | |
 | 74 · Precios en otra moneda en el kiosco | 7 | | | |
 | 75 · El chofer en la verificación para transporte | 10 | | | |
-| **Total** | **662** | | | |
+| 76 · Abrir caja: elegir la sucursal | 7 | | | |
+| **Total** | **669** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

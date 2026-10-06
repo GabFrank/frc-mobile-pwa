@@ -23,7 +23,7 @@ export const productoPorCodigoQuery = gql`
       diasVencimiento
       lote
       cambiable
-      imagenPrincipal
+      imagenPrincipalMiniatura
       isEnvase
       codigoPrincipal
       envase {
@@ -74,7 +74,7 @@ export const productoSearchQuery = gql`
       vencimiento
       lote
       cambiable
-      imagenPrincipal
+      imagenPrincipalMiniatura
       codigoPrincipal
       isEnvase
     }
@@ -116,7 +116,7 @@ export const productoPorIdQuery = gql`
       cambiable
       activo
       tipoConservacion
-      imagenPrincipal
+      imagenPrincipalMiniatura
       codigoPrincipal
       isEnvase
       subfamilia {
@@ -291,7 +291,7 @@ export const productosVencidosQuery = gql`
         diasVencimiento
         diasVencimientoTexto
         diasVencimientoClase
-        imagenPrincipal
+        imagenPrincipalMiniatura
       }
     }
   }
@@ -518,14 +518,17 @@ export const productoDescripcionExistsQuery = gql`
  * recepción y de transferencias, que no las muestran. El kiosco pinta el
  * precio con la query liviana y pide esto después.
  *
- * El central devuelve la miniatura (250 px de lado mayor) y, si no hay foto,
- * un PNG genérico en vez de `null`: ver `imagenDePresentacion()`.
+ * `imagenPrincipal` es la miniatura (250 px de lado mayor), para la tira; si
+ * no hay foto, el central manda un PNG genérico en vez de `null`: ver
+ * `imagenDePresentacion()`. `imagenPrincipalMediana` (hasta 800 px) es la de
+ * la foto grande, y esa sí llega `null` sin foto.
  */
 export const presentacionesImagenesQuery = gql`
   query ($id: Int) {
     data: presentacionesPorProductoId(id: $id) {
       id
       imagenPrincipal
+      imagenPrincipalMediana
     }
   }
 `;

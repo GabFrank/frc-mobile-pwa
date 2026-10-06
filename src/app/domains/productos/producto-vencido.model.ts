@@ -58,7 +58,7 @@ export interface ProductoVencido {
    * `data:image/…;base64` de la presentación vencida o, si no tiene, del
    * producto. `null` cuando no hay foto: se muestra el ícono.
    */
-  imagenPrincipal?: string | null;
+  imagenPrincipalMiniatura?: string | null;
 }
 
 /**

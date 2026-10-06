@@ -56,7 +56,7 @@ export interface AccionProducto {
           (click)="alternar()"
         >
           <!--
-            La foto, como en frc-mobile: imagenPrincipal no es una URL sino un
+            La foto, como en frc-mobile: imagenPrincipalMiniatura no es una URL sino un
             data:image/jpg;base64,… que arma el central
             (ImageService.fileToBase64). Va derecho al src —no hay pedido de
             red que hacer— y por eso tampoco sirve loading="lazy": los bytes
@@ -432,7 +432,7 @@ export class ProductoCardComponent {
     if (this.fotoFallo()) {
       return null;
     }
-    const foto = this.producto().imagenPrincipal?.trim();
+    const foto = this.producto().imagenPrincipalMiniatura?.trim();
     return foto ? foto : null;
   });
 

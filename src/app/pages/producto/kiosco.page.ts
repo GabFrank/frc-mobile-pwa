@@ -15,7 +15,7 @@ import { Subscription } from 'rxjs';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
 import { FORMATOS_PRODUCTO } from 'src/app/core/dispositivo/escaner.types';
-import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
+import { ProductoBusquedaService, sinImagenes } from 'src/app/domains/productos/producto-busqueda.service';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
 import { codigosParaBuscar, normalizarCodigo } from 'src/app/generic/utils/barcodeUtils';
@@ -481,9 +481,13 @@ export class KioscoPage implements AfterViewInit {
     };
   });
 
-  /** Fotos por id de presentación. Llegan después del precio. */
-  private readonly imagenes = signal<Map<number, string>>(new Map());
-  readonly imagenesPorId = this.imagenes.asReadonly();
+  /**
+   * Fotos por id de presentación. Llegan después del precio. La tira usa las
+   * miniaturas; la foto grande, la mediana: estirar la miniatura de 250 px
+   * hasta el alto de la ficha la deja borrosa.
+   */
+  private readonly imagenes = signal(sinImagenes());
+  readonly imagenesPorId = computed(() => this.imagenes().miniaturas);
   private imagenesSub: Subscription | null = null;
   private conversionSub: Subscription | null = null;
 
@@ -696,7 +700,7 @@ export class KioscoPage implements AfterViewInit {
   private olvidarImagenes(): void {
     this.imagenesSub?.unsubscribe();
     this.imagenesSub = null;
-    this.imagenes.set(new Map());
+    this.imagenes.set(sinImagenes());
     this.conversionSub?.unsubscribe();
     this.conversionSub = null;
     this.convertidos.set(new Map());
@@ -768,7 +772,11 @@ export class KioscoPage implements AfterViewInit {
   }
 
   private imagen(p: Presentacion): string | null {
-    return p.id != null ? (this.imagenes().get(Number(p.id)) ?? null) : null;
+    if (p.id == null) {
+      return null;
+    }
+    const { medianas, miniaturas } = this.imagenes();
+    return medianas.get(Number(p.id)) ?? miniaturas.get(Number(p.id)) ?? null;
   }
 
   private precioGs(p: Presentacion): string {

@@ -36,6 +36,18 @@ export interface ResultadoPesable {
   peso: number;
 }
 
+/** Las fotos de las presentaciones de un producto, por id de presentación. */
+export interface ImagenesDePresentaciones {
+  /** 250 px: para la tira del kiosco. */
+  miniaturas: Map<number, string>;
+  /** Hasta 800 px: para la foto grande. */
+  medianas: Map<number, string>;
+}
+
+export function sinImagenes(): ImagenesDePresentaciones {
+  return { miniaturas: new Map(), medianas: new Map() };
+}
+
 /**
  * Resuelve un texto o un escaneo a un producto.
  *
@@ -179,31 +191,40 @@ export class ProductoBusquedaService {
   }
 
   /**
-   * La foto de cada presentación del producto, por id de presentación.
+   * Las fotos de cada presentación del producto, por id de presentación: la
+   * miniatura para la tira y la mediana para la foto grande.
    *
-   * Las que no tienen foto quedan **fuera del mapa**: el central manda un PNG
-   * genérico en su lugar, y mostrarlo como si fuera la foto del producto es
-   * peor que no mostrar nada.
+   * Las que no tienen foto quedan **fuera de los dos mapas**: en la miniatura
+   * el central manda un PNG genérico en su lugar, y mostrarlo como si fuera la
+   * foto del producto es peor que no mostrar nada.
    *
    * Silenciosa: una foto que no llega no es un error para quien mira la
    * pantalla, que ya tiene el precio.
    */
-  imagenesDePresentaciones(productoId: number): Observable<Map<number, string>> {
+  imagenesDePresentaciones(productoId: number): Observable<ImagenesDePresentaciones> {
     return this.datos
       .consultar(this.imagenesGQL, { id: productoId }, { mostrarCarga: false, notificarError: false })
       .pipe(
         map((filas) => {
-          const porPresentacion = new Map<number, string>();
+          const imagenes = sinImagenes();
           for (const fila of filas ?? []) {
-            const imagen = imagenDePresentacion(fila.imagenPrincipal);
-            if (fila.id != null && imagen) {
-              // Number(): el id llega como string desde GraphQL.
-              porPresentacion.set(Number(fila.id), imagen);
+            if (fila.id == null) {
+              continue;
+            }
+            // Number(): el id llega como string desde GraphQL.
+            const id = Number(fila.id);
+            const miniatura = imagenDePresentacion(fila.imagenPrincipal);
+            const mediana = imagenDePresentacion(fila.imagenPrincipalMediana);
+            if (miniatura) {
+              imagenes.miniaturas.set(id, miniatura);
+            }
+            if (mediana) {
+              imagenes.medianas.set(id, mediana);
             }
           }
-          return porPresentacion;
+          return imagenes;
         }),
-        catchError(() => of(new Map<number, string>())),
+        catchError(() => of(sinImagenes())),
       );
   }
 

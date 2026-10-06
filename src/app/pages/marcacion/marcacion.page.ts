@@ -79,6 +79,8 @@ export const TITULO_CAMBIO_SUCURSAL = 'Cambió la sucursal detectada';
  * vez de impedirlo. Lo que queda es la evidencia: `precisionGps` y
  * `distanciaSucursalMetros` viajan con la marcación y permiten recalibrar el
  * umbral del aviso con datos reales. Ver `DISTANCIA_AVISO_M`.
+ * Lo único que sí impide marcar es una lectura peor que
+ * `PRECISION_DESCARTE_M`: esa no dice dónde está nadie.
  *
  * ⚠️ **La sucursal sale de la posición, no de una lista.** Mientras se elegía
  * de un desplegable, la distancia no medía nada: alcanzaba con seleccionar la

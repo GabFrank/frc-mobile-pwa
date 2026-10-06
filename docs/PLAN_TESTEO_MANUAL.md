@@ -5200,15 +5200,11 @@ al `src` — no hay un segundo pedido de red que pueda fallar, y la foto o
 llegó con la búsqueda o no está. Es lo mismo que hacía el `ion-avatar` de
 `frc-mobile`.
 
-⚠️ **Lo que hay que mirar además de que se vea: cuánto tarda la búsqueda.**
-`frc-mobile` mostraba la **miniatura** de 250×250 que el central genera al
-subir la foto (`PresentacionResolver`); la consulta de la PWA pasa por
-`ProductoResolver`, que devuelve el **original**, del tamaño que salió del
-celular. Con 10 resultados por tanda, eso puede ser varios MB en una sola
-respuesta. Esos bytes ya se transferían antes de este cambio —la consulta
-pedía el campo y la card lo tiraba—, así que **no es una regresión**, pero si
-el caso 56.5 se siente lento, la corrección es del backend: un campo de
-miniatura, no sacar la foto de la card.
+**Qué foto es:** la **miniatura** de 250×250 que el central genera al subir
+la foto (`Producto.imagenPrincipalMiniatura`), unos 9 KB. Hasta el issue #263
+del central la búsqueda traía el **original**, del tamaño que salió del
+celular: una tanda de 10 resultados eran varios MB. **Necesita el central con
+el campo nuevo desplegado**; contra uno anterior la búsqueda falla.
 
 ### 56.1 · Un producto con foto la muestra
 1. Ir a la pestaña **Buscar**.
@@ -5247,9 +5243,10 @@ un producto de la búsqueda anterior.
 1. Buscar un texto amplio, de los que llenan la tanda de 10 (`coca`, `leche`).
 2. Tocar **Cargar más** un par de veces.
 
-**Esperado:** los resultados aparecen en un tiempo parecido al de antes del
-cambio. **Anotar si se siente más lento** — ver el aviso del encabezado de
-este bloque: se corrige en el central, con una miniatura.
+**Esperado:** los resultados aparecen enseguida. En la pestaña de red, la
+respuesta de una tanda de 10 con foto pesa del orden de **100 KB**, no MB. Si
+pesa MB, la consulta está pidiendo el original: revisar que el campo sea
+`imagenPrincipalMiniatura`.
 
 ### 56.6 · Tema oscuro y tema claro
 1. Repetir 56.1 y 56.2 en los dos temas.
@@ -6602,6 +6599,14 @@ toque**, no desde el escaneo.
 **Esperado:** la vitrina del pack muestra el ícono de producto en gris sobre
 blanco, **no** el dibujo genérico de «sin imagen» del central. La miniatura
 de la unidad sí tiene foto.
+
+### 73.5 bis · La foto grande se ve nítida
+1. En una tablet, escanear un producto con foto de buena resolución.
+2. Mirar de cerca la foto grande y compararla con su miniatura de la tira.
+
+**Esperado:** la foto grande se ve **nítida**, sin el pixelado de una imagen
+estirada: es la mediana de hasta 800 px, no la miniatura de 250 px. La tira
+sigue usando las miniaturas.
 
 ### 73.6 · Un producto con una sola presentación
 1. Escanear un producto que tenga una sola presentación con precio.

@@ -668,7 +668,7 @@ describe('Buscador de producto', () => {
   });
 
   describe('la foto del producto', () => {
-    // El central manda imagenPrincipal como data:image/jpg;base64,… — no una
+    // El central manda imagenPrincipalMiniatura como data:image/jpg;base64,… — no una
     // URL—, así que la card lo pone tal cual en el src. Ver ImageService.
     const FOTO = 'data:image/jpg;base64,/9j/4AAQSkZJRg==';
 
@@ -676,7 +676,7 @@ describe('Buscador de producto', () => {
       Array.from(f.nativeElement.querySelectorAll<HTMLImageElement>('.thumb img'));
 
     it('muestra la foto cuando el producto la trae', () => {
-      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto({ imagenPrincipal: FOTO })]));
+      busqueda.buscarPorCodigoOTexto.mockReturnValue(of([producto({ imagenPrincipalMiniatura: FOTO })]));
       const f = montar();
       buscarPor(f, 'coca');
 
@@ -688,7 +688,7 @@ describe('Buscador de producto', () => {
       // si fuera una imagen, así que la cadena vacía tiene que caer al ícono
       // igual que el null.
       busqueda.buscarPorCodigoOTexto.mockReturnValue(
-        of([producto(), producto({ id: 2, imagenPrincipal: '   ' })]),
+        of([producto(), producto({ id: 2, imagenPrincipalMiniatura: '   ' })]),
       );
       const f = montar();
       buscarPor(f, 'coca');
@@ -702,7 +702,7 @@ describe('Buscador de producto', () => {
       // estado al cambiar de producto, el primer error dejaba sin foto a
       // todos los siguientes.
       busqueda.buscarPorCodigoOTexto.mockReturnValue(
-        of([producto({ id: 1, imagenPrincipal: 'data:image/jpg;base64,rota' })]),
+        of([producto({ id: 1, imagenPrincipalMiniatura: 'data:image/jpg;base64,rota' })]),
       );
       const f = montar();
       buscarPor(f, 'coca');
@@ -711,7 +711,7 @@ describe('Buscador de producto', () => {
       expect(miniaturas(f)).toHaveLength(0);
 
       busqueda.buscarPorCodigoOTexto.mockReturnValue(
-        of([producto({ id: 2, imagenPrincipal: FOTO })]),
+        of([producto({ id: 2, imagenPrincipalMiniatura: FOTO })]),
       );
       buscarPor(f, 'pepsi');
 

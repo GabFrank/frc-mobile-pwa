@@ -4,7 +4,7 @@ import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { presentacionesImagenesQuery } from './graphql-query';
 
 export interface Response {
-  data?: Pick<Presentacion, 'id' | 'imagenPrincipal'>[];
+  data?: Pick<Presentacion, 'id' | 'imagenPrincipal' | 'imagenPrincipalMediana'>[];
 }
 
 @Injectable({ providedIn: 'root' })

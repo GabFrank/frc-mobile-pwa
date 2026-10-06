@@ -277,7 +277,7 @@ export class ProductosVencidosPage {
    * genérico «sin imagen»: ahí se prefiere el ícono de vencido.
    */
   imagen(v: ProductoVencido): string | null {
-    return imagenDePresentacion(v.imagenPrincipal);
+    return imagenDePresentacion(v.imagenPrincipalMiniatura);
   }
 
   lugar(v: ProductoVencido): string {

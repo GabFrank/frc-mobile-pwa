@@ -5600,19 +5600,22 @@ marcar**, no a dónde estabas al abrir la pantalla.
 2. Sin cerrar la pantalla, trasladarse hasta quedar más cerca de otra.
 3. Tocar el botón de marcar.
 
-**Esperado:** **no se marca**. Avisa que ahora estás más cerca de la otra
-sucursal, la pantalla pasa a mostrar esa, y hay que volver a tocar el botón.
+**Esperado:** **no se marca contra la vieja**. Un diálogo dice en cuál
+figurabas y cuál da ahora; si la nueva queda cerca ofrece **Marcar en** esa.
+El detalle está en el bloque 76.
 ⚠️ Es el caso más difícil de armar: necesita dos sucursales cercanas o mucha
 paciencia.
 
 ### 59.11 · Si se pierde la ubicación al marcar, no se marca igual
 1. Abrir Marcación con permiso dado y esperar la detección.
-2. Apagar el GPS del teléfono (o poner modo avión) sin cerrar la pantalla.
+2. Apagar la ubicación del teléfono sin cerrar la pantalla. **No** usar modo
+   avión: sin red falla antes la verificación del rostro.
 3. Tocar marcar.
 
-**Esperado:** después del paso del rostro, avisa que se perdió la ubicación y
-**no registra nada**. El botón vuelve a su texto normal — **no** se queda en
-«Marcando…».
+**Esperado:** después del paso del rostro, un diálogo avisa que no se pudo
+obtener la ubicación y ofrece **Reintentar**. Cancelando **no registra nada**
+y el botón vuelve a su texto normal — **no** se queda en «Marcando…». El
+detalle está en el bloque 76.
 
 ### 59.12 · Los tres estados
 1. Recorrer: pantalla cargando, sin permiso de ubicación, y con el central
@@ -6812,6 +6815,118 @@ otras transferencias.
 
 ---
 
+## Bloque 76 — Lectura imprecisa y cambio de sucursal al marcar *(nuevo, sin probar)*
+
+**Por qué está acá:** en bodega, el 06/10/2026, alguien parado en el depósito
+abrió Marcación y la pantalla mostró una sucursal a más de un kilómetro. Tocó
+marcar, pasó el rostro y **no se guardó nada**: el aviso era un cartel que se
+iba solo. Eran dos fallas: el GPS aceptaba cualquier lectura al agotarse el
+tiempo, y lo que salía mal al marcar no se decía de forma que se viera.
+
+⚠️ **Anotar en cada caso la versión instalada** (Mi cuenta → Aplicación). Si
+el teléfono sigue con la versión anterior, el resultado no dice nada del fix.
+
+⚠️ **Una lectura mala no se provoca a pedido.** Los casos 76.1 a 76.3 son de
+observar varias mañanas, no de armar. En Chrome de escritorio se puede forzar
+con DevTools → Sensors → Location, pero ahí la precisión que informa el
+navegador no se elige: sirve para los casos 76.5 a 76.9, no para los primeros.
+
+### 76.1 · En frío, adentro del edificio, no aparece otra sucursal *(el que importa)*
+1. Con el teléfono recién sacado del bolsillo, sin haber usado mapas antes,
+   abrir Marcación dentro de la sucursal. Repetir varias mañanas.
+
+**Esperado:** muestra **la sucursal donde estás**, o tarda unos segundos más
+en «Buscando» y después la muestra, o dice que la ubicación es poco precisa.
+**Nunca** el nombre de otra sucursal.
+
+### 76.2 · La espera más larga cuando el teléfono informa mal
+1. Mismo arranque en frío. Mirar el renglón «Sucursal» mientras busca.
+
+**Esperado:** si el teléfono empieza informando mal, el renglón dice
+«Ubicación poco precisa todavía… ±N m» y la búsqueda dura hasta unos **13
+segundos** en vez de 6. Con una lectura buena termina antes.
+
+### 76.3 · Poca precisión se dice como tal
+1. En el iPhone: Ajustes → Privacidad → Localización → Safari (o la app
+   instalada) → apagar **Ubicación precisa**.
+2. Abrir Marcación.
+
+**Esperado:** después de la espera, «No se pudo obtener la ubicación» con el
+detalle «La ubicación es poco precisa (±N m). Revisá que «Ubicación precisa»
+esté activada…». Los botones de marcar quedan **deshabilitados**. **No** dice
+«revisá el permiso».
+3. Volver a activar el ajuste y tocar **Recalcular**: detecta la sucursal.
+
+### 76.4 · El permiso negado sigue diciendo permiso
+1. Negar el permiso de ubicación al sitio y abrir Marcación.
+
+**Esperado:** enseguida, sin esperar, «No se pudo obtener la ubicación.
+Revisá el permiso.»
+2. Dar el permiso, apagar la **ubicación del teléfono** y tocar Recalcular.
+
+**Esperado:** tras unos 6 segundos, pide revisar que la ubicación del
+teléfono esté encendida. No habla de precisión.
+
+### 76.5 · Se pierde la ubicación al marcar: Reintentar no pide el rostro otra vez
+1. Abrir Marcación y esperar la detección.
+2. Apagar la **ubicación del teléfono** sin cerrar la pantalla y tocar marcar.
+   Pasar el rostro. ⚠️ **No** usar modo avión: sin red el rostro no se puede
+   verificar, la marcación sale como manual y este caso no prueba nada.
+3. Cuando sale el diálogo, encender la ubicación, esperar unos segundos y
+   tocar **Reintentar**.
+
+**Esperado:** el diálogo «No se pudo obtener la ubicación» dice que todavía no
+se marcó nada. Al reintentar **no vuelve a abrir la cámara**, toma la posición
+y registra la marcación. En el desktop queda con método **facial**.
+
+### 76.6 · Tres tomas y se rinde
+1. Mismo arranque, pero sin encender la ubicación. Tocar **Reintentar** cada
+   vez.
+
+**Esperado:** ofrece reintentar **dos veces**; a la tercera toma fallida avisa
+que no se marcó nada y deja de preguntar. El botón vuelve a su texto normal.
+
+### 76.7 · Cancelar el reintento no marca
+1. Mismo arranque. En el diálogo, **Cancelar**.
+
+**Esperado:** no registra nada; la pantalla queda en «No se pudo obtener la
+ubicación» con **Recalcular** a mano.
+
+### 76.8 · Cambió la sucursal y la nueva queda cerca: se puede marcar ahí
+1. Abrir Marcación dentro de una sucursal y esperar la detección.
+2. Sin cerrar la pantalla, ir hasta **adentro** de otra. Tocar marcar y pasar
+   el rostro.
+
+**Esperado:** diálogo «Cambió la sucursal detectada»: nombra la de la apertura
+y la de ahora, con la distancia y la precisión, y ofrece **Marcar en** la
+nueva. Confirmando, la marcación queda en la **nueva**, con la posición del
+momento. Cancelando no se marca en ninguna.
+
+### 76.9 · Cambió la sucursal y la nueva queda lejos: no se ofrece marcar
+1. Abrir Marcación dentro de una sucursal.
+2. Alejarse hasta quedar más cerca de otra, pero a más de 110 m de ella.
+   Tocar marcar y pasar el rostro.
+
+**Esperado:** el mismo diálogo, pero dice que queda demasiado lejos para
+marcar ahí y el botón es **Volver a ubicar**, no «Marcar en». En ese toque no
+se puede marcar en la nueva. Si al volver a ubicar la posición vuelve a la
+sucursal de la apertura, sigue con esa (con el aviso de «Estás lejos» si
+corresponde). Cancelando, la pantalla queda mostrando la nueva con su
+distancia: un toque nuevo marca ahí, con el aviso de lejos.
+
+### 76.10 · El rostro vence a los dos minutos
+1. Provocar el diálogo de reintento (76.5) y dejarlo abierto más de dos
+   minutos. Encender la ubicación y tocar **Reintentar**.
+
+**Esperado:** toma la posición pero **no marca**: avisa que pasó demasiado
+tiempo desde que se verificó el rostro y que hay que volver a marcar.
+
+### 76.11 · El kiosco dice lo mismo
+1. En el kiosco de marcación, con «Ubicación precisa» apagada (76.3).
+
+**Esperado:** «No se pudo obtener la ubicación» con el detalle de poca
+precisión, no el de revisar el permiso. **Marcar** deshabilitado.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6891,7 +7006,8 @@ otras transferencias.
 | 73 · Fotos de las presentaciones en el kiosco | 10 | | | |
 | 74 · Precios en otra moneda en el kiosco | 7 | | | |
 | 75 · El chofer en la verificación para transporte | 10 | | | |
-| **Total** | **662** | | | |
+| 76 · Lectura imprecisa y cambio de sucursal al marcar | 11 | | | |
+| **Total** | **673** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -200,7 +200,12 @@ export class GeoService {
         }
         cerrar(
           null,
-          huboDescartadas ? mensajePocoPrecisa(descartada) : 'No se pudo obtener la ubicación.',
+          // Sin ninguna lectura lo más común es la ubicación del teléfono
+          // apagada: el navegador lo informa como «no disponible», no como
+          // permiso negado.
+          huboDescartadas
+            ? mensajePocoPrecisa(descartada)
+            : 'No se pudo obtener la ubicación. Revisá que la ubicación del teléfono esté encendida.',
           'error',
         );
       };

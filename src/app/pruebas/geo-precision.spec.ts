@@ -114,6 +114,9 @@ describe('GeoService: una lectura muy imprecisa no se usa', () => {
     const posicion = await promesa;
     expect(posicion?.precision).toBe(15);
     expect(posicion?.latitud).toBe(-24.0633);
+    // Y no queda nada vivo: ni el watch ni el reloj de la segunda ventana.
+    expect(clearWatch).toHaveBeenCalledWith(7);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('una aproximada de ±60 m se devuelve al primer tope, sin esperar de más', async () => {
@@ -176,6 +179,7 @@ describe('GeoService: una lectura muy imprecisa no se usa', () => {
     await vi.advanceTimersByTimeAsync(TIEMPO_MAXIMO_MS);
 
     expect(await promesa).toBeNull();
-    expect(ultimoMensaje()).toBe('No se pudo obtener la ubicación.');
+    expect(ultimoMensaje()).toContain('esté encendida');
+    expect(ultimoMensaje()).not.toContain('precisa');
   });
 });

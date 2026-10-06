@@ -5608,7 +5608,8 @@ paciencia.
 
 ### 59.11 · Si se pierde la ubicación al marcar, no se marca igual
 1. Abrir Marcación con permiso dado y esperar la detección.
-2. Apagar el GPS del teléfono (o poner modo avión) sin cerrar la pantalla.
+2. Apagar la ubicación del teléfono sin cerrar la pantalla. **No** usar modo
+   avión: sin red falla antes la verificación del rostro.
 3. Tocar marcar.
 
 **Esperado:** después del paso del rostro, un diálogo avisa que no se pudo
@@ -6861,19 +6862,26 @@ esté activada…». Los botones de marcar quedan **deshabilitados**. **No** dic
 
 **Esperado:** enseguida, sin esperar, «No se pudo obtener la ubicación.
 Revisá el permiso.»
+2. Dar el permiso, apagar la **ubicación del teléfono** y tocar Recalcular.
+
+**Esperado:** tras unos 6 segundos, pide revisar que la ubicación del
+teléfono esté encendida. No habla de precisión.
 
 ### 76.5 · Se pierde la ubicación al marcar: Reintentar no pide el rostro otra vez
 1. Abrir Marcación y esperar la detección.
-2. Poner modo avión sin cerrar la pantalla y tocar marcar. Pasar el rostro.
-3. Cuando sale el diálogo, sacar el modo avión, esperar unos segundos y tocar
-   **Reintentar**.
+2. Apagar la **ubicación del teléfono** sin cerrar la pantalla y tocar marcar.
+   Pasar el rostro. ⚠️ **No** usar modo avión: sin red el rostro no se puede
+   verificar, la marcación sale como manual y este caso no prueba nada.
+3. Cuando sale el diálogo, encender la ubicación, esperar unos segundos y
+   tocar **Reintentar**.
 
 **Esperado:** el diálogo «No se pudo obtener la ubicación» dice que todavía no
 se marcó nada. Al reintentar **no vuelve a abrir la cámara**, toma la posición
 y registra la marcación. En el desktop queda con método **facial**.
 
 ### 76.6 · Tres tomas y se rinde
-1. Mismo arranque, pero sin sacar el modo avión. Tocar **Reintentar** cada vez.
+1. Mismo arranque, pero sin encender la ubicación. Tocar **Reintentar** cada
+   vez.
 
 **Esperado:** ofrece reintentar **dos veces**; a la tercera toma fallida avisa
 que no se marcó nada y deja de preguntar. El botón vuelve a su texto normal.
@@ -6900,13 +6908,15 @@ momento. Cancelando no se marca en ninguna.
    Tocar marcar y pasar el rostro.
 
 **Esperado:** el mismo diálogo, pero dice que queda demasiado lejos para
-marcar ahí y el botón es **Volver a ubicar**, no «Marcar en». No aparece
-después el aviso de «Estás lejos». Si al volver a ubicar la posición vuelve a
-la sucursal de la apertura, marca en esa.
+marcar ahí y el botón es **Volver a ubicar**, no «Marcar en». En ese toque no
+se puede marcar en la nueva. Si al volver a ubicar la posición vuelve a la
+sucursal de la apertura, sigue con esa (con el aviso de «Estás lejos» si
+corresponde). Cancelando, la pantalla queda mostrando la nueva con su
+distancia: un toque nuevo marca ahí, con el aviso de lejos.
 
 ### 76.10 · El rostro vence a los dos minutos
 1. Provocar el diálogo de reintento (76.5) y dejarlo abierto más de dos
-   minutos. Sacar el modo avión y tocar **Reintentar**.
+   minutos. Encender la ubicación y tocar **Reintentar**.
 
 **Esperado:** toma la posición pero **no marca**: avisa que pasó demasiado
 tiempo desde que se verificó el rostro y que hay que volver a marcar.

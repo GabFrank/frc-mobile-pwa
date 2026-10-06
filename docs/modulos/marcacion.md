@@ -304,9 +304,13 @@ vez. Ahora (`tomarPosicion()` en `marcacion.page.ts`):
 
 - **Hasta 3 tomas** por marcación (`TOMAS_MAXIMAS`). Sin tope, «Reintentar»
   en un lugar sin señal es un bucle.
-- **Lejos de la nueva no se marca**, ni confirmando: «cambió» y «estás lejos»
-  encadenados guardarían con dos toques una sucursal de la que hay motivos
-  para dudar.
+- **Lejos de la nueva no se marca en ese toque**: «cambió» y «estás lejos»
+  encadenados guardarían con dos toques seguidos una sucursal de la que hay
+  motivos para dudar. Cancelando, la pantalla queda mostrando la nueva con su
+  distancia; quien toca marcar de nuevo ya la vio, y ahí vale la regla de
+  siempre —la distancia avisa, no bloquea—.
+- **Al agotar las tomas el cierre es un cartel**, no un diálogo: no queda nada
+  que ofrecer. Lo que pasó sigue escrito en «Dónde estás».
 - **El rostro verificado vale 2 minutos** (`VIGENCIA_ROSTRO_MS`). Un diálogo
   puede quedar abierto lo que el usuario quiera, y la marcación se guarda
   como facial.

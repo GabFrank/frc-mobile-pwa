@@ -423,8 +423,10 @@ export class MarcacionPage {
         return;
       }
 
-      enviada = true;
       this.enviar(usuarioId, accion, detectada.sucursal, posicion, detectada.metros, esSalidaAlmuerzo);
+      // Recién acá: si `enviar` tirara antes de suscribirse, el `finally`
+      // tiene que apagar las señales igual.
+      enviada = true;
     } finally {
       if (!enviada) {
         this.marcando.set(false);

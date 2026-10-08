@@ -45,15 +45,19 @@ export class MonedasConDenominacionesGQL extends Query<{ data?: Moneda[] }> {
 }
 
 /**
- * Maletines de una sucursal.
+ * Maletines que se pueden elegir para abrir caja en una sucursal.
  *
- * `searchMaletin` acepta `sucId`: un maletín pertenece a la sucursal donde
- * está físicamente, y ofrecer los de otra sucursal al abrir caja no tiene
- * sentido operativo.
+ * ⚠️ **El central los consulta en la filial** (ip + puerto servidor de la
+ * sucursal), no en su propia tabla: el maletín y su estado `abierto` viven
+ * allá. Ya vienen filtrados —activos y sin uso—; acá no se filtra nada.
+ *
+ * Antes se usaba `searchMaletin` con la sucursal de la sesión, que en el
+ * central es siempre la 0 (`SERVIDOR`): ofrecía maletines viejos que no
+ * pertenecen a ninguna sucursal real.
  */
 export const maletinesQuery = gql`
-  query ($texto: String, $sucId: ID) {
-    data: searchMaletin(texto: $texto, sucId: $sucId) {
+  query ($sucId: ID!) {
+    data: maletinesDisponiblesPorSucursal(sucId: $sucId) {
       id
       descripcion
       activo

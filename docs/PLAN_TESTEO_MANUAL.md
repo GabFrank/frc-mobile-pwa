@@ -517,9 +517,9 @@ publicada. Cuando `semantic-release` empiece a numerar, ahí va a decir
 ## Bloque 7 — Abrir y cerrar caja *(nuevo, sin probar)*
 
 ⚠️ **Nada de este bloque se probó contra el central real.** La apertura se
-proxea a la filial y necesita que la sucursal tenga IP configurada; si tu
-sesión está en una sucursal sin filial detrás, el central va a rechazar la
-operación. Ahora lo dice en vez de festejar un éxito falso.
+proxea a la filial y necesita que la sucursal tenga IP configurada. Desde el
+2026-10-06 **la sucursal se elige en la pantalla** (bloque 76): en los casos
+de abajo, «elegir maletín» supone haber elegido antes la sucursal.
 
 ### 7.1 · La pantalla carga
 1. Operaciones → Caja → **Abrir caja**
@@ -1032,8 +1032,10 @@ inferior ofreció «Salir a almorzar» / «Marcar salida».
 **Esperado:** avisa la distancia y la precisión y **pide confirmación** — no
 bloquea. Al confirmar, queda registrado con esos datos.
 
-> Anotá qué distancia y qué precisión te dio: son los números con los que hay
-> que decidir si el umbral de ±33 m sirve o hay que cambiarlo.
+> Anotá qué distancia y qué precisión te dio: son los números con los que se
+> calibra el umbral del aviso. Hoy es de **110 m** (`DISTANCIA_AVISO_M`); fue
+> de 33 m hasta que las marcaciones de producción mostraron que le saltaba a
+> quien marcaba desde adentro con un iPhone. Ver el caso 59.14.
 
 No se pudo forzar una ubicación lejana desde el navegador de escritorio;
 necesita un dispositivo real o GPS simulado.
@@ -2996,6 +2998,29 @@ no va a preguntar.
 1. Instalar la PWA desde Compartir → Añadir a inicio y repetir 38.2 a 38.4.
 
 **Esperado:** funciona igual que en Android.
+
+### 38.10 · El aviso lleva la marca, no la campanita
+1. Antes de probar, confirmar que el badge está publicado **como imagen**:
+   `curl -sI https://<puerta>/icons/badge-96x96.png` tiene que responder
+   `content-type: image/png`.
+2. En un Android real, con la app **cerrada**, disparar una notificación desde
+   el central.
+3. Mirar la barra de estado y después desplegar la bandeja.
+
+**Esperado:** en la barra de estado aparece la **silueta de la botella**, no la
+campanita genérica. En la bandeja, el ícono grande es el logo de Bodega Franco,
+no un círculo con la inicial. Tocarla sigue abriendo la pantalla del aviso
+(38.8).
+
+> ⚠️ **Un 200 no alcanza para el paso 1.** El `_redirects` devuelve
+> `index.html` con 200 para todo archivo que no existe, así que un badge sin
+> publicar responde `200 text/html` y el navegador vuelve a la campanita sin
+> error. Hay que mirar el `content-type`.
+>
+> ⚠️ **Necesita las dos mitades, y en orden: primero la PWA, después el
+> central.** El central manda `icon` y `badge` como rutas relativas
+> (central #218); si llega antes que el archivo, el cambio parece no haber
+> funcionado.
 
 ---
 
@@ -5175,15 +5200,11 @@ al `src` — no hay un segundo pedido de red que pueda fallar, y la foto o
 llegó con la búsqueda o no está. Es lo mismo que hacía el `ion-avatar` de
 `frc-mobile`.
 
-⚠️ **Lo que hay que mirar además de que se vea: cuánto tarda la búsqueda.**
-`frc-mobile` mostraba la **miniatura** de 250×250 que el central genera al
-subir la foto (`PresentacionResolver`); la consulta de la PWA pasa por
-`ProductoResolver`, que devuelve el **original**, del tamaño que salió del
-celular. Con 10 resultados por tanda, eso puede ser varios MB en una sola
-respuesta. Esos bytes ya se transferían antes de este cambio —la consulta
-pedía el campo y la card lo tiraba—, así que **no es una regresión**, pero si
-el caso 56.5 se siente lento, la corrección es del backend: un campo de
-miniatura, no sacar la foto de la card.
+**Qué foto es:** la **miniatura** de 250×250 que el central genera al subir
+la foto (`Producto.imagenPrincipalMiniatura`), unos 9 KB. Hasta el issue #263
+del central la búsqueda traía el **original**, del tamaño que salió del
+celular: una tanda de 10 resultados eran varios MB. **Necesita el central con
+el campo nuevo desplegado**; contra uno anterior la búsqueda falla.
 
 ### 56.1 · Un producto con foto la muestra
 1. Ir a la pestaña **Buscar**.
@@ -5222,9 +5243,10 @@ un producto de la búsqueda anterior.
 1. Buscar un texto amplio, de los que llenan la tanda de 10 (`coca`, `leche`).
 2. Tocar **Cargar más** un par de veces.
 
-**Esperado:** los resultados aparecen en un tiempo parecido al de antes del
-cambio. **Anotar si se siente más lento** — ver el aviso del encabezado de
-este bloque: se corrige en el central, con una miniatura.
+**Esperado:** los resultados aparecen enseguida. En la pestaña de red, la
+respuesta de una tanda de 10 con foto pesa del orden de **100 KB**, no MB. Si
+pesa MB, la consulta está pidiendo el original: revisar que el campo sea
+`imagenPrincipalMiniatura`.
 
 ### 56.6 · Tema oscuro y tema claro
 1. Repetir 56.1 y 56.2 en los dos temas.
@@ -5546,8 +5568,8 @@ y te deje marcar igual — eso es exactamente el bug que esto corrige.
 anterior. Es el caso del funcionario que cubre en otro local.
 
 ### 59.7 · Lejos de la sucursal avisa, pero deja marcar
-1. Desde un punto a más de 33 m de cualquier sucursal —la vereda de enfrente
-   alcanza— tocar el botón de marcar.
+1. Desde un punto a más de 110 m de cualquier sucursal —una cuadra de
+   distancia alcanza— tocar el botón de marcar.
 
 **Esperado:** un diálogo **«Estás lejos de la sucursal»** con los metros, la
 sucursal y la precisión. Confirmando, **la marcación se registra**. La
@@ -5575,19 +5597,22 @@ marcar**, no a dónde estabas al abrir la pantalla.
 2. Sin cerrar la pantalla, trasladarse hasta quedar más cerca de otra.
 3. Tocar el botón de marcar.
 
-**Esperado:** **no se marca**. Avisa que ahora estás más cerca de la otra
-sucursal, la pantalla pasa a mostrar esa, y hay que volver a tocar el botón.
+**Esperado:** **no se marca contra la vieja**. Un diálogo dice en cuál
+figurabas y cuál da ahora; si la nueva queda cerca ofrece **Marcar en** esa.
+El detalle está en el bloque 76.
 ⚠️ Es el caso más difícil de armar: necesita dos sucursales cercanas o mucha
 paciencia.
 
 ### 59.11 · Si se pierde la ubicación al marcar, no se marca igual
 1. Abrir Marcación con permiso dado y esperar la detección.
-2. Apagar el GPS del teléfono (o poner modo avión) sin cerrar la pantalla.
+2. Apagar la ubicación del teléfono sin cerrar la pantalla. **No** usar modo
+   avión: sin red falla antes la verificación del rostro.
 3. Tocar marcar.
 
-**Esperado:** después del paso del rostro, avisa que se perdió la ubicación y
-**no registra nada**. El botón vuelve a su texto normal — **no** se queda en
-«Marcando…».
+**Esperado:** después del paso del rostro, un diálogo avisa que no se pudo
+obtener la ubicación y ofrece **Reintentar**. Cancelando **no registra nada**
+y el botón vuelve a su texto normal — **no** se queda en «Marcando…». El
+detalle está en el bloque 76.
 
 ### 59.12 · Los tres estados
 1. Recorrer: pantalla cargando, sin permiso de ubicación, y con el central
@@ -5603,6 +5628,17 @@ reintentar. Ninguno muestra una sucursal.
 
 **Esperado:** el texto del vacío se lee en los dos, y el botón **Recalcular**
 tiene contraste suficiente.
+
+### 59.14 · Desde adentro del edificio, con iPhone, no avisa
+1. Con un iPhone, marcar desde un interior donde la ubicación quede corrida
+   —la oficina del segundo piso del depósito Aquario daba 58–59 m—.
+
+**Esperado:** marca **sin** el diálogo «Estás lejos de la sucursal». En la
+sección **Dónde estás** se sigue viendo la distancia real, y es la que queda
+guardada.
+
+> Si igual avisa, anotá los metros y la precisión del diálogo: con más de
+> 110 m desde adentro, el umbral quedó corto para ese edificio.
 
 ---
 
@@ -6488,6 +6524,423 @@ diálogo (12 px) en los cuatro lados.
 
 ---
 
+## Bloque 72 — Las horas de la tarjeta «Hoy» en Marcación *(nuevo)* — **1/2** (Franco, iPhone con Safari, build de producción de la rama por túnel contra alpha, 2026-09-25)
+
+**Por qué está acá:** probado en iPhone contra alpha (2026-09-25), «Salió a
+almorzar» y «Salida» mostraban «—»; «Entrada» y «Volvió» sí tenían hora. Las
+dos rotas son las SALIDA: una salida marcada desde la PWA guarda su hora en
+`fechaEntrada` —la PWA no manda fecha y el central completa ese campo para
+cualquier tipo— y la tarjeta la buscaba en `fechaSalida`.
+
+### 72.1 · Las cuatro horas de una jornada completa — ✅ PASÓ
+1. **Marcar entrada**, **Salir a almorzar**, **Volver del almuerzo** y
+   **Marcar salida**, esperando un minuto entre cada una.
+2. Mirar la tarjeta **Hoy** después de cada marcación.
+
+**Esperado:** cada fila muestra fecha y hora (`dd/MM/yyyy HH:mm`) en cuanto
+se marca, y ninguna dice «—»: **Entrada**, **Salió a almorzar**, **Volvió**,
+**Salida**. Las horas coinciden con el momento de cada marcación y van en
+orden creciente.
+
+### 72.2 · Una jornada sin almuerzo
+1. Con otro usuario, o al día siguiente: **Marcar entrada** y **Marcar
+   salida**, sin almuerzo.
+
+**Esperado:** aparecen **Entrada** y **Salida** con hora. Las filas del
+almuerzo **no aparecen** (no se muestran con «—»).
+
+---
+
+## Bloque 73 — Fotos de las presentaciones en el kiosco de precios *(nuevo)*
+
+**Por qué está acá:** el kiosco mostraba solo cantidad y precio de cada
+presentación. Ahora muestra la foto de cada una en una tira al costado, la
+elegida en grande sobre una «vitrina» blanca, y debajo su precio. Las fotos
+llegan **después** del precio, con una consulta aparte
+(`presentacionesPorProductoId`), así que el central no cambia.
+
+Datos de prueba en el central local (2026-10-01): **PILSEN CLASICA LATA 269
+ML** — unidad `7840050006385`, pack de 12 `7840050005005`, las dos con foto —
+y **PILSEN EXTRA LATA 269ML** — pack de 6 `7840050007900`, **sin foto**.
+
+### 73.1 · Arranca en la presentación escaneada
+1. Abrir `/kiosco` en el teléfono, en vertical.
+2. Escanear el código **del pack** (`7840050005005`).
+
+**Esperado:** nombre arriba; a la izquierda, la tira con dos miniaturas
+(«×1» y «×12»); a la derecha, la foto grande del **pack**. La miniatura ×12
+tiene borde rojo y la otra está atenuada. Debajo: «Cantidad: 12 (PACK)» y
+«₲ 42.000» en rojo grande, en una sola línea.
+
+### 73.2 · Tocar otra presentación
+1. Con la ficha de 73.1 en pantalla, tocar la miniatura **×1**.
+
+**Esperado:** la foto grande pasa a la lata suelta con un fundido corto; el
+precio cambia a «₲ 3.500» y la etiqueta a «Cantidad: 1 (UNIDAD)». El borde
+rojo pasa a ×1.
+
+### 73.3 · El lector sigue escribiendo después del toque
+1. Después de 73.2, **sin tocar el campo**, pasar otro producto por el lector
+   HID.
+
+**Esperado:** busca el producto nuevo. El toque en la miniatura no le sacó
+el foco al campo.
+
+### 73.4 · Tocar reinicia los 20 segundos
+1. Escanear un producto con varias presentaciones.
+2. A los ~15 s, tocar otra miniatura.
+
+**Esperado:** la ficha sigue en pantalla unos 20 s **contados desde el
+toque**, no desde el escaneo.
+
+### 73.5 · Una presentación sin foto
+1. Escanear `7840050007900` (pack de PILSEN EXTRA).
+
+**Esperado:** la vitrina del pack muestra el ícono de producto en gris sobre
+blanco, **no** el dibujo genérico de «sin imagen» del central. La miniatura
+de la unidad sí tiene foto.
+
+### 73.5 bis · La foto grande se ve nítida
+1. En una tablet, escanear un producto con foto de buena resolución.
+2. Mirar de cerca la foto grande y compararla con su miniatura de la tira.
+
+**Esperado:** la foto grande se ve **nítida**, sin el pixelado de una imagen
+estirada: es la mediana de hasta 800 px, no la miniatura de 250 px. La tira
+sigue usando las miniaturas.
+
+### 73.6 · Un producto con una sola presentación
+1. Escanear un producto que tenga una sola presentación con precio.
+
+**Esperado:** no aparece la tira; la foto ocupa el ancho, con el precio
+debajo.
+
+### 73.7 · Tablet o teléfono acostado
+1. Repetir 73.1 con la tablet en horizontal (o el teléfono acostado, si mide
+   720 px o más de ancho).
+
+**Esperado:** disposición de ficha de tienda: tira | foto | nombre y precio
+a la derecha, alineados a la izquierda. La foto ocupa casi todo el alto
+libre de la pantalla, sin aire de sobra arriba y abajo. El precio entra en
+una línea.
+
+### 73.8 · Red lenta
+1. En Chrome, DevTools → Network → «Slow 3G». Escanear un producto.
+
+**Esperado:** el precio aparece primero, con el ícono en la vitrina; la foto
+aparece sola cuando llega. **No sale ningún aviso de error** si la foto
+tarda o falla.
+
+### 73.9 · El precio no se mezcla con fotos de otro producto
+1. Con «Slow 3G», escanear un producto y, **antes** de que llegue su foto,
+   escanear otro.
+
+**Esperado:** la ficha muestra la foto del **segundo** producto o el ícono;
+nunca la foto del primero con el precio del segundo.
+
+### 73.10 · Tablet en vertical
+1. Repetir 73.1 en una tablet en vertical (800 px de ancho o más).
+
+**Esperado:** la ficha ocupa el ancho de la pantalla, sin franjas vacías a
+los costados: la foto es grande, la tira y las miniaturas crecen, y el
+nombre y el precio son notoriamente más grandes que en el teléfono. Todo
+entra sin scroll: nombre, foto, etiqueta y precio.
+
+---
+
+## Bloque 74 — Precios en otra moneda en el kiosco *(nuevo)*
+
+**Por qué está acá:** el kiosco vuelve a tener el selector de banderas de
+`frc-mobile` (₲, R$, US$, AR$), pero **la conversión la hace el central**
+con la query nueva `convertirPreciosMobile`: última cotización y los
+decimales de cada moneda. `frc-mobile` multiplicaba en el teléfono.
+
+⚠️ **Necesita el central de la rama `feat/kiosco-precios-en-moneda`.**
+Contra un central sin esa query el selector no aparece (caso 74.6).
+
+### 74.1 · El botón aparece al entrar
+1. Abrir `/kiosco`, sin escanear nada.
+
+**Esperado:** justo debajo de la barra roja, a la izquierda, un botón rojo
+redondo con la bandera de Paraguay. No tapa el nombre del producto cuando se
+escanea uno.
+
+### 74.2 · Abrir y cerrar el selector
+1. Tocar el botón.
+2. Tocar la X.
+
+**Esperado:** al tocar, el botón pasa a ser una X y a su derecha aparecen
+las banderas de las monedas con cotización cargada, en orden de id, todas en
+una línea en un teléfono de 360 px o más (en uno más angosto bajan a una
+segunda línea, sin salirse de la pantalla). La de
+Paraguay tiene un anillo blanco. La X cierra la fila.
+
+### 74.3 · Ver un precio en reales
+1. Escanear `7840050006385` (PILSEN CLASICA, unidad).
+2. Abrir el selector y tocar Brasil.
+
+**Esperado:** el precio grande pasa a «R$ x,xx», con los decimales de la
+moneda; debajo aparece «₲ 3.500» chico como referencia. La fila de banderas
+se cierra sola. El botón muestra ahora la bandera de Brasil. El importe
+coincide con `3500 / cotización del real` redondeado a los decimales de la
+moneda.
+
+### 74.4 · La moneda queda elegida entre escaneos
+1. Con reales elegidos, escanear otro producto.
+2. Tocar la miniatura del pack.
+
+**Esperado:** el producto nuevo sale directamente en reales, y el pack
+también. Volver a guaraní (bandera de Paraguay) muestra «₲» sin la línea de
+referencia.
+
+### 74.5 · Un precio largo entra en una línea
+1. Elegir pesos argentinos o la moneda con el importe más largo y escanear
+   el pack más caro que tengas.
+
+**Esperado:** el precio se achica para entrar en **una** línea; no se corta
+ni se sale de la pantalla, en el teléfono en vertical.
+
+### 74.6 · Central sin la query
+1. Apuntar la PWA a un central que **no** tenga `convertirPreciosMobile`
+   (por ejemplo producción hoy).
+2. Abrir `/kiosco` y escanear.
+
+**Esperado:** **no aparece** el botón de monedas y los precios salen en
+guaraníes como antes. Ningún aviso de error en pantalla.
+
+### 74.7 · Moneda sin cotización
+1. En el desktop, una moneda activa sin ninguna cotización cargada.
+2. Abrir el selector.
+
+**Esperado:** esa moneda **no aparece** en la fila. Las demás sí.
+
+## Bloque 75 — El chofer en la verificación para transporte *(nuevo, sin probar)*
+
+**Por qué está acá:** al tocar **Verificar para transporte** la PWA ya no
+toma al usuario logueado como responsable. Pide antes **chofer, vehículo y
+acompañantes**: el chofer elegido queda como responsable de la verificación
+(«Transportó») y como chofer de una **hoja de ruta nueva**, la misma que el
+desktop muestra en **Entregadores**. El desktop sigue asignando choferes como
+siempre; esto es solo de la PWA.
+
+⚠️ **Necesita el central de la rama `feature/chofer-verificacion-transporte`**
+(mutation `verificarParaTransporteMobile`). Contra un central sin ella, el
+diálogo muestra el error y la transferencia **no avanza** (caso 75.9).
+
+⚠️ **El chofer es el responsable, pero la etapa la trabaja cualquiera.**
+Verificar los ítems y «Concluir y despachar» lo puede hacer quien lo eligió,
+sin entrar con el usuario del chofer: si no, el destino no podría recibir.
+
+Preparación: una transferencia en **Preparación concluida**, un usuario con
+persona asociada para usar de chofer, un vehículo cargado en el desktop y una
+segunda persona para acompañante.
+
+### 75.1 · El botón abre el diálogo del chofer
+1. Abrir la transferencia preparada y tocar **Verificar para transporte**.
+
+**Esperado:** se abre «Verificar para transporte» con tres campos —Chofer,
+Vehículo y Acompañantes— todos sin elegir. **No** aparece la confirmación de
+siempre ni avanza la etapa. **Confirmar y verificar** está apagado.
+
+### 75.2 · Sin vehículo no se confirma
+1. Tocar **Elegir chofer**, buscar al usuario y elegirlo.
+
+**Esperado:** el nombre del chofer aparece en el campo y el botón cambia a
+«Cambiar chofer». **Confirmar y verificar** sigue apagado hasta elegir el
+vehículo.
+
+### 75.3 · Elegir el vehículo
+1. Tocar **Elegir vehículo** y buscar por chapa.
+
+**Esperado:** la lista muestra «chapa · marca modelo» y deja cargar más si
+hay muchos. Al elegir, aparece en el campo y **Confirmar y verificar** se
+enciende.
+
+### 75.4 · Acompañantes: agregar y quitar
+1. Tocar **Agregar acompañante**, buscar a una persona por nombre o documento
+   y elegirla.
+2. Agregar otra y quitarla con la ✕.
+
+**Esperado:** cada persona aparece en la lista con su ✕; al quitarla
+desaparece. Sin ninguna dice «Sin acompañantes».
+
+### 75.5 · El chofer no va dos veces
+1. Agregar como acompañante a la **persona del chofer**.
+2. Agregar dos veces a la misma persona.
+3. Agregar a una persona como acompañante y después **elegirla como chofer**.
+
+**Esperado:** en 1 y 2 la lista no cambia. En 3 la persona sale de los
+acompañantes al quedar como chofer.
+
+### 75.6 · Cancelar no cambia nada
+1. Con todo cargado, tocar **Cancelar**.
+
+**Esperado:** el diálogo se cierra y la transferencia sigue en **Preparación
+concluida**, sin responsable de transporte nuevo.
+
+### 75.7 · Confirmar: el chofer queda como responsable
+1. Volver a abrir el diálogo, cargar chofer, vehículo y un acompañante.
+2. Tocar **Confirmar y verificar**.
+3. Leer el aviso y aceptarlo.
+
+**Esperado:** el aviso dice «‹chofer› queda como chofer y responsable de la
+verificación para transporte» seguido del texto de siempre de la etapa. Al
+aceptar sale «Chofer asignado, verificando para transporte», la etapa pasa a
+**Verificando para transporte**, **Responsable** y **Transportó** muestran
+al **chofer** —no al usuario logueado— y aparece la sección **Viaje** con
+chofer, vehículo, acompañantes y hora de salida.
+
+### 75.8 · Despacha cualquiera, no solo el chofer
+1. Con el usuario que eligió al chofer —**sin** entrar como el chofer—,
+   verificar todos los ítems.
+2. Tocar **Concluir y despachar** y aceptar.
+3. Con un usuario de la sucursal de destino, abrir la transferencia.
+
+**Esperado:** en 1 las acciones por ítem están disponibles y **no** aparece
+el aviso «Esta etapa la está trabajando…». En 2 la transferencia pasa a **En
+tránsito** y **Responsable** / **Transportó** siguen mostrando al chofer, no
+a quien despachó. En 3 el destino puede **Iniciar recepción**.
+
+### 75.9 · Un error deja el diálogo abierto
+1. Abrir la misma transferencia en dos teléfonos en **Preparación concluida**.
+2. Confirmar el chofer en el primero.
+3. En el segundo, sin recargar, confirmar otro chofer.
+
+**Esperado:** el segundo muestra el error del central («… solo se verifica
+para transporte después de concluir la preparación») y el diálogo **queda
+abierto** con lo cargado. La transferencia conserva el chofer del primero.
+
+### 75.10 · El desktop ve la hoja de ruta
+1. En el desktop, abrir **Transferencias → Entregadores** y buscar por la
+   chapa del vehículo.
+
+**Esperado:** una hoja de ruta **nueva** con el chofer, el vehículo y los
+acompañantes elegidos en la PWA; al expandirla aparece la transferencia. Si
+el desktop le había asignado otra hoja antes, esa sigue existiendo con sus
+otras transferencias.
+
+---
+
+## Bloque 76 — Abrir caja: elegir la sucursal *(nuevo, sin probar)*
+
+**Por qué está acá:** «Abrir caja» tomaba la sucursal de la sesión, y contra
+el central esa es siempre la 0 (`SERVIDOR`). Ofrecía siete maletines viejos
+que no son de ninguna sucursal real (`soporte`, `COSTANERA`, `deposito`,
+`0020221504`…`07`) y mandaba la apertura a `localhost` en vez de a la filial.
+Ahora el cajero **elige la sucursal** —como en `frc-mobile`— y los maletines
+se le preguntan a **la filial**, con la IP y el **puerto servidor** de la
+sucursal.
+
+⚠️ **Necesita el central de la rama `fix/abrir-caja-maletines-de-la-filial`**
+(query `maletinesDisponiblesPorSucursal`). Contra un central sin ella, al
+elegir la sucursal aparece el error con «Reintentar» y no se puede abrir.
+
+⚠️ **La filial tiene que estar levantada y alcanzable desde el central**, en
+la IP y el puerto servidor que figuran en Sucursales (escritorio).
+
+### 76.1 · No hay sucursal elegida de entrada
+1. Operaciones → Caja → **Abrir caja**
+
+**Esperado:** el selector **Sucursal** está vacío y el de **Maletín**
+deshabilitado, con el texto «Elegí la sucursal para ver sus maletines».
+En la lista de sucursales **no** están `SERVIDOR`, `COMPRAS` ni las que no
+tienen IP.
+
+### 76.2 · Los maletines son los de la filial
+1. Elegir una sucursal con la filial levantada
+
+**Esperado:** mientras consulta dice «Consultando los maletines de …». Después
+el selector ofrece **solo los maletines de esa sucursal** que están activos y
+sin uso. Ninguno de los viejos de `SERVIDOR`. Comparar contra
+`select id, descripcion, abierto from financiero.maletin` **en la base de la
+filial**.
+
+### 76.3 · Cambiar de sucursal
+1. Elegir una sucursal y un maletín
+2. Cambiar a otra sucursal
+
+**Esperado:** el maletín elegido se borra y la lista pasa a ser la de la
+sucursal nueva. No queda seleccionado un maletín de la anterior.
+
+### 76.4 · Filial apagada *(el que importa)*
+1. Elegir una sucursal cuya filial esté apagada o sin red
+
+**Esperado:** un mensaje que dice que no se pudo conectar con esa sucursal y
+un botón **Reintentar**. **No** dice «No hay maletines disponibles»: eso
+afirmaría que están todos en uso.
+
+### 76.5 · Abrir sin sucursal
+1. Sin elegir sucursal, tocar **Abrir caja**
+
+**Esperado:** avisa «Elegí la sucursal antes de abrir la caja». No llama al
+servidor.
+
+### 76.6 · **Apertura real en la sucursal elegida**
+1. Elegir sucursal y maletín, cargar el arqueo, **Abrir caja**
+
+**Esperado:** la confirmación **nombra la sucursal**. Al confirmar, la caja
+queda abierta **en esa filial** (verla en el POS de la sucursal) y en el log
+del central la línea `ABRIR CAJA … URL filial a conectar` muestra la IP y el
+puerto servidor de esa sucursal, no `localhost`. Al volver a **Abrir caja** y
+elegir la misma sucursal, ese maletín ya no aparece.
+
+### 76.7 · El cierre lleva la sucursal
+1. Lista de cajas → tocar la caja abierta → **Cerrar caja**
+
+**Esperado:** la dirección termina en `/cerrar?suc=<id de la sucursal>` y el
+formulario muestra **Esperado** y **Diferencia**. Al confirmar, la caja se
+cierra **en esa filial**. Antes la sucursal se perdía en este paso y el cierre
+iba contra la caja con el mismo número de otra sucursal.
+
+---
+
+## Bloque 77 — El balance impreso al cerrar caja *(nuevo, sin probar)*
+
+**Por qué está acá:** al cerrar caja desde el teléfono no salía ningún
+ticket. `frc-mobile` lo pedía después de cerrar y ese paso no se había
+portado. Ahora, cerrada la caja, la PWA pide el balance: el central lo deriva
+a **la filial**, que lo imprime en la **impresora de tickets que tiene
+configurada el escritorio de ese mismo equipo** (modo «imprimir por
+servidor»). El teléfono no elige impresora.
+
+⚠️ **No imprime en las PCs que están en «Imprimir desde esta PC».** Ese modo
+imprime por el USB de cada PC y el teléfono no tiene cómo llegar ahí. Si en
+el equipo de la filial no hay una impresora de tickets a su alcance, el
+cierre funciona y el ticket no sale (caso 77.3).
+
+⚠️ **El aviso de «no se pudo imprimir» necesita la filial de la rama
+`fix/imprimir-balance-avisa-si-no-imprimio`.** Contra una filial anterior, la
+PWA dice «Balance enviado a imprimir» aunque la impresora no haya respondido.
+
+### 77.1 · Cerrar imprime el balance
+1. Con una caja abierta: detalle → **Cerrar caja** → cargar el arqueo → confirmar
+
+**Esperado:** el botón pasa por «Cerrando…» e «Imprimiendo…». Sale el ticket
+de balance en la impresora de tickets de la sucursal, con el aviso «Balance
+enviado a imprimir». La app queda en el **detalle de la caja cerrada**, con
+su balance y su diferencia.
+
+### 77.2 · Reimprimir desde el detalle
+1. En el detalle de la caja recién cerrada, tocar **Imprimir balance**
+
+**Esperado:** sale otra vez el mismo ticket. En una caja cerrada el botón es
+**Imprimir balance**; **Cerrar caja** ya no aparece.
+
+### 77.3 · La impresora no responde *(el que importa)*
+1. Apagar o desconectar la impresora de tickets de la sucursal
+2. Cerrar una caja
+
+**Esperado:** la caja **se cierra igual** y el aviso dice «La caja se cerró,
+pero no se pudo imprimir el balance». Queda en el detalle, donde **Imprimir
+balance** permite reintentar cuando la impresora vuelva. **Nunca** dice que
+el cierre falló.
+
+### 77.4 · Una caja abierta no ofrece imprimir
+1. Abrir el detalle de una caja abierta
+
+**Esperado:** el único botón es **Cerrar caja**.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -6529,7 +6982,7 @@ diálogo (12 px) en los cuatro lados.
 | 35 · Revisión de inventario | 6 | 3 | | |
 | 36 · Lugares del depósito | 7 | 4 | | |
 | 37 · Configuración del kiosco | 7 | 4 | | |
-| 38 · Notificaciones push | 9 | 6 | | |
+| 38 · Notificaciones push | 10 | 6 | | |
 | 39 · Abrir una toma de inventario | 10 | | | |
 | 40 · Zonas de la toma | 11 | | | |
 | 41 · Lo contado llega al stock | 6 | | | |
@@ -6550,7 +7003,7 @@ diálogo (12 px) en los cuatro lados.
 | 56 · La foto del producto en el buscador | 6 | | | |
 | 57 · Edición de producto | 10 | | | |
 | 58 · Alta de producto | 10 | | | |
-| 59 · La sucursal de la marcación sale del GPS | 13 | | | |
+| 59 · La sucursal de la marcación sale del GPS | 14 | | | |
 | 60 · Marcación facial: cuenta, foto sola y reintento | 14 | | | |
 | 61 · Kiosco de marcación | 15 | | | |
 | 62 · Método, similitud y margen | 9 | | | |
@@ -6563,7 +7016,13 @@ diálogo (12 px) en los cuatro lados.
 | 69 · Nombres de zona y botones de la card | 3 | | | |
 | 70 · Lotes en el conteo: presentación, fechas y stock | 6 | 5 | | |
 | 71 · Margen de los diálogos | 3 | 3 | | |
-| **Total** | **631** | | | |
+| 72 · Las horas de la tarjeta «Hoy» en Marcación | 2 | 1 | | |
+| 73 · Fotos de las presentaciones en el kiosco | 10 | | | |
+| 74 · Precios en otra moneda en el kiosco | 7 | | | |
+| 75 · El chofer en la verificación para transporte | 10 | | | |
+| 76 · Abrir caja: elegir la sucursal | 7 | | | |
+| 77 · El balance impreso al cerrar caja | 4 | | | |
+| **Total** | **673** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

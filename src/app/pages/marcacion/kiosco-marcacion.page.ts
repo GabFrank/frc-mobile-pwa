@@ -96,7 +96,7 @@ const MINIMO_VIDA = 0.5;
           @case ('sin-posicion') {
             <frc-estado-vacio
               titulo="No se pudo obtener la ubicación"
-              detalle="Sin ubicación no se puede saber en qué sucursal está este dispositivo. Revisá el permiso y tocá Recalcular."
+              [detalle]="detalleSinPosicion()"
             />
           }
           @case ('sin-coordenadas') {
@@ -204,6 +204,16 @@ export class KioscoMarcacionPage {
   private saludoTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly listoParaMarcar = computed(() => this.det.sucursal() != null);
+  /**
+   * Por qué no hay ubicación: el mensaje del `GeoService`, que distingue el
+   * permiso negado de una lectura poco precisa, antes que un texto fijo que
+   * mandaba siempre a revisar el permiso.
+   */
+  readonly detalleSinPosicion = computed(
+    () =>
+      this.progreso()?.mensaje ??
+      'Sin ubicación no se puede saber en qué sucursal está este dispositivo. Revisá el permiso y tocá Recalcular.',
+  );
   readonly nombreSucursal = computed(() => {
     const s = this.det.sucursal();
     return s ? String(s.nombre ?? `Sucursal ${s.id}`) : '—';

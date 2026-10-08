@@ -52,6 +52,10 @@ Es el módulo con más integración de hardware del repo: cámara, GPS y motor d
 
 > **Regla clave — `esSalidaAlmuerzo` cambia el cálculo de horas.** Una salida de almuerzo no cierra la jornada. Tratarla como salida normal parte la jornada en dos y descuadra las horas trabajadas.
 
+> ⚠️ **Gotcha — la hora de una salida no está necesariamente en `fechaSalida`.** Cada marcación es un evento con **una sola** fecha, y cuál de los dos campos la lleva depende de quién la escribió. La PWA no manda fecha: `MarcacionService.prepararMarcacion()` del central completa `fechaEntrada = now()` **para cualquier tipo**, así que una SALIDA de la PWA tiene la hora en `fecha_entrada` y `fecha_salida` nula. frc-mobile, en cambio, mandaba `fechaSalida` en las salidas. La regla de lectura es **`fechaSalida ?? fechaEntrada`** —la de `HorasTrabajadasCalculator` y `TardanzaCalculator` del central— y en la PWA vive en `momentoDeMarcacion()`: leer el campo por el tipo muestra «—». **No la aplican todavía** el desktop (`marcar-horario.component.ts`, que toma una salida así como entrada, y `resumen-marcaciones`, que la muestra «En Curso») ni frc-mobile. Lo que las arregla a todas es que el central complete `fecha_salida` en las SALIDA sin fecha: pendiente, en un PR aparte del central.
+
+> ⚠️ **Gotcha — las salidas viejas de frc-mobile tienen la hora del teléfono.** La mandaba el cliente, así que en alpha hay jornadas (7, 9, 11, 13) con la salida ~1 h **antes** que la entrada, que sí puso el servidor. Por eso no conviene que la PWA mande la fecha: el reloj del teléfono lo controla el funcionario.
+
 > ⚠️ **Gotcha — `sucursalId`, `sucursalEntrada` y `sucursalSalida` coexisten.** Entrada y salida pueden ser en sucursales distintas (un funcionario que se traslada). `sucursalId` es la de la marcación puntual.
 
 ## Sucursal persistida
@@ -157,14 +161,77 @@ fusionado de sensores, pero **el patrón que lo hacía útil sí**: calentar,
 exigir varias lecturas, filtrar por precisión y promediar. Se conservan sus
 constantes (`±33 m`, 700 ms de calentamiento, 6,3 s de tope, 2 lecturas).
 
+⚠️ **Una lectura peor que ±80 m no se usa nunca** (`PRECISION_DESCARTE_M`), ni
+cuando no hay otra. Es el tope que tenía el plugin (`accuracy <= 80`) y que el
+port había perdido: al agotarse el tiempo se usaba **cualquier** lectura. En
+bodega, el 06/10/2026, alguien parado en el depósito vio en pantalla una
+sucursal a más de un kilómetro — la primera lectura había salido por red.
+
+Qué pasa con cada lectura:
+
+| Precisión | Qué se hace |
+|---|---|
+| hasta ±33 m | Buena. Con dos, se promedian y termina |
+| de ±33 a ±80 m | Aproximada. Se usa si al agotarse el tiempo no hubo buenas |
+| peor que ±80 m | Se descarta. Solo se anota para decirla en pantalla |
+
+**Si solo llegaron descartadas, se espera una ventana más**, una sola: el
+teléfono está informando, pero todavía mal. Es el segundo intento que hacía
+`frc-mobile` cuando el plugin rechazaba. Sin ninguna usable después, no hay
+posición, y el mensaje dice «poco precisa (±N m)» y nombra el ajuste de
+«Ubicación precisa» — que es la causa que no se arregla esperando.
+
+**«Revisá el permiso» queda solo para el permiso negado.** El tiempo agotado
+y la posición no disponible que informa el navegador no cierran la búsqueda:
+decide el reloj propio, que sabe si hubo lecturas descartadas.
+
+El tope se eligió mirando `administrativo.marcacion` de bodega desde el
+01/09/2026: en 272 filas con precisión, la peor es de ±46 m (kiosco: ±25 m).
+⚠️ Ese dato solo tiene lo que se guardó: prueba que quien marcó consiguió una
+lectura buena, no que las malas no ocurran. **Quien no baje nunca de ±80 m no
+puede marcar desde la PWA**, y ese rechazo no queda registrado en ningún
+lado; su salida es la marcación cargada por RRHH. Si aparece el caso, el
+número a revisar es este.
+
 > ⚠️ **Es la pérdida técnica más concreta de la migración.** Sin fusionado
 > nativo la precisión empeora en interiores, que es justo donde se marca.
 
-**Por eso la distancia no bloquea: avisa.** Si la marcación queda lejos, se
+**Por eso la distancia no bloquea: avisa.** (La precisión sí puede: es el
+tope de arriba, y es el único caso.) Si la marcación queda lejos, se
 pide confirmación y se guarda igual — con `precisionGps` y
 `distanciaSucursalMetros`. Bloquear con un umbral que todavía no está
 calibrado dejaría gente sin poder marcar; guardar la evidencia permite
 recalibrarlo con datos reales, que es lo que el módulo ya hacía.
+
+**El aviso salta a más de 110 m** (`DISTANCIA_AVISO_M`, en
+`deteccion-sucursal.util.ts`), y **no es la precisión del GPS**: los ±33 m de
+`PRECISION_MAXIMA_M` filtran qué lecturas son confiables, no qué tan lejos
+quedó la persona. Fueron el mismo número hasta el 05/10/2026, mientras la
+pantalla reutilizó aquella constante.
+
+Lo recalibraron las marcaciones de producción de bodega del 02 al 05/10/2026
+(81, casi todas del depósito Aquario):
+
+- 18 de las 46 hechas con iPhone quedaron a más de 33 m; ninguna de las 29 de
+  Android pasó de 25 m.
+- Las 18 declaraban buena precisión, de ±9,5 a ±21 m: filtrar más fuerte por
+  precisión no las descarta.
+- El mismo usuario caía entre días en la misma coordenada, al metro. Eso no es
+  GPS: adentro, el iPhone se ubica por las redes Wi-Fi que ve. Desde la oficina
+  del segundo piso ve otras que desde la planta baja y cae en otro punto.
+- La más lejana quedó a 100 m.
+
+> ⚠️ **Está calibrado con un solo edificio.** Fuera de Aquario había 6
+> marcaciones, todas de Android. Cuando más sucursales marquen con iPhone hay
+> que volver a mirar `distancia_sucursal` y `precision_gps` en
+> `administrativo.marcacion`.
+
+> ⚠️ **El aviso no es un control antifraude.** No bloquea, el central guarda la
+> distancia sin validarla y el desktop la trae pero no la muestra en ninguna
+> pantalla. Achicar el umbral no frena a nadie y molesta a quien está adentro.
+
+`frc-mobile` no sirve de referencia para este número: tiene su propio radio de
+33 m en la pantalla de ubicación y manda `distanciaSucursalMetros: 0` fijo.
 
 ## La sucursal sale del GPS, no de una lista
 
@@ -188,7 +255,7 @@ distintas**, y se dicen distinto:
 
 | Estado | Qué pasó | Qué hay que hacer |
 |---|---|---|
-| `sin-posicion` | No hubo posición: permiso negado, GPS apagado, tiempo agotado | Es del teléfono: dar el permiso y **Recalcular** |
+| `sin-posicion` | No hubo posición: permiso negado, GPS apagado, tiempo agotado, o solo lecturas peores que ±80 m | Es del teléfono: lo que diga el mensaje, y **Recalcular** |
 | `sin-coordenadas` | Hubo posición, pero ninguna sucursal operable tiene `localizacion` | Es del central: cargar las coordenadas |
 
 Juntarlas en un «no se pudo» genérico manda a revisar el permiso del teléfono
@@ -199,9 +266,15 @@ llama.** `SERVIDOR` y `COMPRAS` son virtuales y llevan las coordenadas del
 central: dejarlas competir les daría todas las marcaciones de quien esté cerca
 de la casa central. Que el filtro sea interno hace imposible olvidarlo.
 
-⚠️ **La util no aplica ningún radio.** Devuelve la más cercana aunque queden
-kilómetros; el corte lo decide la pantalla, que avisa y deja marcar. Recortar
-ahí convertiría un GPS malo —lo normal en un interior— en «no podés marcar».
+⚠️ **`detectarSucursal` no aplica ningún radio.** Devuelve la más cercana
+aunque queden kilómetros; la pantalla avisa con `estaLejos()` y deja marcar.
+Recortar ahí convertiría un GPS malo —lo normal en un interior— en «no podés
+marcar».
+
+Lo que sí se recorta es **antes**, en `GeoService`: una lectura peor que
+±80 m no llega hasta acá. No es lo mismo. Un radio rechaza a quien está donde
+dice estar pero lejos; el tope de precisión rechaza una lectura que no dice
+dónde está nadie.
 
 ## La posición se toma dos veces, y es a propósito
 
@@ -212,8 +285,39 @@ del **momento de marcar** es la que viaja en `latitud`, `longitud`,
 Entre una y otra pueden pasar minutos. Guardar la de la apertura sería
 registrar como evidencia un lugar donde la persona ya no está.
 
-Si entre las dos la más cercana **cambió**, no se marca: se muestra la nueva y
-se avisa. Marcar contra la de la apertura afirmaría un lugar equivocado.
+Si entre las dos la más cercana **cambió**, nunca se marca contra la de la
+apertura: afirmaría un lugar equivocado.
+
+### Lo que sale mal al marcar se dice en un diálogo
+
+La segunda toma ocurre **después** de la verificación facial. Mientras lo que
+salía mal se avisaba con un cartel pasajero, la persona veía que «cargaba
+normal», no se guardaba nada, y al reintentar tenía que mostrar la cara otra
+vez. Ahora (`tomarPosicion()` en `marcacion.page.ts`):
+
+| Qué pasó | Qué se ofrece |
+|---|---|
+| No hay posición | **Reintentar**: vuelve a tomarla sin repetir el rostro |
+| Cambió la sucursal y la nueva queda cerca | **Marcar en** la nueva, con la posición del momento |
+| Cambió y la nueva queda lejos (`estaLejos`) | **Volver a ubicar**. No se ofrece marcar ahí |
+| Faltan las coordenadas de las sucursales | Nada: se avisa y se corta. Reintentar no lo arregla |
+
+- **Hasta 3 tomas** por marcación (`TOMAS_MAXIMAS`). Sin tope, «Reintentar»
+  en un lugar sin señal es un bucle.
+- **Lejos de la nueva no se marca en ese toque**: «cambió» y «estás lejos»
+  encadenados guardarían con dos toques seguidos una sucursal de la que hay
+  motivos para dudar. Cancelando, la pantalla queda mostrando la nueva con su
+  distancia; quien toca marcar de nuevo ya la vio, y ahí vale la regla de
+  siempre —la distancia avisa, no bloquea—.
+- **Al agotar las tomas el cierre es un cartel**, no un diálogo: no queda nada
+  que ofrecer. Lo que pasó sigue escrito en «Dónde estás».
+- **El rostro verificado vale 2 minutos** (`VIGENCIA_ROSTRO_MS`). Un diálogo
+  puede quedar abierto lo que el usuario quiera, y la marcación se guarda
+  como facial.
+- ⚠️ **Esto no es elegir la sucursal.** La nueva sale del GPS del momento,
+  igual que siempre: el diálogo deja aceptarla o no marcar, nunca otra.
+
+El kiosco no tiene este paso: toma la posición una sola vez, al abrir.
 
 ## Una sola acción a la vez
 

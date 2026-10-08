@@ -10,6 +10,7 @@ import {
   ProductoVencido,
   toneDeVencimiento,
 } from 'src/app/domains/productos/producto-vencido.model';
+import { imagenDePresentacion } from 'src/app/shared/producto/presentacion.util';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { CardComponent } from 'src/app/shared/card/card.component';
@@ -99,7 +100,12 @@ function enDias(dias: number): string {
         />
       } @else {
         @for (v of filas(); track v.id) {
-          <frc-card [titulo]="v.productoDescripcion ?? 'Producto'" [subtitulo]="lugar(v)" icono="vencido">
+          <frc-card
+            [titulo]="v.productoDescripcion ?? 'Producto'"
+            [subtitulo]="lugar(v)"
+            [imagen]="imagen(v)"
+            icono="vencido"
+          >
             <frc-estado-chip
               aparte
               [etiqueta]="v.diasVencimientoTexto ?? '—'"
@@ -264,6 +270,14 @@ export class ProductosVencidosPage {
     // La cantidad manda y la presentación es contexto, igual que en el
     // buscador: es lo que se compara entre filas.
     return presentacion && presentacion > 1 ? `${unidades} (x${presentacion})` : unidades;
+  }
+
+  /**
+   * Pasa por `imagenDePresentacion` por si el central devolviera el PNG
+   * genérico «sin imagen»: ahí se prefiere el ícono de vencido.
+   */
+  imagen(v: ProductoVencido): string | null {
+    return imagenDePresentacion(v.imagenPrincipalMiniatura);
   }
 
   lugar(v: ProductoVencido): string {

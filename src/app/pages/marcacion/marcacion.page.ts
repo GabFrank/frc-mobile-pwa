@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
-import { PRECISION_MAXIMA_M, Posicion } from 'src/app/core/dispositivo/geo.service';
+import { Posicion } from 'src/app/core/dispositivo/geo.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { IncorporarEmbeddingMarcacionGQL } from 'src/app/graphql/personas/usuario/graphql/incorporarEmbeddingMarcacion';
 import {
@@ -16,8 +16,10 @@ import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
 import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
+  Marcacion,
   MarcacionInput,
   MetodoMarcacion,
+  momentoDeMarcacion,
   TipoMarcacion,
 } from 'src/app/domains/marcacion/marcacion.model';
 import { convertMsToTime, fechaLegible } from 'src/app/generic/utils/dateUtils';
@@ -29,6 +31,7 @@ import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { DeteccionSucursalService } from './deteccion-sucursal.service';
+import { estaLejos, SucursalDetectada } from './deteccion-sucursal.util';
 import { MarcacionService } from './marcacion.service';
 
 /** Qué texto lleva el botón según lo que el backend diga que falta. */
@@ -40,6 +43,27 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
 };
 
 /**
+ * Cuántas veces se toma la posición en una misma marcación antes de rendirse.
+ *
+ * Sin tope, «Reintentar» en un lugar sin señal es un bucle del que solo se
+ * sale cancelando.
+ */
+export const TOMAS_MAXIMAS = 3;
+
+/**
+ * Cuánto vale un rostro ya verificado mientras se resuelve la ubicación.
+ *
+ * Los diálogos de reintento pueden quedar abiertos lo que el usuario quiera,
+ * y la marcación se guarda como facial: pasado este tiempo la cara que se
+ * verificó ya no dice quién tiene el teléfono en la mano.
+ */
+export const VIGENCIA_ROSTRO_MS = 120_000;
+
+/** Los títulos de los dos diálogos que pueden salir al tomar la posición. */
+export const TITULO_SIN_UBICACION = 'No se pudo obtener la ubicación';
+export const TITULO_CAMBIO_SUCURSAL = 'Cambió la sucursal detectada';
+
+/**
  * Marcar entrada y salida, con validación de ubicación.
  *
  * ⚠️ **Se ofrece solo lo que el backend habilita.** Mostrar entrada y salida
@@ -49,12 +73,14 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
  * propósito— y quién elige es el funcionario, con `esSalidaAlmuerzo`. Ver
  * {@link puedeElegirSalida}.
  *
- * ⚠️ **La distancia no bloquea, se registra.** El umbral de precisión de la
- * web es peor que el del plugin nativo que se reemplaza —sobre todo en
- * interiores, que es donde se marca—, así que marcar lejos avisa y pide
- * confirmación en vez de impedirlo. Lo que queda es la evidencia:
- * `precisionGps` y `distanciaSucursalMetros` viajan con la marcación y
- * permiten recalibrar el umbral con datos reales. Ver `geo.service.ts`.
+ * ⚠️ **La distancia no bloquea, se registra.** La ubicación de la web es
+ * peor que la del plugin nativo que se reemplaza —sobre todo en interiores,
+ * que es donde se marca—, así que marcar lejos avisa y pide confirmación en
+ * vez de impedirlo. Lo que queda es la evidencia: `precisionGps` y
+ * `distanciaSucursalMetros` viajan con la marcación y permiten recalibrar el
+ * umbral del aviso con datos reales. Ver `DISTANCIA_AVISO_M`.
+ * Lo único que sí impide marcar es una lectura peor que
+ * `PRECISION_DESCARTE_M`: esa no dice dónde está nadie.
  *
  * ⚠️ **La sucursal sale de la posición, no de una lista.** Mientras se elegía
  * de un desplegable, la distancia no medía nada: alcanzaba con seleccionar la
@@ -131,15 +157,15 @@ const ETIQUETAS: Readonly<Record<AccionMarcacionPendiente, string>> = {
         <frc-seccion titulo="Hoy" [panel]="true">
           <frc-dato etiqueta="Estado" [valor]="resumenEstado()" />
           @if (jornada(); as j) {
-            <frc-dato etiqueta="Entrada" [valor]="hora(j.marcacionEntrada?.fechaEntrada)" />
+            <frc-dato etiqueta="Entrada" [valor]="hora(j.marcacionEntrada)" />
             @if (j.marcacionSalidaAlmuerzo) {
-              <frc-dato etiqueta="Salió a almorzar" [valor]="hora(j.marcacionSalidaAlmuerzo.fechaSalida)" />
+              <frc-dato etiqueta="Salió a almorzar" [valor]="hora(j.marcacionSalidaAlmuerzo)" />
             }
             @if (j.marcacionEntradaAlmuerzo) {
-              <frc-dato etiqueta="Volvió" [valor]="hora(j.marcacionEntradaAlmuerzo.fechaEntrada)" />
+              <frc-dato etiqueta="Volvió" [valor]="hora(j.marcacionEntradaAlmuerzo)" />
             }
             @if (j.marcacionSalida) {
-              <frc-dato etiqueta="Salida" [valor]="hora(j.marcacionSalida.fechaSalida)" />
+              <frc-dato etiqueta="Salida" [valor]="hora(j.marcacionSalida)" />
             }
             <frc-dato etiqueta="Trabajadas" [valor]="trabajadas()" />
           }
@@ -286,8 +312,12 @@ export class MarcacionPage {
     return this.det.detectar();
   }
 
-  hora(valor: string | undefined): string {
-    return fechaLegible(valor) ?? '—';
+  /**
+   * La hora de una marcación, sin elegir el campo por el tipo: una salida
+   * marcada desde la PWA la tiene en `fechaEntrada`. Ver `momentoDeMarcacion`.
+   */
+  hora(m: Marcacion | undefined): string {
+    return fechaLegible(momentoDeMarcacion(m)) ?? '—';
   }
 
   redondear(n: number): string {
@@ -350,57 +380,149 @@ export class MarcacionPage {
     }
     this.enCurso.set(esSalidaAlmuerzo);
 
-    // Quién sos, antes de dónde estás. Son dos preguntas independientes y se
-    // hacen en ese orden porque la cara es la que puede fallar por gusto del
-    // usuario —cancelar, no tener rostro cargado— y no tiene sentido esperar
-    // el GPS para descubrirlo.
-    if (!(await this.verificarRostro(usuarioId))) {
-      this.enCurso.set(null);
-      return;
-    }
-
-    this.marcando.set(true);
-
-    // ⚠️ **La posición se vuelve a tomar acá.** La de la apertura sirvió para
-    // decir dónde estás y habilitar el botón; entre eso y el toque pueden
-    // pasar minutos. Lo que se guarda como evidencia tiene que ser del
-    // momento en que se marcó, no de cuando se abrió la pantalla.
-    const ahora = await this.det.detectar();
-    const posicion = this.det.posicion();
-
-    if (!ahora || !posicion) {
-      this.marcando.set(false);
-      this.enCurso.set(null);
-      this.notificacion.warn('Se perdió la ubicación. No se marcó nada; tocá Recalcular.');
-      return;
-    }
-
-    // La persona se movió lo suficiente como para que ahora esté más cerca de
-    // otra sucursal. Marcar contra la de la apertura registraría un lugar
-    // donde ya no está, así que se muestra la nueva y decide de nuevo.
-    if (String(ahora.sucursal.id) !== String(alAbrir.id)) {
-      this.marcando.set(false);
-      this.enCurso.set(null);
-      this.notificacion.warn(
-        `Ahora estás más cerca de ${this.nombreDetectada()}. Revisá y volvé a marcar.`,
-      );
-      return;
-    }
-
-    if (ahora.metros > PRECISION_MAXIMA_M) {
-      const seguir = await this.dialogo.confirmar({
-        titulo: 'Estás lejos de la sucursal',
-        mensaje: `La ubicación da ${Math.round(ahora.metros)} m de distancia de ${this.nombreDetectada()}, con una precisión de ±${Math.round(posicion.precision)} m. La marcación queda registrada con esos datos.`,
-        confirmar: 'Marcar igual',
-      });
-      if (!seguir) {
-        this.marcando.set(false);
-        this.enCurso.set(null);
+    // Toda salida sin marcar apaga las dos señales acá, y no a mano en cada
+    // rama: si `marcando` queda en true el botón dice «Marcando…» para
+    // siempre y hay que recargar la app.
+    let enviada = false;
+    try {
+      // Quién sos, antes de dónde estás. Son dos preguntas independientes y
+      // se hacen en ese orden porque la cara es la que puede fallar por gusto
+      // del usuario —cancelar, no tener rostro cargado— y no tiene sentido
+      // esperar el GPS para descubrirlo.
+      if (!(await this.verificarRostro(usuarioId))) {
         return;
       }
-    }
+      const verificadoEn = Date.now();
 
-    this.enviar(usuarioId, accion, ahora.sucursal, posicion, ahora.metros, esSalidaAlmuerzo);
+      this.marcando.set(true);
+
+      const toma = await this.tomarPosicion(alAbrir);
+      if (!toma) {
+        return;
+      }
+      const { detectada, posicion } = toma;
+
+      if (estaLejos(detectada.metros)) {
+        const seguir = await this.dialogo.confirmar({
+          titulo: 'Estás lejos de la sucursal',
+          mensaje: `La ubicación da ${Math.round(detectada.metros)} m de distancia de ${this.nombreDe(detectada.sucursal)}, con una precisión de ±${Math.round(posicion.precision)} m. La marcación queda registrada con esos datos.`,
+          confirmar: 'Marcar igual',
+        });
+        if (!seguir) {
+          return;
+        }
+      }
+
+      // Se mira al final, después de todos los diálogos: cualquiera de ellos
+      // puede haber quedado abierto el tiempo que sea.
+      if (this.verificacion() && Date.now() - verificadoEn > VIGENCIA_ROSTRO_MS) {
+        this.verificacion.set(null);
+        this.notificacion.warn(
+          'Pasó demasiado tiempo desde que se verificó tu rostro. No se marcó nada; volvé a marcar.',
+        );
+        return;
+      }
+
+      this.enviar(usuarioId, accion, detectada.sucursal, posicion, detectada.metros, esSalidaAlmuerzo);
+      // Recién acá: si `enviar` tirara antes de suscribirse, el `finally`
+      // tiene que apagar las señales igual.
+      enviada = true;
+    } finally {
+      if (!enviada) {
+        this.marcando.set(false);
+        this.enCurso.set(null);
+      }
+    }
+  }
+
+  private nombreDe(sucursal: Sucursal): string {
+    return String(sucursal.nombre ?? `Sucursal ${sucursal.id}`);
+  }
+
+  /**
+   * La posición del momento de marcar, y la sucursal que le corresponde.
+   *
+   * ⚠️ **La posición se vuelve a tomar acá.** La de la apertura sirvió para
+   * decir dónde estás y habilitar el botón; entre eso y el toque pueden pasar
+   * minutos. Lo que se guarda como evidencia tiene que ser del momento en que
+   * se marcó, no de cuando se abrió la pantalla.
+   *
+   * ⚠️ **Lo que sale mal se dice en un diálogo, y el rostro no se pierde.**
+   * Antes era un cartel pasajero que llegaba después de la verificación
+   * facial: la persona veía que «cargaba normal» y no se guardaba nada, y al
+   * reintentar tenía que mostrar la cara otra vez. Pasó en bodega el
+   * 06/10/2026.
+   *
+   * Devuelve `null` cuando no hay que marcar. **Nunca devuelve la sucursal de
+   * la apertura si la posición del momento dice otra.**
+   */
+  private async tomarPosicion(
+    alAbrir: Sucursal,
+  ): Promise<{ detectada: SucursalDetectada<Sucursal>; posicion: Posicion } | null> {
+    for (let toma = 1; ; toma++) {
+      const detectada = await this.det.detectar();
+      const posicion = this.det.posicion();
+      const quedanTomas = toma < TOMAS_MAXIMAS;
+
+      if (!detectada || !posicion) {
+        // Faltan las coordenadas de las sucursales, no la posición: volver a
+        // tomarla no cambia nada.
+        if (this.deteccion() === 'sin-coordenadas') {
+          this.notificacion.warn('No se pudo determinar la sucursal. No se marcó nada.');
+          return null;
+        }
+        if (!quedanTomas) {
+          this.notificacion.warn('No se pudo obtener la ubicación. No se marcó nada.');
+          return null;
+        }
+        const reintentar = await this.dialogo.confirmar({
+          titulo: TITULO_SIN_UBICACION,
+          mensaje: `${this.detalleSinPosicion()} Todavía no se marcó nada.`,
+          confirmar: 'Reintentar',
+        });
+        if (!reintentar) {
+          return null;
+        }
+        continue;
+      }
+
+      if (String(detectada.sucursal.id) === String(alAbrir.id)) {
+        return { detectada, posicion };
+      }
+
+      // La más cercana ya no es la de la apertura: o la persona se movió, o
+      // una de las dos lecturas fue mala. El nombre de la anterior sale de lo
+      // detectado al abrir; la señal de la pantalla ya muestra la nueva.
+      const nueva = this.nombreDe(detectada.sucursal);
+      const detalle = `Al abrir la pantalla figurabas en ${this.nombreDe(alAbrir)}. Ahora la ubicación da ${nueva}, a ${Math.round(detectada.metros)} m (±${Math.round(posicion.precision)} m).`;
+
+      // Lejos de la nueva no se ofrece marcar ahí: sería guardar con dos
+      // confirmaciones seguidas una sucursal de la que hay motivos para dudar.
+      if (estaLejos(detectada.metros)) {
+        if (!quedanTomas) {
+          this.notificacion.warn(
+            `La ubicación da ${nueva}, demasiado lejos para marcar ahí. No se marcó nada.`,
+          );
+          return null;
+        }
+        const reintentar = await this.dialogo.confirmar({
+          titulo: TITULO_CAMBIO_SUCURSAL,
+          mensaje: `${detalle} Queda demasiado lejos para marcar ahí. Todavía no se marcó nada.`,
+          confirmar: 'Volver a ubicar',
+        });
+        if (!reintentar) {
+          return null;
+        }
+        continue;
+      }
+
+      const marcarAhi = await this.dialogo.confirmar({
+        titulo: TITULO_CAMBIO_SUCURSAL,
+        mensaje: detalle,
+        confirmar: `Marcar en ${nueva}`,
+      });
+      return marcarAhi ? { detectada, posicion } : null;
+    }
   }
 
   /**

@@ -54,6 +54,13 @@ Consulta y edición de productos, y **el modo consulta de precios** — una pant
 
 > ⚠️ **Gotcha — el foco se re-fuerza con `setTimeout` en cuatro lugares.** Es frágil pero necesario: sin eso, cualquier interacción táctil roba el foco y el lector deja de funcionar. Si tocás este componente, verificá el foco en device real, no en navegador.
 
+**En la PWA (`kiosco.page.ts`) cada presentación muestra su foto.** Hay una tira de miniaturas al costado, la elegida se ve en grande y su precio va debajo; arranca en la presentación escaneada. Tres cosas que no se ven en el código a primera vista:
+
+- **Las fotos se piden aparte**, con `presentacionesPorProductoId { id imagenPrincipal imagenPrincipalMediana }`, después de mostrar el precio. No van en `productoPorCodigo` porque esa query la usan también recepción y transferencias, y cada foto es un data URI de varios KB.
+- **`Presentacion.imagenPrincipal` nunca es `null`.** Sin foto, el central devuelve un PNG genérico; las fotos reales vienen como `data:image/jpg`. `imagenDePresentacion()` descarta el PNG.
+- **El selector de moneda no convierte en el cliente.** `frc-mobile` multiplicaba por `1 / cambio`; acá `convertirPreciosMobile(montosGs)` devuelve cada precio ya convertido y redondeado con `Moneda.decimales`, en una sola consulta para todas las monedas. Una moneda inactiva o sin cotización no se ofrece. Contra un central sin la query, no hay selector.
+- **Dos tamaños, cada uno para lo suyo.** La tira usa `imagenPrincipal`, la miniatura de 250 px; la foto grande usa `imagenPrincipalMediana`, de hasta 800 px, para que no se vea blanda en una tablet. La mediana sí llega `null` sin foto. Si el central todavía no generó la mediana de una foto manda el original: se ve bien, pero pesa. Contra un central sin el campo, la consulta de fotos falla en silencio y el kiosco queda sin fotos.
+
 ### `PrecioConfigComponent` — configuración del kiosco
 
 Permite apuntar el kiosco a un servidor concreto. Escribe `serverIp`, `serverPort` y **borra la sesión** (`usuarioId`, `token`), igual que `ChangeServerIpDialogComponent`.
@@ -207,7 +214,7 @@ El inventario completo, función por función, está en
 |---|---|
 | **Abrirlo como diálogo selector** — `(seleccion)` ya emite, falta el envoltorio | Con **devolución**, el primer consumidor real |
 | **Foco automático en el campo** | Con el modo diálogo. En una pestaña, robar el foco levanta el teclado sin que nadie lo pida |
-| ~~**Ver imagen del producto**~~ | ✅ La card muestra `imagenPrincipal` —un `data:` base64 que arma el central, no una URL— y cae al ícono cuando el producto no tiene foto. ⚠️ Es el **original**, no la miniatura de 250×250 que consumía `frc-mobile`: si el buscador se pone lento, el arreglo es un campo de miniatura en el central |
+| ~~**Ver imagen del producto**~~ | ✅ La card muestra `imagenPrincipalMiniatura` —un `data:` base64 que arma el central, no una URL— y cae al ícono cuando el producto no tiene foto. Es la miniatura de 250×250 (~9 KB); `Producto.imagenPrincipal` es el original de cientos de KB y no se pide desde ninguna lista (issue #263 del central). **Necesita el central con ese campo desplegado** |
 | **FAB «subir»** | Si las listas se vuelven largas. Con 10 por tanda no hace falta |
 | **Stock de origen y destino** en la card | Con **transferencias** |
 | **Modo inventario** — cantidad, vencimiento, estado | Con **inventario**, en su propia pantalla: es un formulario, no un selector |

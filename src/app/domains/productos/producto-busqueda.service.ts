@@ -16,12 +16,17 @@ import { CodigoPorCodigoGQL } from 'src/app/graphql/productos/codigoPorCodigo';
 import { ProductoPorCodigoGQL } from 'src/app/graphql/productos/productoPorCodigo';
 import { ProductoPorIdGQL } from 'src/app/graphql/productos/productoPorId';
 import { ProductoSearchGQL } from 'src/app/graphql/productos/productoSearch';
+import { PresentacionesImagenesGQL } from 'src/app/graphql/productos/presentacionesImagenes';
 import { ProductoStockGQL } from 'src/app/graphql/productos/productoStock';
 import {
   StockPorSucursal,
   StockPorSucursalesGQL,
 } from 'src/app/graphql/productos/stockPorSucursales';
-import { resolverPresentacionPorCodigo, tienePresentaciones } from 'src/app/shared/producto/presentacion.util';
+import {
+  imagenDePresentacion,
+  resolverPresentacionPorCodigo,
+  tienePresentaciones,
+} from 'src/app/shared/producto/presentacion.util';
 
 /** Un pesable devuelve producto **y** cantidad: el peso viene en el código. */
 export interface ResultadoPesable {
@@ -29,6 +34,18 @@ export interface ResultadoPesable {
   presentacion: Presentacion;
   /** Kilos, ya convertidos desde los gramos del código. */
   peso: number;
+}
+
+/** Las fotos de las presentaciones de un producto, por id de presentación. */
+export interface ImagenesDePresentaciones {
+  /** 250 px: para la tira del kiosco. */
+  miniaturas: Map<number, string>;
+  /** Hasta 800 px: para la foto grande. */
+  medianas: Map<number, string>;
+}
+
+export function sinImagenes(): ImagenesDePresentaciones {
+  return { miniaturas: new Map(), medianas: new Map() };
 }
 
 /**
@@ -57,6 +74,7 @@ export class ProductoBusquedaService {
   private readonly codigoGQL = inject(CodigoPorCodigoGQL);
   private readonly stockGQL = inject(ProductoStockGQL);
   private readonly stockTodasGQL = inject(StockPorSucursalesGQL);
+  private readonly imagenesGQL = inject(PresentacionesImagenesGQL);
 
   /**
    * Búsqueda general: primero por código, después por descripción.
@@ -170,6 +188,44 @@ export class ProductoBusquedaService {
     return this.datos
       .consultar<number>(this.stockGQL, { proId: productoId, sucId: sucursalId })
       .pipe(map((valor) => valor ?? 0));
+  }
+
+  /**
+   * Las fotos de cada presentación del producto, por id de presentación: la
+   * miniatura para la tira y la mediana para la foto grande.
+   *
+   * Las que no tienen foto quedan **fuera de los dos mapas**: en la miniatura
+   * el central manda un PNG genérico en su lugar, y mostrarlo como si fuera la
+   * foto del producto es peor que no mostrar nada.
+   *
+   * Silenciosa: una foto que no llega no es un error para quien mira la
+   * pantalla, que ya tiene el precio.
+   */
+  imagenesDePresentaciones(productoId: number): Observable<ImagenesDePresentaciones> {
+    return this.datos
+      .consultar(this.imagenesGQL, { id: productoId }, { mostrarCarga: false, notificarError: false })
+      .pipe(
+        map((filas) => {
+          const imagenes = sinImagenes();
+          for (const fila of filas ?? []) {
+            if (fila.id == null) {
+              continue;
+            }
+            // Number(): el id llega como string desde GraphQL.
+            const id = Number(fila.id);
+            const miniatura = imagenDePresentacion(fila.imagenPrincipal);
+            const mediana = imagenDePresentacion(fila.imagenPrincipalMediana);
+            if (miniatura) {
+              imagenes.miniaturas.set(id, miniatura);
+            }
+            if (mediana) {
+              imagenes.medianas.set(id, mediana);
+            }
+          }
+          return imagenes;
+        }),
+        catchError(() => of(sinImagenes())),
+      );
   }
 
   detalle(id: number): Observable<Producto> {

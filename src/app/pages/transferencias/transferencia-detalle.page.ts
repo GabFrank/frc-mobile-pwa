@@ -59,6 +59,10 @@ import {
   responsableDeEtapa,
 } from './etapas';
 import {
+  AsignarChoferData,
+  AsignarChoferDialogComponent,
+} from './asignar-chofer-dialog.component';
+import {
   ModificarItemData,
   ModificarItemDialogComponent,
 } from './modificar-item-dialog.component';
@@ -201,6 +205,15 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
           <frc-dato etiqueta="Recibió" [valor]="quien(t.usuarioRecepcion)" />
         </frc-seccion>
 
+        @if (t.hojaRuta; as hoja) {
+          <frc-seccion titulo="Viaje" [panel]="true">
+            <frc-dato etiqueta="Chofer" [valor]="hoja.chofer?.nombre ?? '—'" />
+            <frc-dato etiqueta="Vehículo" [valor]="vehiculoLegible()" />
+            <frc-dato etiqueta="Acompañantes" [valor]="acompanantesLegibles()" />
+            <frc-dato etiqueta="Salida" [valor]="fecha(hoja.fechaSalida)" />
+          </frc-seccion>
+        }
+
         @if (items().length === 0) {
           <frc-estado-vacio
             titulo="Sin productos"
@@ -261,7 +274,7 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
                   }
                 </div>
                 <ul class="pasos">
-                  @for (p of pasosDe(item); track p.etiqueta) {
+                  @for (p of pasosPorItem().get(item.id) ?? []; track p.etiqueta) {
                     <li class="paso">
                       <span class="etapa">{{ p.etiqueta }}</span>
                       <span class="cifra">
@@ -396,6 +409,18 @@ export class TransferenciaDetallePage {
     const etapa = this.transferencia()?.etapa;
     return etapa ? ETAPA_ETIQUETAS[etapa] : '—';
   });
+  readonly vehiculoLegible = computed(() => {
+    const v = this.transferencia()?.hojaRuta?.vehiculo;
+    if (!v) {
+      return '—';
+    }
+    const modelo = [v.modelo?.marca?.descripcion, v.modelo?.descripcion].filter(Boolean).join(' ');
+    return [v.chapa, modelo].filter(Boolean).join(' · ') || '—';
+  });
+  readonly acompanantesLegibles = computed(() => {
+    const nombres = (this.transferencia()?.hojaRuta?.acompanantes ?? []).map((p) => p.nombre);
+    return nombres.length > 0 ? nombres.join(', ') : 'Sin acompañantes';
+  });
   readonly rol = computed(() => {
     const t = this.transferencia();
     if (t?.isOrigen && t?.isDestino) {
@@ -443,6 +468,14 @@ export class TransferenciaDetallePage {
   readonly accion = computed<AccionEtapa | null>(() => accionDeEtapa(this.transferencia()));
 
   /** Los ítems que faltan revisar en la etapa en curso. */
+  /**
+   * Los pasos de cada ítem, armados una vez por cada carga de `items` en vez
+   * de en cada render: `pasosDe` crea un array nuevo y el `@for` lo diffearía.
+   */
+  readonly pasosPorItem = computed(
+    () => new Map(this.items().map((item) => [item.id, this.pasosDe(item)])),
+  );
+
   readonly pendientes = computed(() =>
     itemsSinVerificar(this.items(), this.transferencia()?.etapa),
   );
@@ -564,6 +597,11 @@ export class TransferenciaDetallePage {
       return;
     }
 
+    if (accion.exigeChofer) {
+      await this.verificarConChofer(transferencia.id);
+      return;
+    }
+
     if (accion.exigeQrDeDestino && !(await this.confirmarSucursalDestino())) {
       return;
     }
@@ -590,6 +628,25 @@ export class TransferenciaDetallePage {
       },
       error: () => undefined,
     });
+  }
+
+  /**
+   * Pasa a transporte eligiendo chofer, vehículo y acompañantes.
+   *
+   * ⚠️ **No usa `avanzarEtapaTransferencia`.** Ese camino deja como
+   * responsable al usuario logueado; acá lo es el chofer elegido, y el
+   * central además le crea la hoja de ruta. El diálogo hace la mutation y
+   * devuelve `true` solo si el central la aceptó.
+   */
+  private async verificarConChofer(transferenciaId: number): Promise<void> {
+    const verificado = await this.dialogo.abrir<
+      AsignarChoferDialogComponent,
+      AsignarChoferData,
+      boolean
+    >(AsignarChoferDialogComponent, { transferenciaId }, '460px');
+    if (verificado) {
+      this.cargar();
+    }
   }
 
   /**

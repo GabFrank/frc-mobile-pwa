@@ -49,13 +49,28 @@ build: una sola compilación sirve todas las puertas.
 
 | Canal | Puerta | API por defecto |
 |---|---|---|
-| alpha | `alpha.app.frcsuite.com` — detrás de **Cloudflare Access** | `alpha-api.frcsuite.com` → `mauro`, por túnel |
-| beta | `beta.app.frcsuite.com` | `farmacia-api.frcsuite.com` |
-| prod | `farmacia.app.frcsuite.com` · `bodega.app.frcsuite.com` | `farmacia-api` · `bodega-api` |
+| alpha | `alpha.app.frcsuite.com` — **sin Cloudflare Access** | `alpha-api.frcsuite.com` → `mauro`, por túnel |
+| beta | `beta.app.frcsuite.com` · **`farmacia.app.frcsuite.com`** | `farmacia-api.frcsuite.com` |
+| prod | `bodega.app.frcsuite.com` | `bodega-api.frcsuite.com` |
+
+> ⚠️ **Access se sacó de `alpha.app` y no vuelve.** Interceptaba **todas** las rutas del
+> hostname, así que el service worker pedía el shell (`index.html`, `manifest.webmanifest`, los
+> `.js`) y Access respondía 302 al dominio de login: CORS lo bloqueaba, `fetchAndCacheOnce`
+> tiraba, el grupo `prefetch` nunca terminaba de instalarse y **la app dejaba de poder
+> actualizarse** — sin que se viera como falla, porque la navegación inicial sí funcionaba.
+> No tiene arreglo limpio (bypassear los assets obliga a bypassear `index.html`, que el
+> `_redirects` sirve para toda ruta). La protección real es el login del ERP: el central rechaza
+> con 401 todo lo que llegue sin `Authorization: Token`. Verificado el 2026-09-02:
+> `GET https://alpha.app.frcsuite.com/` → `200`, sin redirección.
 
 > ⚠️ **El alpha del central vive en `mauro`, no en `159.203.86.103`.** En esa VM
 > había una instancia vieja en el puerto 8083 que se apagó el 2026-08-14. Si
 > algún documento todavía manda ahí, está viejo.
+
+> ⚠️ **`farmacia.app` cuelga del proyecto `frc-pwa-beta`, no de `frc-pwa-prod`** (re-mapeado el
+> 2026-08-20, verificado contra la API de Cloudflare el 2026-09-02). La red de farmacia corre la
+> serie **beta** del central, así que servirle builds estables la dejaba pidiéndole al backend
+> operaciones de otra versión. **«beta» acá es la farmacia y factura** — no es un canal de ensayo.
 
 El plan completo del pipeline —canales, aprobaciones, caché del service worker y
 los gotchas— está en `frc-cicd/plan-cicd-mobile-pwa.md`.
@@ -278,6 +293,14 @@ Verificación: **96 archivos de test, 1.182 tests**, cero errores de tipos, AOT 
 ⚠️ **`cantidad` es lo contado y `cantidadFisica` lo que dice el sistema**, al revés de lo que sugieren los nombres y de lo que `docs/modulos/inventario.md` afirmó hasta ahora. Lo fija `finalizarInventarioEnSucursal()` en el central, que suma `cantidad`. La app las tuvo al derecho y la consecuencia era muda: lo contado desde el teléfono no entraba en el ajuste de stock. Corregido con test; ver el hallazgo #60 de [`docs/TODO_TECNICO.md`](docs/TODO_TECNICO.md).
 
 ⚠️ **Las notificaciones push necesitan las dos mitades.** El cliente acuña un token de FCM —no una suscripción cruda— y lo ata al `idDispositivo` de **su** sesión; sin esa fila, el central escribe el token en la primera sesión abierta del usuario, que puede ser la de otro aparato. Y el destino del aviso viaja **dentro** del `notification`, no en el `data` del mensaje, o tocarlo no abre nada. Ver [`docs/arquitectura/web-push.md`](docs/arquitectura/web-push.md).
+
+⚠️ **Las monedas del kiosco necesitan un central con `convertirPreciosMobile`** (rama `feat/kiosco-precios-en-moneda` del central, 2026-10-01). Es una query nueva y sin migración: contra un central viejo el selector de banderas **no aparece** y el kiosco sigue en guaraníes, así que publicar la PWA antes no rompe nada.
+
+⚠️ **«Verificar para transporte» necesita un central con `verificarParaTransporteMobile`** (rama `feature/chofer-verificacion-transporte` del central, 2026-10-02). Es una mutation nueva y sin migración, pero **reemplaza al avance de esa etapa**: contra un central viejo el diálogo del chofer muestra el error y la transferencia **no pasa a transporte**. Las dos mitades se publican juntas. Ver «Pasar a transporte: el chofer» en [`docs/modulos/transferencias.md`](docs/modulos/transferencias.md).
+
+⚠️ **Abrir caja necesita un central con `maletinesDisponiblesPorSucursal`** (rama `fix/abrir-caja-maletines-de-la-filial` del central, 2026-10-06). Es una query nueva y sin migración: el central le pregunta los maletines a **la filial** de la sucursal elegida. Contra un central viejo, al elegir la sucursal la pantalla muestra el error y **no se puede abrir caja**. Las dos mitades se publican juntas. Ver «La apertura elige la sucursal» en [`docs/modulos/operaciones-caja.md`](docs/modulos/operaciones-caja.md).
+
+⚠️ **El aviso de «no se pudo imprimir el balance» necesita la filial con `fix/imprimir-balance-avisa-si-no-imprimio`** (2026-10-06). Al cerrar caja la PWA pide el balance a la filial, que lo imprime por servidor. Contra una filial anterior el ticket sale igual si hay impresora, pero si no la hay la PWA dice «Balance enviado a imprimir» de todos modos: publicar la PWA antes no rompe nada, solo miente en ese caso. Ver «El balance impreso al cerrar» en [`docs/modulos/operaciones-caja.md`](docs/modulos/operaciones-caja.md).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

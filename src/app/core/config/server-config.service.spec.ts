@@ -15,16 +15,16 @@ describe('ServerConfigService', () => {
 
   it('arma las URLs a partir de la base', () => {
     config.cambiarServidor('https://alpha.ejemplo.com');
-    expect(config.graphqlUrl).toBe('https://alpha.ejemplo.com/graphql');
-    expect(config.loginUrl).toBe('https://alpha.ejemplo.com/login');
+    expect(config.graphqlUrl()).toBe('https://alpha.ejemplo.com/graphql');
+    expect(config.loginUrl()).toBe('https://alpha.ejemplo.com/login');
   });
 
   it('convierte http/https a ws/wss en las suscripciones', () => {
     config.cambiarServidor('https://alpha.ejemplo.com');
-    expect(config.subscriptionsUrl).toBe('wss://alpha.ejemplo.com/subscriptions');
+    expect(config.subscriptionsUrl()).toBe('wss://alpha.ejemplo.com/subscriptions');
 
     config.cambiarServidor('http://192.168.0.10:8083');
-    expect(config.subscriptionsUrl).toBe('ws://192.168.0.10:8083/subscriptions');
+    expect(config.subscriptionsUrl()).toBe('ws://192.168.0.10:8083/subscriptions');
   });
 
   it('normaliza la barra final', () => {

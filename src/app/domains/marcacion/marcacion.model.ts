@@ -109,6 +109,23 @@ export interface MarcacionInput {
 }
 
 /**
+ * El momento en que ocurrió la marcación, sea entrada o salida.
+ *
+ * ⚠️ **Una salida no tiene su hora necesariamente en `fechaSalida`.** Cada
+ * marcación es un evento suelto con una sola fecha, pero cuál de los dos
+ * campos la lleva depende de quién la escribió: la PWA no manda fecha y el
+ * central completa `fechaEntrada` para cualquier tipo; frc-mobile mandaba
+ * `fechaSalida` en las salidas. Leer el campo por el tipo muestra «—».
+ *
+ * Con las dos gana `fechaSalida`, igual que `HorasTrabajadasCalculator` y
+ * `TardanzaCalculator` del central: es la regla con la que se calculan las
+ * horas, y la pantalla no tiene que contar otra cosa.
+ */
+export function momentoDeMarcacion(m: Marcacion | undefined): string | undefined {
+  return m?.fechaSalida ?? m?.fechaEntrada;
+}
+
+/**
  * Jornada armada **por el backend**.
  *
  * ⚠️ **El cliente no empareja entradas con salidas.** El central resuelve

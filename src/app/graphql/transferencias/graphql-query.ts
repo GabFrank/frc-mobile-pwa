@@ -27,6 +27,13 @@ export const transferenciaPorIdQuery = gql`
   query ($id: ID!) {
     data: transferencia(id: $id) {
       ${cabecera}
+      hojaRuta {
+        id
+        fechaSalida
+        chofer { id nombre }
+        vehiculo { id chapa modelo { descripcion marca { descripcion } } }
+        acompanantes { id nombre }
+      }
     }
   }
 `;
@@ -138,6 +145,21 @@ export const itemsPorTransferenciaQuery = gql`
 export const avanzarEtapaMutation = gql`
   mutation avanzarEtapaTransferencia($id: ID!, $etapa: EtapaTransferencia!, $usuarioId: ID!) {
     data: avanzarEtapaTransferencia(id: $id, etapa: $etapa, usuarioId: $usuarioId)
+  }
+`;
+
+/**
+ * Verifica para transporte con el chofer elegido como responsable, y le crea
+ * una hoja de ruta nueva con el vehículo y los acompañantes.
+ *
+ * ⚠️ **Solo existe en un central con la rama del chofer.** Contra uno viejo,
+ * «Verificar para transporte» falla con `FieldUndefined`.
+ */
+export const verificarParaTransporteMutation = gql`
+  mutation verificarParaTransporteMobile($input: VerificarParaTransporteInput!) {
+    data: verificarParaTransporteMobile(input: $input) {
+      id
+    }
   }
 `;
 

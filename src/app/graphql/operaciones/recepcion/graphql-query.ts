@@ -210,9 +210,6 @@ export const notasPorProveedorYNumeroQuery = gql`
       pedido {
         id
       }
-      compra {
-        id
-      }
       documento {
         id
         descripcion

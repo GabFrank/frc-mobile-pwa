@@ -9,7 +9,6 @@ export const usuariosQuery = gql`
         id
         nombre
       }
-      password
       creadoEn
       usuario {
         persona {
@@ -29,7 +28,6 @@ export const usuariosSearch = gql`
         id
         nombre
       }
-      password
       creadoEn
       usuario {
         persona {
@@ -54,7 +52,6 @@ export const usuarioQuery = gql`
         imagenes
         embeddingFacial
       }
-      password
       creadoEn
       usuario {
         persona {
@@ -156,7 +153,6 @@ export const usuarioPorPersonaIdQuery = gql`
         id
         nombre
       }
-      password
       creadoEn
       usuario {
         persona {
@@ -197,7 +193,6 @@ export const saveUsuario = gql`
         id
         nombre
       }
-      password
       creadoEn
       usuario {
         persona {

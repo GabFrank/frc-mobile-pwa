@@ -6941,6 +6941,53 @@ el cierre falló.
 
 ---
 
+## Bloque 78 — La búsqueda de usuarios ya no trae la contraseña *(nuevo, sin probar)*
+
+**Por qué está acá:** las consultas de usuario pedían el campo `password` sin
+que ninguna pantalla lo usara, y se quitó de las cinco que lo traían. La única
+con pantalla detrás es la **búsqueda de usuarios**, que usan «Elegir chofer» y
+«Elegir solicitante» en transferencias. Nada de lo que se ve debería cambiar:
+este bloque confirma eso. Los casos de fondo de esas pantallas son los bloques
+64 y 75.
+
+No necesita un central nuevo: funciona contra cualquiera.
+
+### 78.1 · Elegir chofer sigue encontrando usuarios
+1. Abrir una transferencia preparada y tocar **Verificar para transporte**
+2. Tocar **Elegir chofer** y escribir parte de un nombre en «Buscar usuario»
+
+**Esperado:** aparecen los usuarios que coinciden, con su nombre. Al elegir
+uno queda como chofer.
+
+### 78.2 · Elegir solicitante sigue encontrando usuarios
+1. **Transferencias → Nueva transferencia**
+2. Elegir como destino una sucursal **sin cajas abiertas**
+3. Tocar **Elegir solicitante** y escribir parte de un nombre en «Buscar usuario»
+
+**Esperado:** aparecen los usuarios que coinciden y el elegido queda en
+«Se va a crear → Solicitante».
+
+> Con cajas abiertas en el destino el buscador dice «Buscar entre los que
+> están en caja» y elige entre esos cajeros sin consultar la búsqueda de
+> usuarios: ese camino no prueba este cambio.
+
+### 78.3 · La respuesta no trae la contraseña *(el que importa)*
+1. Con las herramientas del navegador abiertas en **Red**, repetir la búsqueda del caso 78.1
+2. Abrir la respuesta de la petición a `/graphql` de esa búsqueda
+
+**Esperado:** cada usuario trae `id`, `nickname`, `persona`, `creadoEn` y
+`usuario`. **No hay ningún campo `password`**, ni en la consulta enviada ni en
+la respuesta.
+
+### 78.4 · Entrar y recargar siguen igual
+1. Cerrar sesión, volver a entrar y recargar la página
+
+**Esperado:** el saludo con el nombre y los accesos según rol, igual que
+antes; recargar mantiene la sesión. Es solo regresión: la consulta del login
+no se tocó.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7022,7 +7069,8 @@ el cierre falló.
 | 75 · El chofer en la verificación para transporte | 10 | | | |
 | 76 · Abrir caja: elegir la sucursal | 7 | | | |
 | 77 · El balance impreso al cerrar caja | 4 | | | |
-| **Total** | **673** | | | |
+| 78 · La búsqueda de usuarios ya no trae la contraseña | 4 | | | |
+| **Total** | **677** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

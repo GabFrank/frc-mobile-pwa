@@ -83,7 +83,6 @@ export interface NotaRecepcion {
   cotizacion?: number;
   moneda?: Moneda;
   pedido?: { id?: number };
-  compra?: { id?: number };
   documento?: { id?: number; descripcion?: string };
   usuario?: Usuario;
 }

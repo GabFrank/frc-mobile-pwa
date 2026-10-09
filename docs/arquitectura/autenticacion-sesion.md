@@ -96,7 +96,7 @@ Tras guardar, sincroniza el token FCM con `pushNotificationsService.syncTokenToB
 
 - Credenciales y token viajan por **HTTP plano**.
 - El token vive en `localStorage`.
-- Varias queries de usuario traen el campo `password` en texto plano.
+- Ninguna query de usuario pide el campo `password` (ver «Seguridad» en [`apollo-graphql.md`](apollo-graphql.md)).
 
 Auditado en [`REPORTE_VULNERABILIDADES.md`](../../../../REPORTE_VULNERABILIDADES.md) (2026-04-02); la remediación es transversal a los 4 componentes y está en curso. **Antes de tocar código de auth, leé ese reporte.**
 

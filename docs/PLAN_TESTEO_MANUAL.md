@@ -7033,6 +7033,15 @@ del escritorio.
 **Esperado:** **un solo** aviso, «No se pudo verificar el stock del producto: no
 se agregó.». El ítem no se carga y no aparece el diálogo de «stock 0».
 
+### 79.6 · El aviso del diálogo no promete «se manda igual»
+1. Agregar un producto **nuevo** cuyo stock en el origen sea 0 (o negativo) y,
+   en el diálogo del ítem, escribir una cantidad mayor que cero
+
+**Esperado:** el aviso dice «En origen hay 0 unidades. Al agregar se te va a
+pedir confirmación.» (o, con negativo, que al agregar se verifica el stock y
+puede pedir confirmación o no permitirlo). **No** dice «se manda igual». Al
+editar un ítem ya cargado, el aviso sigue siendo el de siempre.
+
 ---
 
 ## Resumen para completar
@@ -7117,8 +7126,8 @@ se agregó.». El ítem no se carga y no aparece el diálogo de «stock 0».
 | 76 · Abrir caja: elegir la sucursal | 7 | | | |
 | 77 · El balance impreso al cerrar caja | 4 | | | |
 | 78 · La búsqueda de usuarios ya no trae la contraseña | 4 | | | |
-| 79 · Transferencias: aviso de stock al cargar un ítem | 5 | | | |
-| **Total** | **682** | | | |
+| 79 · Transferencias: aviso de stock al cargar un ítem | 6 | | | |
+| **Total** | **683** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

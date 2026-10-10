@@ -303,6 +303,7 @@ export class TransferenciaBorradorPage {
       sucursalOrigenNombre: t.sucursalOrigen?.nombre,
       // Un pesable ya trae los kilos en el código: no se vuelven a pedir.
       cantidadInicial: seleccion.peso,
+      esNuevo: true,
     });
 
     if (!draft) {

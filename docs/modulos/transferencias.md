@@ -405,7 +405,12 @@ va llegando— y el descuento ocurre recién al despachar. Sin stock conocido no
 se dice nada: «no pude consultarlo» y «no hay» son respuestas distintas.
 
 Es un control distinto de la verificación al agregar un ítem nuevo, que sí
-puede bloquear (siguiente sección).
+puede bloquear (siguiente sección). Por eso, al **agregar** un ítem nuevo con
+stock de origen 0 o negativo, el aviso no dice «se manda igual»: dice que al
+agregar se pedirá confirmación (stock 0) o que se verifica el stock y puede
+pedir confirmación o no permitirlo según la configuración (negativo). El texto
+de siempre se conserva al editar un ítem, con un lote elegido y cuando el stock
+es positivo pero menor a lo pedido.
 
 ### Verificación de stock al agregar un ítem nuevo
 

@@ -1,3 +1,5 @@
+import { formatearCantidad } from '../../generic/utils/moneda.util';
+
 /**
  * Qué hacer al cargar un ítem de transferencia según el stock del origen.
  *
@@ -20,8 +22,16 @@ export function decidirAvisoStock(stock: number, permitirNegativo: boolean): Dec
   return permitirNegativo ? 'CONFIRMAR' : 'BLOQUEAR';
 }
 
+/**
+ * El stock llega como float y puede traer ruido (-2.299999952316284): sin decimales si es entero,
+ * 3 si es fraccionario (producto de balanza), igual que las cantidades de la pantalla.
+ */
+export function formatearStockAviso(stock: number): string {
+  return formatearCantidad(stock, Number.isInteger(stock) ? 0 : 3);
+}
+
 export function mensajeAvisoStock(stock: number): string {
   return stock === 0
     ? 'El producto tiene stock 0 en la sucursal de origen.'
-    : 'El producto tiene stock negativo (' + stock + ') en la sucursal de origen.';
+    : 'El producto tiene stock negativo (' + formatearStockAviso(stock) + ') en la sucursal de origen.';
 }

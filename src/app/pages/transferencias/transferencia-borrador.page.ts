@@ -38,7 +38,7 @@ import {
   TransferenciaItemDialogComponent,
   TransferenciaItemDraft,
 } from './transferencia-item-dialog.component';
-import { decidirAvisoStock, mensajeAvisoStock } from './aviso-stock';
+import { decidirAvisoStock, formatearStockAviso, mensajeAvisoStock } from './aviso-stock';
 import { TransferenciaService } from './transferencia.service';
 
 /**
@@ -328,7 +328,7 @@ export class TransferenciaBorradorPage {
    * pasa por acá: el control se registra una sola vez, al cargarlo.
    *
    * ⚠️ **Si no se pudo consultar, no se carga.** «No pude preguntar» no es
-   * «hay stock»: mismo criterio que el escritorio (#390).
+   * «hay stock»: mismo criterio que el escritorio (frc-sistemas-integrados-angular#390).
    */
   private async puedeCargarse(
     productoId: number | undefined,
@@ -360,7 +360,7 @@ export class TransferenciaBorradorPage {
     }
     if (decision === 'BLOQUEAR') {
       this.notificacion.warn(
-        'El producto tiene stock negativo (' + stock + ') y no puede ser transferido.',
+        'El producto tiene stock negativo (' + formatearStockAviso(stock) + ') y no puede ser transferido.',
       );
       return false;
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { decidirAvisoStock, mensajeAvisoStock } from './aviso-stock';
+import { decidirAvisoStock, formatearStockAviso, mensajeAvisoStock } from './aviso-stock';
 
 describe('decidirAvisoStock', () => {
   it('con stock positivo sigue sin avisar', () => {
@@ -25,5 +25,11 @@ describe('mensajeAvisoStock', () => {
   it('distingue el 0 del negativo y dice el número', () => {
     expect(mensajeAvisoStock(0)).toContain('stock 0');
     expect(mensajeAvisoStock(-3)).toContain('-3');
+  });
+
+  it('muestra el stock fraccionario con 3 decimales y el entero sin decimales', () => {
+    expect(mensajeAvisoStock(-2.299999952316284)).toContain('(-2,300)');
+    expect(mensajeAvisoStock(-3)).toContain('(-3)');
+    expect(formatearStockAviso(0)).toBe('0');
   });
 });

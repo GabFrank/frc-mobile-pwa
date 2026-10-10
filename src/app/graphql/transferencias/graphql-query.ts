@@ -39,6 +39,21 @@ export const transferenciaPorIdQuery = gql`
 `;
 
 /**
+ * Las transferencias en las que el usuario participa: es responsable de la
+ * pre-transferencia, la preparación, el transporte o la recepción.
+ *
+ * ⚠️ **Devuelve una lista, no una página, y el central la corta en 20**
+ * (`TransferenciaRepository.findByUsuario`). No acepta ningún otro filtro.
+ */
+export const transferenciasPorUsuarioQuery = gql`
+  query ($id: ID!) {
+    data: transferenciasPorUsuario(id: $id) {
+      ${cabecera}
+    }
+  }
+`;
+
+/**
  * ⚠️ Filtra por **`etapa`**, no por `estado` — son dos dimensiones distintas.
  * Pasar un valor de una donde va la otra devuelve una lista vacía sin error.
  */

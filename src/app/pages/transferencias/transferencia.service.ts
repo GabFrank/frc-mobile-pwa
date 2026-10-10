@@ -27,6 +27,7 @@ import { FinalizarTransferenciaGQL } from 'src/app/graphql/transferencias/finali
 import { ItemsPorTransferenciaGQL } from 'src/app/graphql/transferencias/itemsPorTransferencia';
 import { TransferenciaPorIdGQL } from 'src/app/graphql/transferencias/transferenciaPorId';
 import { TransferenciasConFiltrosGQL } from 'src/app/graphql/transferencias/transferenciasConFiltros';
+import { TransferenciasPorUsuarioGQL } from 'src/app/graphql/transferencias/transferenciasPorUsuario';
 import { SaveTransferenciaGQL } from 'src/app/graphql/transferencias/saveTransferencia';
 import { SaveTransferenciaItemGQL } from 'src/app/graphql/transferencias/saveTransferenciaItem';
 import { DeleteTransferenciaItemGQL } from 'src/app/graphql/transferencias/deleteTransferenciaItem';
@@ -70,6 +71,7 @@ export class TransferenciaService {
   private readonly datos = inject(DatosService);
   private readonly porIdGQL = inject(TransferenciaPorIdGQL);
   private readonly filtrosGQL = inject(TransferenciasConFiltrosGQL);
+  private readonly porUsuarioGQL = inject(TransferenciasPorUsuarioGQL);
   private readonly itemsGQL = inject(ItemsPorTransferenciaGQL);
   private readonly avanzarGQL = inject(AvanzarEtapaGQL);
   private readonly finalizarGQL = inject(FinalizarTransferenciaGQL);
@@ -120,6 +122,18 @@ export class TransferenciaService {
       page: filtros.page ?? 0,
       size: filtros.size ?? 10,
     });
+  }
+
+  /**
+   * Las del usuario: aquellas donde es responsable de alguna de las cuatro
+   * etapas. Es la lista que mostraba `frc-mobile`.
+   *
+   * ⚠️ **Son las últimas 20 y no hay página siguiente**: el corte lo hace el
+   * central. Quien las muestra tiene que decirlo, o 20 filas afirman que no
+   * hay más.
+   */
+  porUsuario(usuarioId: number): Observable<Transferencia[]> {
+    return this.datos.porId<Transferencia[]>(this.porUsuarioGQL, usuarioId);
   }
 
   /**

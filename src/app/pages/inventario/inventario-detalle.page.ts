@@ -396,7 +396,8 @@ export class InventarioDetallePage {
   verTransferencias(): void {
     const sucursalId = this.inventario()?.sucursal?.id;
     void this.router.navigate(['/transferencias'], {
-      queryParams: sucursalId != null ? { sucursalId } : undefined,
+      // El nombre es el del input de la lista: con otro, llega sin acotar.
+      queryParams: sucursalId != null ? { sucursal: sucursalId } : undefined,
     });
   }
 

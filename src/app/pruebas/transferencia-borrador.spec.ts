@@ -579,7 +579,10 @@ describe('Entrada al alta desde la lista', () => {
         provideRouter([{ path: 'transferencias/nueva', children: [] }]),
         {
           provide: TransferenciaService,
-          useValue: { conFiltros: vi.fn(() => of({ getContent: [], hasNext: false })) },
+          useValue: {
+            conFiltros: vi.fn(() => of({ getContent: [], hasNext: false })),
+            porUsuario: vi.fn(() => of([])),
+          },
         },
         { provide: AuthService, useValue: { ...sesion(), roles: signal(roles) } },
       ],

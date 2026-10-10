@@ -171,6 +171,41 @@ Cada transferencia concluida genera movimientos de stock de tipo `TRANSFERENCIA`
 | `/transferencias/:id/borrador` | `TransferenciaBorradorPage` | `CREAR TRANSFERENCIA` |
 | `/transferencias/:id` | `TransferenciaDetallePage` | `VER TRANSFERENCIA` |
 
+## La lista: cuatro puntos de vista
+
+| Pestaña | Qué trae | Consulta |
+|---|---|---|
+| **Mías** | Donde el usuario es responsable de alguna etapa | `transferenciasPorUsuario` |
+| **Salen** | `isOrigen` | `transferenciasWithFilters` |
+| **Llegan** | `isDestino` | `transferenciasWithFilters` |
+| **Todas** | Sin acotar | `transferenciasWithFilters` |
+
+Se entra por **Mías**, que es la lista de `frc-mobile`. Cuatro cosas de esa
+consulta que la pantalla tiene que respetar:
+
+- **«Mía» es ser responsable de una etapa**: `usuarioPreTransferencia`,
+  `usuarioPreparacion`, `usuarioTransporte` o `usuarioRecepcion`
+  (`TransferenciaRepository.findByUsuario`). El `solicitante` **no cuenta**.
+- **Son las últimas 20 y no pagina.** El corte está en el SQL del central. No
+  hay «Cargar más»; al llegar a 20 la pantalla avisa que las anteriores están
+  en «Todas», porque veinte filas calladas afirman que no hay más.
+- **No acepta ningún filtro.** Por eso, cuando la URL trae `etapa` o
+  `sucursal`, «Mías» **no se ofrece** y se entra por «Todas»: acotar esas 20
+  filas en el cliente respondería «no hay» cuando lo cierto es «no pregunté».
+- **No es `ultimoResponsableId`.** Ese filtro de `transferenciasWithFilters`
+  —el del escritorio— mira solo al responsable de la etapa más avanzada: una
+  transferencia que creaste y preparó otro deja de ser tuya.
+
+> ⚠️ **`isOrigen` / `isDestino` son banderas de la fila, no del usuario.** No
+> dicen «sale de mi sucursal»: dicen de qué lado está la transferencia. Con
+> filtro de URL la entrada es «Todas» porque «qué viene en camino para acá»
+> quedaría partido entre las dos.
+
+El único salto con filtro que existe hoy es el aviso «N transferencias sin
+recibir» del inventario, que manda `?sucursal=<id>`. **El nombre del parámetro
+es el del input de la lista**: viajó como `sucursalId` y la lista llegaba sin
+acotar, sin error.
+
 ## El modo E del buscador, por fin con consumidor
 
 `ProductoCardComponent` ahora acepta **dos existencias** —`stock` y

@@ -1,13 +1,16 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 
@@ -27,18 +30,36 @@ import { TransferenciaService } from './transferencia.service';
 const TAMANO = 10;
 
 /**
- * Los tres puntos de vista que importan.
+ * El corte de «Mías» lo hace el central, que no pagina esa consulta. Acá solo
+ * sirve para saber cuándo avisar que puede haber más.
+ */
+const TOPE_MIAS = 20;
+
+type ClaveVista = 'mias' | 'salen' | 'llegan' | 'todas';
+
+interface Vista {
+  clave: ClaveVista;
+  etiqueta: string;
+  isOrigen: boolean | null;
+  isDestino: boolean | null;
+}
+
+/**
+ * Los puntos de vista que importan.
  *
- * ⚠️ **Se filtra por `isOrigen` / `isDestino`, no comparando ids.** Los
+ * «Mías» es la lista de `frc-mobile`: las transferencias donde el usuario es
+ * responsable de alguna etapa. Sale de otra consulta, sin página ni filtros.
+ *
+ * ⚠️ **Las otras filtran por `isOrigen` / `isDestino`, no comparando ids.** Los
  * booleanos vienen resueltos por el backend, y son lo que decide qué acciones
  * corresponden: en origen se prepara y despacha, en destino se recibe.
  */
-const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: boolean | null }[] =
-  [
-    { etiqueta: 'Salen', isOrigen: true, isDestino: null },
-    { etiqueta: 'Llegan', isOrigen: null, isDestino: true },
-    { etiqueta: 'Todas', isOrigen: null, isDestino: null },
-  ];
+const VISTAS: readonly Vista[] = [
+  { clave: 'mias', etiqueta: 'Mías', isOrigen: null, isDestino: null },
+  { clave: 'salen', etiqueta: 'Salen', isOrigen: true, isDestino: null },
+  { clave: 'llegan', etiqueta: 'Llegan', isOrigen: null, isDestino: true },
+  { clave: 'todas', etiqueta: 'Todas', isOrigen: null, isDestino: null },
+];
 
 @Component({
   selector: 'frc-transferencias-lista',
@@ -71,7 +92,7 @@ const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: 
         (selectedIndexChange)="cambiarVista($event)"
         animationDuration="120ms"
       >
-        @for (v of vistas; track v.etiqueta) {
+        @for (v of vistas(); track v.clave) {
           <mat-tab [label]="v.etiqueta" />
         }
       </mat-tab-group>
@@ -84,6 +105,12 @@ const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: 
         <frc-skeleton [cantidad]="4" [conMiniatura]="true" />
       } @else if (error()) {
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
+      } @else if (filas().length === 0 && vista().clave === 'mias') {
+        <frc-estado-vacio
+          titulo="No participás en ninguna"
+          detalle="Acá aparecen las que creaste, preparaste, transportaste o recibiste. Las demás están en Salen, Llegan y Todas."
+          icono="camion"
+        />
       } @else if (filas().length === 0) {
         <frc-estado-vacio
           titulo="Sin transferencias"
@@ -114,6 +141,10 @@ const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: 
             {{ cargandoMas() ? 'Cargando…' : 'Cargar más' }}
           </button>
         }
+
+        @if (topeDeMias()) {
+          <p class="tope">Son tus últimas {{ filas().length }}. Si hay anteriores, están en Todas.</p>
+        }
       }
     </frc-pagina>
   `,
@@ -131,6 +162,12 @@ const VISTAS: readonly { etiqueta: string; isOrigen: boolean | null; isDestino: 
       color: var(--text-mute);
     }
     .mas { align-self: center; margin-top: var(--sp-3); }
+    .tope {
+      margin: var(--sp-3) 0 0;
+      text-align: center;
+      font-size: var(--fs-caption);
+      color: var(--text-mute);
+    }
     .botonera {
       display: grid;
       grid-auto-flow: column;
@@ -157,8 +194,8 @@ export class TransferenciasListaPage {
     this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.transferenciasAlta),
   );
 
-  readonly vistas = VISTAS;
-  readonly indice = signal(0);
+  /** La pestaña que eligió el usuario; `null` mientras no tocó ninguna. */
+  private readonly elegida = signal<ClaveVista | null>(null);
   readonly filas = signal<Transferencia[]>([]);
   readonly cargando = signal(true);
   readonly cargandoMas = signal(false);
@@ -166,6 +203,8 @@ export class TransferenciasListaPage {
   readonly error = signal<string | null>(null);
 
   private pagina = 0;
+  /** La consulta en vuelo: se corta al pedir otra, o la tardía pisa la lista. */
+  private consulta?: Subscription;
 
   /**
    * Filtros que llegan por la URL.
@@ -187,8 +226,50 @@ export class TransferenciasListaPage {
     return crudo && etapas.includes(crudo) ? (crudo as EtapaTransferencia) : undefined;
   }
 
-  /** `true` si la URL acotó la lista. Se avisa, o parece que faltan datos. */
-  readonly filtrada = computed(() => !!this.etapa() || !!this.sucursal());
+  /** La sucursal de la URL, solo si es un id. `Number('')` es `0`, no `NaN`. */
+  private sucursalValida(): number | undefined {
+    const id = Number(this.sucursal());
+    return Number.isFinite(id) && id > 0 ? id : undefined;
+  }
+
+  /**
+   * `true` si la URL acotó la lista. Se avisa, o parece que faltan datos.
+   *
+   * Cuenta solo lo que de verdad se manda: un valor inventado no acota nada,
+   * y avisar que sí —o esconder «Mías» por eso— sería mentir.
+   */
+  readonly filtrada = computed(() => !!this.etapaValida() || !!this.sucursalValida());
+
+  /**
+   * ⚠️ **Con filtro de URL, «Mías» no se ofrece.** Esa consulta no acepta
+   * etapa ni sucursal, y acotar sus 20 filas acá respondería «no hay» cuando
+   * lo cierto es «no pregunté».
+   */
+  readonly vistas = computed(() =>
+    this.filtrada() ? VISTAS.filter((v) => v.clave !== 'mias') : VISTAS,
+  );
+
+  /**
+   * Sin elección, se entra por «Mías». Con filtro de URL, por «Todas»: el
+   * caso es «qué viene en camino para acá», y `isOrigen` / `isDestino` lo
+   * partirían en dos pestañas.
+   */
+  readonly vista = computed<Vista>(() => {
+    const vistas = this.vistas();
+    const porDefecto: ClaveVista = this.filtrada() ? 'todas' : 'mias';
+    return (
+      vistas.find((v) => v.clave === this.elegida()) ??
+      vistas.find((v) => v.clave === porDefecto) ??
+      vistas[0]
+    );
+  });
+
+  readonly indice = computed(() => this.vistas().indexOf(this.vista()));
+
+  /** `true` si «Mías» llegó al corte del central: puede haber más. */
+  readonly topeDeMias = computed(
+    () => this.vista().clave === 'mias' && this.filas().length >= TOPE_MIAS,
+  );
 
   constructor() {
     // El router asigna los inputs después de construir (NG0950), así que la
@@ -196,21 +277,32 @@ export class TransferenciasListaPage {
     effect(() => {
       this.etapa();
       this.sucursal();
-      this.cargar();
+      // Sin `untracked`, lo que `cargar()` lee —la pestaña, el usuario— se
+      // vuelve dependencia del efecto y cada cambio de pestaña carga dos veces.
+      untracked(() => this.cargar());
     });
+    inject(DestroyRef).onDestroy(() => this.consulta?.unsubscribe());
   }
 
   cargar(agregando = false): void {
+    this.consulta?.unsubscribe();
     if (!agregando) {
       this.pagina = 0;
       this.cargando.set(true);
       this.filas.set([]);
+      // Una carga cortada a medias no llega a bajarlos.
+      this.cargandoMas.set(false);
+      this.hayMas.set(false);
     }
     this.error.set(null);
 
-    const vista = VISTAS[this.indice()];
-    const sucursalId = Number(this.sucursal());
-    this.servicio
+    const vista = this.vista();
+    if (vista.clave === 'mias') {
+      this.cargarMias();
+      return;
+    }
+
+    this.consulta = this.servicio
       .conFiltros({
         isOrigen: vista.isOrigen,
         isDestino: vista.isDestino,
@@ -220,7 +312,7 @@ export class TransferenciasListaPage {
         etapa: this.etapaValida(),
         // La sucursal de la URL acota el destino: el caso que la usa es
         // «qué viene en camino para acá».
-        sucursalDestinoId: Number.isFinite(sucursalId) && sucursalId > 0 ? sucursalId : undefined,
+        sucursalDestinoId: this.sucursalValida(),
         page: this.pagina,
         size: TAMANO,
       })
@@ -246,11 +338,34 @@ export class TransferenciasListaPage {
     this.cargar(true);
   }
 
-  cambiarVista(indice: number): void {
-    if (indice === this.indice()) {
+  private cargarMias(): void {
+    // `Number(undefined)` es `NaN` y `Number(null)` es `0`: ninguno es un id.
+    const usuarioId = Number(this.auth.usuario()?.id);
+    if (!Number.isFinite(usuarioId) || usuarioId <= 0) {
+      // Sin usuario no se preguntó nada: una lista vacía diría que no participa.
+      this.error.set('No se pudo identificar tu usuario. Cerrá sesión y volvé a entrar.');
+      this.cargando.set(false);
       return;
     }
-    this.indice.set(indice);
+
+    this.consulta = this.servicio.porUsuario(usuarioId).subscribe({
+      next: (lista) => {
+        this.filas.set(lista ?? []);
+        this.cargando.set(false);
+      },
+      error: (err: Error) => {
+        this.error.set(err.message);
+        this.cargando.set(false);
+      },
+    });
+  }
+
+  cambiarVista(indice: number): void {
+    const vista = this.vistas()[indice];
+    if (!vista || vista.clave === this.vista().clave) {
+      return;
+    }
+    this.elegida.set(vista.clave);
     this.cargar();
   }
 

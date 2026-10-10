@@ -1255,11 +1255,12 @@ rendición, aparece su propio estado aparte del estado de la solicitud.
 > Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes. Crear
 > una es el bloque 51, y pide además `CREAR TRANSFERENCIA`.
 
-### 18.1 · Los tres puntos de vista
+### 18.1 · Los puntos de vista
 1. Inicio → **Transferencias**
 
-**Esperado:** pestañas **Salen · Llegan · Todas**. «Salen» trae aquellas donde
-tu sucursal es el origen; «Llegan», donde es el destino.
+**Esperado:** pestañas **Mías · Salen · Llegan · Todas**, y se entra por
+«Mías» (bloque 81). «Salen» trae las que todavía están del lado del origen;
+«Llegan», las que ya están del lado del destino.
 
 ### 18.2 · Detalle con las cuatro etapas *(lo que importa)*
 1. Abrir una transferencia que ya haya avanzado
@@ -2606,7 +2607,8 @@ tiene prompt de instalación y no hay forma de dispararlo.
 1. Abrir `/transferencias?etapa=TRANSPORTE_EN_CAMINO`.
 
 **Esperado:** solo transferencias en esa etapa, con el aviso «Lista acotada
-por el filtro con el que llegaste».
+por el filtro con el que llegaste». Las pestañas son **Salen · Llegan · Todas**
+—sin «Mías»— y se entra por **Todas**.
 
 2. Probar `/transferencias?sucursal=3` y las dos juntas.
 
@@ -2616,8 +2618,9 @@ camino para acá».
 ### 33.5 · Una etapa inventada no rompe
 1. Abrir `/transferencias?etapa=CUALQUIERA`.
 
-**Esperado:** trae la lista completa, sin error. La etapa se valida contra el
-enum antes de mandarla; una cadena libre haría que el central rechace la
+**Esperado:** se comporta como `/transferencias` a secas: entra por «Mías», con
+las cuatro pestañas y **sin** el aviso de lista acotada, y sin error. La etapa
+se valida contra el enum antes de mandarla; una cadena libre haría que el central rechace la
 consulta entera.
 
 ---
@@ -7126,6 +7129,73 @@ cuando se resuelva con una guarda de salida.
 
 ---
 
+## Bloque 81 — Transferencias: la pestaña «Mías» *(nuevo, sin probar)*
+
+**Por qué está acá:** `frc-mobile` listaba solo las transferencias del usuario;
+la PWA mostraba únicamente vistas por sucursal. «Mías» trae de vuelta esa
+lista: las transferencias donde el usuario es **responsable de alguna etapa**
+—la creó, la preparó, la transportó o la recibió—. Haberla **solicitado** no
+alcanza. Es la pestaña por la que se entra.
+
+No necesita promover el central: la consulta (`transferenciasPorUsuario`) es la
+que usaba `frc-mobile`.
+
+### 81.1 · Se entra por «Mías»
+1. Con un usuario que haya creado o tomado alguna transferencia, ir a
+   Inicio → **Transferencias**
+
+**Esperado:** cuatro pestañas, **Mías · Salen · Llegan · Todas**, con «Mías»
+elegida. Aparecen solo transferencias en las que ese usuario figura como
+responsable de alguna etapa (se ve en el detalle, en «Responsables»).
+
+### 81.2 · Una que tomó otro no está
+1. Buscar en **Todas** una transferencia en la que el usuario no participa
+2. Volver a **Mías**
+
+**Esperado:** esa transferencia no figura en «Mías».
+
+### 81.3 · Tomar una la trae a «Mías»
+1. Abrir una transferencia sin responsable de preparación (o escanear el QR de
+   una) y tomar la etapa
+2. Volver a la lista
+
+**Esperado:** ahora figura en «Mías».
+
+### 81.4 · Sin ninguna, dice dónde están las demás
+1. Entrar con un usuario que nunca participó en una transferencia
+
+**Esperado:** «No participás en ninguna», y el texto manda a Salen, Llegan y
+Todas. **No** dice «Sin transferencias».
+
+### 81.5 · Más de veinte
+1. Entrar con un usuario con más de 20 transferencias a su nombre
+
+**Esperado:** 20 filas, sin «Cargar más», y al pie «Son tus últimas 20. Si hay
+anteriores, están en Todas.». Con menos de 20 ese texto no aparece.
+
+### 81.6 · Cambiar de pestaña rápido
+1. Tocar **Todas**, y enseguida **Mías**, **Salen**, **Mías**, con la red lenta
+   (DevTools → Network → Slow 4G)
+
+**Esperado:** la lista que queda es la de la pestaña marcada, y «Cargar más»
+no queda en «Cargando…».
+
+### 81.7 · Desde el aviso del inventario *(el que importa)*
+1. Abrir una toma de inventario de una sucursal con transferencias sin recibir
+2. Tocar el aviso «N transferencias sin recibir»
+
+**Esperado:** la lista abre **acotada a esa sucursal** —con el aviso «Lista
+acotada por el filtro con el que llegaste»—, en **Todas** y **sin** la pestaña
+«Mías». Antes llegaba sin acotar: el parámetro viajaba con otro nombre.
+
+### 81.8 · Desde una notificación
+1. Tocar una notificación de transferencia que abra la lista
+
+**Esperado:** abre en «Mías». Si el usuario no participa en ninguna, el vacío
+del 81.4.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7210,7 +7280,8 @@ cuando se resuelva con una guarda de salida.
 | 78 · La búsqueda de usuarios ya no trae la contraseña | 4 | | | |
 | 79 · Transferencias: aviso de stock al cargar un ítem | 6 | | | |
 | 80 · El flotante solo en pantallas de navegación | 7 | | | |
-| **Total** | **690** | | | |
+| 81 · Transferencias: la pestaña «Mías» | 8 | | | |
+| **Total** | **698** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

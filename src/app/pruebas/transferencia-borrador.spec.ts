@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
@@ -490,6 +490,25 @@ describe('Borrador de la transferencia', () => {
       await montar().componentInstance.agregar();
       expect(servicio.guardarItem).not.toHaveBeenCalled();
       expect(notificacion.danger).toHaveBeenCalledTimes(1);
+    });
+
+    it('un segundo agregar durante la verificación no guarda dos veces', async () => {
+      let resolver!: (v: number) => void;
+      servicio.stockEnOrigen = vi.fn(
+        () => new Observable<number>((o) => { resolver = (v) => { o.next(v); o.complete(); }; }),
+      );
+      elegir();
+      const f = montar();
+      const primero = f.componentInstance.agregar();
+      await vi.waitFor(() => expect(f.componentInstance.guardando()).toBe(true));
+
+      await f.componentInstance.agregar();
+      expect(dialogo.abrir).toHaveBeenCalledTimes(2);
+
+      resolver(10);
+      await primero;
+      expect(servicio.guardarItem).toHaveBeenCalledTimes(1);
+      expect(f.componentInstance.guardando()).toBe(false);
     });
 
     it('editar un ítem no consulta el stock', async () => {

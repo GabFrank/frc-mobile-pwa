@@ -396,25 +396,39 @@ mostrando algo que el central no guardó.
 Es lo que hace que, recién finalizada, cada ítem muestre solo «Pedido»: las
 otras tres etapas no aparecen en cero porque todavía no pasó nada ahí.
 
-### El aviso de stock
+### Aviso de cantidad en el diálogo del ítem
 
 Al cargar la cantidad se consulta la existencia en **origen** y se compara
-`cantidad × presentación` contra ella. Avisa, **no bloquea**: pedir de más es
-un caso real —se repone contra lo que va llegando— y el descuento ocurre recién
-al despachar. Sin stock conocido no se dice nada: «no pude consultarlo» y «no
-hay» son respuestas distintas.
+`cantidad × presentación` contra ella. Avisa, **no bloquea**: el «no bloquea» es
+de **pedir más cantidad que el stock**, un caso real —se repone contra lo que
+va llegando— y el descuento ocurre recién al despachar. Sin stock conocido no
+se dice nada: «no pude consultarlo» y «no hay» son respuestas distintas.
 
-### Aviso de stock al cargar un ítem
+Es un control distinto de la verificación al agregar un ítem nuevo, que sí
+puede bloquear (siguiente sección).
 
-Al agregar un producto se consulta su stock en la sucursal de origen (`stockPorProducto`, central):
+### Verificación de stock al agregar un ítem nuevo
+
+Después de confirmar el diálogo del ítem y antes de guardarlo, se consulta el
+stock en la sucursal de origen (`stockPorProducto`, central):
 
 - stock > 0: se carga sin avisar;
 - stock 0: diálogo «¿Está seguro de continuar?»;
 - stock negativo: se bloquea, salvo que `configuracionTransferencia.permitirStockNegativo` sea
   verdadero; en ese caso, el mismo diálogo.
 
-Si la consulta falla no se carga el ítem. Editar un ítem ya cargado no vuelve a preguntar.
-Lo que se confirma lo registra el central en el control de stock negativo (desktop → Inventario).
+**Falla cerrada:** si no se puede consultar el stock o la configuración, el ítem
+**no se agrega** y se avisa una sola vez. Editar un ítem ya cargado no vuelve a
+preguntar. Lo que se confirma lo registra el central en el control de stock
+negativo (desktop → Inventario).
+
+Es un control distinto del aviso de cantidad del diálogo (sección anterior), que
+solo informa. **Leen el mismo número:** el aviso usa `productoPorSucursalStock(proId, sucId)`
+y esta verificación `stockPorProducto(id, sucId)`, y en el central ambas
+resuelven por `MovimientoStockService.stockByProductoIdAndSucursalId`, así que
+no pueden discrepar para el mismo producto y sucursal en el mismo momento. La
+única diferencia es qué hacen cuando la consulta falla: el aviso lo toma como
+desconocido y calla; la verificación se niega a agregar.
 
 ### Crear pide su propio rol
 

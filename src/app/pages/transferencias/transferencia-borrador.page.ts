@@ -268,7 +268,9 @@ export class TransferenciaBorradorPage {
    */
   async agregar(): Promise<void> {
     const t = this.transferencia();
-    if (t?.id == null) {
+    // Mientras se verifica el stock o se guarda otro ítem no se abre un
+    // segundo alta: el botón se apaga, pero el vacío también llega acá.
+    if (t?.id == null || this.guardando()) {
       return;
     }
 
@@ -338,6 +340,8 @@ export class TransferenciaBorradorPage {
 
     let stock: number;
     let permitirNegativo = false;
+    // El indicador global de carga es solo una barra: no intercepta toques.
+    this.guardando.set(true);
     try {
       stock = await firstValueFrom(this.servicio.stockEnOrigen(productoId, sucursalOrigenId));
       if (stock < 0) {
@@ -346,6 +350,8 @@ export class TransferenciaBorradorPage {
     } catch {
       this.notificacion.danger('No se pudo verificar el stock del producto: no se agregó.');
       return false;
+    } finally {
+      this.guardando.set(false);
     }
 
     const decision = decidirAvisoStock(stock, permitirNegativo);

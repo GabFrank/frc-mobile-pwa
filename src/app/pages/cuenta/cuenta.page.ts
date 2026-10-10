@@ -28,7 +28,7 @@ import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/sele
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Mi cuenta">
+    <frc-pagina titulo="Mi cuenta" [conEscaner]="false">
       <frc-seccion titulo="Sesión" [panel]="true">
         <frc-dato etiqueta="Usuario" [valor]="auth.usuario()?.nickname ?? '—'" />
         <frc-dato etiqueta="Persona" [valor]="auth.usuario()?.persona?.nombre ?? '—'" />

@@ -15,16 +15,27 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
+import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
 import { RoleService } from 'src/app/domains/personas/roles/role.service';
-import { EtapaTransferencia, Transferencia } from 'src/app/domains/transferencia/transferencia.model';
+import {
+  EtapaTransferencia,
+  Transferencia,
+  TransferenciaEstado,
+} from 'src/app/domains/transferencia/transferencia.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
+import { CampoFechaComponent } from 'src/app/shared/campos/campo-fecha.component';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
+import { resolverEstado } from 'src/app/shared/estado/estado-registry';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
+import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
+import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
+import { FiltrosLista, SIN_FILTROS, aVariables, coincide, filtrosActivos } from './filtros-lista';
 import { TransferenciaService } from './transferencia.service';
 
 const TAMANO = 10;
@@ -34,6 +45,20 @@ const TAMANO = 10;
  * sirve para saber cuándo avisar que puede haber más.
  */
 const TOPE_MIAS = 20;
+
+/**
+ * «Sin filtro» en un selector. Una opción no puede valer `null`: `mat-select`
+ * lo lee como «nada elegido» y deja el campo en blanco.
+ */
+const TODOS = 'todos';
+
+const OPCIONES_ESTADO: OpcionSeleccion[] = [
+  { valor: TODOS, texto: 'Todos' },
+  ...Object.values(TransferenciaEstado).map((estado) => ({
+    valor: estado,
+    texto: resolverEstado('TransferenciaEstado', estado).etiqueta,
+  })),
+];
 
 type ClaveVista = 'mias' | 'salen' | 'llegan' | 'todas';
 
@@ -71,6 +96,9 @@ const VISTAS: readonly Vista[] = [
     SkeletonComponent,
     EstadoVacioComponent,
     EstadoErrorComponent,
+    SelectorComponent,
+    CampoFechaComponent,
+    IconoComponent,
     MatTabsModule,
     MatButtonModule,
   ],
@@ -97,14 +125,89 @@ const VISTAS: readonly Vista[] = [
         }
       </mat-tab-group>
 
-      @if (filtrada()) {
+      @if (acotadaPorUrl()) {
         <p class="acotada">Lista acotada por el filtro con el que llegaste.</p>
+      }
+
+      <div class="barra-filtros">
+        <button
+          matButton="tonal"
+          type="button"
+          aria-controls="filtros-transferencias"
+          [attr.aria-expanded]="panelAbierto()"
+          (click)="alternarPanel()"
+        >
+          <frc-icono nombre="filtrar" [tamano]="20" />
+          {{ activos() > 0 ? 'Filtros (' + activos() + ')' : 'Filtros' }}
+        </button>
+        @if (activos() > 0) {
+          <button matButton type="button" (click)="limpiarFiltros()">Limpiar</button>
+        }
+      </div>
+
+      @if (panelAbierto()) {
+        <div id="filtros-transferencias" class="filtros">
+          <frc-selector
+            etiqueta="Estado"
+            [opciones]="opcionesEstado"
+            [valor]="filtros().estado ?? sinFiltro"
+            (valorChange)="cambiarEstado($event)"
+          />
+          <div class="par">
+            <frc-campo-fecha
+              etiqueta="Desde"
+              [valor]="filtros().desde"
+              (valorChange)="cambiarDesde($event)"
+            />
+            <frc-campo-fecha
+              etiqueta="Hasta"
+              [valor]="filtros().hasta"
+              (valorChange)="cambiarHasta($event)"
+            />
+          </div>
+          <div class="par">
+            <frc-selector
+              etiqueta="Origen"
+              [opciones]="opcionesOrigen()"
+              [deshabilitado]="sinSucursales()"
+              [valor]="filtros().origenId ?? sinFiltro"
+              (valorChange)="cambiarOrigen($event)"
+            />
+            <frc-selector
+              etiqueta="Destino"
+              [opciones]="opcionesDestino()"
+              [deshabilitado]="sinSucursales()"
+              [valor]="filtros().destinoId ?? sinFiltro"
+              (valorChange)="cambiarDestino($event)"
+            />
+          </div>
+          @if (sinSucursales()) {
+            <p class="nota">No se pudieron cargar las sucursales. Estado y fecha siguen funcionando.</p>
+          }
+        </div>
       }
 
       @if (cargando()) {
         <frc-skeleton [cantidad]="4" [conMiniatura]="true" />
       } @else if (error()) {
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
+      } @else if (filas().length > 0 && visibles().length === 0) {
+        <!-- Solo pasa en Mías: llegaron filas y los filtros las dejaron afuera. -->
+        <frc-estado-vacio
+          titulo="Ninguna coincide"
+          [detalle]="detalleSinCoincidencias()"
+          icono="camion"
+        />
+      } @else if (filas().length === 0 && activos() > 0 && vista().clave !== 'mias') {
+        <!--
+          Con filtros puestos, vacío es «nada coincide», no «no hay». En Mías
+          además se buscó solo en lo que el central devolvió.
+        -->
+        <frc-estado-vacio
+          titulo="Ninguna coincide"
+          [detalle]="detalleSinCoincidencias()"
+          icono="camion"
+        />
       } @else if (filas().length === 0 && vista().clave === 'mias') {
         <frc-estado-vacio
           titulo="No participás en ninguna"
@@ -118,7 +221,7 @@ const VISTAS: readonly Vista[] = [
           icono="camion"
         />
       } @else {
-        @for (t of filas(); track t.id) {
+        @for (t of visibles(); track t.id) {
           <frc-card
             [titulo]="ruta(t)"
             [subtitulo]="subtitulo(t)"
@@ -143,7 +246,7 @@ const VISTAS: readonly Vista[] = [
         }
 
         @if (topeDeMias()) {
-          <p class="tope">Son tus últimas {{ filas().length }}. Si hay anteriores, están en Todas.</p>
+          <p class="tope">{{ notaDeTope() }}</p>
         }
       }
     </frc-pagina>
@@ -156,6 +259,31 @@ const VISTAS: readonly Vista[] = [
       background: var(--info-bg);
       padding: var(--sp-2) var(--sp-3);
       border-radius: var(--radius-sm);
+    }
+    /*
+      Cuatro pestañas con el ancho mínimo de Material no entran en 360 px: el
+      grupo pasa a paginar con flechas y la última queda escondida.
+    */
+    :host ::ng-deep .mat-mdc-tab {
+      min-width: 0;
+      padding-inline: var(--sp-2);
+    }
+    .barra-filtros {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .filtros { display: flex; flex-direction: column; gap: var(--sp-2); }
+    /* minmax(0, …): con 1fr a secas el campo de fecha desborda en 360 px. */
+    .par {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--sp-2);
+    }
+    .nota {
+      margin: 0;
+      font-size: var(--fs-caption);
+      color: var(--text-mute);
     }
     .etapa {
       font-size: var(--fs-caption);
@@ -183,6 +311,7 @@ export class TransferenciasListaPage {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly roles = inject(RoleService);
+  private readonly sucursales = inject(SucursalService);
 
   /**
    * ⚠️ **Ver no es crear.** `VER TRANSFERENCIA` lo tienen 257 usuarios y es lo
@@ -201,6 +330,38 @@ export class TransferenciasListaPage {
   readonly cargandoMas = signal(false);
   readonly hayMas = signal(false);
   readonly error = signal<string | null>(null);
+
+  readonly opcionesEstado = OPCIONES_ESTADO;
+  readonly sinFiltro = TODOS;
+
+  /**
+   * Los filtros del panel. Se conservan al cambiar de pestaña: son una
+   * pregunta sobre la lista, no sobre el punto de vista.
+   */
+  readonly filtros = signal<FiltrosLista>(SIN_FILTROS);
+  readonly activos = computed(() => filtrosActivos(this.filtros()));
+  readonly panelAbierto = signal(false);
+
+  private readonly listaSucursales = signal<Sucursal[]>([]);
+  /** No cargaron: los selectores se apagan, que «sin opciones» no es «no hay». */
+  readonly sinSucursales = signal(false);
+
+  readonly opcionesOrigen = computed(() => this.opcionesSucursal(this.filtros().origenId));
+  readonly opcionesDestino = computed(() => this.opcionesSucursal(this.filtros().destinoId));
+
+  /**
+   * Lo que se muestra. En Salen / Llegan / Todas filtró el central y es lo
+   * que llegó; «Mías» no acepta filtros, así que se aplican acá, sobre sus
+   * filas.
+   */
+  readonly visibles = computed(() => {
+    const filas = this.filas();
+    if (this.vista().clave !== 'mias') {
+      return filas;
+    }
+    const filtros = this.filtros();
+    return filas.filter((t) => coincide(t, filtros));
+  });
 
   private pagina = 0;
   /** La consulta en vuelo: se corta al pedir otra, o la tardía pisa la lista. */
@@ -241,6 +402,19 @@ export class TransferenciasListaPage {
   readonly filtrada = computed(() => !!this.etapaValida() || !!this.sucursalValida());
 
   /**
+   * El aviso de lista acotada. La sucursal de la URL se precarga en «Destino»
+   * y el usuario la puede sacar: el aviso vale mientras siga puesta.
+   *
+   * ⚠️ **No es `filtrada`.** Esa mira solo la URL y decide las pestañas; si
+   * siguiera al panel, sacar «Destino» cambiaría de pestaña sin que nadie lo
+   * pidiera.
+   */
+  readonly acotadaPorUrl = computed(() => {
+    const sucursal = this.sucursalValida();
+    return !!this.etapaValida() || (sucursal != null && this.filtros().destinoId === sucursal);
+  });
+
+  /**
    * ⚠️ **Con filtro de URL, «Mías» no se ofrece.** Esa consulta no acepta
    * etapa ni sucursal, y acotar sus 20 filas acá respondería «no hay» cuando
    * lo cierto es «no pregunté».
@@ -266,7 +440,12 @@ export class TransferenciasListaPage {
 
   readonly indice = computed(() => this.vistas().indexOf(this.vista()));
 
-  /** `true` si «Mías» llegó al corte del central: puede haber más. */
+  /**
+   * `true` si «Mías» llegó al corte del central: puede haber más.
+   *
+   * Cuenta las filas que llegaron, no las que pasan los filtros: el corte es
+   * del central.
+   */
   readonly topeDeMias = computed(
     () => this.vista().clave === 'mias' && this.filas().length >= TOPE_MIAS,
   );
@@ -276,11 +455,19 @@ export class TransferenciasListaPage {
     // carga va en un efecto y no en el constructor.
     effect(() => {
       this.etapa();
-      this.sucursal();
-      // Sin `untracked`, lo que `cargar()` lee —la pestaña, el usuario— se
-      // vuelve dependencia del efecto y cada cambio de pestaña carga dos veces.
-      untracked(() => this.cargar());
+      const sucursal = this.sucursalValida();
+      // Sin `untracked`, lo que `cargar()` lee —la pestaña, el usuario, los
+      // filtros— se vuelve dependencia del efecto y cada cambio carga dos veces.
+      untracked(() => {
+        // La sucursal de la URL acota el destino: el caso que la usa es «qué
+        // viene en camino para acá». Va al panel para que se vea y se pueda sacar.
+        if (sucursal != null) {
+          this.filtros.update((f) => ({ ...f, destinoId: sucursal }));
+        }
+        this.cargar();
+      });
     });
+    this.cargarSucursales();
     inject(DestroyRef).onDestroy(() => this.consulta?.unsubscribe());
   }
 
@@ -310,9 +497,7 @@ export class TransferenciasListaPage {
         // real del enum. Una cadena inventada la rechazaría el central con un
         // error de validación en vez de devolver lista vacía.
         etapa: this.etapaValida(),
-        // La sucursal de la URL acota el destino: el caso que la usa es
-        // «qué viene en camino para acá».
-        sucursalDestinoId: this.sucursalValida(),
+        ...aVariables(this.filtros()),
         page: this.pagina,
         size: TAMANO,
       })
@@ -358,6 +543,111 @@ export class TransferenciasListaPage {
         this.cargando.set(false);
       },
     });
+  }
+
+  /**
+   * ⚠️ **Todas, no solo las operables.** Para crear una transferencia una
+   * sucursal sin depósito no sirve, pero acá se filtra lo que ya existe: hay
+   * transferencias con origen `COMPRAS`, y dejarla afuera las haría
+   * imposibles de encontrar por origen.
+   */
+  private cargarSucursales(): void {
+    this.sucursales.todas().subscribe({
+      next: (lista) => this.listaSucursales.set(lista ?? []),
+      error: () => this.sinSucursales.set(true),
+    });
+  }
+
+  /**
+   * ⚠️ **La elegida va siempre entre las opciones.** La de la URL puede no
+   * estar en la lista —una sucursal cerrada, o la lista sin cargar—, y un
+   * selector con un valor que no tiene opción se ve en blanco: parece que no
+   * hay filtro cuando sí lo hay.
+   */
+  private opcionesSucursal(elegida: number | null): OpcionSeleccion[] {
+    const lista = this.listaSucursales();
+    const falta = elegida != null && !lista.some((s) => Number(s.id) === elegida);
+    return [
+      { valor: TODOS, texto: 'Todas' },
+      ...(falta ? [{ valor: elegida, texto: 'Sucursal ' + elegida }] : []),
+      ...lista.map((s) => ({ valor: s.id, texto: s.nombre ?? 'Sucursal ' + s.id })),
+    ];
+  }
+
+  alternarPanel(): void {
+    this.panelAbierto.update((abierto) => !abierto);
+  }
+
+  cambiarEstado(valor: unknown): void {
+    this.aplicar({ estado: valor === TODOS || valor == null ? null : String(valor) });
+  }
+
+  /**
+   * ⚠️ **Un rango invertido no se manda.** «Desde» posterior a «hasta»
+   * devolvería vacío y se leería como «no hay». Gana la que se acaba de
+   * tocar, y la otra se vacía. No se limita el calendario con `minimo` /
+   * `maximo`: una fecha tipeada los saltea igual.
+   */
+  cambiarDesde(valor: string | null): void {
+    const desde = valor || null;
+    const hasta = this.filtros().hasta;
+    this.aplicar({ desde, hasta: desde != null && hasta != null && hasta < desde ? null : hasta });
+  }
+
+  cambiarHasta(valor: string | null): void {
+    const hasta = valor || null;
+    const desde = this.filtros().desde;
+    this.aplicar({ hasta, desde: hasta != null && desde != null && desde > hasta ? null : desde });
+  }
+
+  cambiarOrigen(valor: unknown): void {
+    this.aplicar({ origenId: this.idDe(valor) });
+  }
+
+  cambiarDestino(valor: unknown): void {
+    this.aplicar({ destinoId: this.idDe(valor) });
+  }
+
+  limpiarFiltros(): void {
+    this.aplicar(SIN_FILTROS);
+  }
+
+  /** `Number('todos')` es `NaN` y `Number('')` es `0`: ninguno es un id. */
+  private idDe(valor: unknown): number | null {
+    const id = Number(valor);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }
+
+  private aplicar(cambio: Partial<FiltrosLista>): void {
+    const previos = this.filtros();
+    const nuevos = { ...previos, ...cambio };
+    // El selector y el campo de fecha avisan también cuando no cambió nada.
+    if ((Object.keys(nuevos) as (keyof FiltrosLista)[]).every((k) => nuevos[k] === previos[k])) {
+      return;
+    }
+    this.filtros.set(nuevos);
+    // «Mías» no vuelve al central: sus filas ya están y se filtran acá.
+    if (this.vista().clave !== 'mias') {
+      this.cargar();
+    }
+  }
+
+  /**
+   * Al pie de «Mías», cuando llegó al corte. Con filtros puestos lo que se ve
+   * es un recorte de un recorte: hay que decir sobre cuántas se filtró.
+   */
+  notaDeTope(): string {
+    const cargadas = this.filas().length;
+    return this.activos() > 0
+      ? 'Se filtró sobre tus últimas ' + cargadas + '. Las anteriores están en Todas.'
+      : 'Son tus últimas ' + cargadas + '. Si hay anteriores, están en Todas.';
+  }
+
+  /** Por qué no hay nada, con filtros puestos. */
+  detalleSinCoincidencias(): string {
+    return this.topeDeMias()
+      ? 'Se buscó en tus últimas ' + this.filas().length + '. Las anteriores están en Todas.'
+      : 'Probá con otros filtros, o tocá Limpiar.';
   }
 
   cambiarVista(indice: number): void {

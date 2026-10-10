@@ -206,6 +206,41 @@ recibir» del inventario, que manda `?sucursal=<id>`. **El nombre del parámetro
 es el del input de la lista**: viajó como `sucursalId` y la lista llegaba sin
 acotar, sin error.
 
+### Los filtros de la lista
+
+Debajo de las pestañas, un botón **Filtros** despliega el panel: **Estado**,
+**Desde / Hasta** —sobre la fecha de creación— y **Origen / Destino**. Cada
+cambio aplica al instante, se conservan al cambiar de pestaña y el botón dice
+cuántos hay puestos. Las reglas viven en `filtros-lista.ts`, sin Angular.
+
+- **En Salen / Llegan / Todas filtra el central**; en **«Mías» se filtra acá**,
+  sobre las filas que ya llegaron, porque su consulta no acepta filtros. Los
+  dos caminos tienen que responder igual: `coincide()` es el espejo de lo que
+  hace el JPQL —incluido que, con filtro de fecha, una transferencia sin
+  `creadoEn` no pasa—.
+- **«Hasta» viaja como `yyyy-MM-dd 23:59:59`.** El central lee una fecha sola
+  como medianoche y compara `creadoEn <= hasta`: sin la hora, el último día
+  del rango queda afuera entero.
+- **Va `estado`, no `estados`.** El resolver los **une**: mandar los dos amplía
+  la lista en vez de acotarla.
+- **No hay «sucursal» a secas**: el central distingue origen y destino, y los
+  combina con AND.
+- **Las sucursales del selector son todas, no las operables.** Hay
+  transferencias con origen `COMPRAS`, que no tiene depósito.
+- **Un rango invertido no se manda.** Gana la fecha que se acaba de tocar y
+  la otra se vacía.
+- **Con filtros, vacío es «Ninguna coincide»**, no «Sin transferencias». En
+  «Mías», con 20 cargadas, además aclara que buscó solo en esas 20 —y si
+  algunas coinciden, la nota al pie dice «Se filtró sobre tus últimas 20»—.
+- **`?sucursal=` precarga «Destino»**, a la vista y removible. `filtrada` sigue
+  mirando solo la URL y decide las pestañas; el aviso de lista acotada mira lo
+  que sigue puesto (`acotadaPorUrl`). Si fueran lo mismo, sacar «Destino»
+  cambiaría de pestaña sola.
+
+> ⚠️ **Cuatro pestañas no entran en 360 px con el ancho mínimo de Material**:
+> el grupo pagina con flechas y esconde la última. La lista les baja el
+> mínimo y el relleno.
+
 ## El modo E del buscador, por fin con consumidor
 
 `ProductoCardComponent` ahora acepta **dos existencias** —`stock` y
@@ -597,6 +632,8 @@ de etapa, que sí exige promover el central.
 | Cambiar las sucursales de un borrador | `frc-mobile` lo ofrece en su menú. Cambiar el origen con ítems ya cargados invalida el stock contra el que se cargaron |
 | Descartar un borrador | `deleteTransferencia` no se portó: un borrador vacío queda en la lista como `ABIERTA` |
 | Impresión | `imprimirTransferencia` devuelve base64 |
+| Recordar pestaña y filtros de la lista | Se pierden al entrar a un detalle y volver: la pantalla se construye de nuevo |
+| Filtrar «Mías» en el central | `transferenciasPorUsuario` no acepta filtros ni pagina; con más de 20 propias, el filtro mira solo las últimas 20 |
 | Elegir el lote en la **preparación** | El escritorio lo ofrece con `etapaAsignacionLote: PREPARACION`, que pisa a la de creación al resolver el desglose. Acá solo se elige al cargar |
 | Repartir un renglón entre **varios** lotes | El central lo acepta; ninguna pantalla lo hace. Se carga el producto dos veces |
 

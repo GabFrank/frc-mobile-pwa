@@ -7196,6 +7196,96 @@ del 81.4.
 
 ---
 
+## Bloque 82 — Transferencias: filtros de la lista *(nuevo, sin probar)*
+
+**Por qué está acá:** la lista solo se podía recorrer entera. Ahora, bajo las
+pestañas, **Filtros** despliega estado, rango de fecha de creación y sucursal
+de origen y de destino. En Salen / Llegan / Todas filtra el central; en «Mías»
+se filtra sobre las que ya llegaron (como mucho, las últimas 20).
+
+No necesita promover el central: los parámetros ya existían.
+
+### 82.1 · El panel
+1. Inicio → **Transferencias** → tocar **Filtros**
+
+**Esperado:** se despliega **Estado**, **Desde / Hasta** lado a lado y
+**Origen / Destino** lado a lado. Tocar **Filtros** otra vez lo pliega. En un
+teléfono angosto nada se sale de la pantalla y las cuatro pestañas se ven sin
+flechas.
+
+### 82.2 · Estado
+1. En **Todas**, elegir Estado **En tránsito**
+
+**Esperado:** la lista se recarga sola y todas las filas dicen «En tránsito».
+El botón pasa a **Filtros (1)** y aparece **Limpiar**.
+
+### 82.3 · Rango de fechas, con el último día incluido *(el que importa)*
+1. En **Todas**, poner **Desde** y **Hasta** en el mismo día, uno en el que
+   sepas que se creó una transferencia
+
+**Esperado:** aparece esa transferencia. Si la lista queda vacía, el «hasta»
+está dejando afuera su propio día.
+
+### 82.4 · Rango invertido
+1. Poner **Hasta** 05/10 y después **Desde** 10/10
+
+**Esperado:** «Hasta» se vacía solo. No queda un rango imposible con la lista
+vacía.
+
+### 82.5 · Origen y destino
+1. Elegir un **Origen** y un **Destino**
+
+**Esperado:** solo transferencias de esa ruta. En el selector figura también
+**COMPRAS**, aunque no tenga depósito.
+
+### 82.6 · Se conservan al cambiar de pestaña
+1. Con un filtro puesto en **Todas**, pasar a **Salen** y a **Llegan**
+
+**Esperado:** el filtro sigue puesto y aplicado en cada una.
+
+### 82.7 · «Cargar más» respeta el filtro
+1. Con un filtro que deje más de 10, tocar **Cargar más**
+
+**Esperado:** las que se agregan también cumplen el filtro.
+
+### 82.8 · Limpiar
+1. Con dos o tres filtros puestos, tocar **Limpiar**
+
+**Esperado:** vuelve la lista completa, el botón dice **Filtros** y «Limpiar»
+desaparece.
+
+### 82.9 · Sin coincidencias
+1. En **Todas**, elegir un estado y un rango en el que no haya nada
+
+**Esperado:** «Ninguna coincide», **no** «Sin transferencias».
+
+### 82.10 · En «Mías»
+1. En **Mías**, elegir un estado que tengan algunas de tus transferencias
+2. Elegir uno que no tenga ninguna
+
+**Esperado:** en el primer caso quedan solo esas, al instante —y si tenés 20 o
+más, al pie dice «Se filtró sobre tus últimas 20…»—. En el segundo,
+«Ninguna coincide»; si tenés 20 o más, el texto aclara «Se buscó en tus
+últimas 20. Las anteriores están en Todas.».
+
+### 82.11 · La sucursal de la URL queda a la vista
+1. Desde una toma de inventario, tocar «N transferencias sin recibir»
+2. Abrir **Filtros**
+3. Poner **Destino** en «Todas»
+
+**Esperado:** al llegar, el botón dice **Filtros (1)** y **Destino** muestra
+esa sucursal. Al sacarla desaparece el aviso «Lista acotada…» y la lista pasa
+a mostrar todas, **sin cambiar de pestaña**.
+
+### 82.12 · El calendario en el teléfono
+1. En un teléfono (Android y, si hay, iPhone), tocar el ícono de calendario de
+   **Desde** y elegir un día
+
+**Esperado:** se abre el calendario de la app —no el del sistema—, la fecha
+queda como dd/mm/aaaa y la lista se recarga.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7281,7 +7371,8 @@ del 81.4.
 | 79 · Transferencias: aviso de stock al cargar un ítem | 6 | | | |
 | 80 · El flotante solo en pantallas de navegación | 7 | | | |
 | 81 · Transferencias: la pestaña «Mías» | 8 | | | |
-| **Total** | **698** | | | |
+| 82 · Transferencias: filtros de la lista | 12 | | | |
+| **Total** | **710** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

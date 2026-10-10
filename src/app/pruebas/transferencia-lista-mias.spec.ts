@@ -5,6 +5,7 @@ import { Subject, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
+import { SucursalService } from '../domains/empresarial/sucursal/sucursal.service';
 import type { Transferencia } from '../domains/transferencia/transferencia.model';
 import { TransferenciaService } from '../pages/transferencias/transferencia.service';
 import { TransferenciasListaPage } from '../pages/transferencias/transferencias-lista.page';
@@ -70,6 +71,7 @@ describe('Lista de transferencias: la pestaña «Mías»', () => {
       providers: [
         provideRouter([]),
         { provide: TransferenciaService, useValue: servicio },
+        { provide: SucursalService, useValue: { todas: vi.fn(() => of([])) } },
         { provide: AuthService, useValue: { usuario, roles: signal(['VER TRANSFERENCIA']) } },
       ],
     });

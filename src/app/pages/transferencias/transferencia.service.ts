@@ -56,6 +56,14 @@ export interface FiltrosTransferencia {
   etapa?: EtapaTransferencia | null;
   isOrigen?: boolean | null;
   isDestino?: boolean | null;
+  /**
+   * Rango sobre `creadoEn`, los dos extremos incluidos.
+   *
+   * ⚠️ **Una fecha sola es medianoche.** `yyyy-MM-dd` sirve para «desde»;
+   * «hasta» necesita `yyyy-MM-dd 23:59:59` o deja afuera su propio día.
+   */
+  creadoDesde?: string | null;
+  creadoHasta?: string | null;
   page?: number;
   size?: number;
 }
@@ -117,8 +125,8 @@ export class TransferenciaService {
       etapa: filtros.etapa ?? null,
       isOrigen: filtros.isOrigen ?? null,
       isDestino: filtros.isDestino ?? null,
-      creadoDesde: null,
-      creadoHasta: null,
+      creadoDesde: filtros.creadoDesde ?? null,
+      creadoHasta: filtros.creadoHasta ?? null,
       page: filtros.page ?? 0,
       size: filtros.size ?? 10,
     });

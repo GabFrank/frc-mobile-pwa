@@ -60,7 +60,7 @@ const FILTROS: readonly { clave: Filtro; etiqueta: string; estado: EstadoVentaCr
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Mis finanzas" [conVolver]="true">
+    <frc-pagina titulo="Mis finanzas" [conVolver]="true" [conEscaner]="false">
       @if (!sinCliente()) {
         <div acciones>
           <button matButton="filled" [disabled]="autorizando()" (click)="confirmarPorQr()">

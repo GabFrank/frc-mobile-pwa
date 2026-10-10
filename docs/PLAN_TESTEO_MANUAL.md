@@ -1949,12 +1949,17 @@ bienvenida.
 > barras y QR de sucursal. **Falta con la cámara real** y falta el resto de
 > los tipos, que necesitan un QR de cada uno.
 
-### 23.1 · El botón está en todas partes
-1. Recorrer Inicio, Operaciones, Buscar, Cuenta, una lista y un detalle.
+### 23.1 · El botón está en las pantallas de navegación
+1. Recorrer Inicio, Operaciones, Cuenta, una lista y un detalle de solo
+   lectura.
 
 **Esperado:** el botón redondo de escaneo está abajo a la derecha en todas.
-En las pantallas con barra de acciones fija —guardar, finalizar— queda
-**encima** de la barra, sin taparla.
+En las pantallas con barra de acciones fija —el detalle de una transferencia
+o de un inventario— queda **encima** de la barra, sin taparla.
+
+> No está en todas partes, y es a propósito: se apaga en Buscar (bloque 53) y
+> en formularios, pantallas con escanear propio y el kiosco de marcación
+> (bloque 80).
 
 ### 23.2 · Lee un producto y lo abre
 1. Tocar el botón y escanear el código de barras de un producto.
@@ -7044,6 +7049,83 @@ editar un ítem ya cargado, el aviso sigue siendo el de siempre.
 
 ---
 
+## Bloque 80 — El botón flotante solo en pantallas de navegación *(nuevo, sin probar)*
+
+**Por qué está acá:** el flotante **siempre navega** —un QR del sistema abre su
+registro, un código de barras lleva a Buscar—, y eso estorbaba en tres clases
+de pantalla. Se apagó en 18, con el mismo `conEscaner` del bloque 53:
+
+- **Formularios** (11): abrir y cerrar caja, nueva devolución, nueva solicitud
+  de pago, nueva solicitud de gasto, registrar cupón, nuevo producto y, dentro
+  de editar producto, datos generales, familia, presentación y precios. Un
+  toque se llevaba lo cargado sin preguntar.
+- **Pantallas con su propio escanear** (6): códigos del producto, detalle de
+  recepción, nueva recepción, caja chica, venta con tarjeta y mis finanzas.
+  Quedaban dos botones con el mismo ícono: el de la pantalla actúa sobre el
+  registro, el flotante sacaba de ella.
+- **Kiosco de marcación** (1).
+
+⚠️ **Lo que se pierde, a propósito:** parado en una de esas 18 ya no se lee un
+QR de otro tipo. Se vuelve a una lista o a Inicio con un toque.
+
+⚠️ **El detalle de transferencia lo conserva**, aunque tiene escáner propio:
+una transferencia a nombre de otro se toma escaneando su QR, y los escaneos de
+esa pantalla leen sucursal y producto, no ese código.
+
+### 80.1 · Los formularios no lo muestran
+1. Abrir **Abrir caja**, **Nueva devolución**, **Nueva solicitud de pago** y,
+   en un producto, **Editar → Precios**.
+
+**Esperado:** en ninguna hay botón flotante abajo a la derecha.
+
+### 80.2 · Donde hay escanear propio, queda uno solo
+1. Abrir **Caja chica**, **Venta con tarjeta**, **Mis finanzas**, el detalle
+   de una **recepción** y **Editar producto → Códigos**.
+2. En cada una, tocar el botón de escanear de la pantalla.
+
+**Esperado:** no hay flotante. El botón propio abre la cámara y hace lo de
+siempre: en caja chica lee la solicitud, en recepción verifica el producto, en
+códigos agrega el código.
+
+### 80.3 · El kiosco de marcación no lo muestra
+1. Con un usuario con el rol de kiosco, tocar **Kiosco de marcación** en
+   Inicio.
+
+**Esperado:** no hay botón flotante. El botón de volver y la barra de
+navegación siguen estando: la pantalla vive dentro del shell.
+
+### 80.4 · El detalle de transferencia lo conserva
+1. Abrir desde la lista una transferencia **a nombre de otra persona**. El
+   aviso pide el QR o el código.
+2. Tocar el flotante y escanear el QR de **esa** transferencia.
+
+**Esperado:** el flotante está, y después de escanear se habilita el botón de
+la etapa. Con el QR de otra transferencia abre la otra, no habilita esta.
+
+### 80.5 · Las pantallas de navegación lo conservan
+1. Recorrer **Inicio**, **Operaciones**, **Mi trabajo**, la lista de
+   **Transferencias** y el detalle de una **devolución**.
+
+**Esperado:** el flotante está en todas y sigue leyendo cualquier código.
+
+### 80.6 · No queda una franja vacía al pie
+1. En **Caja chica** con muchas solicitudes, bajar hasta el final.
+
+**Esperado:** la última fila llega hasta abajo, sin el espacio que se
+reservaba para el flotante. Necesita un teléfono: el alto depende de la
+pantalla.
+
+### 80.7 · La barra inferior sigue sacando del formulario — deuda conocida
+1. En **Nueva devolución**, cargar un producto.
+2. Tocar **Inicio** en la barra de navegación de abajo.
+
+**Esperado:** navega **sin preguntar** y lo cargado se pierde. **No es una
+regresión de este cambio**: apagar el flotante quitó una de las vías, no
+todas. El botón de volver de esa pantalla sí pregunta. Queda anotado para
+cuando se resuelva con una guarda de salida.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7127,7 +7209,8 @@ editar un ítem ya cargado, el aviso sigue siendo el de siempre.
 | 77 · El balance impreso al cerrar caja | 4 | | | |
 | 78 · La búsqueda de usuarios ya no trae la contraseña | 4 | | | |
 | 79 · Transferencias: aviso de stock al cargar un ítem | 6 | | | |
-| **Total** | **683** | | | |
+| 80 · El flotante solo en pantallas de navegación | 7 | | | |
+| **Total** | **690** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -67,7 +67,7 @@ import { DevolucionService } from './devolucion.service';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Nueva devolución" [conVolver]="true" (atras)="salir()">
+    <frc-pagina titulo="Nueva devolución" [conVolver]="true" [conEscaner]="false" (atras)="salir()">
       <div acciones>
         <button matButton (click)="agregar()">Agregar producto</button>
         <button matButton="filled" [disabled]="!puedeGuardar()" (click)="guardar()">

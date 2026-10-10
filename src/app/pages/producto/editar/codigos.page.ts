@@ -80,7 +80,7 @@ export function construirCodigoInput(
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Códigos" [conVolver]="true">
+    <frc-pagina titulo="Códigos" [conVolver]="true" [conEscaner]="false">
       @if (estado.cargando()) {
         <frc-skeleton [cantidad]="3" />
       } @else if (estado.error()) {

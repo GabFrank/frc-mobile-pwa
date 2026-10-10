@@ -112,7 +112,7 @@ export function esPrecioEditable(
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Precios" [conVolver]="true">
+    <frc-pagina titulo="Precios" [conVolver]="true" [conEscaner]="false">
       @if (estado.cargando()) {
         <frc-skeleton [cantidad]="3" />
       } @else if (estado.error()) {

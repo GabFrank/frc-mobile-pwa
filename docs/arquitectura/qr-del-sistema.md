@@ -103,6 +103,14 @@ backend no conoce.
 El botón flotante lee cualquier código y decide el destino. La tabla vive en
 `rutearEscaneo()` — función pura, con tests.
 
+**No está en todas las pantallas.** Como siempre navega, se apaga con
+`[conEscaner]="false"` en los formularios —se llevaría lo cargado sin
+preguntar—, en las pantallas que ya tienen su propio escanear y en el kiosco
+de marcación. La lista completa es la de `pantallas-sin-fab.spec.ts`, que
+falla si una pantalla lo apaga sin anotarse. El detalle de transferencia lo
+conserva: es el único camino para leer el QR de una transferencia ajena
+parado en ella.
+
 ```
 texto escaneado
    ├── ¿empieza con "frc-" y tiene ≥7 campos?

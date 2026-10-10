@@ -1255,11 +1255,12 @@ rendición, aparece su propio estado aparte del estado de la solicitud.
 > Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes. Crear
 > una es el bloque 51, y pide además `CREAR TRANSFERENCIA`.
 
-### 18.1 · Los tres puntos de vista
+### 18.1 · Los puntos de vista
 1. Inicio → **Transferencias**
 
-**Esperado:** pestañas **Salen · Llegan · Todas**. «Salen» trae aquellas donde
-tu sucursal es el origen; «Llegan», donde es el destino.
+**Esperado:** pestañas **Mías · Salen · Llegan · Todas**, y se entra por
+«Mías» (bloque 81). «Salen» trae las que todavía están del lado del origen;
+«Llegan», las que ya están del lado del destino.
 
 ### 18.2 · Detalle con las cuatro etapas *(lo que importa)*
 1. Abrir una transferencia que ya haya avanzado
@@ -2606,7 +2607,8 @@ tiene prompt de instalación y no hay forma de dispararlo.
 1. Abrir `/transferencias?etapa=TRANSPORTE_EN_CAMINO`.
 
 **Esperado:** solo transferencias en esa etapa, con el aviso «Lista acotada
-por el filtro con el que llegaste».
+por el filtro con el que llegaste». Las pestañas son **Salen · Llegan · Todas**
+—sin «Mías»— y se entra por **Todas**.
 
 2. Probar `/transferencias?sucursal=3` y las dos juntas.
 
@@ -2616,8 +2618,9 @@ camino para acá».
 ### 33.5 · Una etapa inventada no rompe
 1. Abrir `/transferencias?etapa=CUALQUIERA`.
 
-**Esperado:** trae la lista completa, sin error. La etapa se valida contra el
-enum antes de mandarla; una cadena libre haría que el central rechace la
+**Esperado:** se comporta como `/transferencias` a secas: entra por «Mías», con
+las cuatro pestañas y **sin** el aviso de lista acotada, y sin error. La etapa
+se valida contra el enum antes de mandarla; una cadena libre haría que el central rechace la
 consulta entera.
 
 ---
@@ -7136,6 +7139,163 @@ reservaba para el flotante. En **Inicio** el flotante sigue estando.
 
 ---
 
+## Bloque 81 — Transferencias: la pestaña «Mías» *(nuevo, sin probar)*
+
+**Por qué está acá:** `frc-mobile` listaba solo las transferencias del usuario;
+la PWA mostraba únicamente vistas por sucursal. «Mías» trae de vuelta esa
+lista: las transferencias donde el usuario es **responsable de alguna etapa**
+—la creó, la preparó, la transportó o la recibió—. Haberla **solicitado** no
+alcanza. Es la pestaña por la que se entra.
+
+No necesita promover el central: la consulta (`transferenciasPorUsuario`) es la
+que usaba `frc-mobile`.
+
+### 81.1 · Se entra por «Mías»
+1. Con un usuario que haya creado o tomado alguna transferencia, ir a
+   Inicio → **Transferencias**
+
+**Esperado:** cuatro pestañas, **Mías · Salen · Llegan · Todas**, con «Mías»
+elegida. Aparecen solo transferencias en las que ese usuario figura como
+responsable de alguna etapa (se ve en el detalle, en «Responsables»).
+
+### 81.2 · Una que tomó otro no está
+1. Buscar en **Todas** una transferencia en la que el usuario no participa
+2. Volver a **Mías**
+
+**Esperado:** esa transferencia no figura en «Mías».
+
+### 81.3 · Tomar una la trae a «Mías»
+1. Abrir una transferencia sin responsable de preparación (o escanear el QR de
+   una) y tomar la etapa
+2. Volver a la lista
+
+**Esperado:** ahora figura en «Mías».
+
+### 81.4 · Sin ninguna, dice dónde están las demás
+1. Entrar con un usuario que nunca participó en una transferencia
+
+**Esperado:** «No participás en ninguna», y el texto manda a Salen, Llegan y
+Todas. **No** dice «Sin transferencias».
+
+### 81.5 · Más de veinte
+1. Entrar con un usuario con más de 20 transferencias a su nombre
+
+**Esperado:** 20 filas, sin «Cargar más», y al pie «Son tus últimas 20. Si hay
+anteriores, están en Todas.». Con menos de 20 ese texto no aparece.
+
+### 81.6 · Cambiar de pestaña rápido
+1. Tocar **Todas**, y enseguida **Mías**, **Salen**, **Mías**, con la red lenta
+   (DevTools → Network → Slow 4G)
+
+**Esperado:** la lista que queda es la de la pestaña marcada, y «Cargar más»
+no queda en «Cargando…».
+
+### 81.7 · Desde el aviso del inventario *(el que importa)*
+1. Abrir una toma de inventario de una sucursal con transferencias sin recibir
+2. Tocar el aviso «N transferencias sin recibir»
+
+**Esperado:** la lista abre **acotada a esa sucursal** —con el aviso «Lista
+acotada por el filtro con el que llegaste»—, en **Todas** y **sin** la pestaña
+«Mías». Antes llegaba sin acotar: el parámetro viajaba con otro nombre.
+
+### 81.8 · Desde una notificación
+1. Tocar una notificación de transferencia que abra la lista
+
+**Esperado:** abre en «Mías». Si el usuario no participa en ninguna, el vacío
+del 81.4.
+
+---
+
+## Bloque 82 — Transferencias: filtros de la lista *(nuevo, sin probar)*
+
+**Por qué está acá:** la lista solo se podía recorrer entera. Ahora, bajo las
+pestañas, **Filtros** despliega estado, rango de fecha de creación y sucursal
+de origen y de destino. En Salen / Llegan / Todas filtra el central; en «Mías»
+se filtra sobre las que ya llegaron (como mucho, las últimas 20).
+
+No necesita promover el central: los parámetros ya existían.
+
+### 82.1 · El panel
+1. Inicio → **Transferencias** → tocar **Filtros**
+
+**Esperado:** se despliega **Estado**, **Desde / Hasta** lado a lado y
+**Origen / Destino** lado a lado. Tocar **Filtros** otra vez lo pliega. En un
+teléfono angosto nada se sale de la pantalla y las cuatro pestañas se ven sin
+flechas.
+
+### 82.2 · Estado
+1. En **Todas**, elegir Estado **En tránsito**
+
+**Esperado:** la lista se recarga sola y todas las filas dicen «En tránsito».
+El botón pasa a **Filtros (1)** y aparece **Limpiar**.
+
+### 82.3 · Rango de fechas, con el último día incluido *(el que importa)*
+1. En **Todas**, poner **Desde** y **Hasta** en el mismo día, uno en el que
+   sepas que se creó una transferencia
+
+**Esperado:** aparece esa transferencia. Si la lista queda vacía, el «hasta»
+está dejando afuera su propio día.
+
+### 82.4 · Rango invertido
+1. Poner **Hasta** 05/10 y después **Desde** 10/10
+
+**Esperado:** «Hasta» se vacía solo. No queda un rango imposible con la lista
+vacía.
+
+### 82.5 · Origen y destino
+1. Elegir un **Origen** y un **Destino**
+
+**Esperado:** solo transferencias de esa ruta. En el selector figura también
+**COMPRAS**, aunque no tenga depósito.
+
+### 82.6 · Se conservan al cambiar de pestaña
+1. Con un filtro puesto en **Todas**, pasar a **Salen** y a **Llegan**
+
+**Esperado:** el filtro sigue puesto y aplicado en cada una.
+
+### 82.7 · «Cargar más» respeta el filtro
+1. Con un filtro que deje más de 10, tocar **Cargar más**
+
+**Esperado:** las que se agregan también cumplen el filtro.
+
+### 82.8 · Limpiar
+1. Con dos o tres filtros puestos, tocar **Limpiar**
+
+**Esperado:** vuelve la lista completa, el botón dice **Filtros** y «Limpiar»
+desaparece.
+
+### 82.9 · Sin coincidencias
+1. En **Todas**, elegir un estado y un rango en el que no haya nada
+
+**Esperado:** «Ninguna coincide», **no** «Sin transferencias».
+
+### 82.10 · En «Mías»
+1. En **Mías**, elegir un estado que tengan algunas de tus transferencias
+2. Elegir uno que no tenga ninguna
+
+**Esperado:** en el primer caso quedan solo esas, al instante —y si tenés 20 o
+más, al pie dice «Se filtró sobre tus últimas 20…»—. En el segundo,
+«Ninguna coincide»; si tenés 20 o más, el texto aclara «Se buscó en tus
+últimas 20. Las anteriores están en Todas.».
+
+### 82.11 · La sucursal de la URL queda a la vista
+1. Desde una toma de inventario, tocar «N transferencias sin recibir»
+2. Abrir **Filtros**
+3. Poner **Destino** en «Todas»
+
+**Esperado:** al llegar, el botón dice **Filtros (1)** y **Destino** muestra
+esa sucursal. Al sacarla desaparece el aviso «Lista acotada…» y la lista pasa
+a mostrar todas, **sin cambiar de pestaña**.
+
+### 82.12 · El calendario en el teléfono
+1. En un teléfono (Android y, si hay, iPhone), tocar el ícono de calendario de
+   **Desde** y elegir un día
+
+**Esperado:** se abre el calendario de la app —no el del sistema—, la fecha
+queda como dd/mm/aaaa y la lista se recarga.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7219,8 +7379,10 @@ reservaba para el flotante. En **Inicio** el flotante sigue estando.
 | 77 · El balance impreso al cerrar caja | 4 | | | |
 | 78 · La búsqueda de usuarios ya no trae la contraseña | 4 | | | |
 | 79 · Transferencias: aviso de stock al cargar un ítem | 6 | | | |
-| 80 · El flotante solo en pantallas de navegación | 8 | | | |
-| **Total** | **691** | | | |
+| 80 · El flotante solo en pantallas de navegación | 7 | | | |
+| 81 · Transferencias: la pestaña «Mías» | 8 | | | |
+| 82 · Transferencias: filtros de la lista | 12 | | | |
+| **Total** | **710** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

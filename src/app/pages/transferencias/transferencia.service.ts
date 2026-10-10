@@ -27,6 +27,7 @@ import { FinalizarTransferenciaGQL } from 'src/app/graphql/transferencias/finali
 import { ItemsPorTransferenciaGQL } from 'src/app/graphql/transferencias/itemsPorTransferencia';
 import { TransferenciaPorIdGQL } from 'src/app/graphql/transferencias/transferenciaPorId';
 import { TransferenciasConFiltrosGQL } from 'src/app/graphql/transferencias/transferenciasConFiltros';
+import { TransferenciasPorUsuarioGQL } from 'src/app/graphql/transferencias/transferenciasPorUsuario';
 import { SaveTransferenciaGQL } from 'src/app/graphql/transferencias/saveTransferencia';
 import { SaveTransferenciaItemGQL } from 'src/app/graphql/transferencias/saveTransferenciaItem';
 import { DeleteTransferenciaItemGQL } from 'src/app/graphql/transferencias/deleteTransferenciaItem';
@@ -55,6 +56,14 @@ export interface FiltrosTransferencia {
   etapa?: EtapaTransferencia | null;
   isOrigen?: boolean | null;
   isDestino?: boolean | null;
+  /**
+   * Rango sobre `creadoEn`, los dos extremos incluidos.
+   *
+   * ⚠️ **Una fecha sola es medianoche.** `yyyy-MM-dd` sirve para «desde»;
+   * «hasta» necesita `yyyy-MM-dd 23:59:59` o deja afuera su propio día.
+   */
+  creadoDesde?: string | null;
+  creadoHasta?: string | null;
   page?: number;
   size?: number;
 }
@@ -70,6 +79,7 @@ export class TransferenciaService {
   private readonly datos = inject(DatosService);
   private readonly porIdGQL = inject(TransferenciaPorIdGQL);
   private readonly filtrosGQL = inject(TransferenciasConFiltrosGQL);
+  private readonly porUsuarioGQL = inject(TransferenciasPorUsuarioGQL);
   private readonly itemsGQL = inject(ItemsPorTransferenciaGQL);
   private readonly avanzarGQL = inject(AvanzarEtapaGQL);
   private readonly finalizarGQL = inject(FinalizarTransferenciaGQL);
@@ -115,11 +125,23 @@ export class TransferenciaService {
       etapa: filtros.etapa ?? null,
       isOrigen: filtros.isOrigen ?? null,
       isDestino: filtros.isDestino ?? null,
-      creadoDesde: null,
-      creadoHasta: null,
+      creadoDesde: filtros.creadoDesde ?? null,
+      creadoHasta: filtros.creadoHasta ?? null,
       page: filtros.page ?? 0,
       size: filtros.size ?? 10,
     });
+  }
+
+  /**
+   * Las del usuario: aquellas donde es responsable de alguna de las cuatro
+   * etapas. Es la lista que mostraba `frc-mobile`.
+   *
+   * ⚠️ **Son las últimas 20 y no hay página siguiente**: el corte lo hace el
+   * central. Quien las muestra tiene que decirlo, o 20 filas afirman que no
+   * hay más.
+   */
+  porUsuario(usuarioId: number): Observable<Transferencia[]> {
+    return this.datos.porId<Transferencia[]>(this.porUsuarioGQL, usuarioId);
   }
 
   /**

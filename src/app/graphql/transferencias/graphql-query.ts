@@ -248,3 +248,23 @@ export const transferenciaQrEscaneadoMutation = gql`
     data: transferenciaQrEscaneado(id: $id, sucursalId: $sucursalId)
   }
 `;
+
+/**
+ * Stock de un producto en una sucursal, según el central. Es el número contra
+ * el que se decide el aviso al cargar un ítem.
+ */
+export const stockEnOrigenQuery = gql`
+  query ($id: ID!, $sucId: ID) {
+    data: stockPorProducto(id: $id, sucId: $sucId)
+  }
+`;
+
+/** Solo el permiso de stock negativo de la configuración de transferencias. */
+export const configuracionTransferenciaQuery = gql`
+  query {
+    data: configuracionTransferencia {
+      id
+      permitirStockNegativo
+    }
+  }
+`;

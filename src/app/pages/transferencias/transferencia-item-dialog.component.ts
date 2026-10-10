@@ -44,6 +44,13 @@ export interface TransferenciaItemData {
   cantidadInicial?: number;
   /** Para editar un renglón ya cargado. */
   draft?: TransferenciaItemDraft;
+  /**
+   * `true` cuando se abre para **agregar** un ítem nuevo. Solo ahí la página
+   * verifica el stock de origen al tocar «Agregar» (pide confirmación o
+   * bloquea), así que el aviso de cantidad no puede prometer «se manda igual».
+   * Ausente al editar un renglón ya cargado, donde no se verifica nada.
+   */
+  esNuevo?: boolean;
 }
 
 /**
@@ -135,7 +142,11 @@ export interface TransferenciaItemData {
         <p class="stock" [class.excede]="excede()">
           En origen hay {{ existencia() }} unidades.
           @if (excede()) {
-            Estás pidiendo {{ pedidas() }}: se manda igual, pero revisá.
+            @if (avisoSinStock(); as aviso) {
+              {{ aviso }}
+            } @else {
+              Estás pidiendo {{ pedidas() }}: se manda igual, pero revisá.
+            }
           }
         </p>
       }
@@ -257,6 +268,24 @@ export class TransferenciaItemDialogComponent {
   readonly excede = computed(() =>
     excedeElStock(this.cantidad() ?? 0, this.data.presentacion, this.disponible()),
   );
+  /**
+   * Qué decir cuando se agrega un ítem nuevo y el stock de la **sucursal** es
+   * 0 o negativo; `null` en cualquier otro caso (se usa el aviso de siempre).
+   *
+   * ⚠️ **Solo para la variante de la sucursal.** Con un lote elegido el aviso
+   * habla del saldo del lote y no pasa por acá, aunque la verificación del
+   * borrador mire igual el stock de la sucursal (`stockPorProducto`).
+   */
+  readonly avisoSinStock = computed(() => {
+    const stock = this.stock();
+    if (!this.data.esNuevo || stock === null || stock > 0) {
+      return null;
+    }
+    return stock === 0
+      ? 'Al agregar se te va a pedir confirmación.'
+      : 'Al agregar se verifica el stock: puede pedir confirmación o no permitirlo, según la configuración.';
+  });
+
   /** El saldo en presentaciones, o vacío si no se consultó. */
   readonly disponibleDelLote = computed(() => {
     const saldo = this.lote()?.cantidadDisponiblePresentacion;

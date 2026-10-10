@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
@@ -37,6 +38,7 @@ import {
   TransferenciaItemDialogComponent,
   TransferenciaItemDraft,
 } from './transferencia-item-dialog.component';
+import { decidirAvisoStock, formatearStockAviso, mensajeAvisoStock } from './aviso-stock';
 import { TransferenciaService } from './transferencia.service';
 
 /**
@@ -266,7 +268,9 @@ export class TransferenciaBorradorPage {
    */
   async agregar(): Promise<void> {
     const t = this.transferencia();
-    if (t?.id == null) {
+    // Mientras se verifica el stock o se guarda otro ítem no se abre un
+    // segundo alta: el botón se apaga, pero el vacío también llega acá.
+    if (t?.id == null || this.guardando()) {
       return;
     }
 
@@ -299,22 +303,73 @@ export class TransferenciaBorradorPage {
       sucursalOrigenNombre: t.sucursalOrigen?.nombre,
       // Un pesable ya trae los kilos en el código: no se vuelven a pedir.
       cantidadInicial: seleccion.peso,
+      esNuevo: true,
     });
 
     if (!draft) {
       return;
     }
 
-    this.guardar(
-      itemDePreTransferencia({
-        transferenciaId: t.id,
-        presentacionId: seleccion.presentacion.id as number,
-        cantidad: draft.cantidad,
-        vencimiento: draft.vencimiento,
-        observacion: draft.observacion,
-        lote: draft.lote,
-      }),
-    );
+    const input = itemDePreTransferencia({
+      transferenciaId: t.id,
+      presentacionId: seleccion.presentacion.id as number,
+      cantidad: draft.cantidad,
+      vencimiento: draft.vencimiento,
+      observacion: draft.observacion,
+      lote: draft.lote,
+    });
+    if (!(await this.puedeCargarse(seleccion.producto?.id, t.sucursalOrigen?.id))) {
+      return;
+    }
+    this.guardar(input);
+  }
+
+  /**
+   * Aviso de stock antes de cargar un ítem NUEVO. Editar uno ya cargado no
+   * pasa por acá: el control se registra una sola vez, al cargarlo.
+   *
+   * ⚠️ **Si no se pudo consultar, no se carga.** «No pude preguntar» no es
+   * «hay stock»: mismo criterio que el escritorio (frc-sistemas-integrados-angular#390).
+   */
+  private async puedeCargarse(
+    productoId: number | undefined,
+    sucursalOrigenId: number | undefined,
+  ): Promise<boolean> {
+    if (productoId == null || sucursalOrigenId == null) {
+      return true;
+    }
+
+    let stock: number;
+    let permitirNegativo = false;
+    // El indicador global de carga es solo una barra: no intercepta toques.
+    this.guardando.set(true);
+    try {
+      stock = await firstValueFrom(this.servicio.stockEnOrigen(productoId, sucursalOrigenId));
+      if (stock < 0) {
+        permitirNegativo = await firstValueFrom(this.servicio.permiteStockNegativo());
+      }
+    } catch {
+      this.notificacion.danger('No se pudo verificar el stock del producto: no se agregó.');
+      return false;
+    } finally {
+      this.guardando.set(false);
+    }
+
+    const decision = decidirAvisoStock(stock, permitirNegativo);
+    if (decision === 'SEGUIR') {
+      return true;
+    }
+    if (decision === 'BLOQUEAR') {
+      this.notificacion.warn(
+        'El producto tiene stock negativo (' + formatearStockAviso(stock) + ') y no puede ser transferido.',
+      );
+      return false;
+    }
+    return this.dialogo.confirmar({
+      titulo: 'Atención',
+      mensaje: mensajeAvisoStock(stock) + ' ¿Está seguro de continuar?',
+      confirmar: 'Continuar',
+    });
   }
 
   /** Corregir un renglón ya cargado: es el error más común al escanear. */

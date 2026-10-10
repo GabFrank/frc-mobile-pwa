@@ -6988,6 +6988,53 @@ no se tocó.
 
 ---
 
+## Bloque 79 — Transferencias: aviso de stock al cargar un ítem *(nuevo, sin probar)*
+
+**Por qué está acá:** al agregar un producto a una transferencia la app consulta
+su stock en la sucursal de **origen**. Con stock positivo no avisa; con stock 0
+pide confirmar; con stock negativo bloquea, salvo que la configuración de
+transferencias permita el negativo (entonces pide confirmar). Si no se pudo
+consultar, el ítem **no se carga**. Lo que se confirma lo registra el central
+en el control de stock negativo del escritorio (Inventario). Solo vale para
+ítems **nuevos**: editar uno ya cargado no vuelve a preguntar.
+
+Necesita un central con el control de stock negativo (consultas
+`stockPorProducto` y `configuracionTransferencia`).
+
+### 79.1 · Stock positivo: se carga sin diálogo
+1. Abrir el borrador de una transferencia y tocar **Agregar producto**
+2. Elegir un producto con stock positivo en el origen y completar la cantidad
+
+**Esperado:** el ítem se carga sin ningún diálogo de aviso.
+
+### 79.2 · Stock 0 y «Continuar»
+1. Agregar un producto con stock 0 en el origen
+2. En el diálogo «Atención», tocar **Continuar**
+
+**Esperado:** el diálogo dice que el producto tiene stock 0 en la sucursal de
+origen. Al continuar el ítem se carga y aparece en **Control de stock negativo**
+del escritorio.
+
+### 79.3 · Stock 0 y cancelar
+1. Agregar un producto con stock 0 en el origen
+2. En el diálogo, tocar **Cancelar**
+
+**Esperado:** el ítem **no** se carga.
+
+### 79.4 · Stock negativo con la configuración sin permitir
+1. Con «permitir stock negativo» apagado en la configuración de transferencias,
+   agregar un producto con stock negativo en el origen
+
+**Esperado:** aviso «no puede ser transferido»; el ítem no se carga.
+
+### 79.5 · Sin poder consultar el stock *(el que importa)*
+1. Con el central caído o sin red, agregar un producto
+
+**Esperado:** **un solo** aviso, «No se pudo verificar el stock del producto: no
+se agregó.». El ítem no se carga y no aparece el diálogo de «stock 0».
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7070,7 +7117,8 @@ no se tocó.
 | 76 · Abrir caja: elegir la sucursal | 7 | | | |
 | 77 · El balance impreso al cerrar caja | 4 | | | |
 | 78 · La búsqueda de usuarios ya no trae la contraseña | 4 | | | |
-| **Total** | **677** | | | |
+| 79 · Transferencias: aviso de stock al cargar un ítem | 5 | | | |
+| **Total** | **682** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

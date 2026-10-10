@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
@@ -37,6 +38,7 @@ import {
   TransferenciaItemDialogComponent,
   TransferenciaItemDraft,
 } from './transferencia-item-dialog.component';
+import { decidirAvisoStock, mensajeAvisoStock } from './aviso-stock';
 import { TransferenciaService } from './transferencia.service';
 
 /**
@@ -305,16 +307,62 @@ export class TransferenciaBorradorPage {
       return;
     }
 
-    this.guardar(
-      itemDePreTransferencia({
-        transferenciaId: t.id,
-        presentacionId: seleccion.presentacion.id as number,
-        cantidad: draft.cantidad,
-        vencimiento: draft.vencimiento,
-        observacion: draft.observacion,
-        lote: draft.lote,
-      }),
-    );
+    const input = itemDePreTransferencia({
+      transferenciaId: t.id,
+      presentacionId: seleccion.presentacion.id as number,
+      cantidad: draft.cantidad,
+      vencimiento: draft.vencimiento,
+      observacion: draft.observacion,
+      lote: draft.lote,
+    });
+    if (!(await this.puedeCargarse(seleccion.producto?.id, t.sucursalOrigen?.id))) {
+      return;
+    }
+    this.guardar(input);
+  }
+
+  /**
+   * Aviso de stock antes de cargar un ítem NUEVO. Editar uno ya cargado no
+   * pasa por acá: el control se registra una sola vez, al cargarlo.
+   *
+   * ⚠️ **Si no se pudo consultar, no se carga.** «No pude preguntar» no es
+   * «hay stock»: mismo criterio que el escritorio (#390).
+   */
+  private async puedeCargarse(
+    productoId: number | undefined,
+    sucursalOrigenId: number | undefined,
+  ): Promise<boolean> {
+    if (productoId == null || sucursalOrigenId == null) {
+      return true;
+    }
+
+    let stock: number;
+    let permitirNegativo = false;
+    try {
+      stock = await firstValueFrom(this.servicio.stockEnOrigen(productoId, sucursalOrigenId));
+      if (stock < 0) {
+        permitirNegativo = await firstValueFrom(this.servicio.permiteStockNegativo());
+      }
+    } catch {
+      this.notificacion.danger('No se pudo verificar el stock del producto: no se agregó.');
+      return false;
+    }
+
+    const decision = decidirAvisoStock(stock, permitirNegativo);
+    if (decision === 'SEGUIR') {
+      return true;
+    }
+    if (decision === 'BLOQUEAR') {
+      this.notificacion.warn(
+        'El producto tiene stock negativo (' + stock + ') y no puede ser transferido.',
+      );
+      return false;
+    }
+    return this.dialogo.confirmar({
+      titulo: 'Atención',
+      mensaje: mensajeAvisoStock(stock) + ' ¿Está seguro de continuar?',
+      confirmar: 'Continuar',
+    });
   }
 
   /** Corregir un renglón ya cargado: es el error más común al escanear. */

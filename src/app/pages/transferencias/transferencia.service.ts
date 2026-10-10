@@ -17,6 +17,11 @@ import {
 } from 'src/app/domains/transferencia/transferencia.model';
 import { VehiculoSearchPageGQL } from 'src/app/graphql/operaciones/gastos/activosSearchPage';
 import { PersonaSearchPageGQL } from 'src/app/graphql/personas/persona/personaSearchPage';
+import {
+  ConfiguracionTransferencia,
+  ConfiguracionTransferenciaGQL,
+} from 'src/app/graphql/transferencias/configuracionTransferencia';
+import { StockEnOrigenGQL } from 'src/app/graphql/transferencias/stockEnOrigen';
 import { AvanzarEtapaGQL } from 'src/app/graphql/transferencias/avanzarEtapa';
 import { FinalizarTransferenciaGQL } from 'src/app/graphql/transferencias/finalizarTransferencia';
 import { ItemsPorTransferenciaGQL } from 'src/app/graphql/transferencias/itemsPorTransferencia';
@@ -77,6 +82,8 @@ export class TransferenciaService {
   private readonly verificarTransporteGQL = inject(VerificarParaTransporteGQL);
   private readonly vehiculosGQL = inject(VehiculoSearchPageGQL);
   private readonly personasGQL = inject(PersonaSearchPageGQL);
+  private readonly stockEnOrigenGQL = inject(StockEnOrigenGQL);
+  private readonly configuracionGQL = inject(ConfiguracionTransferenciaGQL);
 
   /**
    * Le avisa al central que se escaneó el QR de esta transferencia.
@@ -271,5 +278,54 @@ export class TransferenciaService {
       { entity: { personaId, titulo, mensaje } },
       { mostrarCarga: false, notificarError: false },
     );
+  }
+
+  /**
+   * Stock del producto en la sucursal, según el central.
+   *
+   * ⚠️ **Un error viaja por el canal de error, no como 0.** Un 0 acá dispara
+   * el aviso de «stock 0»: devolverlo cuando la consulta falló afirmaría algo
+   * que nadie dijo. El llamador no agrega el ítem si esto falla. Un `null` o
+   * un valor que no es número también es error, no 0.
+   *
+   * Sin toast propio (`notificarError: false`): el llamador muestra el único
+   * aviso, el específico de «no se agregó».
+   */
+  stockEnOrigen(productoId: number, sucursalId: number): Observable<number> {
+    return this.datos
+      .consultar<number>(
+        this.stockEnOrigenGQL,
+        { id: productoId, sucId: sucursalId },
+        { mostrarCarga: true, notificarError: false },
+      )
+      .pipe(
+        map((stock) => {
+          if (typeof stock !== 'number' || !Number.isFinite(stock)) {
+            throw new Error('El central no devolvió el stock.');
+          }
+          return stock;
+        }),
+      );
+  }
+
+  /**
+   * `true` si la configuración de transferencias permite cargar con stock
+   * negativo. Si el central no devuelve la configuración es error: no se
+   * asume que «no lo permite».
+   */
+  permiteStockNegativo(): Observable<boolean> {
+    return this.datos
+      .consultar<ConfiguracionTransferencia>(this.configuracionGQL, undefined, {
+        mostrarCarga: true,
+        notificarError: false,
+      })
+      .pipe(
+        map((config) => {
+          if (config == null) {
+            throw new Error('El central no devolvió la configuración de transferencias.');
+          }
+          return config.permitirStockNegativo === true;
+        }),
+      );
   }
 }

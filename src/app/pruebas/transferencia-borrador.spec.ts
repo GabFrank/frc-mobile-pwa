@@ -218,6 +218,8 @@ describe('Borrador de la transferencia', () => {
     guardarItem: ReturnType<typeof vi.fn>;
     eliminarItem: ReturnType<typeof vi.fn>;
     finalizar: ReturnType<typeof vi.fn>;
+    stockEnOrigen: ReturnType<typeof vi.fn>;
+    permiteStockNegativo: ReturnType<typeof vi.fn>;
   };
   let dialogo: { confirmar: ReturnType<typeof vi.fn>; abrir: ReturnType<typeof vi.fn> };
   let notificacion: { warn: ReturnType<typeof vi.fn>; danger: ReturnType<typeof vi.fn>; ok: ReturnType<typeof vi.fn> };
@@ -245,6 +247,8 @@ describe('Borrador de la transferencia', () => {
       guardarItem: vi.fn(() => of({ id: 901 })),
       eliminarItem: vi.fn(() => of(true)),
       finalizar: vi.fn(() => of(true)),
+      stockEnOrigen: vi.fn(() => of(10)),
+      permiteStockNegativo: vi.fn(() => of(false)),
     };
     dialogo = { confirmar: vi.fn(async () => true), abrir: vi.fn(async () => undefined) };
     notificacion = { warn: vi.fn(), danger: vi.fn(), ok: vi.fn() };
@@ -409,6 +413,91 @@ describe('Borrador de la transferencia', () => {
     await f.componentInstance.agregar();
 
     expect(servicio.guardarItem).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Aviso de stock al cargar un ítem NUEVO. Cada fila de la tabla de
+   * comportamiento; el 0 de una consulta fallida nunca puede leerse como
+   * «stock 0».
+   */
+  describe('aviso de stock al agregar', () => {
+    const elegir = () => {
+      dialogo.abrir = vi
+        .fn()
+        .mockResolvedValueOnce({
+          producto: { id: 7, descripcion: 'GALLETITA' },
+          presentacion: { id: 88, cantidad: 12 },
+        })
+        .mockResolvedValueOnce({ cantidad: 3, vencimiento: null, observacion: '' });
+    };
+
+    it('con stock positivo se guarda sin diálogo', async () => {
+      elegir();
+      await montar().componentInstance.agregar();
+      expect(dialogo.confirmar).not.toHaveBeenCalled();
+      expect(servicio.guardarItem).toHaveBeenCalledTimes(1);
+      expect(servicio.permiteStockNegativo).not.toHaveBeenCalled();
+    });
+
+    it('con stock 0 confirma y guarda', async () => {
+      servicio.stockEnOrigen = vi.fn(() => of(0));
+      elegir();
+      await montar().componentInstance.agregar();
+      expect(dialogo.confirmar).toHaveBeenCalledTimes(1);
+      expect(servicio.guardarItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('con stock 0 y cancelar no guarda', async () => {
+      servicio.stockEnOrigen = vi.fn(() => of(0));
+      dialogo.confirmar = vi.fn(async () => false);
+      elegir();
+      await montar().componentInstance.agregar();
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+    });
+
+    it('con stock negativo y sin permiso bloquea con un aviso', async () => {
+      servicio.stockEnOrigen = vi.fn(() => of(-3));
+      elegir();
+      await montar().componentInstance.agregar();
+      expect(dialogo.confirmar).not.toHaveBeenCalled();
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(notificacion.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('con stock negativo y permiso confirma; confirmado guarda', async () => {
+      servicio.stockEnOrigen = vi.fn(() => of(-3));
+      servicio.permiteStockNegativo = vi.fn(() => of(true));
+      elegir();
+      await montar().componentInstance.agregar();
+      expect(dialogo.confirmar).toHaveBeenCalledTimes(1);
+      expect(servicio.guardarItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('si falla la consulta del stock no guarda y avisa una sola vez', async () => {
+      servicio.stockEnOrigen = vi.fn(() => throwError(() => new Error('red')));
+      elegir();
+      await montar().componentInstance.agregar();
+      expect(dialogo.confirmar).not.toHaveBeenCalled();
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(notificacion.danger).toHaveBeenCalledTimes(1);
+      expect(notificacion.danger.mock.calls[0][0]).toContain('No se pudo verificar el stock');
+    });
+
+    it('si falla la configuración no guarda y avisa una sola vez', async () => {
+      servicio.stockEnOrigen = vi.fn(() => of(-3));
+      servicio.permiteStockNegativo = vi.fn(() => throwError(() => new Error('red')));
+      elegir();
+      await montar().componentInstance.agregar();
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+      expect(notificacion.danger).toHaveBeenCalledTimes(1);
+    });
+
+    it('editar un ítem no consulta el stock', async () => {
+      dialogo.abrir = vi.fn().mockResolvedValueOnce({ cantidad: 5, vencimiento: null, observacion: '' });
+      await montar().componentInstance.editar(ITEM);
+      expect(servicio.stockEnOrigen).not.toHaveBeenCalled();
+      expect(servicio.guardarItem).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('editar un ítem cargado lo guarda con su id', async () => {

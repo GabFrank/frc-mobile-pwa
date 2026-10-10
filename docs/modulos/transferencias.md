@@ -404,6 +404,18 @@ un caso real —se repone contra lo que va llegando— y el descuento ocurre rec
 al despachar. Sin stock conocido no se dice nada: «no pude consultarlo» y «no
 hay» son respuestas distintas.
 
+### Aviso de stock al cargar un ítem
+
+Al agregar un producto se consulta su stock en la sucursal de origen (`stockPorProducto`, central):
+
+- stock > 0: se carga sin avisar;
+- stock 0: diálogo «¿Está seguro de continuar?»;
+- stock negativo: se bloquea, salvo que `configuracionTransferencia.permitirStockNegativo` sea
+  verdadero; en ese caso, el mismo diálogo.
+
+Si la consulta falla no se carga el ítem. Editar un ítem ya cargado no vuelve a preguntar.
+Lo que se confirma lo registra el central en el control de stock negativo (desktop → Inventario).
+
 ### Crear pide su propio rol
 
 `transferenciasAlta` = `ADMIN` + `CREAR TRANSFERENCIA`, separado de

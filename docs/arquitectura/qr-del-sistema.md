@@ -105,8 +105,8 @@ El botón flotante lee cualquier código y decide el destino. La tabla vive en
 
 **No está en todas las pantallas.** Como siempre navega, se apaga con
 `[conEscaner]="false"` en los formularios —se llevaría lo cargado sin
-preguntar—, en las pantallas que ya tienen su propio escanear y en el kiosco
-de marcación. La lista completa es la de `pantallas-sin-fab.spec.ts`, que
+preguntar—, en las pantallas que ya tienen su propio escanear, en el kiosco
+de marcación y en «Mi cuenta», donde no hay nada que escanear. La lista completa es la de `pantallas-sin-fab.spec.ts`, que
 falla si una pantalla lo apaga sin anotarse. El detalle de transferencia lo
 conserva: es el único camino para leer el QR de una transferencia ajena
 parado en ella.

@@ -4,20 +4,22 @@ import { describe, expect, it } from 'vitest';
  * En qué pantallas **no** va el botón flotante de escaneo.
  *
  * El flotante siempre navega: un QR del sistema abre su registro y un código
- * de barras lleva a Buscar. Por eso se apaga en tres clases de pantalla:
+ * de barras lleva a Buscar. Por eso se apaga en cuatro clases de pantalla:
  *
  * - **formularios**, donde un toque se lleva lo cargado sin preguntar;
  * - **pantallas con su propio escanear**, donde quedaban dos botones con el
  *   mismo ícono y comportamiento distinto —el de la pantalla actúa sobre el
  *   registro, el flotante saca de ella—;
- * - **las que viven dentro de la cámara y el kiosco de marcación**.
+ * - **las que viven dentro de la cámara y el kiosco de marcación**;
+ * - **configuración**: en «Mi cuenta» no hay nada que escanear, y el botón
+ *   tapaba la esquina de una pantalla de ajustes.
  *
  * La lista es explícita a propósito. Una pantalla nueva nace con el flotante
  * encendido, que es el valor por defecto de `frc-pagina`, y no rompe nada.
  * Lo que rompe es que una de estas vuelva a encenderlo, o que otra lo apague
  * sin anotarse acá: apagarlo es una decisión y tiene que quedar escrita.
  *
- * Se lee el fuente en vez de montar cada pantalla: son 25 fixtures con sus
+ * Se lee el fuente en vez de montar cada pantalla: son 26 fixtures con sus
  * dobles de Apollo para verificar un atributo. Que el atributo efectivamente
  * quita el botón del DOM ya lo prueba `buscar-sin-fab.spec.ts`.
  */
@@ -59,6 +61,8 @@ const SIN_FLOTANTE: readonly string[] = [
   'producto/editar/codigos.page.ts',
   // Kiosco.
   'marcacion/kiosco-marcacion.page.ts',
+  // Configuración: nada que escanear.
+  'cuenta/cuenta.page.ts',
 ];
 
 describe('Pantallas sin botón flotante', () => {

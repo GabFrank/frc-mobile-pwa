@@ -7052,8 +7052,8 @@ editar un ítem ya cargado, el aviso sigue siendo el de siempre.
 ## Bloque 80 — El botón flotante solo en pantallas de navegación *(nuevo, sin probar)*
 
 **Por qué está acá:** el flotante **siempre navega** —un QR del sistema abre su
-registro, un código de barras lleva a Buscar—, y eso estorbaba en tres clases
-de pantalla. Se apagó en 18, con el mismo `conEscaner` del bloque 53:
+registro, un código de barras lleva a Buscar—, y eso estorbaba en cuatro clases
+de pantalla. Se apagó en 19, con el mismo `conEscaner` del bloque 53:
 
 - **Formularios** (11): abrir y cerrar caja, nueva devolución, nueva solicitud
   de pago, nueva solicitud de gasto, registrar cupón, nuevo producto y, dentro
@@ -7064,8 +7064,10 @@ de pantalla. Se apagó en 18, con el mismo `conEscaner` del bloque 53:
   Quedaban dos botones con el mismo ícono: el de la pantalla actúa sobre el
   registro, el flotante sacaba de ella.
 - **Kiosco de marcación** (1).
+- **Mi cuenta** (1): es configuración —servidor, tema, aplicación, rostro— y no
+  hay nada que escanear.
 
-⚠️ **Lo que se pierde, a propósito:** parado en una de esas 18 ya no se lee un
+⚠️ **Lo que se pierde, a propósito:** parado en una de esas 19 ya no se lee un
 QR de otro tipo. Se vuelve a una lista o a Inicio con un toque.
 
 ⚠️ **El detalle de transferencia lo conserva**, aunque tiene escáner propio:
@@ -7123,6 +7125,14 @@ pantalla.
 regresión de este cambio**: apagar el flotante quitó una de las vías, no
 todas. El botón de volver de esa pantalla sí pregunta. Queda anotado para
 cuando se resuelva con una guarda de salida.
+
+### 80.8 · Mi cuenta no lo muestra
+1. Tocar **Cuenta** en la barra de navegación.
+2. Bajar hasta **Cerrar sesión**.
+
+**Esperado:** no hay botón flotante, aunque es una pestaña de la barra —igual
+que **Buscar**—. «Cerrar sesión» queda a la vista, sin la franja vacía que se
+reservaba para el flotante. En **Inicio** el flotante sigue estando.
 
 ---
 
@@ -7209,8 +7219,8 @@ cuando se resuelva con una guarda de salida.
 | 77 · El balance impreso al cerrar caja | 4 | | | |
 | 78 · La búsqueda de usuarios ya no trae la contraseña | 4 | | | |
 | 79 · Transferencias: aviso de stock al cargar un ítem | 6 | | | |
-| 80 · El flotante solo en pantallas de navegación | 7 | | | |
-| **Total** | **690** | | | |
+| 80 · El flotante solo en pantallas de navegación | 8 | | | |
+| **Total** | **691** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

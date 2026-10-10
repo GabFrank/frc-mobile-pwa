@@ -152,8 +152,19 @@ export class PaginaComponent {
    *
    * Encendido por defecto: escanear se hace desde cualquier pantalla y
    * pedirlo pantalla por pantalla garantiza que falte justo donde hacía
-   * falta. Se apaga donde estorbaría —una pantalla que ya vive dentro de la
-   * cámara, o el modo kiosco, que no tiene navegación—.
+   * falta. Se apaga donde estorbaría, que son tres casos:
+   *
+   * - un **formulario**: el flotante siempre navega, y se lleva lo cargado
+   *   sin preguntar;
+   * - una pantalla con **su propio escanear**: quedan dos botones con el
+   *   mismo ícono, y el flotante saca de la pantalla en vez de actuar sobre
+   *   el registro;
+   * - una pantalla que ya vive dentro de la cámara, o el kiosco de marcación.
+   *
+   * ⚠️ Apagarlo quita **una** vía de salida, no todas: la barra de navegación
+   * del shell sigue ahí y tampoco pregunta.
+   *
+   * Quien lo apague se anota en `pantallas-sin-fab.spec.ts`.
    */
   readonly conEscaner = input(true);
 

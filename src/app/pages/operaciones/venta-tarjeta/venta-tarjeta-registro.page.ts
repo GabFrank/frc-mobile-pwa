@@ -55,7 +55,7 @@ import { VentaTarjetaService } from './venta-tarjeta.service';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Registrar cupón" [conVolver]="true">
+    <frc-pagina titulo="Registrar cupón" [conVolver]="true" [conEscaner]="false">
       <div acciones>
         <button matButton="filled" [disabled]="!valido()" (click)="guardar()">
           {{ guardando() ? 'Guardando…' : 'Guardar' }}

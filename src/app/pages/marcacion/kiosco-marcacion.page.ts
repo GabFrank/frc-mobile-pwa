@@ -83,7 +83,7 @@ const MINIMO_VIDA = 0.5;
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Marcación" [conVolver]="true">
+    <frc-pagina titulo="Marcación" [conVolver]="true" [conEscaner]="false">
       <frc-seccion titulo="Dónde estás" [panel]="true">
         @switch (deteccion()) {
           @case ('buscando') {

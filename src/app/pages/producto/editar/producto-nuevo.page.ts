@@ -79,7 +79,7 @@ interface PaginaCatalogo<T> {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Nuevo producto" [conVolver]="true">
+    <frc-pagina titulo="Nuevo producto" [conVolver]="true" [conEscaner]="false">
       <frc-seccion titulo="Identificación" [panel]="true">
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
           <mat-label>Descripción</mat-label>

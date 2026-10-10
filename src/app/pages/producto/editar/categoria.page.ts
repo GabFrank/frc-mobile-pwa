@@ -59,7 +59,7 @@ interface PaginaCatalogo<T> {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Familia y subfamilia" [conVolver]="true">
+    <frc-pagina titulo="Familia y subfamilia" [conVolver]="true" [conEscaner]="false">
       @if (estado.cargando()) {
         <frc-skeleton [cantidad]="4" />
       } @else if (estado.error()) {

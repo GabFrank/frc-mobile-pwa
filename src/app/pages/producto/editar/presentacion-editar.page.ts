@@ -98,7 +98,7 @@ function construirPresentacionInput(
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina [titulo]="titulo()" [conVolver]="true">
+    <frc-pagina [titulo]="titulo()" [conVolver]="true" [conEscaner]="false">
       @if (estado.cargando()) {
         <frc-skeleton [cantidad]="4" />
       } @else if (estado.error()) {

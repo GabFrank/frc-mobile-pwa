@@ -11,6 +11,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 
+import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { PdvCaja } from 'src/app/domains/caja/caja.model';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
@@ -104,7 +105,13 @@ import { CajaService } from './caja.service';
 
       @if (caja(); as c) {
         <div acciones>
-          <button matButton="filled" (click)="irACerrar(c)">Cerrar caja</button>
+          @if (cerrada()) {
+            <button matButton="filled" [disabled]="imprimiendo()" (click)="imprimir(c)">
+              {{ imprimiendo() ? 'Imprimiendo…' : 'Imprimir balance' }}
+            </button>
+          } @else {
+            <button matButton="filled" (click)="irACerrar(c)">Cerrar caja</button>
+          }
         </div>
       }
     </frc-pagina>
@@ -120,6 +127,7 @@ import { CajaService } from './caja.service';
 export class CajaDetallePage {
   private readonly cajaService = inject(CajaService);
   private readonly router = inject(Router);
+  private readonly notificacion = inject(NotificacionService);
 
   /** Viene de la ruta `:id` con `withComponentInputBinding`. */
   readonly id = input<string>();
@@ -138,6 +146,16 @@ export class CajaDetallePage {
   readonly caja = signal<PdvCaja | null>(null);
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
+  readonly imprimiendo = signal(false);
+
+  /**
+   * Una caja cerrada no se vuelve a cerrar: en su lugar se ofrece reimprimir
+   * el balance, que es lo que queda por hacer si la impresora falló al cierre.
+   */
+  readonly cerrada = computed(() => {
+    const c = this.caja();
+    return c != null && (c.activo === false || c.fechaCierre != null);
+  });
 
   readonly titulo = computed(() => {
     const c = this.caja();
@@ -170,9 +188,31 @@ export class CajaDetallePage {
 
   /** La sucursal viaja con el id: el id de caja no es único entre filiales. */
   irACerrar(caja: PdvCaja): void {
-    const suc = caja.sucursal?.id ?? caja.sucursalId ?? Number(this.suc());
+    // `Number(...)` por fuera: GraphQL serializa `ID` como string, y
+    // `Number.isFinite('24')` es `false` — la sucursal se caía de la URL.
+    const suc = Number(caja.sucursal?.id ?? caja.sucursalId ?? this.suc());
     void this.router.navigate(['/operaciones/caja', caja.id, 'cerrar'], {
       queryParams: Number.isFinite(suc) ? { suc } : undefined,
+    });
+  }
+
+  /** Imprime el balance en la impresora de tickets de la sucursal de la caja. */
+  imprimir(caja: PdvCaja): void {
+    const suc = Number(caja.sucursal?.id ?? caja.sucursalId ?? this.suc());
+    if (caja.id == null || !Number.isFinite(suc)) {
+      this.notificacion.danger('No se pudo determinar la sucursal de la caja.');
+      return;
+    }
+    this.imprimiendo.set(true);
+    this.cajaService.imprimirBalance(caja.id, suc).subscribe((impreso) => {
+      this.imprimiendo.set(false);
+      if (impreso) {
+        this.notificacion.ok('Balance enviado a imprimir');
+      } else {
+        this.notificacion.warn(
+          'No se pudo imprimir el balance. Revisá la impresora de tickets de la sucursal.',
+        );
+      }
     });
   }
 

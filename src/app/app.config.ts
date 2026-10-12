@@ -64,7 +64,7 @@ export const appConfig: ApplicationConfig = {
           // cambiar de servidor no obliga a recargar la app —a
           // diferencia del repo anterior, donde la URI se calculaba
           // una sola vez al cargar el módulo.
-          httpLink.create({ uri: () => serverConfig.graphqlUrl }),
+          httpLink.create({ uri: () => serverConfig.graphqlUrl() }),
         ]),
         cache: new InMemoryCache(),
         // La política de caché NO se fija acá.

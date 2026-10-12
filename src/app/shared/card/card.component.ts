@@ -4,6 +4,7 @@ import {
   computed,
   EventEmitter,
   input,
+  linkedSignal,
   Output,
 } from '@angular/core';
 import { IconoComponent } from '../icono/icono.component';
@@ -45,9 +46,13 @@ import { IconoComponent } from '../icono/icono.component';
       (keydown.enter)="alAbrir($event)"
       (keydown.space)="alAbrir($event)"
     >
-      @if (icono()) {
+      @if (foto() || icono()) {
         <div class="thumb" [class.round]="redondo()">
-          <frc-icono [nombre]="icono()!" [tamano]="22" />
+          @if (foto(); as src) {
+            <img [src]="src" alt="" decoding="async" (error)="fotoFallo.set(true)" />
+          } @else {
+            <frc-icono [nombre]="icono()!" [tamano]="22" />
+          }
         </div>
       }
 
@@ -92,6 +97,14 @@ import { IconoComponent } from '../icono/icono.component';
       place-items: center;
       color: var(--text-mute);
       flex-shrink: 0;
+      overflow: hidden;
+    }
+    /* cover, como en frc-producto-card: las fotos vienen en cualquier relación de aspecto. */
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
     .thumb.round { border-radius: var(--radius-full); }
     .main {
@@ -143,6 +156,11 @@ export class CardComponent {
   readonly subtitulo = input<string | null>(null);
   /** Nombre del ícono de la miniatura. Ver `frc-icono`. */
   readonly icono = input<string | null>(null);
+  /**
+   * Foto de la miniatura (`data:` o URL). Tiene prioridad sobre `icono`, que
+   * queda como respaldo si no hay foto o el navegador no la puede decodificar.
+   */
+  readonly imagen = input<string | null | undefined>(null);
   /** Miniatura circular, para personas. */
   readonly redondo = input(false);
   /**
@@ -157,6 +175,18 @@ export class CardComponent {
    * como interactiva. La API de signals no expone esa información.
    */
   @Output() readonly abrir = new EventEmitter<void>();
+
+  /**
+   * `linkedSignal` y no `signal`: `@for` reusa la card al cambiar la lista, y
+   * una foto rota no debe apagar la del próximo registro que ocupe la fila.
+   */
+  readonly fotoFallo = linkedSignal<string | null | undefined, boolean>({
+    source: () => this.imagen(),
+    computation: () => false,
+  });
+
+  /** Sin la cadena vacía: un `src=""` vuelve a pedir la página como imagen. */
+  readonly foto = computed(() => (this.fotoFallo() ? null : this.imagen()?.trim() || null));
 
   /** Interactiva si se pidió explícitamente, o si hay quien escuche `(abrir)`. */
   readonly esInteractiva = computed(() => this.clickable() ?? this.abrir.observed);

@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { map, Observable, tap } from 'rxjs';
+import { catchError, map, Observable, of, tap } from 'rxjs';
 
 import { Mutation } from 'src/app/core/graphql/gql-base';
 import { DatosService } from 'src/app/core/graphql/datos.service';
@@ -132,9 +132,33 @@ export class CajaService {
     return this.datos.porFecha<CajaBalance>(this.balanceGQL, inicio, fin);
   }
 
-  /** El central lo expone como query, no como mutation. */
-  imprimirBalance(id: number, sucursalId?: number): Observable<unknown> {
-    return this.datos.consultar(this.imprimirGQL, { id, sucursalId });
+  /**
+   * Manda a imprimir el balance de una caja en la impresora de tickets de su
+   * sucursal. `true` si salió.
+   *
+   * El central lo expone como query, no como mutation. Sin `printerName` lo
+   * deriva a la filial, que imprime en la impresora de tickets que tiene
+   * configurada el escritorio de ese equipo: el teléfono no elige impresora.
+   *
+   * ⚠️ **Nunca tira.** Imprimir es un paso aparte del cierre: si falla, la
+   * caja ya está cerrada y lo único que cabe es avisar y ofrecer reintentar.
+   * Por eso el error se traduce a `false` en vez de propagarse.
+   *
+   * ⚠️ La variable es `sucId`, no `sucursalId`: con el nombre equivocado el
+   * central no recibía la sucursal, no derivaba a la filial e intentaba
+   * imprimir en una impresora propia que no existe.
+   */
+  imprimirBalance(id: number, sucursalId: number): Observable<boolean> {
+    return this.datos
+      .consultar<PdvCaja | null>(
+        this.imprimirGQL,
+        { id, sucId: sucursalId },
+        { notificarError: false },
+      )
+      .pipe(
+        map((caja) => caja != null),
+        catchError(() => of(false)),
+      );
   }
 
   /**

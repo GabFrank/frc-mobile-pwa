@@ -223,11 +223,12 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
 
         <frc-seccion titulo="Detalle financiero" [panel]="true">
           @for (detalle of detalles(); track $index) {
+            @let moneda = monedaPorId().get('' + detalle.monedaId);
             <div class="detalle">
               <frc-campo-importe
                 etiqueta="Monto"
-                [moneda]="monedaTexto(detalle.monedaId)"
-                [simbolo]="monedaSimbolo(detalle.monedaId)"
+                [moneda]="moneda?.denominacion ?? null"
+                [simbolo]="moneda?.simbolo ?? null"
                 [valor]="detalle.monto"
                 (valorChange)="cambiarDetalle($index, { monto: $event })"
               />
@@ -344,6 +345,12 @@ export class GastosSolicitudNuevaPage {
 
   readonly tiposDeGasto = signal<TipoGasto[]>([]);
   readonly monedas = signal<Moneda[]>([]);
+  // ⚠️ `Moneda.id` llega como string del GraphQL `ID`, aunque el modelo lo
+  // tipe `number`: indexar por `String()` no depende de la forma en que
+  // haya llegado cada lado.
+  readonly monedaPorId = computed(
+    () => new Map(this.monedas().map((m) => [String(m.id), m])),
+  );
   readonly formasPago = signal<FormaPago[]>([]);
   readonly sucursales = signal<Sucursal[]>([]);
 
@@ -703,16 +710,6 @@ export class GastosSolicitudNuevaPage {
     );
   }
 
-  // ⚠️ `Moneda.id` llega como string del GraphQL `ID`, aunque el modelo lo
-  // tipe `number`: comparar por `String()` no depende de la forma en que
-  // haya llegado cada lado.
-  monedaTexto(monedaId: number | null): string | null {
-    return this.monedas().find((m) => String(m.id) === String(monedaId))?.denominacion ?? null;
-  }
-
-  monedaSimbolo(monedaId: number | null): string | null {
-    return this.monedas().find((m) => String(m.id) === String(monedaId))?.simbolo ?? null;
-  }
 
   cambiarFormaPago(indice: number, valor: unknown): void {
     this.cambiarDetalle(indice, { formaPago: valor == null ? null : String(valor) });

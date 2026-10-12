@@ -123,6 +123,32 @@
   --fw-regular: 400;
   --fw-medium:  550;
   --fw-bold:    650;
+
+  // ─── Kiosco de precios ───────────────────────────────────────
+  // Una pantalla que se lee a un metro, no en la mano: la escala de la app
+  // (24px el máximo) se queda chica. Escalan con el LADO CORTO de la pantalla
+  // (vmin), no con el ancho: así una tablet crece igual en vertical que
+  // acostada, y un teléfono acostado no infla la letra.
+  --fs-kiosco-nombre:   clamp(22px, 6vmin, 52px);
+  --fs-kiosco-precio:   clamp(44px, 14vmin, 140px);
+  --fs-kiosco-etiqueta: clamp(18px, 3vmin, 28px);
+  // Ancho de la tira de miniaturas.
+  --kiosco-miniatura: clamp(68px, 12vmin, 128px);
+  // Alto de la barra roja del kiosco (campo + relleno). Entra en la cuenta
+  // del alto libre para la foto: ver --vitrina-max en kiosco.page.ts.
+  --kiosco-alto-barra: 68px;
+  // La vitrina donde se apoya la foto. Blanca en los DOS temas —por eso no
+  // se redefine en el bloque oscuro—: las fotos de producto vienen casi
+  // siempre sobre fondo blanco, y sobre una placa oscura se ven recortadas.
+  --vitrina-fondo: #ffffff;
+  --vitrina-icono: #c9c2bd;
+  --vitrina-sombra: 0 10px 34px rgba(0, 0, 0, 0.28);
+  --kiosco-transicion: 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  // Botón de moneda: el FAB de banderas que tenía `frc-mobile`.
+  --kiosco-moneda: clamp(52px, 7.5vmin, 72px);
+  // Ancho de una cifra de --font-num en relación a su tamaño. Con esto el
+  // precio se achica para entrar en una línea cuando es largo («AR$ 45.000,00»).
+  --kiosco-ancho-cifra: 0.62;
 }
 
 // ═══════════════════════════════════════════════════════════════

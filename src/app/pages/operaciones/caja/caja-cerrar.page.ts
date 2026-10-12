@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map, of, switchMap, tap } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
@@ -62,7 +62,7 @@ import { MonedasConDenominacionesGQL } from './graphql/moneda-y-maletin';
 
       <div acciones>
         <button matButton="filled" [disabled]="guardando()" (click)="cerrar()">
-          {{ guardando() ? 'Cerrando…' : 'Cerrar caja' }}
+          {{ imprimiendo() ? 'Imprimiendo…' : guardando() ? 'Cerrando…' : 'Cerrar caja' }}
         </button>
       </div>
     </frc-pagina>
@@ -95,6 +95,7 @@ export class CajaCerrarPage {
   readonly caja = signal<PdvCaja | null>(null);
   readonly cargando = signal(true);
   readonly guardando = signal(false);
+  readonly imprimiendo = signal(false);
   readonly error = signal<string | null>(null);
 
   constructor() {
@@ -161,7 +162,9 @@ export class CajaCerrarPage {
     // La sucursal sale de la caja, NO de la sesión: se puede cerrar una caja
     // de otra sucursal, y usar la de la sesión mandaría el cierre a la
     // filial equivocada.
-    const sucursalId = caja?.sucursal?.id ?? caja?.sucursalId ?? Number(this.suc());
+    // `Number(...)` por fuera: el id llega como string desde GraphQL y
+    // `Number.isFinite('24')` es `false`.
+    const sucursalId = Number(caja?.sucursal?.id ?? caja?.sucursalId ?? this.suc());
 
     if (!form || caja?.id == null) {
       return;
@@ -189,21 +192,55 @@ export class CajaCerrarPage {
     const conteo = form.armar();
     const input = new PdvCajaInput();
     input.id = caja.id;
-    input.sucursalId = Number(sucursalId);
+    input.sucursalId = sucursalId;
     input.usuarioId = usuarioId;
 
+    const cajaId = caja.id;
     this.guardando.set(true);
     this.cajaService
-      .cerrar(caja.id, input, { ...conteo.toInput(), usuarioId }, conteo.toInputList())
+      .cerrar(cajaId, input, { ...conteo.toInput(), usuarioId }, conteo.toInputList())
+      .pipe(
+        // El balance se imprime DESPUÉS de cerrar y aparte: si la impresora
+        // falla, la caja igual quedó cerrada. `imprimirBalance` no tira.
+        switchMap((ok) => {
+          if (!ok) {
+            return of(false);
+          }
+          this.imprimiendo.set(true);
+          return this.cajaService.imprimirBalance(cajaId, sucursalId).pipe(
+            tap((impreso) => this.avisarImpresion(impreso)),
+            map(() => true),
+          );
+        }),
+      )
       .subscribe({
         next: (ok) => {
           this.guardando.set(false);
+          this.imprimiendo.set(false);
           if (ok) {
-            void this.router.navigate(['/operaciones/caja']);
+            // Al detalle y no a la lista: una caja cerrada ya no figura entre
+            // las abiertas, y el detalle es donde está «Imprimir balance».
+            void this.router.navigate(['/operaciones/caja', cajaId], {
+              queryParams: { suc: sucursalId },
+              replaceUrl: true,
+            });
           }
         },
-        error: () => this.guardando.set(false),
+        error: () => {
+          this.guardando.set(false);
+          this.imprimiendo.set(false);
+        },
       });
+  }
+
+  private avisarImpresion(impreso: boolean): void {
+    if (impreso) {
+      this.notificacion.ok('Balance enviado a imprimir');
+    } else {
+      this.notificacion.warn(
+        'La caja se cerró, pero no se pudo imprimir el balance. Podés reintentarlo acá.',
+      );
+    }
   }
 
   salir(): void {

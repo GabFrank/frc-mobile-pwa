@@ -14,7 +14,10 @@ export class Presentacion {
     tipoPresentacion?: TipoPresentacion;
     cantidad?: number;
     creadoEn?: Date;
+    /** La miniatura (250 px). Sin foto, el central manda un PNG genérico: ver `imagenDePresentacion()`. */
     imagenPrincipal?: string;
+    /** Hasta 800 px de lado mayor, para vistas grandes. `null` sin foto. */
+    imagenPrincipalMediana?: string | null;
     usuario?: Usuario;
     codigos?: Codigo[];
     precios?: PrecioPorSucursal[];

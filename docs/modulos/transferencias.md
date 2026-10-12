@@ -223,6 +223,35 @@ despacha mercadería que nadie preparó.
 Se muestra **una sola acción**, la que corresponde. Un menú de etapas sería una
 invitación a saltear pasos que mueven stock.
 
+### Pasar a transporte: el chofer
+
+«Verificar para transporte» **no** usa `avanzarEtapaTransferencia`. Abre
+[`AsignarChoferDialogComponent`](../../src/app/pages/transferencias/asignar-chofer-dialog.component.ts),
+que pide **chofer** (un usuario), **vehículo** y **acompañantes** (personas),
+y llama a `verificarParaTransporteMobile` del central. Ese paso, en una sola
+transacción:
+
+- deja al **chofer elegido** como `usuarioTransporte` —no al usuario
+  logueado—. Figura como responsable, pero **la etapa la puede trabajar
+  cualquiera**: revisar los ítems y despachar no exige entrar con su usuario
+  (`puedeEditarEtapa()`), o el destino no podría recibir hasta que él lo haga;
+- crea una **hoja de ruta nueva** con la persona del chofer, el vehículo y los
+  acompañantes, y se la asigna a la transferencia. Es la misma hoja que el
+  desktop arma desde **Entregadores**, y la que usa la nota de remisión;
+- hace lo mismo que el avance de siempre: copia lo preparado a transporte y
+  genera los movimientos de stock.
+
+> ⚠️ **Siempre una hoja nueva.** Las hojas de ruta no se cierran nunca —quedan
+> en `EN_RUTA` para siempre—, así que «la hoja abierta del chofer» puede ser de
+> hace semanas. Desde la PWA se despacha de a una transferencia; agrupar varias
+> en un viaje sigue siendo del desktop. Si el desktop ya le había asignado una
+> hoja, esa queda como estaba, con sus otras transferencias.
+
+> ⚠️ **El chofer es una `Persona` en la hoja y un `Usuario` como responsable.**
+> Por eso se elige un usuario: sin persona asociada, el central lo rechaza.
+
+El desktop no cambia: sigue con `avanzarEtapaTransferencia` y `saveHojaRuta`.
+
 ### Quién puede
 
 La etapa la trabaja **quien la tomó**: el que aprieta «Preparar productos»

@@ -102,3 +102,19 @@ export function etiquetaPresentacion(presentacion: Presentacion): string {
   const nombre = crudo != null ? String(crudo).trim() : '';
   return nombre ? `Cantidad: ${cantidad} (${nombre})` : `Cantidad: ${cantidad}`;
 }
+
+/**
+ * La foto de una presentación, o `null` si no tiene.
+ *
+ * ⚠️ **El central nunca devuelve `null` en `Presentacion.imagenPrincipal`.**
+ * Si no encuentra la miniatura manda un PNG genérico «sin imagen»
+ * (`ImageService.getImageWithMediaType`). Las fotos reales salen siempre de
+ * `fileToBase64`, que las rotula `data:image/jpg`; el genérico es el único
+ * `data:image/png`. Eso es lo que se usa para distinguirlos.
+ */
+export function imagenDePresentacion(valor: string | null | undefined): string | null {
+  if (!valor || !valor.startsWith('data:image/') || valor.startsWith('data:image/png')) {
+    return null;
+  }
+  return valor;
+}

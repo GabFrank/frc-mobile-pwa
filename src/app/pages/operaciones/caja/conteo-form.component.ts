@@ -33,6 +33,34 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
   DOLAR: 'totalDs',
 };
 
+/** Una denominación con su etiqueta ya resuelta para la plantilla. */
+interface FilaDenominacion {
+  billete: MonedaBillete;
+  etiqueta: string;
+}
+
+/** Lo que la plantilla necesita de cada moneda, calculado una sola vez. */
+interface TabMoneda {
+  moneda: Moneda;
+  nombre: string;
+  campo: 'totalGs' | 'totalRs' | 'totalDs' | undefined;
+  esperado: number | null;
+  filas: FilaDenominacion[];
+}
+
+/** Total contado de una moneda y, si hay esperado, su diferencia. */
+interface TotalMoneda {
+  total: number;
+  diferencia: number | null;
+}
+
+/** Vigentes y ordenadas de menor a mayor. */
+function denominacionesVigentes(m: Moneda): MonedaBillete[] {
+  return (m.monedaBilleteList ?? [])
+    .filter((b) => b.activo !== false && b.valor != null)
+    .sort((a, b) => (a.valor ?? 0) - (b.valor ?? 0));
+}
+
 /**
  * Arqueo de efectivo: cuántas unidades hay de cada denominación.
  *
@@ -63,20 +91,21 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
       entrar a cada una para saber cuánto se lleva contado.
     -->
     <div class="resumen">
-      @for (m of visibles(); track m.id) {
-        <div class="resumen-item" [class.activa]="m.id === monedaActiva()?.id">
-          <span class="resumen-moneda">{{ nombre(m) }}</span>
+      @for (t of tabs(); track t.moneda.id) {
+        @let tot = totales()[$index];
+        <div class="resumen-item" [class.activa]="t.moneda.id === monedaActiva()?.id">
+          <span class="resumen-moneda">{{ t.nombre }}</span>
           <frc-importe
-            [valor]="totalDe(m)"
-            [moneda]="m.denominacion ?? null"
-            [simbolo]="m.simbolo ?? null"
+            [valor]="tot.total"
+            [moneda]="t.moneda.denominacion ?? null"
+            [simbolo]="t.moneda.simbolo ?? null"
           />
-          @if (esperadoDe(m); as esp) {
-            <span class="resumen-dif" [class.hay]="totalDe(m) - esp !== 0">
+          @if (tot.diferencia != null) {
+            <span class="resumen-dif" [class.hay]="tot.diferencia !== 0">
               <frc-importe
-                [valor]="totalDe(m) - esp"
-                [moneda]="m.denominacion ?? null"
-                [simbolo]="m.simbolo ?? null"
+                [valor]="tot.diferencia"
+                [moneda]="t.moneda.denominacion ?? null"
+                [simbolo]="t.moneda.simbolo ?? null"
               />
             </span>
           }
@@ -89,19 +118,21 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
       (selectedIndexChange)="indiceActivo.set($event)"
       animationDuration="120ms"
     >
-      @for (m of visibles(); track m.id) {
-        <mat-tab [label]="nombre(m)">
+      @for (t of tabs(); track t.moneda.id) {
+        @let tot = totales()[$index];
+        <mat-tab [label]="t.nombre">
           <div class="panel">
-            @if (!campoDe(m)) {
+            @if (!t.campo) {
               <p class="aviso">
-                El servidor no tiene dónde guardar un arqueo en {{ nombre(m) }}: el conteo solo
+                El servidor no tiene dónde guardar un arqueo en {{ t.nombre }}: el conteo solo
                 admite guaraníes, reales y dólares. Avisá a sistemas antes de contar esta moneda.
               </p>
             }
 
-            @for (b of denominacionesDe(m); track b.id) {
+            @for (f of t.filas; track f.billete.id) {
+              @let b = f.billete;
               <div class="fila">
-                <label [attr.for]="'den-' + b.id" class="valor">{{ etiqueta(b, m) }}</label>
+                <label [attr.for]="'den-' + b.id" class="valor">{{ f.etiqueta }}</label>
                 <input
                   [id]="'den-' + b.id"
                   class="cantidad"
@@ -111,27 +142,27 @@ const CAMPO_DE_TOTAL: Readonly<Record<string, 'totalGs' | 'totalRs' | 'totalDs'>
                   step="1"
                   [value]="cantidadDe(b) || ''"
                   (input)="contar(b, $event)"
-                  [attr.aria-label]="'Cantidad de ' + etiqueta(b, m)"
+                  [attr.aria-label]="'Cantidad de ' + f.etiqueta"
                 />
               </div>
             }
 
-            @if (esperadoDe(m); as esp) {
+            @if (t.esperado != null) {
               <div class="cierre">
                 <div class="cierre-fila">
                   <span>Esperado</span>
                   <frc-importe
-                    [valor]="esp"
-                    [moneda]="m.denominacion ?? null"
-                    [simbolo]="m.simbolo ?? null"
+                    [valor]="t.esperado"
+                    [moneda]="t.moneda.denominacion ?? null"
+                    [simbolo]="t.moneda.simbolo ?? null"
                   />
                 </div>
-                <div class="cierre-fila" [class.hay]="totalDe(m) - esp !== 0">
+                <div class="cierre-fila" [class.hay]="tot.diferencia !== 0">
                   <span>Diferencia</span>
                   <frc-importe
-                    [valor]="totalDe(m) - esp"
-                    [moneda]="m.denominacion ?? null"
-                    [simbolo]="m.simbolo ?? null"
+                    [valor]="tot.diferencia"
+                    [moneda]="t.moneda.denominacion ?? null"
+                    [simbolo]="t.moneda.simbolo ?? null"
                   />
                 </div>
               </div>
@@ -267,11 +298,14 @@ export class ConteoFormComponent {
    * más donde mirar. Se filtran acá y no en cada pantalla para que la
    * apertura y el cierre no puedan divergir.
    */
-  readonly visibles = computed(() =>
-    this.monedas().filter(
-      (m) => m.activo !== false && this.denominacionesDe(m).length > 0,
-    ),
+  readonly tabs = computed<TabMoneda[]>(() =>
+    this.monedas()
+      .filter((m) => m.activo !== false)
+      .map((m) => this.armarTab(m))
+      .filter((t) => t.filas.length > 0),
   );
+
+  readonly visibles = computed(() => this.tabs().map((t) => t.moneda));
 
   readonly indiceActivo = signal(0);
   /*
@@ -295,6 +329,22 @@ export class ConteoFormComponent {
    */
   private readonly cantidades = signal<ReadonlyMap<number, number>>(new Map());
 
+  /**
+   * Total y diferencia de cada tab, en el mismo orden que `tabs`. Es lo único
+   * que se recalcula al tipear: las denominaciones ya vienen filtradas y
+   * ordenadas.
+   *
+   * Va por posición y no por id de moneda porque el servidor podría mandar
+   * dos registros con el mismo id, y un mapa se quedaría con uno solo.
+   */
+  readonly totales = computed<TotalMoneda[]>(() =>
+    this.tabs().map((t) => {
+      const total = t.filas.reduce((suma, f) => suma + this.subtotalDe(f.billete), 0);
+      const diferencia = t.esperado != null ? total - t.esperado : null;
+      return { total, diferencia };
+    }),
+  );
+
   readonly totalGs = computed(() => this.totalDelCampo('totalGs'));
   readonly totalRs = computed(() => this.totalDelCampo('totalRs'));
   readonly totalDs = computed(() => this.totalDelCampo('totalDs'));
@@ -305,12 +355,6 @@ export class ConteoFormComponent {
 
   campoDe(m: Moneda): 'totalGs' | 'totalRs' | 'totalDs' | undefined {
     return m.denominacion ? CAMPO_DE_TOTAL[m.denominacion] : undefined;
-  }
-
-  denominacionesDe(m: Moneda): MonedaBillete[] {
-    return (m.monedaBilleteList ?? [])
-      .filter((b) => b.activo !== false && b.valor != null)
-      .sort((a, b) => (a.valor ?? 0) - (b.valor ?? 0));
   }
 
   etiqueta(b: MonedaBillete, m: Moneda): string {
@@ -328,10 +372,6 @@ export class ConteoFormComponent {
   /** Aporte de una denominación al total. Ya no se muestra por fila. */
   subtotalDe(b: MonedaBillete): number {
     return this.cantidadDe(b) * (b.valor ?? 0);
-  }
-
-  totalDe(m: Moneda): number {
-    return this.denominacionesDe(m).reduce((suma, b) => suma + this.subtotalDe(b), 0);
   }
 
   esperadoDe(m: Moneda): number | null {
@@ -370,8 +410,8 @@ export class ConteoFormComponent {
     conteo.totalGs = this.totalGs();
     conteo.totalRs = this.totalRs();
     conteo.totalDs = this.totalDs();
-    conteo.conteoMonedaList = this.visibles()
-      .flatMap((m) => this.denominacionesDe(m))
+    conteo.conteoMonedaList = this.tabs()
+      .flatMap((t) => t.filas.map((f) => f.billete))
       // Solo se mandan las denominaciones con cantidad: una fila en cero no
       // aporta nada al arqueo y ensucia el detalle guardado.
       .filter((b) => this.cantidadDe(b) > 0)
@@ -390,8 +430,20 @@ export class ConteoFormComponent {
   }
 
   private totalDelCampo(campo: 'totalGs' | 'totalRs' | 'totalDs'): number {
-    return this.visibles()
-      .filter((m) => this.campoDe(m) === campo)
-      .reduce((suma, m) => suma + this.totalDe(m), 0);
+    const totales = this.totales();
+    return this.tabs().reduce(
+      (suma, t, i) => (t.campo === campo ? suma + totales[i]!.total : suma),
+      0,
+    );
+  }
+
+  private armarTab(m: Moneda): TabMoneda {
+    return {
+      moneda: m,
+      nombre: this.nombre(m),
+      campo: this.campoDe(m),
+      esperado: this.esperadoDe(m),
+      filas: denominacionesVigentes(m).map((b) => ({ billete: b, etiqueta: this.etiqueta(b, m) })),
+    };
   }
 }

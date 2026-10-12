@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from '../auth/auth.tokens';
 import { apiParaHost } from './api-por-host';
@@ -19,17 +19,13 @@ export class ServerConfigService {
   /** URL base actual, sin barra final. Reactiva para la UI. */
   readonly baseUrl = signal<string>(this.leerBaseUrl());
 
-  get graphqlUrl(): string {
-    return `${this.baseUrl()}/graphql`;
-  }
-
-  get subscriptionsUrl(): string {
-    return `${this.baseUrl().replace(/^http/, 'ws')}/subscriptions`;
-  }
-
-  get loginUrl(): string {
-    return `${this.baseUrl()}/login`;
-  }
+  // Derivadas de `baseUrl` con `computed`: se recalculan solo cuando
+  // cambia el servidor y el resto de las lecturas devuelven el valor memoizado.
+  readonly graphqlUrl = computed(() => `${this.baseUrl()}/graphql`);
+  readonly subscriptionsUrl = computed(
+    () => `${this.baseUrl().replace(/^http/, 'ws')}/subscriptions`,
+  );
+  readonly loginUrl = computed(() => `${this.baseUrl()}/login`);
 
   /**
    * Cambia la instancia destino. No requiere recargar la app: Apollo

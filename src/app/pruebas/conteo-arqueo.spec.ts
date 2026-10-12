@@ -143,14 +143,14 @@ describe('Arqueo de caja', () => {
     const m = guarani([vigente, dadaDeBaja]);
     armar([m]);
 
-    expect(form.denominacionesDe(m)).toEqual([vigente]);
+    expect(form.tabs()[0].filas.map((f) => f.billete)).toEqual([vigente]);
   });
 
   it('ordena las denominaciones de menor a mayor', () => {
     const m = guarani([billete(1, 50_000), billete(2, 1000), billete(3, 10_000)]);
     armar([m]);
 
-    expect(form.denominacionesDe(m).map((b) => b.valor)).toEqual([1000, 10_000, 50_000]);
+    expect(form.tabs()[0].filas.map((f) => f.billete.valor)).toEqual([1000, 10_000, 50_000]);
   });
 
   it('lleva el total de cada moneda a su campo del conteo', () => {

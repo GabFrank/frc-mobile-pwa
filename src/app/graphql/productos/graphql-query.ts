@@ -23,7 +23,7 @@ export const productoPorCodigoQuery = gql`
       diasVencimiento
       lote
       cambiable
-      imagenPrincipal
+      imagenPrincipalMiniatura
       isEnvase
       codigoPrincipal
       envase {
@@ -74,7 +74,7 @@ export const productoSearchQuery = gql`
       vencimiento
       lote
       cambiable
-      imagenPrincipal
+      imagenPrincipalMiniatura
       codigoPrincipal
       isEnvase
     }
@@ -116,7 +116,7 @@ export const productoPorIdQuery = gql`
       cambiable
       activo
       tipoConservacion
-      imagenPrincipal
+      imagenPrincipalMiniatura
       codigoPrincipal
       isEnvase
       subfamilia {
@@ -291,6 +291,7 @@ export const productosVencidosQuery = gql`
         diasVencimiento
         diasVencimientoTexto
         diasVencimientoClase
+        imagenPrincipalMiniatura
       }
     }
   }
@@ -506,5 +507,28 @@ export const tipoPreciosQuery = gql`
 export const productoDescripcionExistsQuery = gql`
   query ($descripcion: String) {
     data: productoDescripcionExists(descripcion: $descripcion)
+  }
+`;
+
+/**
+ * Las fotos de las presentaciones de un producto, y nada más.
+ *
+ * ⚠️ **Va aparte de `productoPorCodigo` a propósito.** Cada foto es un data
+ * URI de varios KB; sumarlas a esa query las haría viajar en cada escaneo de
+ * recepción y de transferencias, que no las muestran. El kiosco pinta el
+ * precio con la query liviana y pide esto después.
+ *
+ * `imagenPrincipal` es la miniatura (250 px de lado mayor), para la tira; si
+ * no hay foto, el central manda un PNG genérico en vez de `null`: ver
+ * `imagenDePresentacion()`. `imagenPrincipalMediana` (hasta 800 px) es la de
+ * la foto grande, y esa sí llega `null` sin foto.
+ */
+export const presentacionesImagenesQuery = gql`
+  query ($id: Int) {
+    data: presentacionesPorProductoId(id: $id) {
+      id
+      imagenPrincipal
+      imagenPrincipalMediana
+    }
   }
 `;

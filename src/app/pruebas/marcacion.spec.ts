@@ -13,7 +13,9 @@ import { SucursalService } from '../domains/empresarial/sucursal/sucursal.servic
 import {
   AccionMarcacionPendiente,
   EstadoMarcacionUsuario,
+  Jornada,
   MarcacionInput,
+  momentoDeMarcacion,
   TipoMarcacion,
 } from '../domains/marcacion/marcacion.model';
 import { Usuario } from '../domains/personas/usuario.model';
@@ -324,5 +326,82 @@ describe('Elegir el tipo de salida', () => {
     });
 
     expect(botones(f)).toEqual(['Marcar salida']);
+  });
+
+  // Anidado acá por el `montar` y los proveedores de arriba, no porque tenga
+  // que ver con elegir la salida.
+  describe('las horas de la tarjeta «Hoy»', () => {
+    /** El valor que muestra la fila con esa etiqueta, o `undefined` si no está. */
+    const fila = (f: { nativeElement: HTMLElement }, etiqueta: string) =>
+      Array.from(f.nativeElement.querySelectorAll('frc-dato'))
+        .find((d) => d.querySelector('.etiqueta')?.textContent?.trim() === etiqueta)
+        ?.querySelector('.valor')
+        ?.textContent?.trim();
+
+    const cerrada = (jornada: Jornada): EstadoMarcacionUsuario => ({
+      accionPendiente: AccionMarcacionPendiente.ENTRADA,
+      estaEnJornada: false,
+      puedeMarcarEntrada: true,
+      puedeMarcarSalida: false,
+      puedeMarcarSalidaAlmuerzo: false,
+      puedeMarcarEntradaAlmuerzo: false,
+      jornadaRelevante: jornada,
+    });
+
+    it('muestra las cuatro horas de una jornada marcada desde la PWA', () => {
+      // Así las guarda el central cuando la PWA no manda fecha: **todas** en
+      // `fechaEntrada`, también las dos salidas. Es la forma de las jornadas
+      // 25 y 27 de alpha; las horas son inventadas, una distinta por fila.
+      const f = montar(
+        cerrada({
+          id: 27,
+          marcacionEntrada: { tipo: TipoMarcacion.ENTRADA, fechaEntrada: '2026-09-25T08:01:13.221882' },
+          marcacionSalidaAlmuerzo: { tipo: TipoMarcacion.SALIDA, fechaEntrada: '2026-09-25T12:02:28.200552' },
+          marcacionEntradaAlmuerzo: { tipo: TipoMarcacion.ENTRADA, fechaEntrada: '2026-09-25T13:03:08.424165' },
+          marcacionSalida: { tipo: TipoMarcacion.SALIDA, fechaEntrada: '2026-09-25T17:04:19.158813' },
+        }),
+      );
+
+      expect(fila(f, 'Entrada')).toBe('25/09/2026 08:01');
+      expect(fila(f, 'Salió a almorzar')).toBe('25/09/2026 12:02');
+      expect(fila(f, 'Volvió')).toBe('25/09/2026 13:03');
+      expect(fila(f, 'Salida')).toBe('25/09/2026 17:04');
+    });
+
+    it('una salida vieja, con la hora en `fechaSalida`, también se ve', () => {
+      // Guarda de regresión, no del bug: pasaba también antes del fix. Las
+      // escribía frc-mobile con el reloj del teléfono: se prueba que la fila
+      // aparezca, no que esa hora sea la correcta.
+      const f = montar(
+        cerrada({
+          id: 7,
+          marcacionEntrada: { tipo: TipoMarcacion.ENTRADA, fechaEntrada: '2026-08-20T09:25:09' },
+          marcacionSalida: { tipo: TipoMarcacion.SALIDA, fechaSalida: '2026-08-20T18:25:34' },
+        }),
+      );
+
+      expect(fila(f, 'Salida')).toBe('20/08/2026 18:25');
+    });
+  });
+});
+
+describe('momentoDeMarcacion', () => {
+  it('toma `fechaEntrada` cuando es la única', () => {
+    expect(momentoDeMarcacion({ fechaEntrada: '2026-09-25T16:05:24' })).toBe('2026-09-25T16:05:24');
+  });
+
+  it('toma `fechaSalida` cuando es la única', () => {
+    expect(momentoDeMarcacion({ fechaSalida: '2026-08-20T18:25:34' })).toBe('2026-08-20T18:25:34');
+  });
+
+  it('con las dos gana `fechaSalida`, igual que HorasTrabajadasCalculator del central', () => {
+    expect(
+      momentoDeMarcacion({ fechaEntrada: '2026-09-25T08:00:00', fechaSalida: '2026-09-25T17:00:00' }),
+    ).toBe('2026-09-25T17:00:00');
+  });
+
+  it('sin fechas, o sin marcación, no inventa una', () => {
+    expect(momentoDeMarcacion({})).toBeUndefined();
+    expect(momentoDeMarcacion(undefined)).toBeUndefined();
   });
 });

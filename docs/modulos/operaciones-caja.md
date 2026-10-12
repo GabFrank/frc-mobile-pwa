@@ -248,6 +248,55 @@ nuevo en `ConteoInput`.
 | `imprimirBalance` no aliaseaba su raíz a `data:` | `DatosService` no podía desenvolver la respuesta |
 | `pdvCaja` no pedía los seis totales que el detalle muestra | El balance mostraba ₲ 0 en todo |
 | La lista navegaba solo con el id de caja | El id se repite entre filiales: abría la caja de otra sucursal. Ahora viaja `?suc=` |
+| Detalle → «Cerrar caja» validaba la sucursal con `Number.isFinite` sobre el id crudo | GraphQL manda `ID` como string: la sucursal se caía de la URL y el cierre resolvía la caja de otra filial. Ahora se convierte antes de validar |
+
+## La apertura elige la sucursal, y los maletines son de la filial
+
+`frc-mobile` abría una lista de sucursales antes de pedir el maletín
+(`caja.component.ts`, `seleccionarSucursal()`). La primera versión de la PWA
+reemplazó ese paso por la sucursal de la sesión, que contra el central es
+siempre la 0 (`SERVIDOR`): ofrecía los maletines de la tabla del central con
+`sucursal_id = 0` —viejos, de ninguna sucursal real— y la apertura se
+proxeaba a `localhost`.
+
+Desde el 2026-10-06 `caja-abrir.page.ts`:
+
+- **pide la sucursal**, sin preseleccionar ninguna. Ofrece las operables
+  (`soloOperables()`) que tienen IP;
+- consulta los maletines con **`maletinesDisponiblesPorSucursal(sucId)`**, que
+  el central resuelve preguntándole a **la filial** (`http://<ip>:<puertoServidor>/graphql`,
+  `FilialCajaProxyService.maletinesDisponiblesEnFilial`). Ya vienen filtrados:
+  activos y sin uso. El maletín y su `abierto` viven en la filial; la tabla
+  del central no se mantiene al día;
+- si la filial no responde, el central devuelve un **error con el motivo** y
+  la pantalla lo muestra con «Reintentar». Una lista vacía querría decir «están
+  todos en uso», que es otra cosa;
+- manda esa misma sucursal en `input.sucursalId`.
+
+`searchMaletin` del central queda como estaba: lo usa el escritorio.
+
+## El balance impreso al cerrar
+
+Cerrar e imprimir son **dos pasos**, como en `frc-mobile`
+(`caja-info.component.ts`): el central cierra con `imprimirBalance: false` y,
+si el cierre salió bien, la PWA llama a `imprimirBalance(id, sucId)`.
+
+- Sin `printerName`, el central deriva a la filial
+  (`FilialCajaProxyService.imprimirBalanceEnFilial`), y la filial imprime en
+  `printers.ticket` del `config-backup.json` del escritorio instalado en su
+  mismo equipo (`DesktopPrinterConfigService`). Es impresión **por servidor**:
+  el modo «Imprimir desde esta PC» del escritorio no participa, porque el
+  teléfono no llega al USB de ninguna PC.
+- `CajaService.imprimirBalance` **no tira**: devuelve `false`. Si la impresora
+  falla la caja ya está cerrada; se avisa y se deja reintentar.
+- Después de cerrar se navega al **detalle** de la caja, no a la lista: una
+  caja cerrada ya no figura entre las abiertas, y el detalle de una caja
+  cerrada cambia «Cerrar caja» por **Imprimir balance**.
+- La variable de la query es `sucId`. El servicio mandaba `sucursalId`, que
+  la query no declara: el central no recibía la sucursal y no derivaba.
+
+⚠️ El detalle sale de la copia replicada del central. Si la replicación viene
+atrasada, por un momento la caja recién cerrada todavía figura abierta.
 
 ## Cierre y apertura son la misma mutation
 

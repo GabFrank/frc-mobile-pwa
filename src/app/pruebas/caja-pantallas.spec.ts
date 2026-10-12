@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
@@ -138,6 +138,22 @@ describe('Pantallas de caja', () => {
       // El id de caja se repite entre filiales: sin la sucursal, el central
       // resuelve la "Caja 1" de otra sucursal.
       expect(cajaService.porId).toHaveBeenCalledWith(1, 16);
+    });
+
+    it('al ir a cerrar lleva la sucursal aunque el id llegue como texto', () => {
+      const f = TestBed.createComponent(CajaDetallePage);
+      const navegar = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      // GraphQL serializa `ID` como string. Con `Number.isFinite('24')` la
+      // sucursal se caía de la URL y el cierre resolvía la caja 1371 de otra
+      // filial — el id se repite en las 18.
+      f.componentInstance.irACerrar(
+        caja({ id: 1371, sucursal: { id: '24' } } as unknown as Partial<PdvCaja>),
+      );
+
+      expect(navegar).toHaveBeenCalledWith(['/operaciones/caja', 1371, 'cerrar'], {
+        queryParams: { suc: 24 },
+      });
     });
 
     it('avisa cuando el id no sirve', async () => {

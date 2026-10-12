@@ -76,6 +76,8 @@ describe('Kiosco de marcación', () => {
   let estadoDevuelto: EstadoMarcacionUsuario;
   let posicion: { latitud: number; longitud: number; precision: number; lecturas: number } | null;
   let sucursales: unknown[];
+  /** Lo que el GPS informa por el progreso antes de devolver la posición. */
+  let mensajeGeo: string | null;
   let detectar: ReturnType<typeof vi.fn>;
   let detenerCamara: ReturnType<typeof vi.fn>;
   let terminarCarga: () => void;
@@ -123,7 +125,12 @@ describe('Kiosco de marcación', () => {
         {
           provide: GeoService,
           useValue: {
-            posicionActual: () => Promise.resolve(posicion),
+            posicionActual: (alAvanzar?: (p: { mensaje: string }) => void) => {
+              if (mensajeGeo) {
+                alAvanzar?.({ mensaje: mensajeGeo });
+              }
+              return Promise.resolve(posicion);
+            },
             distanciaMetros: haversine.distanciaMetros.bind(haversine),
           },
         },
@@ -189,6 +196,7 @@ describe('Kiosco de marcación', () => {
     identificado = { usuario: FULANO, similitud: 0.9 };
     estadoDevuelto = entradaPendiente;
     posicion = { latitud: -25.5, longitud: -54.6, precision: 4, lecturas: 3 };
+    mensajeGeo = null;
     sucursales = [ROTONDA];
     detectar = vi.fn(() => Promise.resolve(captura()));
     detenerCamara = vi.fn();
@@ -240,6 +248,24 @@ describe('Kiosco de marcación', () => {
     const f = await listo();
 
     expect(boton(f, 'Marcar')?.disabled).toBe(true);
+  });
+
+  it('sin ubicación dice lo que informó el GPS, no «revisá el permiso»', async () => {
+    posicion = null;
+    mensajeGeo = 'La ubicación es poco precisa (±900 m).';
+
+    const f = await listo();
+
+    expect(texto(f)).toContain('La ubicación es poco precisa (±900 m).');
+    expect(texto(f)).not.toContain('Revisá el permiso');
+  });
+
+  it('sin ubicación y sin mensaje del GPS, igual dice qué hacer', async () => {
+    posicion = null;
+
+    const f = await listo();
+
+    expect(texto(f)).toContain('Revisá el permiso y tocá Recalcular.');
   });
 
   it('identifica y saluda por nombre', async () => {

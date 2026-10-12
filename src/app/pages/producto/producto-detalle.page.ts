@@ -101,13 +101,12 @@ interface Marca {
                 diferencia con la card del buscador: acá se viene a resolver
                 una discusión sobre cuál precio corresponde.
               -->
-              @for (precio of preciosDe(pr); track precio.id) {
+              @for (precio of preciosPorPresentacion().get(pr.id) ?? []; track precio.id) {
                 <div class="linea">
                   <span class="etiqueta">{{ nombrePrecio(precio) }}</span>
                   <frc-importe [valor]="precio.precio ?? 0" moneda="Guaraní" simbolo="₲" />
                 </div>
-              }
-              @if (preciosDe(pr).length === 0) {
+              } @empty {
                 <div class="linea"><span class="etiqueta vacio">Sin precio cargado</span></div>
               }
 
@@ -217,6 +216,11 @@ export class ProductoDetallePage {
   );
 
   readonly presentaciones = computed(() => this.producto()?.presentaciones ?? []);
+
+  /** Precios de cada presentación, filtrados y ordenados una sola vez por carga. */
+  readonly preciosPorPresentacion = computed(
+    () => new Map(this.presentaciones().map((p) => [p.id, this.preciosDe(p)])),
+  );
 
   /**
    * Lo que hay que saber antes de tocar el producto.

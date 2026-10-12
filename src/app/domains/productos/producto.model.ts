@@ -29,7 +29,12 @@ export class Producto {
   lote?: boolean;
   cambiable?: boolean;
   usuario?: Usuario;
-  imagenPrincipal?: string;
+  /**
+   * La miniatura (250 px) de la presentación principal, como data URI.
+   * `null` sin foto. El original (`imagenPrincipal` en el central) pesa
+   * cientos de KB y no se pide desde acá.
+   */
+  imagenPrincipalMiniatura?: string | null;
   tipoConservacion?: string;
   // subfamilia?: Subfamilia;
   codigos?: [Codigo]

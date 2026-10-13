@@ -54,6 +54,7 @@ describe('DatosService', () => {
     datos = TestBed.inject(DatosService);
     cargando = TestBed.inject(CargandoService);
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   describe('consultar', () => {

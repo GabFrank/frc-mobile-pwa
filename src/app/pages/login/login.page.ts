@@ -20,6 +20,7 @@ import { ServerConfigService } from 'src/app/core/config/server-config.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
+import { mensajeSesionNoCargada } from './mensaje-sesion-no-cargada';
 
 @Component({
   selector: 'frc-login',
@@ -247,22 +248,9 @@ export class LoginPage {
     if (usuarioId == null || !(await this.sesion.cargarUsuario(usuarioId))) {
       this.enviando.set(false);
       await this.auth.logout(false);
-      // Se muestra el motivo real: "intentá de nuevo" no ayuda si el problema
-      // es del servidor o de la query, que es lo habitual acá.
-      // Un fallo de red no es culpa de la credencial: decirlo así evita que
-      // el cajero pruebe contraseñas cuando el problema es el servidor.
-      if (this.sesion.ultimoFalloFueDeRed()) {
-        this.error.set(
-          'Tus datos son correctos, pero no se pudo contactar al servidor. Revisá la conexión y probá de nuevo.',
-        );
-      } else {
-        const motivo = this.sesion.ultimoError();
-        this.error.set(
-          motivo
-            ? `Entraste, pero no se pudieron cargar tus datos: ${motivo}`
-            : 'Entraste, pero no se pudieron cargar tus datos. Intentá de nuevo.',
-        );
-      }
+      this.error.set(
+        mensajeSesionNoCargada(this.sesion.ultimoFalloFueDeRed(), this.sesion.ultimoError()),
+      );
       return;
     }
 

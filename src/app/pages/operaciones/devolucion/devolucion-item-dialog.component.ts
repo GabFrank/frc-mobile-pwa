@@ -246,8 +246,8 @@ export class DevolucionItemDialogComponent {
     }
     this.loteId.set(Number(elegido.loteId));
     this.lote.set(elegido.numeroLote ?? '');
-    // El vencimiento del lote, si el campo todavía está vacío.
-    if (!this.vencimiento() && elegido.fechaVencimiento) {
+    // El vencimiento del lote: al cambiar de lote no puede quedar el del anterior.
+    if (elegido.fechaVencimiento) {
       this.vencimiento.set(elegido.fechaVencimiento.slice(0, 10));
     }
   }

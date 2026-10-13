@@ -5,7 +5,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { esSucursalOperable } from 'src/app/domains/empresarial/sucursal/sucursal.util';
-import { EstadoDevolucion } from 'src/app/domains/devolucion/devolucion.enums';
+import { EstadoDevolucion, TipoDevolucion } from 'src/app/domains/devolucion/devolucion.enums';
 import { Devolucion } from 'src/app/domains/devolucion/devolucion.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
@@ -178,7 +178,12 @@ export class DevolucionHistorialPage {
   }
 
   subtitulo(d: Devolucion): string {
-    const partes = [d.sucursalOrigen?.nombre, fechaLegible(d.fecha)];
+    // A quién va, a la vista en la lista: es lo que decide cómo puede terminar.
+    const destino =
+      d.tipo === TipoDevolucion.CON_PROVEEDOR
+        ? (d.proveedor?.persona?.nombre ?? 'Con proveedor')
+        : 'Sin proveedor';
+    const partes = [d.sucursalOrigen?.nombre, destino, fechaLegible(d.fecha)];
     return partes.filter(Boolean).join(' · ');
   }
 

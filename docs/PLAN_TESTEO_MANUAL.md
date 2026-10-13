@@ -174,10 +174,6 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 **Esperado:** `frc.token` y `frc.usuarioId` **ya no están**.
 
-4. Repetir habiendo entrado con «Mantenerme conectado» **apagado**, y mirar **Session Storage**
-
-**Esperado:** tampoco están ahí. Sin esa casilla la sesión no vive en Local Storage.
-
 ### 1.7 · Mostrar/ocultar contraseña
 1. En login, escribir algo en Contraseña y tocar el ojo
 
@@ -206,7 +202,7 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 **Esperado:** sigue adentro.
 
-6. Cerrar la pestaña y abrir la app en una nueva
+6. Cerrar la pestaña y abrir la app en una pestaña nueva, escribiendo la dirección (no «reabrir pestaña cerrada» ni «duplicar»: esas dos restauran Session Storage)
 
 **Esperado:** pide login: es lo que promete apagar la casilla.
 

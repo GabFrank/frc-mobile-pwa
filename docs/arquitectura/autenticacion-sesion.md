@@ -123,12 +123,12 @@ contraseña.
 
 ⚠️ **El token se lee con `leerTokenEnSesion()` y se borra con
 `limpiarSesion()`, nunca con `localStorage` directo.** El link de Apollo
-(`core/auth/enlace-sesion.ts`) leía solo `localStorage`: con la casilla
+—hoy en `core/auth/enlace-sesion.ts`— leía solo `localStorage`: con la casilla
 apagada toda operación salía sin `Authorization`, el central respondía 401 y
 el login fallaba con la contraseña correcta. Como la preferencia queda
-guardada, a quien la apagó una vez le fallaba en cada visita. Cambiar de
-servidor tenía el mismo defecto al revés: no borraba la sesión de
-`sessionStorage`.
+guardada, a quien la apagó una vez le fallaba en cada visita.
+`cambiarServidor()` tenía el mismo descuido al borrar; no llegaba a verse
+porque las dos pantallas que lo llaman cierran la sesión por su cuenta.
 
 Dos detalles que los tests fijan:
 

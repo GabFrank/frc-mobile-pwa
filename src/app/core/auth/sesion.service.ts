@@ -88,8 +88,8 @@ export class SesionService {
    *
    * Sin esto, un error en la query de sesión se tragaba en silencio y la
    * pantalla solo decía que no se habían podido cargar los datos, sin
-   * ninguna pista de por qué — que fue exactamente lo que pasó cuando la query pedía un
-   * campo inexistente en el schema del central.
+   * ninguna pista de por qué — que fue exactamente lo que pasó cuando la
+   * query pedía un campo inexistente en el schema del central.
    */
   private registrarFallo(mensaje: string): void {
     this.ultimoError.set(mensaje);

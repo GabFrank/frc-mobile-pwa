@@ -208,6 +208,19 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 > Este modo estuvo roto desde que existe la casilla: el token se guardaba en Session Storage y se leía de Local Storage, así que toda consulta salía sin credencial. La casilla queda recordada apagada entre visitas, así que a quien la destildó una vez le fallaba siempre.
 
+### 1.10 · El central no contesta al arrancar
+1. Entrar normalmente
+2. DevTools → Network → clic derecho sobre una petición a `graphql` → **Block request URL**
+3. Recargar con F5, con la pestaña Network a la vista
+
+**Esperado:** se ven **tres** intentos a `graphql`, separados por menos de dos segundos en total, y recién después aparece el login. No uno solo.
+
+4. Quitar el bloqueo y entrar de nuevo
+
+**Esperado:** entra normalmente.
+
+> Antes, un 502/503 del central —un deploy, un reinicio— se trataba como credencial rechazada: la sesión se cerraba al primer intento. Dos cosas **no** se pueden probar así: un 5xx real (bloquear la petición da «sin respuesta»; hace falta un proxy delante del central) y el mensaje del login ante un fallo al cargar el usuario (con el central apagado falla antes, en el login mismo). Las dos están cubiertas por test.
+
 ---
 
 ## Bloque 2 — Navegación y shell
@@ -7321,7 +7334,7 @@ queda como dd/mm/aaaa y la lista se recarga.
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
 |---|---|---|---|---|
-| 1 · Arranque y sesión | 9 | | | |
+| 1 · Arranque y sesión | 10 | | | |
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
@@ -7403,7 +7416,7 @@ queda como dd/mm/aaaa y la lista se recarga.
 | 80 · El flotante solo en pantallas de navegación | 7 | | | |
 | 81 · Transferencias: la pestaña «Mías» | 8 | | | |
 | 82 · Transferencias: filtros de la lista | 12 | | | |
-| **Total** | **711** | | | |
+| **Total** | **712** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

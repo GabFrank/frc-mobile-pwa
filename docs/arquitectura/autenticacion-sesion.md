@@ -154,9 +154,42 @@ Ahora se distingue por el `status` de la respuesta:
 | 401 / 403 | El token no sirve: se descarta y se va al login |
 | 0 (sin respuesta) o 5xx | Es transporte: se reintenta 3 veces con espera creciente |
 
-Si aun así no se llega, la sesión se cierra —quedarse con un token sin roles
-deja la UI vacía sin decir por qué— pero **el login muestra el motivo real**:
-"no se pudo contactar al servidor", no "revisá tus credenciales".
+Cada intento tiene un tope de 10 s: la restauración corre antes del primer
+render, y sin tope un central que no contesta deja la app en blanco lo que
+tarde el proxy en rendirse, tres veces.
+
+**Si aun así no se llega, la sesión se cierra** —quedarse con un token sin
+roles deja la UI vacía sin decir por qué—. El título de esta sección vale para
+el hipo, no para la caída: un central que tarda vuelve en el reintento; uno
+caído más de unos segundos termina en el login. Y al llegar ahí desde la
+restauración **no se muestra ningún motivo** (pendiente); el motivo solo se
+muestra cuando el fallo ocurre al entrar: "no se pudo contactar al servidor",
+con el status si el servidor llegó a contestar un 5xx.
+
+### De dónde sale el status
+
+No del error que recibe la pantalla, sino de su **causa**. Las operaciones
+usan `errorPolicy: 'all'`, y con esa política Apollo no rechaza ante un fallo
+HTTP: lo entrega dentro del resultado. `DatosService` lo convierte en un
+`ErrorDatos` y guarda el original en `causa`; ahí está el `statusCode` del
+`ServerError`. Mientras esa causa se descartó, la clasificación corría solo
+sobre el texto del mensaje y **un 5xx se trataba como credencial rechazada**:
+la sesión se cerraba sin reintentar con el central reiniciándose.
+
+Tres cosas que no son obvias:
+
+- **El status 0 nunca llega como número.** `apollo-angular` solo arma
+  `ServerError` para status ≥ 300; "el navegador no obtuvo respuesta" llega
+  como un `Error` con el texto de `HttpErrorResponse`, y se reconoce por ese
+  texto.
+- **Sin red, la PWA instalada puede ver un 504 y no un 0**: el service worker
+  de Angular responde un 504 propio cuando su `fetch` falla.
+- **Un error de GraphQL (HTTP 200) nunca es transporte**, diga lo que diga su
+  mensaje.
+
+Los tests de esto (`core/graphql/fallo-de-transporte.spec.ts`) montan Apollo
+real contra `HttpTestingController`. Un objeto plano con `status` tiene el
+dato justo donde la función lo busca y esconde el defecto.
 
 Cuando el login REST pasa pero el usuario no se puede cargar, el mensaje
 arranca diciendo que **el usuario y la contraseña son correctos** —para que

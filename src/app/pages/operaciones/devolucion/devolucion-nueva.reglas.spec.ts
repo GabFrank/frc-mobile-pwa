@@ -3,6 +3,7 @@ import {
   DatosDevolucionNueva,
   destinoParaInput,
   faltaParaGuardar,
+  itemParaInput,
 } from './devolucion-nueva.reglas';
 
 const completa: DatosDevolucionNueva = {
@@ -56,5 +57,25 @@ describe('destinoParaInput', () => {
     const destino = destinoParaInput(TipoDevolucion.SIN_PROVEEDOR, 54);
     expect(destino).toEqual({ tipo: TipoDevolucion.SIN_PROVEEDOR });
     expect('proveedorId' in destino).toBe(false);
+  });
+});
+
+describe('itemParaInput', () => {
+  const draft = {
+    producto: { id: 2 },
+    presentacion: { id: 10 },
+    motivoAveria: { id: 3 },
+    cantidad: 4,
+    lote: 'L-7',
+  };
+
+  it('con lote elegido manda su id', () => {
+    expect(itemParaInput({ ...draft, loteId: 7 }).loteId).toBe(7);
+  });
+
+  it('sin lote elegido no manda la clave: un central viejo rechazaría el input', () => {
+    const input = itemParaInput(draft);
+    expect('loteId' in input).toBe(false);
+    expect(input.lote).toBe('L-7');
   });
 });

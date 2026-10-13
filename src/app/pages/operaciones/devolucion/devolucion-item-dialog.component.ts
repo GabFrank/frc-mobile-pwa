@@ -14,6 +14,13 @@ import { Producto } from 'src/app/domains/productos/producto.model';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
 import { etiquetaPresentacion } from 'src/app/shared/producto/presentacion.util';
 
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import type { LoteDeProducto } from 'src/app/domains/lote/lote.model';
+import {
+  BuscadorLoteDialogComponent,
+  type DatosBuscadorLote,
+} from 'src/app/pages/inventario/buscador-lote-dialog.component';
+
 export interface DevolucionItemData {
   producto: Producto;
   presentacion: Presentacion;
@@ -22,6 +29,8 @@ export interface DevolucionItemData {
   cantidadInicial?: number;
   /** Para editar un ítem ya cargado. */
   draft?: DevolucionItemDraft;
+  /** Sucursal de origen: el saldo de cada lote se muestra para esa sucursal. */
+  sucursalId?: number;
 }
 
 /**
@@ -86,10 +95,28 @@ export interface DevolucionItemData {
         </p>
       }
 
-      <mat-form-field appearance="outline" class="campo">
-        <mat-label>Lote</mat-label>
-        <input matInput [ngModel]="lote()" (ngModelChange)="lote.set($event)" autocapitalize="characters" />
-      </mat-form-field>
+      @if (llevaLote) {
+        <!--
+          Producto con control de lote: el lote se elige del maestro, no se
+          tipea. Al separar, el central descuenta la baja de ese lote.
+        -->
+        @if (loteId() != null) {
+          <p class="elegido">
+            Lote {{ lote() }}
+            <button type="button" class="cambiar" (click)="quitarLote()">Quitar</button>
+          </p>
+        } @else {
+          <p class="destino">Sin lote elegido, la baja sale del que vence primero.</p>
+        }
+        <button matButton="tonal" (click)="elegirLote()">
+          {{ loteId() != null ? 'Cambiar lote' : 'Elegir lote' }}
+        </button>
+      } @else {
+        <mat-form-field appearance="outline" class="campo">
+          <mat-label>Lote</mat-label>
+          <input matInput [ngModel]="lote()" (ngModelChange)="lote.set($event)" autocapitalize="characters" />
+        </mat-form-field>
+      }
 
       <mat-form-field appearance="outline" class="campo">
         <mat-label>Vencimiento</mat-label>
@@ -125,10 +152,26 @@ export interface DevolucionItemData {
       font-size: var(--fs-caption);
       color: var(--text-soft);
     }
+    .elegido {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-weight: var(--fw-medium);
+      margin: 0;
+    }
+    .cambiar {
+      background: none;
+      border: 0;
+      color: var(--brand-text);
+      font-size: var(--fs-caption);
+      cursor: pointer;
+      padding: var(--sp-1);
+    }
   `,
 })
 export class DevolucionItemDialogComponent {
   readonly data = inject<DevolucionItemData>(MAT_DIALOG_DATA);
+  private readonly dialogo = inject(DialogoService);
   private readonly ref =
     inject<MatDialogRef<DevolucionItemDialogComponent, DevolucionItemDraft | undefined>>(
       MatDialogRef,
@@ -140,7 +183,10 @@ export class DevolucionItemDialogComponent {
     this.data.draft?.cantidad ?? this.data.cantidadInicial ?? null,
   );
   readonly motivoId = signal<unknown>(this.data.draft?.motivoAveria?.id ?? null);
+  /** El producto lleva control de lote: el lote se elige del maestro. */
+  readonly llevaLote = this.data.producto.lote === true;
   readonly lote = signal(this.data.draft?.lote ?? '');
+  readonly loteId = signal<number | null>(this.data.draft?.loteId ?? null);
   readonly vencimiento = signal(this.data.draft?.vencimiento ?? '');
   readonly motivo = signal(this.data.draft?.motivo ?? '');
 
@@ -169,9 +215,46 @@ export class DevolucionItemDialogComponent {
       motivoAveria,
       cantidad,
       lote: this.lote().trim() || undefined,
+      loteId: this.llevaLote ? (this.loteId() ?? undefined) : undefined,
       vencimiento: this.vencimiento() || undefined,
       motivo: this.motivo().trim() || undefined,
     });
+  }
+
+  /**
+   * Abre el buscador de lotes del inventario. Lista también los lotes sin
+   * saldo y los bloqueados: quien devuelve tiene el lote en la mano, y un
+   * lote en recall es justamente lo que se devuelve.
+   */
+  async elegirLote(): Promise<void> {
+    const productoId = Number(this.data.producto.id);
+    if (this.data.producto.id == null || !Number.isFinite(productoId)) {
+      return;
+    }
+    const elegido = await this.dialogo.abrir<
+      BuscadorLoteDialogComponent,
+      DatosBuscadorLote,
+      LoteDeProducto | undefined
+    >(BuscadorLoteDialogComponent, {
+      productoId,
+      productoDescripcion: String(this.data.producto.descripcion ?? ''),
+      sucursalId: this.data.sucursalId,
+      titulo: 'Lote que se devuelve',
+    });
+    if (elegido?.loteId == null) {
+      return;
+    }
+    this.loteId.set(Number(elegido.loteId));
+    this.lote.set(elegido.numeroLote ?? '');
+    // El vencimiento del lote, si el campo todavía está vacío.
+    if (!this.vencimiento() && elegido.fechaVencimiento) {
+      this.vencimiento.set(elegido.fechaVencimiento.slice(0, 10));
+    }
+  }
+
+  quitarLote(): void {
+    this.loteId.set(null);
+    this.lote.set('');
   }
 
   cancelar(): void {

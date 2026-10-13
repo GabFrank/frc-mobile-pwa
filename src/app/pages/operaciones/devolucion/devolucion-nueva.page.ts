@@ -39,7 +39,7 @@ import {
   DevolucionItemData,
   DevolucionItemDialogComponent,
 } from './devolucion-item-dialog.component';
-import { destinoParaInput, faltaParaGuardar } from './devolucion-nueva.reglas';
+import { destinoParaInput, faltaParaGuardar, itemParaInput } from './devolucion-nueva.reglas';
 import { DevolucionService } from './devolucion.service';
 
 /**
@@ -310,6 +310,17 @@ export class DevolucionNuevaPage {
     this.textoProveedor.set('');
   }
 
+  /** La sucursal de origen como número, o `undefined` si todavía no hay una. */
+  private sucursalElegida(): number | undefined {
+    const id = this.sucursalId();
+    // `Number('')` y `Number(null)` dan 0: sin este guard se consultaría la sucursal cero.
+    if (id == null || id === '') {
+      return undefined;
+    }
+    const numero = Number(id);
+    return Number.isFinite(numero) ? numero : undefined;
+  }
+
   detalleDe(item: DevolucionItemDraft): string {
     const partes = [etiquetaPresentacion(item.presentacion), item.lote ? `Lote ${item.lote}` : ''];
     return partes.filter(Boolean).join(' · ');
@@ -363,6 +374,7 @@ export class DevolucionNuevaPage {
       motivos: this.motivos(),
       // Un pesable ya trae los kilos en el código: no se vuelven a pedir.
       cantidadInicial: seleccion.peso,
+      sucursalId: this.sucursalElegida(),
     });
 
     if (draft) {
@@ -384,6 +396,7 @@ export class DevolucionNuevaPage {
       presentacion: actual.presentacion,
       motivos: this.motivos(),
       draft: actual,
+      sucursalId: this.sucursalElegida(),
     });
     if (draft) {
       this.items.update((previos) => previos.map((i, n) => (n === indice ? draft : i)));
@@ -416,15 +429,7 @@ export class DevolucionNuevaPage {
       fecha: new Date().toISOString().slice(0, 10),
       estado: EstadoDevolucion.PENDIENTE,
       usuarioId,
-      items: this.items().map((i) => ({
-        productoId: i.producto.id!,
-        presentacionId: i.presentacion.id!,
-        motivoAveriaId: i.motivoAveria!.id!,
-        cantidad: i.cantidad,
-        lote: i.lote,
-        vencimiento: i.vencimiento,
-        motivo: i.motivo,
-      })),
+      items: this.items().map(itemParaInput),
     };
 
     this.guardando.set(true);

@@ -1,4 +1,8 @@
 import { TipoDevolucion } from 'src/app/domains/devolucion/devolucion.enums';
+import type {
+  DevolucionItemDraft,
+  DevolucionItemInput,
+} from 'src/app/domains/devolucion/devolucion.model';
 
 /**
  * Reglas del alta de una devolución, sin Angular en el medio.
@@ -64,4 +68,25 @@ export function destinoParaInput(
     return { tipo, proveedorId };
   }
   return { tipo: TipoDevolucion.SIN_PROVEEDOR };
+}
+
+/**
+ * Un renglón cargado en pantalla, tal como viaja en el input.
+ *
+ * ⚠️ **`loteId` va solo si se eligió un lote del maestro.** No es lo mismo
+ * que mandarlo en `null`: un central que todavía no conoce el campo rechaza
+ * el input entero con que la clave exista. Omitiéndola, las devoluciones de
+ * productos sin lote se siguen guardando contra cualquier central.
+ */
+export function itemParaInput(item: DevolucionItemDraft): DevolucionItemInput {
+  return {
+    productoId: item.producto.id!,
+    presentacionId: item.presentacion.id!,
+    motivoAveriaId: item.motivoAveria!.id!,
+    cantidad: item.cantidad,
+    lote: item.lote,
+    ...(item.loteId != null ? { loteId: item.loteId } : {}),
+    vencimiento: item.vencimiento,
+    motivo: item.motivo,
+  };
 }

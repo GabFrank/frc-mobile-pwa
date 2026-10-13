@@ -19,6 +19,7 @@ describe('SesionService', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     porId = vi.fn(() => of(usuario));
 
     TestBed.configureTestingModule({

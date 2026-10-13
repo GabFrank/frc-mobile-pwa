@@ -1,6 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from '../auth/auth.tokens';
+import { limpiarSesion } from '../auth/auth.tokens';
 import { apiParaHost } from './api-por-host';
 
 const KEY_BASE_URL = 'frc.serverBaseUrl';
@@ -43,10 +43,11 @@ export class ServerConfigService {
     // Invalida la sesión: el token de la instancia vieja no vale en la nueva,
     // y seguir mandándolo produce 401 que parecen "contraseña incorrecta".
     //
-    // Se borran las claves directamente en vez de inyectar `AuthService`,
-    // porque `AuthService` ya depende de este servicio y habría ciclo.
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(AUTH_USER_ID_KEY);
+    // Se limpia con la función de `auth.tokens` en vez de inyectar
+    // `AuthService`, porque `AuthService` ya depende de este servicio y
+    // habría ciclo. Borra de los dos almacenes: sin «mantenerme conectado»
+    // la sesión vive en `sessionStorage`.
+    limpiarSesion();
   }
 
   /**

@@ -257,6 +257,25 @@ siga `PENDIENTE`**; el teléfono no edita.
 El detalle muestra siempre el tipo, y el historial dice el proveedor o «Sin
 proveedor» en cada fila.
 
+## El lote se elige del maestro, si el producto lo lleva
+
+Con `producto.lote = true`, el diálogo del ítem no ofrece el campo de texto:
+ofrece **Elegir lote**, que abre el `BuscadorLoteDialogComponent` del
+inventario con el saldo de cada lote en la sucursal de origen. El ítem guarda
+`loteId` y el central copia el número a `lote`, que es lo que se muestra.
+
+- **Elegirlo es opcional.** Sin lote, al separar el central reparte la baja
+  por vencimiento más próximo.
+- **Con lote elegido, la baja sale entera de ese lote**, aunque esté bloqueado
+  o el sistema crea que no tiene saldo: quien devuelve lo tiene en la mano. Por
+  eso el buscador no filtra ni unos ni otros.
+- ⚠️ **`loteId` viaja solo si se eligió uno** (`itemParaInput`, con test). Un
+  central anterior a `V248.3` no conoce el campo y rechaza el input entero con
+  que la clave exista; omitiéndola, lo que no lleva lote se guarda igual.
+- La pantalla no pide `loteId` de vuelta en ninguna consulta, por lo mismo.
+
+El canje —con su lote de reingreso— se hace en el escritorio.
+
 ## El motivo dice su consecuencia mientras se elige
 
 Cada `MotivoAveria` trae `generaGasto` y `aplicaProveedor`. El diálogo del

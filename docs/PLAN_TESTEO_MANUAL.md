@@ -933,6 +933,42 @@ arriba suma productos y unidades.
 > El selector de sucursal **no ofrece SERVIDOR ni COMPRAS**: no tienen
 > depósito. Tampoco las sucursales cerradas.
 
+### 13.1.1 · A quién va: con proveedor *(nuevo)*
+1. En *Nueva devolución*, sin tocar «A quién va», agregar un producto
+
+**Esperado:** **Guardar** sigue deshabilitado y debajo dice «Elegí si la
+devolución va a un proveedor o sin proveedor». No hay opción elegida de
+entrada.
+
+2. En «A quién va» elegir **Con proveedor**
+3. Escribir parte del nombre de un proveedor y **Buscar** (o Enter)
+4. Tocar uno de la lista
+
+**Esperado:** al elegir «Con proveedor» aparece el buscador y el texto de
+abajo pasa a «Elegí el proveedor al que se le devuelve». Tras tocar uno, queda
+el nombre con **Cambiar** al lado, el texto desaparece y **Guardar** se
+habilita. Con un nombre que no existe: aviso «Ningún proveedor con ese nombre».
+
+### 13.1.2 · A quién va: sin proveedor *(nuevo)*
+1. Con un proveedor ya elegido, cambiar «A quién va» a **Sin proveedor**
+2. Volver a **Con proveedor**
+
+**Esperado:** en «Sin proveedor» el buscador desaparece y se puede guardar sin
+más. Al volver a «Con proveedor» el proveedor de antes **no** está: hay que
+elegirlo de nuevo.
+
+### 13.1.3 · Lo elegido queda a la vista *(nuevo)*
+1. Guardar una devolución con proveedor y otra sin proveedor
+2. Mirar el detalle de cada una y después la lista de Devoluciones
+
+**Esperado:** el detalle muestra **Tipo** («Con proveedor» / «Sin proveedor»)
+y, en la primera, el nombre del proveedor. En la lista, cada fila dice el
+proveedor o «Sin proveedor» entre la sucursal y la fecha. En el escritorio, la
+primera aparece con ese proveedor y tipo CON PROVEEDOR.
+
+> Si se eligió mal, se corrige **desde el escritorio y mientras siga
+> Pendiente**: el teléfono no edita una devolución ya guardada.
+
 ### 13.2 · El motivo dice a dónde va la pérdida
 1. En el diálogo del ítem, cambiar entre motivos
 
@@ -7346,7 +7382,7 @@ queda como dd/mm/aaaa y la lista se recarga.
 | 10 · Escáner, vía ZXing (Safari en Mac) | 6 | 6 | | |
 | 11 · iOS real *(necesita dispositivo)* | 7 | | | |
 | 12 · Buscar producto | 9 | | | |
-| 13 · Devoluciones | 7 | | | |
+| 13 · Devoluciones | 10 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
 | 15 · Marcación | 9 | 5 | | |
 | 16 · Notificaciones | 7 | 4 | | |
@@ -7416,7 +7452,7 @@ queda como dd/mm/aaaa y la lista se recarga.
 | 80 · El flotante solo en pantallas de navegación | 7 | | | |
 | 81 · Transferencias: la pestaña «Mías» | 8 | | | |
 | 82 · Transferencias: filtros de la lista | 12 | | | |
-| **Total** | **712** | | | |
+| **Total** | **715** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

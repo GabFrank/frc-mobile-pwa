@@ -226,6 +226,37 @@ Solo se ofrecen sucursales **con depósito y activas** — una sucursal virtual
 no mueve stock, así que no puede ser el origen de una devolución. Ver
 [`../infraestructura/domains-modelos.md`](../infraestructura/domains-modelos.md).
 
+## A quién va se elige, y no tiene valor por defecto
+
+La pantalla de alta pregunta **«A quién va»**: *Con proveedor* o *Sin
+proveedor*. Arranca sin nada elegido y no deja guardar hasta que se elige.
+
+⚠️ **No hay default a propósito.** Hasta el 2026-10-13 la pantalla mandaba
+siempre `SIN_PROVEEDOR`, y como ese tipo solo puede terminar en `DESCARTADO`,
+todo lo cargado desde el teléfono salía como pérdida de la empresa sin que
+nadie lo decidiera. Un valor por defecto reproduciría eso.
+
+- **Con proveedor** abre el buscador de proveedor —el mismo patrón que la
+  recepción de mercadería: campo, *Buscar* y cards— y manda `tipo:
+  CON_PROVEEDOR` + `proveedorId`.
+- **Sin proveedor** no pide nada más y **no manda `proveedorId`**, aunque
+  hubiera quedado uno elegido: cambiar a esta opción lo descarta.
+
+Las reglas están en `devolucion-nueva.reglas.ts` (`faltaParaGuardar`,
+`destinoParaInput`), sin Angular, con sus tests. El central también rechaza
+una `CON_PROVEEDOR` sin proveedor al crearla (desde
+`fix/devolucion-con-proveedor-exige-proveedor`); contra un central anterior la
+única barrera es la pantalla.
+
+Lo que **no** hace: no sugiere el proveedor del producto, no filtra los
+motivos según el tipo, y no restringe por rol —la ruta de devoluciones no
+tiene `rolGuard`: carga el personal de sucursal—. Una devolución guardada con
+el tipo o el proveedor equivocado se corrige **desde el escritorio y mientras
+siga `PENDIENTE`**; el teléfono no edita.
+
+El detalle muestra siempre el tipo, y el historial dice el proveedor o «Sin
+proveedor» en cada fila.
+
 ## El motivo dice su consecuencia mientras se elige
 
 Cada `MotivoAveria` trae `generaGasto` y `aplicaProveedor`. El diálogo del

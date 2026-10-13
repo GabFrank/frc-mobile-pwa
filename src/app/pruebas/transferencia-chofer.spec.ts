@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
 import { DialogoService } from '../core/ui/dialogo.service';
+import { NotificacionService } from '../core/ui/notificacion.service';
 import { EtapaTransferencia, Transferencia } from '../domains/transferencia/transferencia.model';
 import { AsignarChoferDialogComponent } from '../pages/transferencias/asignar-chofer-dialog.component';
 import {
@@ -148,12 +149,18 @@ describe('La verificación para transporte no es solo del chofer', () => {
 });
 
 describe('El diálogo del chofer', () => {
-  let servicio: { verificarParaTransporte: ReturnType<typeof vi.fn> };
+  let servicio: {
+    verificarParaTransporte: ReturnType<typeof vi.fn>;
+    avanzarEtapa: ReturnType<typeof vi.fn>;
+  };
   let dialogo: { abrir: ReturnType<typeof vi.fn>; confirmar: ReturnType<typeof vi.fn> };
   let ref: { close: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    servicio = { verificarParaTransporte: vi.fn(() => of({ id: 1 })) };
+    servicio = {
+      verificarParaTransporte: vi.fn(() => of({ id: 1 })),
+      avanzarEtapa: vi.fn(() => of(true)),
+    };
     dialogo = { abrir: vi.fn(), confirmar: vi.fn(async () => true) };
     ref = { close: vi.fn() };
     TestBed.resetTestingModule();
@@ -164,6 +171,8 @@ describe('El diálogo del chofer', () => {
         { provide: DialogoService, useValue: dialogo },
         { provide: MatDialogRef, useValue: ref },
         { provide: MAT_DIALOG_DATA, useValue: { transferenciaId: 1 } },
+        { provide: AuthService, useValue: { usuario: () => ({ id: 8 }) } },
+        { provide: NotificacionService, useValue: { ok: vi.fn() } },
       ],
     });
   });
@@ -258,5 +267,63 @@ describe('El diálogo del chofer', () => {
     expect(ref.close).not.toHaveBeenCalled();
     expect(d.enviando()).toBe(false);
     expect(d.chofer()?.id).toBe(10);
+  });
+
+  describe('continuar sin chofer', () => {
+    it('avanza por el flujo normal con el usuario logueado como responsable, y cierra', async () => {
+      const d = montar();
+
+      await d.continuarSinChofer();
+
+      expect(servicio.avanzarEtapa).toHaveBeenCalledWith(
+        1,
+        EtapaTransferencia.TRANSPORTE_VERIFICACION,
+        8,
+      );
+      expect(servicio.verificarParaTransporte).not.toHaveBeenCalled();
+      expect(ref.close).toHaveBeenCalledWith(true);
+    });
+
+    it('descarta el chofer y el vehículo que ya estuvieran cargados', async () => {
+      const d = await conChoferYVehiculo();
+
+      await d.continuarSinChofer();
+
+      expect(servicio.avanzarEtapa).toHaveBeenCalledWith(
+        1,
+        EtapaTransferencia.TRANSPORTE_VERIFICACION,
+        8,
+      );
+      expect(servicio.verificarParaTransporte).not.toHaveBeenCalled();
+    });
+
+    it('si no confirma el aviso, no avanza', async () => {
+      const d = montar();
+      dialogo.confirmar.mockResolvedValueOnce(false);
+
+      await d.continuarSinChofer();
+
+      expect(servicio.avanzarEtapa).not.toHaveBeenCalled();
+      expect(ref.close).not.toHaveBeenCalled();
+    });
+
+    it('si el central rechaza, queda abierto', async () => {
+      const d = montar();
+      servicio.avanzarEtapa.mockReturnValueOnce(throwError(() => new Error('etapa')));
+
+      await d.continuarSinChofer();
+
+      expect(ref.close).not.toHaveBeenCalled();
+      expect(d.enviando()).toBe(false);
+    });
+
+    it('si el central devuelve false, queda abierto', async () => {
+      const d = montar();
+      servicio.avanzarEtapa.mockReturnValueOnce(of(false));
+
+      await d.continuarSinChofer();
+
+      expect(ref.close).not.toHaveBeenCalled();
+    });
   });
 });

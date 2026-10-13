@@ -12,6 +12,15 @@ describe('mensajeSesionNoCargada', () => {
     expect(mensaje).not.toContain('Failed to fetch');
   });
 
+  it('si el servidor contestó con un 5xx, conserva el status como detalle', () => {
+    const motivo = 'Response not successful: Received status code 503';
+
+    const mensaje = mensajeSesionNoCargada(true, motivo);
+
+    expect(mensaje).toContain('no se pudo contactar al servidor');
+    expect(mensaje.endsWith(`Detalle: ${motivo}`)).toBe(true);
+  });
+
   it('si el servidor rechazó, manda a sistemas y conserva el motivo', () => {
     const mensaje = mensajeSesionNoCargada(false, MOTIVO);
 

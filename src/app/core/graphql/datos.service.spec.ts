@@ -57,6 +57,29 @@ describe('DatosService', () => {
     sessionStorage.clear();
   });
 
+  describe('errores', () => {
+    it('conserva como causa el error original que vino en el resultado', async () => {
+      // Con `errorPolicy: 'all'` un fallo HTTP llega dentro del resultado. Si
+      // la causa se pierde, nadie puede distinguir un 401 de un 503.
+      const original = { message: 'Response not successful: Received status code 503' };
+      const query = {
+        document: {} as never,
+        fetch: vi.fn(() => of({ data: null, errors: [original], loading: false })),
+      } as unknown as Query<{ data?: unknown }>;
+
+      const error = await new Promise<unknown>((resolve) => {
+        datos.consultar(query, undefined, { mostrarCarga: false }).subscribe({ error: resolve });
+      });
+
+      expect(error).toBeInstanceOf(ErrorDatos);
+      expect((error as ErrorDatos).message).toBe(original.message);
+      // La causa es el original, no otro `ErrorDatos` que lo envuelve.
+      expect((error as ErrorDatos).causa).toBe(original);
+      expect(notificacion.danger).toHaveBeenCalledTimes(1);
+      expect(notificacion.danger).toHaveBeenCalledWith(original.message);
+    });
+  });
+
   describe('consultar', () => {
     it('desenvuelve el alias `data` y completa', async () => {
       const emitidos: unknown[] = [];

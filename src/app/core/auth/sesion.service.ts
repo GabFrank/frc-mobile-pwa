@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 
 import { UsuarioLoginGQL } from 'src/app/graphql/personas/usuario/graphql/usuarioLogin';
 import { SesionDispositivoService } from './sesion-dispositivo.service';
@@ -27,6 +27,13 @@ const REINTENTOS = 3;
 
 /** Espera antes de cada reintento. Creciente: un arranque de servidor tarda. */
 const ESPERA_MS = [400, 1200];
+
+/**
+ * Tope por intento. Sin él, un central que no contesta deja la app en blanco
+ * todo lo que tarde el proxy en rendirse —la restauración corre antes del
+ * primer render—, y con reintentos esa espera se triplica.
+ */
+const TIEMPO_MAXIMO_MS = 10_000;
 
 const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -60,10 +67,12 @@ export class SesionService {
     this.ultimoFalloFueDeRed.set(false);
     try {
       const usuario = await firstValueFrom(
-        this.datos.porId<Usuario>(this.usuarioLoginGQL, usuarioId, undefined, {
-          mostrarCarga: false,
-          notificarError: false,
-        }),
+        this.datos
+          .porId<Usuario>(this.usuarioLoginGQL, usuarioId, undefined, {
+            mostrarCarga: false,
+            notificarError: false,
+          })
+          .pipe(timeout(TIEMPO_MAXIMO_MS)),
       );
       if (!usuario?.id) {
         this.registrarFallo('El servidor no devolvió datos para este usuario.');

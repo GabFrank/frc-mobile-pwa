@@ -970,7 +970,7 @@ primera aparece con ese proveedor y tipo CON PROVEEDOR.
 > Pendiente**: el teléfono no edita una devolución ya guardada.
 
 ### 13.1.4 · Elegir el lote de un producto con control de lote *(nuevo)*
-> Necesita un central con la migración `V248.3`. Contra uno anterior, guardar
+> Necesita un central con la migración `V249.3`. Contra uno anterior, guardar
 > un ítem **con lote elegido** falla; sin elegir lote, guarda igual.
 
 1. En *Nueva devolución*, agregar un producto **con control de lote**

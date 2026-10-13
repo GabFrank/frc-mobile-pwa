@@ -270,7 +270,7 @@ inventario con el saldo de cada lote en la sucursal de origen. El ítem guarda
   o el sistema crea que no tiene saldo: quien devuelve lo tiene en la mano. Por
   eso el buscador no filtra ni unos ni otros.
 - ⚠️ **`loteId` viaja solo si se eligió uno** (`itemParaInput`, con test). Un
-  central anterior a `V248.3` no conoce el campo y rechaza el input entero con
+  central anterior a `V249.3` no conoce el campo y rechaza el input entero con
   que la clave exista; omitiéndola, lo que no lleva lote se guarda igual.
 - La pantalla no pide `loteId` de vuelta en ninguna consulta, por lo mismo.
 

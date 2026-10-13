@@ -24,6 +24,8 @@ export interface DatosBuscadorLote {
   sucursalId?: number;
   /** Lotes que la zona ya tiene: se muestran deshabilitados en vez de esconderse. */
   yaEnLaZona?: number[];
+  /** Título del diálogo. Por defecto «Agregar lote», que es lo que hace el conteo. */
+  titulo?: string;
 }
 
 /**
@@ -61,7 +63,7 @@ export interface DatosBuscadorLote {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="caja">
-      <h2>Agregar lote</h2>
+      <h2>{{ datos.titulo ?? 'Agregar lote' }}</h2>
       <p class="contexto">
         <span class="etiqueta">Producto</span>
         {{ datos.productoDescripcion }}

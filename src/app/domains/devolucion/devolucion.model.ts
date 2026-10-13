@@ -67,6 +67,15 @@ export interface DevolucionItemInput {
   cantidad: number;
   motivo?: string;
   lote?: string;
+  /**
+   * Lote del maestro del que sale la mercadería, para productos con control
+   * de lote. Al separar, el central descuenta la baja de ese lote.
+   *
+   * ⚠️ **Se manda solo si se eligió uno.** Un central que todavía no conoce
+   * el campo rechaza el input entero; omitiéndolo, todo lo que no lleva lote
+   * se sigue guardando igual.
+   */
+  loteId?: number;
   vencimiento?: string;
   costoUnitario?: number;
   cantidadReingresada?: number;
@@ -99,6 +108,8 @@ export interface DevolucionItemDraft {
   motivoAveria?: MotivoAveria;
   cantidad: number;
   lote?: string;
+  /** Lote del maestro elegido; `lote` guarda su número para mostrarlo. */
+  loteId?: number;
   vencimiento?: string;
   motivo?: string;
 }

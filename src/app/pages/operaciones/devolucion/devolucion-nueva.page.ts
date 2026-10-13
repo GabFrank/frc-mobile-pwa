@@ -1,6 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
@@ -17,7 +20,9 @@ import {
   DevolucionItemDraft,
   MotivoAveria,
 } from 'src/app/domains/devolucion/devolucion.model';
+import { Proveedor, nombreProveedor } from 'src/app/domains/personas/proveedor.model';
 import { CardComponent } from 'src/app/shared/card/card.component';
+import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
@@ -34,6 +39,7 @@ import {
   DevolucionItemData,
   DevolucionItemDialogComponent,
 } from './devolucion-item-dialog.component';
+import { destinoParaInput, faltaParaGuardar, itemParaInput } from './devolucion-nueva.reglas';
 import { DevolucionService } from './devolucion.service';
 
 /**
@@ -52,6 +58,12 @@ import { DevolucionService } from './devolucion.service';
  * ⚠️ **Solo se ofrecen sucursales con depósito.** Una sin depósito es
  * virtual: no mueve stock, así que no puede ser el origen de una devolución.
  * Ver `sucursal.util.ts`.
+ *
+ * ⚠️ **A quién va se elige, y no tiene valor por defecto.** Con proveedor
+ * puede terminar canjeada o acreditada; sin proveedor solo descartada, que es
+ * pérdida de la empresa. El central no exige el proveedor al guardar —recién
+ * falla al retirar—, así que lo exige esta pantalla. Ver
+ * `devolucion-nueva.reglas.ts`.
  */
 @Component({
   selector: 'frc-devolucion-nueva',
@@ -63,7 +75,11 @@ import { DevolucionService } from './devolucion.service';
     CardComponent,
     EstadoVacioComponent,
     SelectorComponent,
+    IconoComponent,
     MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    FormsModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -82,6 +98,41 @@ import { DevolucionService } from './devolucion.service';
           [valor]="sucursalId()"
           (valorChange)="sucursalId.set($event)"
         />
+        <frc-selector
+          etiqueta="A quién va"
+          [opciones]="opcionesTipo"
+          [valor]="tipo()"
+          (valorChange)="elegirTipo($event)"
+        />
+        @if (tipo() === conProveedor) {
+          @if (proveedor(); as p) {
+            <p class="elegido">
+              <frc-icono nombre="camion" [tamano]="18" />
+              {{ nombre(p) }}
+              <button type="button" class="cambiar" (click)="cambiarProveedor()">Cambiar</button>
+            </p>
+          } @else {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
+              <mat-label>Buscar proveedor</mat-label>
+              <input
+                matInput
+                [ngModel]="textoProveedor()"
+                (ngModelChange)="textoProveedor.set($event)"
+                (keyup.enter)="buscarProveedores()"
+              />
+            </mat-form-field>
+            <button matButton="tonal" [disabled]="buscandoProveedor()" (click)="buscarProveedores()">
+              {{ buscandoProveedor() ? 'Buscando…' : 'Buscar' }}
+            </button>
+
+            @for (p of proveedores(); track p.id) {
+              <frc-card [titulo]="nombre(p)" icono="persona" (abrir)="elegirProveedor(p)" />
+            }
+          }
+        }
+        @if (falta(); as mensaje) {
+          <p class="ayuda">{{ mensaje }}</p>
+        }
         <frc-dato etiqueta="Productos" [valor]="items().length" />
         <frc-dato etiqueta="Unidades" [valor]="totalUnidades()" />
       </frc-seccion>
@@ -120,6 +171,23 @@ import { DevolucionService } from './devolucion.service';
       font-size: var(--fs-caption);
       color: var(--text-mute);
     }
+    .campo { width: 100%; }
+    .elegido {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-weight: var(--fw-medium);
+      margin: 0;
+    }
+    .cambiar {
+      background: none;
+      border: 0;
+      color: var(--brand-text);
+      font-size: var(--fs-caption);
+      cursor: pointer;
+      padding: var(--sp-1);
+    }
+    .ayuda { color: var(--text-mute); font-size: var(--fs-caption); margin: 0; }
   `,
 })
 export class DevolucionNuevaPage {
@@ -146,12 +214,28 @@ export class DevolucionNuevaPage {
       0,
     ),
   );
-  readonly puedeGuardar = computed(
-    () =>
-      this.items().length > 0 &&
-      !this.guardando() &&
-      esSucursalOperableId(this.sucursalId(), this.sucursales()),
+  /** `null` hasta que alguien lo elige: no se asume «sin proveedor». */
+  readonly tipo = signal<TipoDevolucion | null>(null);
+  readonly conProveedor = TipoDevolucion.CON_PROVEEDOR;
+  readonly opcionesTipo: OpcionSeleccion[] = [
+    { valor: TipoDevolucion.CON_PROVEEDOR, texto: 'Con proveedor', detalle: 'canje o crédito' },
+    { valor: TipoDevolucion.SIN_PROVEEDOR, texto: 'Sin proveedor', detalle: 'se descarta' },
+  ];
+  readonly proveedor = signal<Proveedor | null>(null);
+  readonly proveedores = signal<Proveedor[]>([]);
+  readonly textoProveedor = signal('');
+  readonly buscandoProveedor = signal(false);
+
+  /** Lo que falta para guardar, dicho al operador; `null` si está todo. */
+  readonly falta = computed(() =>
+    faltaParaGuardar({
+      sucursalOperable: esSucursalOperableId(this.sucursalId(), this.sucursales()),
+      tipo: this.tipo(),
+      proveedorId: this.proveedor()?.id ?? null,
+      cantidadItems: this.items().length,
+    }),
   );
+  readonly puedeGuardar = computed(() => this.falta() == null && !this.guardando());
 
   constructor() {
     this.sucursalesService.todas().subscribe({
@@ -171,6 +255,70 @@ export class DevolucionNuevaPage {
       next: (lista) => this.motivos.set(lista),
       error: () => this.notificacion.warn('No se pudieron cargar los motivos de avería.'),
     });
+  }
+
+  nombre(p: Proveedor): string {
+    return nombreProveedor(p);
+  }
+
+  /**
+   * ⚠️ **Pasar a «Sin proveedor» descarta el proveedor elegido** y lo que
+   * quedó de la búsqueda: si después se vuelve a «Con proveedor», se elige de
+   * nuevo en vez de heredar uno que ya no se ve.
+   */
+  elegirTipo(valor: unknown): void {
+    const tipo =
+      valor === TipoDevolucion.CON_PROVEEDOR || valor === TipoDevolucion.SIN_PROVEEDOR
+        ? valor
+        : null;
+    this.tipo.set(tipo);
+    if (tipo !== TipoDevolucion.CON_PROVEEDOR) {
+      this.cambiarProveedor();
+    }
+  }
+
+  buscarProveedores(): void {
+    const texto = this.textoProveedor().trim();
+    if (texto.length === 0 || this.buscandoProveedor()) {
+      return;
+    }
+    this.buscandoProveedor.set(true);
+    this.servicio.proveedores(texto).subscribe({
+      next: (page) => {
+        this.buscandoProveedor.set(false);
+        const contenido = page?.getContent ?? [];
+        this.proveedores.set(contenido);
+        if (contenido.length === 0) {
+          this.notificacion.warn('Ningún proveedor con ese nombre.');
+        }
+      },
+      // El aviso del error ya lo da `DatosService`. «No pude preguntar» no es
+      // «no hay»: la lista no se vacía como si no existieran.
+      error: () => this.buscandoProveedor.set(false),
+    });
+  }
+
+  elegirProveedor(p: Proveedor): void {
+    this.proveedor.set(p);
+    this.proveedores.set([]);
+    this.textoProveedor.set('');
+  }
+
+  cambiarProveedor(): void {
+    this.proveedor.set(null);
+    this.proveedores.set([]);
+    this.textoProveedor.set('');
+  }
+
+  /** La sucursal de origen como número, o `undefined` si todavía no hay una. */
+  private sucursalElegida(): number | undefined {
+    const id = this.sucursalId();
+    // `Number('')` y `Number(null)` dan 0: sin este guard se consultaría la sucursal cero.
+    if (id == null || id === '') {
+      return undefined;
+    }
+    const numero = Number(id);
+    return Number.isFinite(numero) ? numero : undefined;
   }
 
   detalleDe(item: DevolucionItemDraft): string {
@@ -226,6 +374,7 @@ export class DevolucionNuevaPage {
       motivos: this.motivos(),
       // Un pesable ya trae los kilos en el código: no se vuelven a pedir.
       cantidadInicial: seleccion.peso,
+      sucursalId: this.sucursalElegida(),
     });
 
     if (draft) {
@@ -247,6 +396,7 @@ export class DevolucionNuevaPage {
       presentacion: actual.presentacion,
       motivos: this.motivos(),
       draft: actual,
+      sucursalId: this.sucursalElegida(),
     });
     if (draft) {
       this.items.update((previos) => previos.map((i, n) => (n === indice ? draft : i)));
@@ -266,29 +416,20 @@ export class DevolucionNuevaPage {
       this.notificacion.danger('La sesión no tiene usuario.');
       return;
     }
-    if (!esSucursalOperableId(sucursalId, this.sucursales())) {
-      this.notificacion.warn('Elegí la sucursal donde está el producto.');
+    const falta = this.falta();
+    const tipo = this.tipo();
+    if (falta != null || tipo == null) {
+      this.notificacion.warn(falta ?? 'Elegí si la devolución va a un proveedor o sin proveedor.');
       return;
     }
 
     const input: DevolucionInput = {
-      // SIN_PROVEEDOR hasta que se porte el módulo de proveedores. Es el tipo
-      // que solo puede terminar en DESCARTADO, así que no habilita por
-      // omisión un final que requiere acuerdo con el proveedor.
-      tipo: TipoDevolucion.SIN_PROVEEDOR,
+      ...destinoParaInput(tipo, this.proveedor()?.id ?? null),
       sucursalOrigenId: Number(sucursalId),
       fecha: new Date().toISOString().slice(0, 10),
       estado: EstadoDevolucion.PENDIENTE,
       usuarioId,
-      items: this.items().map((i) => ({
-        productoId: i.producto.id!,
-        presentacionId: i.presentacion.id!,
-        motivoAveriaId: i.motivoAveria!.id!,
-        cantidad: i.cantidad,
-        lote: i.lote,
-        vencimiento: i.vencimiento,
-        motivo: i.motivo,
-      })),
+      items: this.items().map(itemParaInput),
     };
 
     this.guardando.set(true);

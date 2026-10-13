@@ -12,12 +12,14 @@ import {
 } from 'src/app/domains/devolucion/devolucion.model';
 import { EstadoDevolucion } from 'src/app/domains/devolucion/devolucion.enums';
 import type { PageInfo } from 'src/app/domains/page-info.model';
+import { Proveedor } from 'src/app/domains/personas/proveedor.model';
 import { AvanzarEstadoDevolucionGQL } from 'src/app/graphql/operaciones/devolucion/avanzarEstadoDevolucion';
 import { DeleteDevolucionItemGQL } from 'src/app/graphql/operaciones/devolucion/deleteDevolucionItem';
 import { DevolucionByIdGQL } from 'src/app/graphql/operaciones/devolucion/devolucionById';
 import { DevolucionConFiltrosGQL } from 'src/app/graphql/operaciones/devolucion/devolucionConFiltros';
 import { EtiquetasSeparadoPdfGQL } from 'src/app/graphql/operaciones/devolucion/etiquetasSeparadoPdf';
 import { MotivosAveriaActivosGQL } from 'src/app/graphql/operaciones/devolucion/motivosAveriaActivos';
+import { ProveedoresPorTextoGQL } from 'src/app/graphql/personas/proveedor/proveedoresPorTexto';
 import { RevertirEstadoDevolucionGQL } from 'src/app/graphql/operaciones/devolucion/revertirEstadoDevolucion';
 import { SaveDevolucionGQL } from 'src/app/graphql/operaciones/devolucion/saveDevolucion';
 import { SaveDevolucionItemGQL } from 'src/app/graphql/operaciones/devolucion/saveDevolucionItem';
@@ -55,6 +57,7 @@ export class DevolucionService {
   private readonly avanzarGQL = inject(AvanzarEstadoDevolucionGQL);
   private readonly revertirGQL = inject(RevertirEstadoDevolucionGQL);
   private readonly etiquetasGQL = inject(EtiquetasSeparadoPdfGQL);
+  private readonly proveedoresGQL = inject(ProveedoresPorTextoGQL);
 
   /**
    * Alta o edición de la cabecera **con sus ítems**.
@@ -87,6 +90,19 @@ export class DevolucionService {
       usuarioId: filtros.usuarioId ?? null,
       page: filtros.page ?? 0,
       size: filtros.size ?? 10,
+    });
+  }
+
+  /**
+   * Proveedores por nombre, para elegir a quién se le devuelve.
+   *
+   * El texto viaja en mayúsculas: así están guardados los nombres.
+   */
+  proveedores(texto: string, page = 0, size = 10): Observable<PageInfo<Proveedor>> {
+    return this.datos.consultar<PageInfo<Proveedor>>(this.proveedoresGQL, {
+      texto: (texto ?? '').toUpperCase(),
+      page,
+      size,
     });
   }
 

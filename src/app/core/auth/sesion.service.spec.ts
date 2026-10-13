@@ -92,15 +92,26 @@ describe('SesionService', () => {
       expect(sesion.ultimoFalloFueDeRed()).toBe(false);
     });
 
-    it('si el servidor no contesta, se rinde a los 10 s y lo cuenta como fallo de red', async () => {
+    it('con tope, si el servidor no contesta se rinde y lo cuenta como fallo de red', async () => {
       vi.useFakeTimers();
       porId.mockReturnValue(NEVER);
 
-      const resultado = sesion.cargarUsuario(42);
+      const resultado = sesion.cargarUsuario(42, 10_000);
       await vi.advanceTimersByTimeAsync(10_000);
 
       expect(await resultado).toBe(false);
       expect(sesion.ultimoFalloFueDeRed()).toBe(true);
+    });
+
+    it('sin tope espera: al entrar, un central lento no es un central caído', async () => {
+      vi.useFakeTimers();
+      porId.mockReturnValue(NEVER);
+      let termino = false;
+
+      void sesion.cargarUsuario(42).then(() => (termino = true));
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(termino).toBe(false);
     });
   });
 
@@ -143,6 +154,19 @@ describe('SesionService', () => {
       expect(porId).toHaveBeenCalledTimes(3);
       expect(auth.establecerUsuario).toHaveBeenCalledWith(usuario);
       expect(auth.logout).not.toHaveBeenCalled();
+    });
+
+    it('cada intento de la restauración tiene un tope de 10 s', async () => {
+      vi.useFakeTimers();
+      Object.assign(auth, { hayTokenGuardado: true, usuarioIdGuardado: 42 });
+      porId.mockReturnValue(NEVER);
+
+      const restauracion = sesion.restaurar();
+      await vi.advanceTimersByTimeAsync(3 * 10_000 + 400 + 1200);
+      await restauracion;
+
+      expect(porId).toHaveBeenCalledTimes(3);
+      expect(auth.logout).toHaveBeenCalledWith(false);
     });
 
     it('si el central sigue caído tras tres intentos, cierra la sesión', async () => {

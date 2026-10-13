@@ -154,9 +154,12 @@ Ahora se distingue por el `status` de la respuesta:
 | 401 / 403 | El token no sirve: se descarta y se va al login |
 | 0 (sin respuesta) o 5xx | Es transporte: se reintenta 3 veces con espera creciente |
 
-Cada intento tiene un tope de 10 s: la restauración corre antes del primer
+Cada intento de la restauración tiene un tope de 10 s: corre antes del primer
 render, y sin tope un central que no contesta deja la app en blanco lo que
-tarde el proxy en rendirse, tres veces.
+tarde el proxy en rendirse, tres veces. En el peor caso son 31,6 s. El tope
+no rige al entrar: ahí hay un botón girando y un central lento no es un
+central caído. El tope no cancela la petición en curso; su respuesta, si
+llega tarde, se descarta.
 
 **Si aun así no se llega, la sesión se cierra** —quedarse con un token sin
 roles deja la UI vacía sin decir por qué—. El título de esta sección vale para

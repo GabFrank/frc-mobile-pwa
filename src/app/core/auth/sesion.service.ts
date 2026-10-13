@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { firstValueFrom, timeout } from 'rxjs';
+import { firstValueFrom, identity, timeout } from 'rxjs';
 
 import { UsuarioLoginGQL } from 'src/app/graphql/personas/usuario/graphql/usuarioLogin';
 import { SesionDispositivoService } from './sesion-dispositivo.service';
@@ -29,9 +29,11 @@ const REINTENTOS = 3;
 const ESPERA_MS = [400, 1200];
 
 /**
- * Tope por intento. Sin él, un central que no contesta deja la app en blanco
- * todo lo que tarde el proxy en rendirse —la restauración corre antes del
- * primer render—, y con reintentos esa espera se triplica.
+ * Tope por intento al restaurar. Sin él, un central que no contesta deja la
+ * app en blanco todo lo que tarde el proxy en rendirse —la restauración corre
+ * antes del primer render—, y con reintentos esa espera se triplica.
+ *
+ * No rige al entrar: ahí hay un botón girando y la persona eligió esperar.
  */
 const TIEMPO_MAXIMO_MS = 10_000;
 
@@ -62,7 +64,7 @@ export class SesionService {
    * Ante fallo cierra la sesión: quedarse con un token que no resuelve a un
    * usuario deja la app en un estado ambiguo.
    */
-  async cargarUsuario(usuarioId: number): Promise<boolean> {
+  async cargarUsuario(usuarioId: number, tiempoMaximoMs?: number): Promise<boolean> {
     this.ultimoError.set(null);
     this.ultimoFalloFueDeRed.set(false);
     try {
@@ -72,7 +74,7 @@ export class SesionService {
             mostrarCarga: false,
             notificarError: false,
           })
-          .pipe(timeout(TIEMPO_MAXIMO_MS)),
+          .pipe(tiempoMaximoMs ? timeout(tiempoMaximoMs) : identity),
       );
       if (!usuario?.id) {
         this.registrarFallo('El servidor no devolvió datos para este usuario.');
@@ -117,8 +119,8 @@ export class SesionService {
    *
    * Ante un fallo de transporte se reintenta con espera creciente. Si aun
    * así no se llega, la sesión se cierra —quedarse con un token sin roles
-   * deja la UI vacía sin decir por qué— pero el login muestra el motivo
-   * real.
+   * deja la UI vacía sin decir por qué—. El login al que se llega no muestra
+   * el motivo: hoy solo lo muestra cuando el fallo ocurre al entrar.
    */
   async restaurar(): Promise<void> {
     if (!this.auth.hayTokenGuardado) {
@@ -131,7 +133,7 @@ export class SesionService {
     }
 
     for (let intento = 0; intento < REINTENTOS; intento++) {
-      if (await this.cargarUsuario(usuarioId)) {
+      if (await this.cargarUsuario(usuarioId, TIEMPO_MAXIMO_MS)) {
         return;
       }
       // Si el servidor respondió que la credencial no sirve, reintentar es

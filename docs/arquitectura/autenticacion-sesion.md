@@ -121,6 +121,15 @@ enfocar la clave da casi toda la comodidad sin abrir esa puerta. Hay un test
 que falla si aparece cualquier clave de almacenamiento que parezca una
 contraseña.
 
+⚠️ **El token se lee con `leerTokenEnSesion()` y se borra con
+`limpiarSesion()`, nunca con `localStorage` directo.** El link de Apollo
+(`core/auth/enlace-sesion.ts`) leía solo `localStorage`: con la casilla
+apagada toda operación salía sin `Authorization`, el central respondía 401 y
+el login fallaba con la contraseña correcta. Como la preferencia queda
+guardada, a quien la apagó una vez le fallaba en cada visita. Cambiar de
+servidor tenía el mismo defecto al revés: no borraba la sesión de
+`sessionStorage`.
+
 Dos detalles que los tests fijan:
 
 - Cambiar la preferencia **limpia el almacén que se deja de usar**. Si no, una
@@ -148,6 +157,14 @@ Ahora se distingue por el `status` de la respuesta:
 Si aun así no se llega, la sesión se cierra —quedarse con un token sin roles
 deja la UI vacía sin decir por qué— pero **el login muestra el motivo real**:
 "no se pudo contactar al servidor", no "revisá tus credenciales".
+
+Cuando el login REST pasa pero el usuario no se puede cargar, el mensaje
+arranca diciendo que **el usuario y la contraseña son correctos** —para que
+nadie pruebe otras claves— y nunca que la persona «entró»: sigue en el login.
+Si el servidor rechazó, el motivo técnico va al final, rotulado «Detalle:».
+Se queda en pantalla a propósito: quien diagnostica recibe una captura, no la
+consola del teléfono. Los textos viven en
+`pages/login/mensaje-sesion-no-cargada.ts`.
 
 El clasificador es `esFalloDeTransporte()` en `core/graphql/datos.service.ts`.
 

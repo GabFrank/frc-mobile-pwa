@@ -174,6 +174,10 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 **Esperado:** `frc.token` y `frc.usuarioId` **ya no están**.
 
+4. Repetir habiendo entrado con «Mantenerme conectado» **apagado**, y mirar **Session Storage**
+
+**Esperado:** tampoco están ahí. Sin esa casilla la sesión no vive en Local Storage.
+
 ### 1.7 · Mostrar/ocultar contraseña
 1. En login, escribir algo en Contraseña y tocar el ojo
 
@@ -186,6 +190,27 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 **Esperado:** vuelve al login. Recargar **no** te devuelve adentro.
 
 3. Repetir y cancelar el diálogo → **sigue la sesión**.
+
+### 1.9 · Entrar sin «Mantenerme conectado»
+1. Cerrar sesión. En el login, **apagar** «Mantenerme conectado»
+2. Ingresar usuario y contraseña válidos y entrar
+
+**Esperado:** entra a Inicio con el saludo por nombre, igual que en 1.1. **No** queda en el login con un error que termine en `status code 401`.
+
+3. DevTools → Application: `frc.token` está en **Session Storage** y **no** en Local Storage
+4. Navegar a dos o tres pantallas que consulten al central (Notificaciones, Mi trabajo)
+
+**Esperado:** cargan normalmente.
+
+5. Recargar con F5
+
+**Esperado:** sigue adentro.
+
+6. Cerrar la pestaña y abrir la app en una nueva
+
+**Esperado:** pide login: es lo que promete apagar la casilla.
+
+> Este modo estuvo roto desde que existe la casilla: el token se guardaba en Session Storage y se leía de Local Storage, así que toda consulta salía sin credencial. La casilla queda recordada apagada entre visitas, así que a quien la destildó una vez le fallaba siempre.
 
 ---
 
@@ -507,7 +532,7 @@ publicada. Cuando `semantic-release` empiece a numerar, ahí va a decir
 **Esperado:** una sola petición. El botón se deshabilita mientras trabaja.
 
 ### 6.5 · Sesión caducada
-1. Logueado, borrar `frc.token` desde DevTools → Application → Local Storage
+1. Logueado, borrar `frc.token` desde DevTools → Application → Local Storage (o Session Storage, si entraste sin «Mantenerme conectado»)
 2. Navegar a otra pantalla
 
 **Esperado:** el backend rechaza, se ve un error claro. **No** una pantalla en blanco ni un spinner infinito.
@@ -7300,7 +7325,7 @@ queda como dd/mm/aaaa y la lista se recarga.
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
 |---|---|---|---|---|
-| 1 · Arranque y sesión | 8 | | | |
+| 1 · Arranque y sesión | 9 | | | |
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
@@ -7382,7 +7407,7 @@ queda como dd/mm/aaaa y la lista se recarga.
 | 80 · El flotante solo en pantallas de navegación | 7 | | | |
 | 81 · Transferencias: la pestaña «Mías» | 8 | | | |
 | 82 · Transferencias: filtros de la lista | 12 | | | |
-| **Total** | **710** | | | |
+| **Total** | **711** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -292,11 +292,9 @@ export class DevolucionNuevaPage {
           this.notificacion.warn('Ningún proveedor con ese nombre.');
         }
       },
-      error: () => {
-        // «No pude preguntar» no es «no hay»: no se vacía la lista como si no existieran.
-        this.buscandoProveedor.set(false);
-        this.notificacion.warn('No se pudo buscar proveedores.');
-      },
+      // El aviso del error ya lo da `DatosService`. «No pude preguntar» no es
+      // «no hay»: la lista no se vacía como si no existieran.
+      error: () => this.buscandoProveedor.set(false),
     });
   }
 

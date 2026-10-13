@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
-import { Observable, throwError } from 'rxjs';
+import { CombinedGraphQLErrors } from '@apollo/client/errors';
+import { Observable, throwError, TimeoutError } from 'rxjs';
 import { catchError, finalize, map, tap } from 'rxjs/operators';
 
 import { leerUsuarioIdEnSesion } from '../auth/auth.tokens';
@@ -233,7 +234,10 @@ export class DatosService {
     return origen.pipe(
       map((res) => {
         if (res.errors?.length) {
-          throw new ErrorDatos(res.errors.map((e) => e.message).join(' · '));
+          // La causa es el error original: con `errorPolicy: 'all'` un fallo
+          // HTTP no llega por el canal de error sino acá, y sin ella se
+          // pierde el status que distingue un 401 de un 503.
+          throw new ErrorDatos(res.errors.map((e) => e.message).join(' · '), res.errors[0]);
         }
         return this.extraer(res);
       }),
@@ -252,7 +256,9 @@ export class DatosService {
         if (opciones?.notificarError !== false) {
           this.notificacion.danger(mensaje);
         }
-        return throwError(() => new ErrorDatos(mensaje, err));
+        // Un `ErrorDatos` ya trae su mensaje y su causa: envolverlo de nuevo
+        // enterraría la causa un nivel más abajo.
+        return throwError(() => (err instanceof ErrorDatos ? err : new ErrorDatos(mensaje, err)));
       }),
       finalize(() => {
         if (opciones?.mostrarCarga !== false) {
@@ -320,20 +326,39 @@ export class ErrorDatos extends Error {
  * descartarlo, pero "no llegué al servidor" es transitorio y no debería
  * costarle al usuario volver a escribir su contraseña.
  *
- * Se detecta por el `status` de `HttpErrorResponse`: `0` es un fallo de red
- * —el navegador no obtuvo respuesta—, y 5xx es el servidor caído o
- * reiniciándose. Un 401 o 403, en cambio, es una respuesta legítima que
- * dice que la credencial no sirve.
+ * Se decide por la **causa** del `ErrorDatos`, que es el error original:
+ *
+ * - Un error de GraphQL (HTTP 200) nunca es transporte, diga lo que diga su
+ *   mensaje.
+ * - Con status: 5xx es el servidor caído o reiniciándose —o el service worker,
+ *   que responde un 504 propio cuando no hay red—. Un 401 o 403 es una
+ *   respuesta legítima que dice que la credencial no sirve. Apollo lo entrega
+ *   como `statusCode` (`ServerError`); `status` es el de `HttpErrorResponse`.
+ * - Sin status: **el 0 nunca llega como número**. `apollo-angular` solo arma
+ *   `ServerError` para status ≥ 300 y el resto lo convierte en un `Error` con
+ *   el mensaje de `HttpErrorResponse`. Para "el navegador no obtuvo respuesta"
+ *   el texto es el único rastro, y se busca anclado para no depender del
+ *   `statusText` ni confundirse con el puerto de la URL.
  */
 export function esFalloDeTransporte(err: unknown): boolean {
-  const causa = err instanceof ErrorDatos ? err.causa : err;
-  const status = (causa as { status?: unknown } | null)?.status;
-  if (typeof status === 'number') {
-    return status === 0 || status >= 500;
+  const causa = err instanceof ErrorDatos && err.causa !== undefined ? err.causa : err;
+  if (CombinedGraphQLErrors.is(causa)) {
+    return false;
   }
-  const mensaje = err instanceof Error ? err.message : String(err ?? '');
-  return /failed to fetch|networkerror|err_connection|unknown error|0 unknown/i.test(mensaje);
+  if (causa instanceof TimeoutError) {
+    return true;
+  }
+  const { statusCode, status } = (causa ?? {}) as { statusCode?: unknown; status?: unknown };
+  const codigo = typeof statusCode === 'number' ? statusCode : status;
+  if (typeof codigo === 'number') {
+    return codigo === 0 || codigo >= 500;
+  }
+  const mensaje = causa instanceof Error ? causa.message : String(causa ?? '');
+  return SIN_RESPUESTA.test(mensaje);
 }
+
+const SIN_RESPUESTA =
+  /^Http failure response for .+: 0(?:\s|$)|failed to fetch|networkerror|err_connection/i;
 
 function mensajeDeError(err: unknown): string {
   if (err instanceof ErrorDatos) {

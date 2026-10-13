@@ -9,7 +9,11 @@
  */
 export function mensajeSesionNoCargada(falloDeRed: boolean, motivo: string | null): string {
   if (falloDeRed) {
-    return 'Tus datos son correctos, pero no se pudo contactar al servidor. Revisá la conexión y probá de nuevo.';
+    const base =
+      'Tus datos son correctos, pero no se pudo contactar al servidor. Revisá la conexión y probá de nuevo.';
+    // Si el servidor llegó a contestar, el número se muestra: un 500 no se
+    // arregla revisando la conexión, y sin él no se distingue de un wifi caído.
+    return motivo && /status code \d{3}/.test(motivo) ? `${base} Detalle: ${motivo}` : base;
   }
   const base =
     'Tu usuario y contraseña son correctos, pero no se pudo cargar tu cuenta. Avisá a sistemas.';

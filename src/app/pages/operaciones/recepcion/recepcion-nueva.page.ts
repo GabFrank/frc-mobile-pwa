@@ -61,7 +61,7 @@ const LOCALES = ['GUARANI', 'GS'];
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Nueva recepción" [conVolver]="true">
+    <frc-pagina titulo="Nueva recepción" [conVolver]="true" [conEscaner]="false">
       <frc-seccion titulo="1 · Sucursal que recibe" [panel]="true">
         @if (sucursal(); as s) {
           <p class="elegido">

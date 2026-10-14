@@ -76,7 +76,7 @@ const OPCIONES_TIPO_CONSERVACION: OpcionSeleccion[] = [
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Datos generales" [conVolver]="true">
+    <frc-pagina titulo="Datos generales" [conVolver]="true" [conEscaner]="false">
       @if (estado.cargando()) {
         <frc-skeleton [cantidad]="4" />
       } @else if (estado.error()) {

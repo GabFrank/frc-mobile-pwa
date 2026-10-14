@@ -41,7 +41,7 @@ const TAMANO = 10;
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Caja chica" [conVolver]="true">
+    <frc-pagina titulo="Caja chica" [conVolver]="true" [conEscaner]="false">
       <div acciones>
         <button matButton="filled" (click)="nueva()">Nueva solicitud</button>
         <button matButton (click)="escanear()">Escanear solicitud</button>

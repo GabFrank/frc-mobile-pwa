@@ -96,7 +96,7 @@ Tras guardar, sincroniza el token FCM con `pushNotificationsService.syncTokenToB
 
 - Credenciales y token viajan por **HTTP plano**.
 - El token vive en `localStorage`.
-- Varias queries de usuario traen el campo `password` en texto plano.
+- Ninguna query de usuario pide el campo `password` (ver «Seguridad» en [`apollo-graphql.md`](apollo-graphql.md)).
 
 Auditado en [`REPORTE_VULNERABILIDADES.md`](../../../../REPORTE_VULNERABILIDADES.md) (2026-04-02); la remediación es transversal a los 4 componentes y está en curso. **Antes de tocar código de auth, leé ese reporte.**
 
@@ -120,6 +120,15 @@ dentro del JWT (ver `REPORTE_VULNERABILIDADES.md`). Precargar el nombre y
 enfocar la clave da casi toda la comodidad sin abrir esa puerta. Hay un test
 que falla si aparece cualquier clave de almacenamiento que parezca una
 contraseña.
+
+⚠️ **El token se lee con `leerTokenEnSesion()` y se borra con
+`limpiarSesion()`, nunca con `localStorage` directo.** El link de Apollo
+—hoy en `core/auth/enlace-sesion.ts`— leía solo `localStorage`: con la casilla
+apagada toda operación salía sin `Authorization`, el central respondía 401 y
+el login fallaba con la contraseña correcta. Como la preferencia queda
+guardada, a quien la apagó una vez le fallaba en cada visita.
+`cambiarServidor()` tenía el mismo descuido al borrar; no llegaba a verse
+porque las dos pantallas que lo llaman cierran la sesión por su cuenta.
 
 Dos detalles que los tests fijan:
 
@@ -145,9 +154,53 @@ Ahora se distingue por el `status` de la respuesta:
 | 401 / 403 | El token no sirve: se descarta y se va al login |
 | 0 (sin respuesta) o 5xx | Es transporte: se reintenta 3 veces con espera creciente |
 
-Si aun así no se llega, la sesión se cierra —quedarse con un token sin roles
-deja la UI vacía sin decir por qué— pero **el login muestra el motivo real**:
-"no se pudo contactar al servidor", no "revisá tus credenciales".
+Cada intento de la restauración tiene un tope de 10 s: corre antes del primer
+render, y sin tope un central que no contesta deja la app en blanco lo que
+tarde el proxy en rendirse, tres veces. En el peor caso son 31,6 s. El tope
+no rige al entrar: ahí hay un botón girando y un central lento no es un
+central caído. El tope no cancela la petición en curso; su respuesta, si
+llega tarde, se descarta.
+
+**Si aun así no se llega, la sesión se cierra** —quedarse con un token sin
+roles deja la UI vacía sin decir por qué—. El título de esta sección vale para
+el hipo, no para la caída: un central que tarda vuelve en el reintento; uno
+caído más de unos segundos termina en el login. Y al llegar ahí desde la
+restauración **no se muestra ningún motivo** (pendiente); el motivo solo se
+muestra cuando el fallo ocurre al entrar: "no se pudo contactar al servidor",
+con el status si el servidor llegó a contestar un 5xx.
+
+### De dónde sale el status
+
+No del error que recibe la pantalla, sino de su **causa**. Las operaciones
+usan `errorPolicy: 'all'`, y con esa política Apollo no rechaza ante un fallo
+HTTP: lo entrega dentro del resultado. `DatosService` lo convierte en un
+`ErrorDatos` y guarda el original en `causa`; ahí está el `statusCode` del
+`ServerError`. Mientras esa causa se descartó, la clasificación corría solo
+sobre el texto del mensaje y **un 5xx se trataba como credencial rechazada**:
+la sesión se cerraba sin reintentar con el central reiniciándose.
+
+Tres cosas que no son obvias:
+
+- **El status 0 nunca llega como número.** `apollo-angular` solo arma
+  `ServerError` para status ≥ 300; "el navegador no obtuvo respuesta" llega
+  como un `Error` con el texto de `HttpErrorResponse`, y se reconoce por ese
+  texto.
+- **Sin red, la PWA instalada puede ver un 504 y no un 0**: el service worker
+  de Angular responde un 504 propio cuando su `fetch` falla.
+- **Un error de GraphQL (HTTP 200) nunca es transporte**, diga lo que diga su
+  mensaje.
+
+Los tests de esto (`core/graphql/fallo-de-transporte.spec.ts`) montan Apollo
+real contra `HttpTestingController`. Un objeto plano con `status` tiene el
+dato justo donde la función lo busca y esconde el defecto.
+
+Cuando el login REST pasa pero el usuario no se puede cargar, el mensaje
+arranca diciendo que **el usuario y la contraseña son correctos** —para que
+nadie pruebe otras claves— y nunca que la persona «entró»: sigue en el login.
+Si el servidor rechazó, el motivo técnico va al final, rotulado «Detalle:».
+Se queda en pantalla a propósito: quien diagnostica recibe una captura, no la
+consola del teléfono. Los textos viven en
+`pages/login/mensaje-sesion-no-cargada.ts`.
 
 El clasificador es `esFalloDeTransporte()` en `core/graphql/datos.service.ts`.
 

@@ -81,6 +81,15 @@ import { DevolucionService } from './devolucion.service';
           @if (ubicacionDistinta()) {
             <frc-dato etiqueta="Ubicación" [valor]="d.sucursalUbicacion?.nombre ?? '—'" />
           }
+          <!--
+            El tipo se muestra siempre: decide cómo puede terminar. Sin
+            proveedor solo se descarta; corregirlo se hace desde el
+            escritorio y mientras siga Pendiente.
+          -->
+          <frc-dato
+            etiqueta="Tipo"
+            [valor]="d.tipo === 'CON_PROVEEDOR' ? 'Con proveedor' : 'Sin proveedor'"
+          />
           @if (d.proveedor?.persona?.nombre) {
             <frc-dato etiqueta="Proveedor" [valor]="d.proveedor!.persona!.nombre!" />
           }

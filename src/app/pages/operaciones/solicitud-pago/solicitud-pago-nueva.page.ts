@@ -78,7 +78,7 @@ import { SolicitudPagoService } from './solicitud-pago.service';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Nueva solicitud de pago" [conVolver]="true">
+    <frc-pagina titulo="Nueva solicitud de pago" [conVolver]="true" [conEscaner]="false">
       <frc-seccion titulo="1 · Proveedor" [panel]="true">
         @if (proveedor(); as p) {
           <p class="elegido">

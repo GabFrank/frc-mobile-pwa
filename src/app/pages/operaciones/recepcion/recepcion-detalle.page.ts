@@ -93,7 +93,7 @@ const FILTROS: OpcionFiltro[] = [
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Recepción" [conVolver]="true">
+    <frc-pagina titulo="Recepción" [conVolver]="true" [conEscaner]="false">
       <button accionBarra type="button" class="icono-compartir" aria-label="Compartir por QR" (click)="compartir()">
         <frc-icono nombre="codigo" [tamano]="22" />
       </button>

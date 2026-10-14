@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../core/auth/auth.service';
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
-import { InventarioEstado } from '../domains/inventario/inventario.model';
+import { InventarioEstado, InventarioProductoEstado } from '../domains/inventario/inventario.model';
 import { ProductoBusquedaService } from '../domains/productos/producto-busqueda.service';
 import { ProductoService } from '../pages/producto/producto.service';
 import { InventarioCargaPage } from '../pages/inventario/inventario-carga.page';
@@ -530,20 +530,52 @@ describe('Agregar un producto al conteo', () => {
     expect(servicio.guardarItem).toHaveBeenCalled();
   });
 
-  it('la misma presentación que ya está en la zona también se manda', async () => {
-    // Puede ser un lote nuevo con otra fecha, que es legítimo. Decidirlo es
-    // del central; el cliente ya no adivina.
-    servicio.porId = vi.fn(() =>
-      of(
-        inventario(InventarioEstado.ABIERTO, [
-          { id: 1, vencimiento: '2026-11-20', presentacion: { id: 9, producto: { id: 200 } } },
-        ]),
-      ),
-    );
-    const f = montar();
-    await f.componentInstance.agregarProducto();
+  describe('la misma presentación que ya está en la zona', () => {
+    // Solo entra de nuevo como averiado o con otro vencimiento: sin preguntarlo
+    // el renglón nacía igual al existente y el central lo rechazaba siempre.
+    // Decidir si igual choca sigue siendo del central.
+    beforeEach(() => {
+      servicio.porId = vi.fn(() =>
+        of(
+          inventario(InventarioEstado.ABIERTO, [
+            { id: 1, presentacion: { id: 9, producto: { id: 200 } } },
+          ]),
+        ),
+      );
+    });
 
-    expect(servicio.guardarItem).toHaveBeenCalled();
+    it('pregunta cómo es y manda el renglón averiado', async () => {
+      dialogo.abrir = vi
+        .fn()
+        .mockResolvedValueOnce(SELECCION)
+        .mockResolvedValueOnce({ estado: InventarioProductoEstado.AVERIADO, vencimiento: '' });
+      const f = montar();
+      await f.componentInstance.agregarProducto();
+
+      expect(dialogo.abrir).toHaveBeenCalledTimes(2);
+      const input = servicio.guardarItem.mock.calls[0][0];
+      expect(input.estado).toBe(InventarioProductoEstado.AVERIADO);
+      expect(input.vencimiento).toBeUndefined();
+    });
+
+    it('con otro vencimiento manda la fecha', async () => {
+      dialogo.abrir = vi
+        .fn()
+        .mockResolvedValueOnce(SELECCION)
+        .mockResolvedValueOnce({ estado: InventarioProductoEstado.BUENO, vencimiento: '2027-01-05' });
+      const f = montar();
+      await f.componentInstance.agregarProducto();
+
+      expect(servicio.guardarItem.mock.calls[0][0].vencimiento).toBe('2027-01-05');
+    });
+
+    it('cancelar la pregunta no guarda nada', async () => {
+      dialogo.abrir = vi.fn().mockResolvedValueOnce(SELECCION).mockResolvedValueOnce(undefined);
+      const f = montar();
+      await f.componentInstance.agregarProducto();
+
+      expect(servicio.guardarItem).not.toHaveBeenCalled();
+    });
   });
 
   it('cerrar el buscador sin elegir no guarda nada', async () => {

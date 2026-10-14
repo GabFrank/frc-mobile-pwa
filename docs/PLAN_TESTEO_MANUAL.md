@@ -7398,6 +7398,58 @@ queda como dd/mm/aaaa y la lista se recarga.
 
 ---
 
+## Bloque 83 — Inventario: el mismo producto otra vez en la zona *(nuevo, sin probar)*
+
+**Por qué está acá:** cargar en una zona un producto que ya estaba ahí siempre
+fallaba con «Esa presentacion ya esta en la zona … sin vencimiento», porque el
+renglón nuevo nacía igual al existente —bueno y sin fecha—. Ahora se puede
+cargar de nuevo **solo como averiado o con otro vencimiento**: al elegirlo, un
+diálogo pregunta cuál de las dos. Lo bueno con la misma fecha (o sin fecha)
+sigue sin poder repetirse.
+
+⚠️ **Necesita el central de la rama `feat/inventario-renglon-por-estado`**: el
+estado (bueno / averiado) entra en la clave del duplicado. Contra un central
+viejo el averiado sin fecha se sigue rechazando; el de otro vencimiento sí entra.
+
+### 83.1 · Averiado
+1. En una zona abierta, agregar un producto (queda Bueno, sin fecha)
+2. Volver a **Agregar producto** y elegir el mismo
+3. En el diálogo «Ya está en esta zona», dejar **Averiado** y tocar **Agregar**
+
+**Esperado:** aparece un segundo renglón del producto con estado **Averiado**.
+
+### 83.2 · Otro vencimiento
+1. Repetir 83.1 eligiendo **Bueno, con otro vencimiento**
+
+**Esperado:** **Agregar** queda deshabilitado hasta cargar la fecha. Con la
+fecha, entra un renglón Bueno con ese vencimiento.
+
+### 83.3 · Lo mismo dos veces se sigue rechazando
+1. Con el renglón averiado del 83.1 ya cargado, agregar el mismo producto otra
+   vez como **Averiado** sin fecha
+
+**Esperado:** no se agrega; el mensaje dice que ya está averiado en la zona y
+que solo se puede cargar como averiado o con otro vencimiento.
+
+### 83.4 · Cancelar
+1. Agregar un producto que ya está y tocar **Cancelar** en el diálogo
+
+**Esperado:** no se agrega nada.
+
+### 83.5 · Cambiar a Averiado desde la tarjeta
+1. Con dos renglones del producto (uno Bueno y otro Averiado, sin fecha),
+   cambiar el Averiado a **Bueno** y **Guardar conteo**
+
+**Esperado:** el guardado de ese renglón falla con el mensaje del duplicado: los
+dos serían el mismo renglón.
+
+### 83.6 · Finalizar suma los dos
+1. Contar 10 en el Bueno y 2 en el Averiado, guardar y finalizar la toma
+
+**Esperado:** el stock del producto en la sucursal queda en **12**.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7484,7 +7536,8 @@ queda como dd/mm/aaaa y la lista se recarga.
 | 80 · El flotante solo en pantallas de navegación | 7 | | | |
 | 81 · Transferencias: la pestaña «Mías» | 8 | | | |
 | 82 · Transferencias: filtros de la lista | 12 | | | |
-| **Total** | **716** | | | |
+| 83 · Inventario: el mismo producto otra vez en la zona | 6 | | | |
+| **Total** | **722** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

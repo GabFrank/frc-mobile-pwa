@@ -45,6 +45,11 @@ import {
   type DatosCrearLote,
   type ResultadoCrearLote,
 } from './crear-lote-dialog.component';
+import {
+  RenglonRepetidoDialogComponent,
+  type DatosRenglonRepetido,
+  type ResultadoRenglonRepetido,
+} from './renglon-repetido-dialog.component';
 import type { ProductoVencido } from 'src/app/domains/productos/producto-vencido.model';
 import {
   enPresentacion,
@@ -782,6 +787,23 @@ export class InventarioCargaPage {
       return;
     }
 
+    // Ya contada en la zona: solo entra de nuevo como averiado o con otro
+    // vencimiento. Sin preguntarlo el renglón nacía igual al existente —bueno
+    // y sin fecha— y el central lo rechazaba siempre. La regla la aplica él.
+    let variante: ResultadoRenglonRepetido | undefined;
+    if (this.items().some((f) => Number(f.original.presentacion?.id) === presentacionId)) {
+      variante = await this.dialogo.abrir<
+        RenglonRepetidoDialogComponent,
+        DatosRenglonRepetido,
+        ResultadoRenglonRepetido | undefined
+      >(RenglonRepetidoDialogComponent, {
+        productoDescripcion: elegido?.producto?.descripcion ?? '',
+      });
+      if (!variante) {
+        return;
+      }
+    }
+
     this.agregando.set(true);
 
     /*
@@ -808,6 +830,8 @@ export class InventarioCargaPage {
                   stock,
                   usuarioId,
                   peso: elegido?.peso,
+                  vencimiento: variante?.vencimiento || undefined,
+                  estado: variante?.estado,
                 }),
               )
               .subscribe({

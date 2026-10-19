@@ -52,8 +52,8 @@ consulta de solo lectura a bodega fue rechazada en esta sesión).
 **Límite.** Es control de interfaz: la API sigue aceptando las operaciones
 hasta la fase 2.
 
-**Sumado (Franco, 2026-10-19).** `venta-tarjeta` escondía su tarjeta pero su ruta
-no tenía `rolGuard` (`operaciones.routes.ts:21-24`): mismo defecto, mismo arreglo con `rolGuard('ventaTarjeta')`. Una
+**Descartado.** Venta con tarjeta ya tiene `rolGuard('ventaTarjeta')` en sus
+rutas hijas (`venta-tarjeta.routes.ts:13,19`); el guard en el padre sobraba. Una
 notificación manual hacia `/operaciones/solicitud-pago` a un usuario sin rol
 termina en el aviso «No tenés permiso» y en Inicio.
 

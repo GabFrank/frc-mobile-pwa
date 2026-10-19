@@ -36,6 +36,7 @@ export const rutasOperaciones: Routes = [
   },
   {
     path: 'solicitud-pago',
+    canActivate: [rolGuard('solicitudPago')],
     loadChildren: () =>
       import('./solicitud-pago/solicitud-pago.routes').then((m) => m.rutasSolicitudPago),
   },

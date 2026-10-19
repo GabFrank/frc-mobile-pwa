@@ -2485,9 +2485,10 @@ el que soporte revisa cuando alguien reporta algo.
 ### 30.4 · Operaciones esconde sus cards
 1. Con el usuario restringido, abrir **Operaciones**.
 
-**Esperado:** no se ven Caja, Venta con tarjeta ni Recepción de mercadería. Sí
-se ven Caja chica, Solicitudes de pago y Devoluciones — que quedan abiertas a
-propósito, ver `permisos.ts`.
+**Esperado:** no se ven Caja, Venta con tarjeta, Recepción de mercadería ni
+Solicitudes de pago. Sí se ven Caja chica y Devoluciones — que quedan abiertas
+a propósito, ver `permisos.ts`. Solicitudes de pago pide rol desde el
+2026-10-19: ver el bloque 84.
 
 ### 30.5 · Recepción de mercadería, el caso a mirar de cerca
 1. Con un usuario de depósito que **no** sea ADMIN, abrir Operaciones.
@@ -7450,6 +7451,56 @@ dos serían el mismo renglón.
 
 ---
 
+## Bloque 84 — Solicitudes de pago con rol *(probado 2026-10-19 contra un central local)*
+
+**Por qué está acá:** hasta el 2026-10-19 cualquier usuario con sesión entraba
+a Solicitudes de pago, que muestra la deuda con proveedores. Ahora pide los
+mismos roles que el menú del desktop: `ADMIN`, `ANALISIS DE CAJA`,
+`ANALISIS FINANCIERO`, `ANALISIS CONTABLE`, `VER PRECIO COSTO`,
+`RECIBIR PEDIDOS`, `TESORERIA VER` o `TESORERIA GESTIONAR`.
+
+⚠️ Un rol recién asignado se ve **al reabrir la app** (los roles se traen al
+arrancar), no hace falta volver a iniciar sesión.
+
+### 84.1 · Sin rol no aparece
+1. Entrar con un usuario que solo tenga `VENTA TOUCH`
+2. Abrir **Operaciones**
+
+**Esperado:** no aparece *Solicitudes de pago*. Sí aparecen Caja, Venta con
+tarjeta, Caja chica y Devoluciones.
+
+### 84.2 · La URL a mano tampoco entra
+1. Con el mismo usuario, escribir `/operaciones/solicitud-pago`
+2. Repetir con `/operaciones/solicitud-pago/nueva` y `/operaciones/solicitud-pago/1`
+
+**Esperado:** las tres vuelven a Inicio con el aviso *«No tenés permiso para
+entrar a esa sección»*.
+
+### 84.3 · Con rol de compras entra
+1. Entrar con un usuario que tenga `RECIBIR PEDIDOS` (y no ADMIN)
+2. Abrir **Operaciones → Solicitudes de pago**
+
+**Esperado:** se ve la tarjeta, abre la lista y se puede crear una solicitud.
+
+### 84.4 · Desde una recepción
+1. Con ese usuario, abrir una recepción finalizada y tocar *Solicitar pago*
+
+**Esperado:** abre el alta con la recepción precargada, igual que antes.
+
+### 84.5 · Con rol de tesorería entra
+1. Entrar con un usuario que tenga solo `TESORERIA VER`
+
+**Esperado:** ve la tarjeta y la lista.
+
+### 84.6 · Desde un QR o una notificación sin rol
+1. Con el usuario de 84.1, escanear el QR de una solicitud de pago (o tocar una
+   notificación que lleve a una)
+
+**Esperado:** aviso *«No tenés permiso…»* e Inicio; no queda una pantalla en
+blanco ni un error.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7537,7 +7588,8 @@ dos serían el mismo renglón.
 | 81 · Transferencias: la pestaña «Mías» | 8 | | | |
 | 82 · Transferencias: filtros de la lista | 12 | | | |
 | 83 · Inventario: el mismo producto otra vez en la zona | 6 | | | |
-| **Total** | **722** | | | |
+| 84 · Solicitudes de pago con rol | 6 | 6 | | |
+| **Total** | **728** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

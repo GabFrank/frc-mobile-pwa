@@ -22,7 +22,6 @@ import { ROLES } from './roles.enum';
  * | Caja chica, Mi trabajo, Mis finanzas, Marcación | Autoservicio. Cada uno ve **lo suyo**, y el filtro es la persona en sesión, no un rol |
  * | Notificaciones, Mi cuenta | Ídem |
  * | Devoluciones | La carga la hace el personal de sucursal; el sistema no tiene un rol para esto |
- * | Solicitudes de pago | Correspondería `TESORERIA CPP PAGAR`, pero **ningún usuario lo tiene asignado**: exigirlo hoy lo escondería para todos menos ADMIN. Queda abierto hasta que los roles de tesorería se repartan |
  *
  * Conteo de usuarios por rol tomado de `personas.usuario_role` el 2026-08-14,
  * sobre 404 usuarios.
@@ -159,6 +158,28 @@ export const PERMISOS = {
    * 2026-09-04. Ver la spec.
    */
   productoPrecios: [ROLES.ADMIN, ROLES.EDITAR_PRECIOS],
+
+  /**
+   * Solicitudes de pago a proveedor: lista, alta y detalle.
+   *
+   * Los mismos roles que el menú del desktop
+   * (`side-mini-variant.component.ts`, «Solicitud de pago»). Muestra la deuda
+   * con proveedores con montos y estados. Estuvo abierta hasta el 2026-10-19
+   * esperando `TESORERIA CPP PAGAR`, que no lo tenía nadie.
+   *
+   * `RECIBIR PEDIDOS` está a propósito: el alta también sale de una recepción
+   * finalizada, y quien recibe tiene que poder pedir el pago.
+   */
+  solicitudPago: [
+    ROLES.ADMIN,
+    ROLES.ANALISIS_DE_CAJA,
+    ROLES.ANALISIS_FINANCIERO,
+    ROLES.ANALISIS_CONTABLE,
+    ROLES.VER_PRECIO_COSTO,
+    ROLES.RECIBIR_PEDIDOS,
+    ROLES.TESORERIA_VER,
+    ROLES.TESORERIA_GESTIONAR,
+  ],
 } as const satisfies Record<string, readonly ROLES[]>;
 
 export type AreaProtegida = keyof typeof PERMISOS;

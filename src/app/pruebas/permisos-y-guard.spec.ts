@@ -9,6 +9,7 @@ import { rolGuard } from '../core/auth/rol.guard';
 import { PERMISOS } from '../domains/personas/roles/permisos';
 import { ROLES } from '../domains/personas/roles/roles.enum';
 import { Usuario } from '../domains/personas/usuario.model';
+import { rutasOperaciones } from '../pages/operaciones/operaciones.routes';
 
 /**
  * El control de acceso tiene **dos capas**: esconder del menú lo que no
@@ -72,6 +73,18 @@ describe('Permisos y guard de rol', () => {
       expect(entrarCon([ROLES.CREAR_TRANSFERENCIA], 'transferenciasAlta')).toBe(true);
     });
 
+    /**
+     * Estuvo abierta a cualquiera con sesión hasta el 2026-10-19. Mismos roles
+     * que el menú del desktop; `RECIBIR PEDIDOS` porque el alta sale también
+     * de una recepción.
+     */
+    it('solicitudes de pago: entra compras o tesorería, no la caja', () => {
+      expect(entrarCon([ROLES.RECIBIR_PEDIDOS], 'solicitudPago')).toBe(true);
+      expect(entrarCon([ROLES.TESORERIA_VER], 'solicitudPago')).toBe(true);
+      expect(String(entrarCon([ROLES.VENTA_TOUCH], 'solicitudPago'))).toBe('/inicio');
+      expect(String(entrarCon([], 'solicitudPago'))).toBe('/inicio');
+    });
+
     it('rebota a Inicio a quien no lo tiene', () => {
       const resultado = entrarCon([ROLES.VENTA_TOUCH], 'inventario');
 
@@ -96,6 +109,18 @@ describe('Permisos y guard de rol', () => {
       expect(entrarCon(['VER INVENTARIO'], 'inventario')).toBe(true);
       expect(entrarCon(['VER_INVENTARIO'], 'inventario')).not.toBe(true);
     });
+  });
+
+  describe('las rutas de operaciones', () => {
+    // Los tests de arriba llaman al guard directo: si alguien saca el
+    // `canActivate` de la ruta, siguen en verde y la URL a mano entra igual.
+    it.each(['caja', 'recepcion', 'solicitud-pago'])(
+      '%s lleva guard de rol',
+      (path) => {
+        const ruta = rutasOperaciones.find((r) => r.path === path);
+        expect(ruta?.canActivate?.length, `${path} sin canActivate`).toBeGreaterThan(0);
+      },
+    );
   });
 
   it('Router está disponible para el redirect', () => {

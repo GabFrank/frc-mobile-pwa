@@ -24,11 +24,9 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
       }
 
       <!--
-        Caja chica, Solicitudes de pago y Devoluciones quedan sin rol a
-        propósito: las dos primeras porque los roles de tesorería no están
-        repartidos —exigirlos las escondería para todos menos ADMIN— y
-        Devoluciones porque el sistema no tiene un rol para eso. Ver
-        permisos.ts.
+        Caja chica y Devoluciones quedan sin rol a propósito: la primera
+        porque es autoservicio (cada uno ve lo suyo) y Devoluciones porque
+        el sistema no tiene un rol para eso. Ver permisos.ts.
       -->
       <frc-card
         titulo="Caja chica"
@@ -55,12 +53,14 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
         />
       }
 
-      <frc-card
-        titulo="Solicitudes de pago"
-        subtitulo="Pedir autorización para pagar al proveedor"
-        icono="dinero"
-        (abrir)="ir('/operaciones/solicitud-pago')"
-      />
+      @if (puedeSolicitudPago()) {
+        <frc-card
+          titulo="Solicitudes de pago"
+          subtitulo="Pedir autorización para pagar al proveedor"
+          icono="dinero"
+          (abrir)="ir('/operaciones/solicitud-pago')"
+        />
+      }
 
       <frc-card
         titulo="Devoluciones"
@@ -90,6 +90,10 @@ export class OperacionesPage {
 
   puedeVentaTarjeta(): boolean {
     return this.roleService.tieneAlgunRol(this.auth.roles(), PERMISOS.ventaTarjeta);
+  }
+
+  puedeSolicitudPago(): boolean {
+    return this.roleService.tieneAlgunRol(this.auth.roles(), PERMISOS.solicitudPago);
   }
 
   ir(ruta: string): void {

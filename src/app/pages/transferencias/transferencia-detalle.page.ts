@@ -20,6 +20,8 @@ import { FORMATOS_PRODUCTO, FORMATOS_QR } from 'src/app/core/dispositivo/escaner
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
+import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
 import {
   EtapaTransferencia,
@@ -382,6 +384,7 @@ export class TransferenciaDetallePage {
   private readonly dialog = inject(MatDialog);
   private readonly servicio = inject(TransferenciaService);
   private readonly auth = inject(AuthService);
+  private readonly roles = inject(RoleService);
   private readonly escaner = inject(EscanerService);
   private readonly productos = inject(ProductoBusquedaService);
   private readonly notificacion = inject(NotificacionService);
@@ -441,9 +444,14 @@ export class TransferenciaDetallePage {
   /** `true` si en esta etapa los ítems se verifican uno por uno. */
   readonly verificando = computed(() => esEtapaDeVerificacion(this.transferencia()?.etapa));
 
+  /** Compras (o ADMIN): avanza cualquier etapa, la haya tomado quien sea. */
+  readonly exento = computed(() =>
+    this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.transferenciaTodasLasEtapas),
+  );
+
   /** `true` si este usuario es quien tomó la etapa —o si nadie la tomó—. */
   readonly puedeEditar = computed(() =>
-    puedeEditarEtapa(this.transferencia(), this.auth.usuario()?.id),
+    puedeEditarEtapa(this.transferencia(), this.auth.usuario()?.id, this.exento()),
   );
 
   /**
@@ -458,7 +466,7 @@ export class TransferenciaDetallePage {
 
   /** `true` si este usuario puede hacerse cargo de la etapa siguiente. */
   readonly puedeTomar = computed(() =>
-    puedeTomarEtapa(this.transferencia(), this.auth.usuario()?.id, this.conCodigo()),
+    puedeTomarEtapa(this.transferencia(), this.auth.usuario()?.id, this.conCodigo(), this.exento()),
   );
 
   /** `true` si se pueden tocar los ítems ahora mismo. */

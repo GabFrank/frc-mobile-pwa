@@ -240,11 +240,18 @@ export function responsableDeEtapa(
  * en la mano; si solo él pudiera despachar, la transferencia quedaría clavada
  * en origen y el destino no podría recibirla. El chofer sigue figurando como
  * responsable aunque la revise y despache otro.
+ *
+ * `exento` es el usuario de compras (`PERMISOS.transferenciaTodasLasEtapas`):
+ * trabaja cualquier etapa aunque la haya tomado otro.
  */
 export function puedeEditarEtapa(
   transferencia: Transferencia | null,
   usuarioId: number | null | undefined,
+  exento = false,
 ): boolean {
+  if (exento) {
+    return usuarioId != null;
+  }
   if (transferencia?.etapa === EtapaTransferencia.TRANSPORTE_VERIFICACION) {
     return usuarioId != null;
   }
@@ -280,8 +287,9 @@ export function puedeTomarEtapa(
   transferencia: Transferencia | null,
   usuarioId: number | null | undefined,
   conCodigo: boolean,
+  exento = false,
 ): boolean {
-  return conCodigo || puedeEditarEtapa(transferencia, usuarioId);
+  return conCodigo || puedeEditarEtapa(transferencia, usuarioId, exento);
 }
 
 /**

@@ -281,6 +281,27 @@ describe('Quién puede trabajar la etapa', () => {
       puedeTomarEtapa({ id: 1, etapa: EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN }, 8, false),
     ).toBe(true);
   });
+
+  it('compras trabaja y toma cualquier etapa, aunque la tenga otro y sin código', () => {
+    const enPreparacion: Transferencia = {
+      id: 1,
+      etapa: EtapaTransferencia.PREPARACION_MERCADERIA,
+      usuarioPreparacion: usuario(7) as never,
+    };
+    const enRecepcion: Transferencia = {
+      id: 1,
+      etapa: EtapaTransferencia.RECEPCION_EN_VERIFICACION,
+      usuarioRecepcion: usuario(9) as never,
+    };
+    expect(puedeEditarEtapa(enPreparacion, 8, true)).toBe(true);
+    expect(puedeEditarEtapa(enRecepcion, 8, true)).toBe(true);
+    expect(puedeTomarEtapa(enRecepcion, 8, false, true)).toBe(true);
+    // Sin el flag, la regla de siempre.
+    expect(puedeEditarEtapa(enRecepcion, 8)).toBe(false);
+    expect(puedeTomarEtapa(enRecepcion, 8, false)).toBe(false);
+    // Sin sesión no hay excepción que valga.
+    expect(puedeEditarEtapa(enRecepcion, null, true)).toBe(false);
+  });
 });
 
 describe('Cuándo un ítem está revisado', () => {
@@ -441,6 +462,7 @@ describe('El botón de avance, en la pantalla', () => {
     items: TransferenciaItem[],
     usuarioId: number | null,
     qr?: string,
+    roles: string[] = [],
   ) => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -455,7 +477,10 @@ describe('El botón de avance, en la pantalla', () => {
         },
         {
           provide: AuthService,
-          useValue: { usuario: () => (usuarioId == null ? null : usuario(usuarioId)) },
+          useValue: {
+            usuario: () => (usuarioId == null ? null : usuario(usuarioId)),
+            roles: () => roles,
+          },
         },
       ],
     });
@@ -564,6 +589,45 @@ describe('El botón de avance, en la pantalla', () => {
       );
       expect(pagina.accionHabilitada()).toBe(false);
       expect(pagina.editable()).toBe(false);
+    });
+  });
+
+  describe('con el rol de compras', () => {
+    const compras = ['VER STOCK COMPRAS'];
+
+    it('concluye la etapa ajena y edita sus ítems', () => {
+      const pagina = montar(
+        { etapa: EtapaTransferencia.PREPARACION_MERCADERIA, usuarioPreparacion: usuario(7) as never },
+        [{ id: 1, cantidadPreparacion: 8 }],
+        8,
+        undefined,
+        compras,
+      );
+      expect(pagina.accionHabilitada()).toBe(true);
+      expect(pagina.editable()).toBe(true);
+    });
+
+    it('toma una etapa a nombre de otro sin su código', () => {
+      const pagina = montar(
+        { etapa: EtapaTransferencia.TRANSPORTE_EN_CAMINO, usuarioTransporte: usuario(7) as never },
+        [{ id: 1 }],
+        8,
+        undefined,
+        compras,
+      );
+      expect(pagina.accionHabilitada()).toBe(true);
+    });
+
+    it('igual tiene que revisar todos los ítems antes de concluir', () => {
+      const pagina = montar(
+        { etapa: EtapaTransferencia.RECEPCION_EN_VERIFICACION, usuarioRecepcion: usuario(7) as never },
+        [{ id: 1, cantidadRecepcion: 8 }, { id: 2 }],
+        8,
+        undefined,
+        compras,
+      );
+      expect(pagina.accionHabilitada()).toBe(false);
+      expect(pagina.motivoDeBloqueo()).toContain('1 producto');
     });
   });
 

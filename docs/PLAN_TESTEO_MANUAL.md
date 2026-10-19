@@ -7499,6 +7499,49 @@ entrar a esa sección»*.
 **Esperado:** aviso *«No tenés permiso…»* e Inicio; no queda una pantalla en
 blanco ni un error.
 
+## Bloque 85 — Transferencias: compras avanza cualquier etapa *(probado 2026-10-19 contra un central local)*
+
+**Por qué está acá:** quien tiene **`VER STOCK COMPRAS`** (o ADMIN) puede
+tomar y cerrar cualquier etapa de una transferencia, aunque esté a nombre de
+otro y sin pedirle el QR. El resto de los usuarios sigue con la regla de
+siempre: la etapa la trabaja quien la tomó, y a una ajena se entra con el
+código.
+
+⚠️ Un rol recién asignado se ve **al reabrir la app**.
+
+### 85.1 · Sin el rol, la regla de siempre
+1. Entrar con un usuario sin `VER STOCK COMPRAS` ni ADMIN
+2. Abrir una transferencia *Pendiente en origen* creada por otro
+
+**Esperado:** *Preparar productos* apagado y el aviso *«Esta transferencia está
+a nombre de …, pedile el QR»*.
+
+### 85.2 · Con el rol, la toma sin QR
+1. Repetir con un usuario que tenga `VER STOCK COMPRAS` (y no ADMIN)
+
+**Esperado:** *Preparar productos* habilitado, sin aviso.
+
+### 85.3 · Cierra la etapa de otro *(el que importa)*
+1. Con ese usuario, abrir una transferencia en *Preparando mercadería* que
+   preparó otro, con todos los ítems revisados
+
+**Esperado:** *Concluir preparación* habilitado y los ítems se pueden tocar.
+Al concluir, el responsable sigue siendo el que preparó.
+
+### 85.4 · Igual exige revisar todos los ítems
+1. Misma situación, con un ítem sin revisar
+
+**Esperado:** el botón apagado y *«Falta revisar 1 producto…»*.
+
+### 85.5 · Recepción desde otra sucursal
+1. Con ese usuario, en una transferencia *En camino* a nombre de otro, tocar
+   *Iniciar recepción*
+2. Cancelar el escáner del QR de la sucursal
+
+**Esperado:** pide la confirmación de siempre y abre la recepción. Si en vez de
+cancelar se escanea el QR de **otra** sucursal, frena con *«El QR no es de la
+sucursal de destino…»*.
+
 ---
 
 ## Resumen para completar
@@ -7589,7 +7632,8 @@ blanco ni un error.
 | 82 · Transferencias: filtros de la lista | 12 | | | |
 | 83 · Inventario: el mismo producto otra vez en la zona | 6 | | | |
 | 84 · Solicitudes de pago con rol | 6 | 6 | | |
-| **Total** | **728** | | | |
+| 85 · Transferencias: compras avanza cualquier etapa | 5 | 5 | | |
+| **Total** | **733** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

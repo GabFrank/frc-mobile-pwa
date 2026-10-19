@@ -354,6 +354,15 @@ en `puedeTomarEtapa()`.
 > tomaba la preparación de otro. Tampoco es un control de seguridad —el QR
 > lleva solo el id y el central no lo valida—, igual que antes.
 
+**La excepción de compras.** Quien tiene `VER STOCK COMPRAS` o `ADMIN`
+(`PERMISOS.transferenciaTodasLasEtapas`) toma y cierra cualquier etapa sin
+código, aunque la tenga otro: el detalle les pasa `exento` a
+`puedeEditarEtapa()` y `puedeTomarEtapa()`. Sigue valiendo todo lo demás:
+cerrar exige los ítems revisados, y el QR de la sucursal al iniciar la
+recepción frena si es de otra sucursal. Es la misma excepción que el desktop
+(`esCompras` en `edit-transferencia.component.ts`). Pedido de Franco,
+2026-10-19.
+
 ### La verificación ítem por ítem
 
 En `PREPARACION_MERCADERIA`, `TRANSPORTE_VERIFICACION` y

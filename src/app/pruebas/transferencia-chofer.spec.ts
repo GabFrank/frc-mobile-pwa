@@ -56,7 +56,7 @@ describe('Verificar para transporte pide el chofer', () => {
         providers: [
           { provide: TransferenciaService, useValue: servicio },
           { provide: DialogoService, useValue: dialogo },
-          { provide: AuthService, useValue: { usuario: () => ({ id: 8 }) } },
+          { provide: AuthService, useValue: { usuario: () => ({ id: 8 }), roles: () => [] } },
         ],
       });
       const f = TestBed.createComponent(TransferenciaDetallePage);
@@ -171,7 +171,7 @@ describe('El diálogo del chofer', () => {
         { provide: DialogoService, useValue: dialogo },
         { provide: MatDialogRef, useValue: ref },
         { provide: MAT_DIALOG_DATA, useValue: { transferenciaId: 1 } },
-        { provide: AuthService, useValue: { usuario: () => ({ id: 8 }) } },
+        { provide: AuthService, useValue: { usuario: () => ({ id: 8 }), roles: () => [] } },
         { provide: NotificacionService, useValue: { ok: vi.fn() } },
       ],
     });

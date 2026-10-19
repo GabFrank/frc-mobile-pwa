@@ -633,10 +633,11 @@ export class TransferenciaDetallePage {
   /**
    * Pasa a transporte eligiendo chofer, vehículo y acompañantes.
    *
-   * ⚠️ **No usa `avanzarEtapaTransferencia`.** Ese camino deja como
-   * responsable al usuario logueado; acá lo es el chofer elegido, y el
-   * central además le crea la hoja de ruta. El diálogo hace la mutation y
-   * devuelve `true` solo si el central la aceptó.
+   * ⚠️ **Con chofer no usa `avanzarEtapaTransferencia`.** Ese camino deja
+   * como responsable al usuario logueado; acá lo es el chofer elegido, y el
+   * central además le crea la hoja de ruta. El chofer es opcional: «Continuar
+   * sin chofer» sí va por el camino normal. En los dos casos el diálogo hace
+   * la mutation y devuelve `true` solo si el central la aceptó.
    */
   private async verificarConChofer(transferenciaId: number): Promise<void> {
     const verificado = await this.dialogo.abrir<

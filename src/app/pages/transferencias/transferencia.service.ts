@@ -17,11 +17,17 @@ import {
 } from 'src/app/domains/transferencia/transferencia.model';
 import { VehiculoSearchPageGQL } from 'src/app/graphql/operaciones/gastos/activosSearchPage';
 import { PersonaSearchPageGQL } from 'src/app/graphql/personas/persona/personaSearchPage';
+import {
+  ConfiguracionTransferencia,
+  ConfiguracionTransferenciaGQL,
+} from 'src/app/graphql/transferencias/configuracionTransferencia';
+import { StockEnOrigenGQL } from 'src/app/graphql/transferencias/stockEnOrigen';
 import { AvanzarEtapaGQL } from 'src/app/graphql/transferencias/avanzarEtapa';
 import { FinalizarTransferenciaGQL } from 'src/app/graphql/transferencias/finalizarTransferencia';
 import { ItemsPorTransferenciaGQL } from 'src/app/graphql/transferencias/itemsPorTransferencia';
 import { TransferenciaPorIdGQL } from 'src/app/graphql/transferencias/transferenciaPorId';
 import { TransferenciasConFiltrosGQL } from 'src/app/graphql/transferencias/transferenciasConFiltros';
+import { TransferenciasPorUsuarioGQL } from 'src/app/graphql/transferencias/transferenciasPorUsuario';
 import { SaveTransferenciaGQL } from 'src/app/graphql/transferencias/saveTransferencia';
 import { SaveTransferenciaItemGQL } from 'src/app/graphql/transferencias/saveTransferenciaItem';
 import { DeleteTransferenciaItemGQL } from 'src/app/graphql/transferencias/deleteTransferenciaItem';
@@ -50,6 +56,14 @@ export interface FiltrosTransferencia {
   etapa?: EtapaTransferencia | null;
   isOrigen?: boolean | null;
   isDestino?: boolean | null;
+  /**
+   * Rango sobre `creadoEn`, los dos extremos incluidos.
+   *
+   * ⚠️ **Una fecha sola es medianoche.** `yyyy-MM-dd` sirve para «desde»;
+   * «hasta» necesita `yyyy-MM-dd 23:59:59` o deja afuera su propio día.
+   */
+  creadoDesde?: string | null;
+  creadoHasta?: string | null;
   page?: number;
   size?: number;
 }
@@ -65,6 +79,7 @@ export class TransferenciaService {
   private readonly datos = inject(DatosService);
   private readonly porIdGQL = inject(TransferenciaPorIdGQL);
   private readonly filtrosGQL = inject(TransferenciasConFiltrosGQL);
+  private readonly porUsuarioGQL = inject(TransferenciasPorUsuarioGQL);
   private readonly itemsGQL = inject(ItemsPorTransferenciaGQL);
   private readonly avanzarGQL = inject(AvanzarEtapaGQL);
   private readonly finalizarGQL = inject(FinalizarTransferenciaGQL);
@@ -77,6 +92,8 @@ export class TransferenciaService {
   private readonly verificarTransporteGQL = inject(VerificarParaTransporteGQL);
   private readonly vehiculosGQL = inject(VehiculoSearchPageGQL);
   private readonly personasGQL = inject(PersonaSearchPageGQL);
+  private readonly stockEnOrigenGQL = inject(StockEnOrigenGQL);
+  private readonly configuracionGQL = inject(ConfiguracionTransferenciaGQL);
 
   /**
    * Le avisa al central que se escaneó el QR de esta transferencia.
@@ -108,11 +125,23 @@ export class TransferenciaService {
       etapa: filtros.etapa ?? null,
       isOrigen: filtros.isOrigen ?? null,
       isDestino: filtros.isDestino ?? null,
-      creadoDesde: null,
-      creadoHasta: null,
+      creadoDesde: filtros.creadoDesde ?? null,
+      creadoHasta: filtros.creadoHasta ?? null,
       page: filtros.page ?? 0,
       size: filtros.size ?? 10,
     });
+  }
+
+  /**
+   * Las del usuario: aquellas donde es responsable de alguna de las cuatro
+   * etapas. Es la lista que mostraba `frc-mobile`.
+   *
+   * ⚠️ **Son las últimas 20 y no hay página siguiente**: el corte lo hace el
+   * central. Quien las muestra tiene que decirlo, o 20 filas afirman que no
+   * hay más.
+   */
+  porUsuario(usuarioId: number): Observable<Transferencia[]> {
+    return this.datos.porId<Transferencia[]>(this.porUsuarioGQL, usuarioId);
   }
 
   /**
@@ -271,5 +300,54 @@ export class TransferenciaService {
       { entity: { personaId, titulo, mensaje } },
       { mostrarCarga: false, notificarError: false },
     );
+  }
+
+  /**
+   * Stock del producto en la sucursal, según el central.
+   *
+   * ⚠️ **Un error viaja por el canal de error, no como 0.** Un 0 acá dispara
+   * el aviso de «stock 0»: devolverlo cuando la consulta falló afirmaría algo
+   * que nadie dijo. El llamador no agrega el ítem si esto falla. Un `null` o
+   * un valor que no es número también es error, no 0.
+   *
+   * Sin toast propio (`notificarError: false`): el llamador muestra el único
+   * aviso, el específico de «no se agregó».
+   */
+  stockEnOrigen(productoId: number, sucursalId: number): Observable<number> {
+    return this.datos
+      .consultar<number>(
+        this.stockEnOrigenGQL,
+        { id: productoId, sucId: sucursalId },
+        { mostrarCarga: true, notificarError: false },
+      )
+      .pipe(
+        map((stock) => {
+          if (typeof stock !== 'number' || !Number.isFinite(stock)) {
+            throw new Error('El central no devolvió el stock.');
+          }
+          return stock;
+        }),
+      );
+  }
+
+  /**
+   * `true` si la configuración de transferencias permite cargar con stock
+   * negativo. Si el central no devuelve la configuración es error: no se
+   * asume que «no lo permite».
+   */
+  permiteStockNegativo(): Observable<boolean> {
+    return this.datos
+      .consultar<ConfiguracionTransferencia>(this.configuracionGQL, undefined, {
+        mostrarCarga: true,
+        notificarError: false,
+      })
+      .pipe(
+        map((config) => {
+          if (config == null) {
+            throw new Error('El central no devolvió la configuración de transferencias.');
+          }
+          return config.permitirStockNegativo === true;
+        }),
+      );
   }
 }

@@ -7,6 +7,7 @@ import {
   InventarioProducto,
   InventarioProductoItem,
   InventarioProductoItemInput,
+  InventarioProductoEstado,
   TipoInventario,
 } from 'src/app/domains/inventario/inventario.model';
 import type { Presentacion } from 'src/app/domains/productos/presentacion.model';
@@ -311,6 +312,8 @@ export function nuevoItemInput(datos: {
   loteId?: number;
   /** `yyyy-MM-dd`. Con lote se copia del maestro: la fecha es del lote. */
   vencimiento?: string;
+  /** Solo para el renglón repetido en la zona: lo averiado va aparte de lo bueno. */
+  estado?: InventarioProductoEstado;
 }): InventarioProductoItemInput {
   const sistema = datos.stock ?? 0;
   const base: InventarioProductoItemInput = {
@@ -323,6 +326,7 @@ export function nuevoItemInput(datos: {
     revisado: false,
     ...(datos.loteId != null ? { loteId: datos.loteId } : {}),
     ...(datos.vencimiento ? { vencimiento: datos.vencimiento } : {}),
+    ...(datos.estado ? { estado: datos.estado } : {}),
   };
 
   if (datos.peso == null) {

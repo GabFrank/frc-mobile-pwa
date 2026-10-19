@@ -3,7 +3,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 
+import { AuthService } from 'src/app/core/auth/auth.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import type { Vehiculo } from 'src/app/domains/gastos/ente.model';
 import type { Persona } from 'src/app/domains/personas/persona.model';
 import { UsuarioService } from 'src/app/domains/personas/usuario.service';
@@ -11,7 +13,7 @@ import type { Usuario } from 'src/app/domains/personas/usuario.model';
 import { EtapaTransferencia } from 'src/app/domains/transferencia/transferencia.model';
 import { BuscadorComponent, ConfigBuscador } from 'src/app/shared/buscador/buscador.component';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
-import { AVISO_ETAPA } from './etapas';
+import { AVISO_ETAPA, ETAPA_ETIQUETAS } from './etapas';
 import { TransferenciaService } from './transferencia.service';
 
 export interface AsignarChoferData {
@@ -28,6 +30,10 @@ type Acompanante = Pick<Persona, 'id' | 'nombre'>;
  * se elige un `Usuario` —el responsable lo es— y el central toma su persona
  * para la hoja de ruta.
  *
+ * El chofer es opcional: «Continuar sin chofer» avanza por el flujo normal
+ * (`avanzarEtapaTransferencia`), con el usuario logueado como responsable y
+ * sin hoja de ruta nueva.
+ *
  * El diálogo hace la mutation él mismo y se cierra con `true` solo si el
  * central la aceptó: si la rechaza, queda abierto con lo cargado.
  */
@@ -41,7 +47,8 @@ type Acompanante = Pick<Persona, 'id' | 'nombre'>;
 
     <mat-dialog-content class="cuerpo">
       <p class="aviso">
-        El chofer queda como responsable de la verificación para transporte.
+        Si elegís un chofer, queda como responsable de la verificación para transporte. Sin
+        chofer, el responsable sos vos.
       </p>
 
       <section class="campo">
@@ -84,8 +91,16 @@ type Acompanante = Pick<Persona, 'id' | 'nombre'>;
       </section>
     </mat-dialog-content>
 
-    <mat-dialog-actions align="end">
+    <mat-dialog-actions align="end" class="acciones">
       <button matButton type="button" [disabled]="enviando()" (click)="cerrar()">Cancelar</button>
+      <button
+        matButton="outlined"
+        type="button"
+        [disabled]="enviando()"
+        (click)="continuarSinChofer()"
+      >
+        Continuar sin chofer
+      </button>
       <button
         matButton="filled"
         type="button"
@@ -103,6 +118,8 @@ type Acompanante = Pick<Persona, 'id' | 'nombre'>;
     .etiqueta { font-size: var(--fs-caption); color: var(--text-mute); }
     .valor { margin: 0; font-weight: var(--fw-medium); }
     .vacio { font-weight: var(--fw-regular); color: var(--text-mute); }
+    /* Con tres botones las acciones se parten en dos filas en el teléfono: sin esto quedan pegadas. */
+    .acciones { gap: var(--sp-3) var(--sp-2); }
     .acompanante {
       display: flex;
       align-items: center;
@@ -118,6 +135,8 @@ export class AsignarChoferDialogComponent {
   private readonly servicio = inject(TransferenciaService);
   private readonly usuarios = inject(UsuarioService);
   private readonly dialogo = inject(DialogoService);
+  private readonly auth = inject(AuthService);
+  private readonly notificacion = inject(NotificacionService);
 
   readonly chofer = signal<Usuario | null>(null);
   readonly vehiculo = signal<Vehiculo | null>(null);
@@ -237,6 +256,48 @@ export class AsignarChoferDialogComponent {
         }),
       );
       this.ref.close(true);
+    } catch {
+      // `DatosService` ya mostró el motivo; se queda abierto con lo cargado.
+    } finally {
+      this.enviando.set(false);
+    }
+  }
+
+  /**
+   * Avanza sin chofer: el flujo normal, con el usuario logueado como
+   * responsable. Lo que se haya cargado de chofer, vehículo o acompañantes
+   * se descarta, y el central no crea hoja de ruta.
+   */
+  async continuarSinChofer(): Promise<void> {
+    const usuarioId = this.auth.usuario()?.id;
+    if (usuarioId == null || this.enviando()) {
+      return;
+    }
+
+    const confirmado = await this.dialogo.confirmar({
+      titulo: 'Revisá los datos antes de continuar',
+      mensaje:
+        'Sin chofer, quedás vos como responsable de la verificación para transporte. ' +
+        AVISO_ETAPA[EtapaTransferencia.TRANSPORTE_VERIFICACION],
+      confirmar: 'Continuar sin chofer',
+    });
+    if (!confirmado) {
+      return;
+    }
+
+    this.enviando.set(true);
+    try {
+      const ok = await firstValueFrom(
+        this.servicio.avanzarEtapa(
+          this.data.transferenciaId,
+          EtapaTransferencia.TRANSPORTE_VERIFICACION,
+          usuarioId,
+        ),
+      );
+      if (ok) {
+        this.notificacion.ok(ETAPA_ETIQUETAS[EtapaTransferencia.TRANSPORTE_VERIFICACION]);
+        this.ref.close(true);
+      }
     } catch {
       // `DatosService` ya mostró el motivo; se queda abierto con lo cargado.
     } finally {

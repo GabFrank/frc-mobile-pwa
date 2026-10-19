@@ -187,6 +187,40 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 3. Repetir y cancelar el diálogo → **sigue la sesión**.
 
+### 1.9 · Entrar sin «Mantenerme conectado»
+1. Cerrar sesión. En el login, **apagar** «Mantenerme conectado»
+2. Ingresar usuario y contraseña válidos y entrar
+
+**Esperado:** entra a Inicio con el saludo por nombre, igual que en 1.1. **No** queda en el login con un error que termine en `status code 401`.
+
+3. DevTools → Application: `frc.token` está en **Session Storage** y **no** en Local Storage
+4. Navegar a dos o tres pantallas que consulten al central (Notificaciones, Mi trabajo)
+
+**Esperado:** cargan normalmente.
+
+5. Recargar con F5
+
+**Esperado:** sigue adentro.
+
+6. Cerrar la pestaña y abrir la app en una pestaña nueva, escribiendo la dirección (no «reabrir pestaña cerrada» ni «duplicar»: esas dos restauran Session Storage)
+
+**Esperado:** pide login: es lo que promete apagar la casilla.
+
+> Este modo estuvo roto desde que existe la casilla: el token se guardaba en Session Storage y se leía de Local Storage, así que toda consulta salía sin credencial. La casilla queda recordada apagada entre visitas, así que a quien la destildó una vez le fallaba siempre.
+
+### 1.10 · El central no contesta al arrancar
+1. Entrar normalmente
+2. DevTools → Network → clic derecho sobre una petición a `graphql` → **Block request URL**
+3. Recargar con F5, con la pestaña Network a la vista
+
+**Esperado:** se ven **tres** intentos a `graphql`, separados por menos de dos segundos en total, y recién después aparece el login. No uno solo.
+
+4. Quitar el bloqueo y entrar de nuevo
+
+**Esperado:** entra normalmente.
+
+> Antes, un 502/503 del central —un deploy, un reinicio— se trataba como credencial rechazada: la sesión se cerraba al primer intento. Dos cosas **no** se pueden probar así: un 5xx real (bloquear la petición da «sin respuesta»; hace falta un proxy delante del central) y el mensaje del login ante un fallo al cargar el usuario (con el central apagado falla antes, en el login mismo). Las dos están cubiertas por test.
+
 ---
 
 ## Bloque 2 — Navegación y shell
@@ -507,7 +541,7 @@ publicada. Cuando `semantic-release` empiece a numerar, ahí va a decir
 **Esperado:** una sola petición. El botón se deshabilita mientras trabaja.
 
 ### 6.5 · Sesión caducada
-1. Logueado, borrar `frc.token` desde DevTools → Application → Local Storage
+1. Logueado, borrar `frc.token` desde DevTools → Application → Local Storage (o Session Storage, si entraste sin «Mantenerme conectado»)
 2. Navegar a otra pantalla
 
 **Esperado:** el backend rechaza, se ve un error claro. **No** una pantalla en blanco ni un spinner infinito.
@@ -899,6 +933,74 @@ arriba suma productos y unidades.
 > El selector de sucursal **no ofrece SERVIDOR ni COMPRAS**: no tienen
 > depósito. Tampoco las sucursales cerradas.
 
+### 13.1.1 · A quién va: con proveedor *(nuevo)*
+1. En *Nueva devolución*, sin tocar «A quién va», agregar un producto
+
+**Esperado:** **Guardar** sigue deshabilitado y debajo dice «Elegí si la
+devolución va a un proveedor o sin proveedor». No hay opción elegida de
+entrada.
+
+2. En «A quién va» elegir **Con proveedor**
+3. Escribir parte del nombre de un proveedor y **Buscar** (o Enter)
+4. Tocar uno de la lista
+
+**Esperado:** al elegir «Con proveedor» aparece el buscador y el texto de
+abajo pasa a «Elegí el proveedor al que se le devuelve». Tras tocar uno, queda
+el nombre con **Cambiar** al lado, el texto desaparece y **Guardar** se
+habilita. Con un nombre que no existe: aviso «Ningún proveedor con ese nombre».
+
+### 13.1.2 · A quién va: sin proveedor *(nuevo)*
+1. Con un proveedor ya elegido, cambiar «A quién va» a **Sin proveedor**
+2. Volver a **Con proveedor**
+
+**Esperado:** en «Sin proveedor» el buscador desaparece y se puede guardar sin
+más. Al volver a «Con proveedor» el proveedor de antes **no** está: hay que
+elegirlo de nuevo.
+
+### 13.1.3 · Lo elegido queda a la vista *(nuevo)*
+1. Guardar una devolución con proveedor y otra sin proveedor
+2. Mirar el detalle de cada una y después la lista de Devoluciones
+
+**Esperado:** el detalle muestra **Tipo** («Con proveedor» / «Sin proveedor»)
+y, en la primera, el nombre del proveedor. En la lista, cada fila dice el
+proveedor o «Sin proveedor» entre la sucursal y la fecha. En el escritorio, la
+primera aparece con ese proveedor y tipo CON PROVEEDOR.
+
+> Si se eligió mal, se corrige **desde el escritorio y mientras siga
+> Pendiente**: el teléfono no edita una devolución ya guardada.
+
+### 13.1.4 · Elegir el lote de un producto con control de lote *(nuevo)*
+> Necesita un central con la migración `V249.3`. Contra uno anterior, guardar
+> un ítem **con lote elegido** falla; sin elegir lote, guarda igual.
+
+1. En *Nueva devolución*, agregar un producto **con control de lote**
+2. En el diálogo del ítem, tocar **Elegir lote**
+
+**Esperado:** en lugar del campo de texto «Lote» hay un botón. Abre el
+buscador de lotes del producto («Lote que se devuelve»), con el saldo de cada
+uno en la sucursal de origen; lista también los lotes sin saldo y los
+bloqueados.
+
+3. Tocar un lote
+
+**Esperado:** el diálogo muestra «Lote <número>» con **Quitar**, el botón pasa
+a «Cambiar lote» y el vencimiento se completa con el del lote si estaba vacío.
+
+4. Agregar, guardar la devolución y **separarla**
+
+**Esperado:** en el detalle, el ítem dice el lote. En el escritorio, *Stock por
+lotes* de ese producto muestra el saldo de **ese** lote bajado en la cantidad
+devuelta (en unidades).
+
+5. Repetir con otro ítem del mismo producto **sin** elegir lote
+
+**Esperado:** debajo del botón dice «Sin lote elegido, la baja sale del que
+vence primero», y al separar baja el saldo del lote de vencimiento más próximo.
+
+6. Agregar un producto **sin** control de lote
+
+**Esperado:** el campo «Lote» sigue siendo de texto libre, como antes.
+
 ### 13.2 · El motivo dice a dónde va la pérdida
 1. En el diálogo del ítem, cambiar entre motivos
 
@@ -1255,11 +1357,12 @@ rendición, aparece su propio estado aparte del estado de la solicitud.
 > Necesita el rol **`VER TRANSFERENCIA`** y transferencias existentes. Crear
 > una es el bloque 51, y pide además `CREAR TRANSFERENCIA`.
 
-### 18.1 · Los tres puntos de vista
+### 18.1 · Los puntos de vista
 1. Inicio → **Transferencias**
 
-**Esperado:** pestañas **Salen · Llegan · Todas**. «Salen» trae aquellas donde
-tu sucursal es el origen; «Llegan», donde es el destino.
+**Esperado:** pestañas **Mías · Salen · Llegan · Todas**, y se entra por
+«Mías» (bloque 81). «Salen» trae las que todavía están del lado del origen;
+«Llegan», las que ya están del lado del destino.
 
 ### 18.2 · Detalle con las cuatro etapas *(lo que importa)*
 1. Abrir una transferencia que ya haya avanzado
@@ -1949,12 +2052,17 @@ bienvenida.
 > barras y QR de sucursal. **Falta con la cámara real** y falta el resto de
 > los tipos, que necesitan un QR de cada uno.
 
-### 23.1 · El botón está en todas partes
-1. Recorrer Inicio, Operaciones, Buscar, Cuenta, una lista y un detalle.
+### 23.1 · El botón está en las pantallas de navegación
+1. Recorrer Inicio, Operaciones, Cuenta, una lista y un detalle de solo
+   lectura.
 
 **Esperado:** el botón redondo de escaneo está abajo a la derecha en todas.
-En las pantallas con barra de acciones fija —guardar, finalizar— queda
-**encima** de la barra, sin taparla.
+En las pantallas con barra de acciones fija —el detalle de una transferencia
+o de un inventario— queda **encima** de la barra, sin taparla.
+
+> No está en todas partes, y es a propósito: se apaga en Buscar (bloque 53) y
+> en formularios, pantallas con escanear propio y el kiosco de marcación
+> (bloque 80).
 
 ### 23.2 · Lee un producto y lo abre
 1. Tocar el botón y escanear el código de barras de un producto.
@@ -2601,7 +2709,8 @@ tiene prompt de instalación y no hay forma de dispararlo.
 1. Abrir `/transferencias?etapa=TRANSPORTE_EN_CAMINO`.
 
 **Esperado:** solo transferencias en esa etapa, con el aviso «Lista acotada
-por el filtro con el que llegaste».
+por el filtro con el que llegaste». Las pestañas son **Salen · Llegan · Todas**
+—sin «Mías»— y se entra por **Todas**.
 
 2. Probar `/transferencias?sucursal=3` y las dos juntas.
 
@@ -2611,8 +2720,9 @@ camino para acá».
 ### 33.5 · Una etapa inventada no rompe
 1. Abrir `/transferencias?etapa=CUALQUIERA`.
 
-**Esperado:** trae la lista completa, sin error. La etapa se valida contra el
-enum antes de mandarla; una cadena libre haría que el central rechace la
+**Esperado:** se comporta como `/transferencias` a secas: entra por «Mías», con
+las cuatro pestañas y **sin** el aviso de lista acotada, y sin error. La etapa
+se valida contra el enum antes de mandarla; una cadena libre haría que el central rechace la
 consulta entera.
 
 ---
@@ -6941,11 +7051,410 @@ el cierre falló.
 
 ---
 
+## Bloque 78 — La búsqueda de usuarios ya no trae la contraseña *(nuevo, sin probar)*
+
+**Por qué está acá:** las consultas de usuario pedían el campo `password` sin
+que ninguna pantalla lo usara, y se quitó de las cinco que lo traían. La única
+con pantalla detrás es la **búsqueda de usuarios**, que usan «Elegir chofer» y
+«Elegir solicitante» en transferencias. Nada de lo que se ve debería cambiar:
+este bloque confirma eso. Los casos de fondo de esas pantallas son los bloques
+64 y 75.
+
+No necesita un central nuevo: funciona contra cualquiera.
+
+### 78.1 · Elegir chofer sigue encontrando usuarios
+1. Abrir una transferencia preparada y tocar **Verificar para transporte**
+2. Tocar **Elegir chofer** y escribir parte de un nombre en «Buscar usuario»
+
+**Esperado:** aparecen los usuarios que coinciden, con su nombre. Al elegir
+uno queda como chofer.
+
+### 78.2 · Elegir solicitante sigue encontrando usuarios
+1. **Transferencias → Nueva transferencia**
+2. Elegir como destino una sucursal **sin cajas abiertas**
+3. Tocar **Elegir solicitante** y escribir parte de un nombre en «Buscar usuario»
+
+**Esperado:** aparecen los usuarios que coinciden y el elegido queda en
+«Se va a crear → Solicitante».
+
+> Con cajas abiertas en el destino el buscador dice «Buscar entre los que
+> están en caja» y elige entre esos cajeros sin consultar la búsqueda de
+> usuarios: ese camino no prueba este cambio.
+
+### 78.3 · La respuesta no trae la contraseña *(el que importa)*
+1. Con las herramientas del navegador abiertas en **Red**, repetir la búsqueda del caso 78.1
+2. Abrir la respuesta de la petición a `/graphql` de esa búsqueda
+
+**Esperado:** cada usuario trae `id`, `nickname`, `persona`, `creadoEn` y
+`usuario`. **No hay ningún campo `password`**, ni en la consulta enviada ni en
+la respuesta.
+
+### 78.4 · Entrar y recargar siguen igual
+1. Cerrar sesión, volver a entrar y recargar la página
+
+**Esperado:** el saludo con el nombre y los accesos según rol, igual que
+antes; recargar mantiene la sesión. Es solo regresión: la consulta del login
+no se tocó.
+
+---
+
+## Bloque 79 — Transferencias: aviso de stock al cargar un ítem *(nuevo, sin probar)*
+
+**Por qué está acá:** al agregar un producto a una transferencia la app consulta
+su stock en la sucursal de **origen**. Con stock positivo no avisa; con stock 0
+pide confirmar; con stock negativo bloquea, salvo que la configuración de
+transferencias permita el negativo (entonces pide confirmar). Si no se pudo
+consultar, el ítem **no se carga**. Lo que se confirma lo registra el central
+en el control de stock negativo del escritorio (Inventario). Solo vale para
+ítems **nuevos**: editar uno ya cargado no vuelve a preguntar.
+
+Necesita un central con el control de stock negativo (consultas
+`stockPorProducto` y `configuracionTransferencia`).
+
+### 79.1 · Stock positivo: se carga sin diálogo
+1. Abrir el borrador de una transferencia y tocar **Agregar producto**
+2. Elegir un producto con stock positivo en el origen y completar la cantidad
+
+**Esperado:** el ítem se carga sin ningún diálogo de aviso.
+
+### 79.2 · Stock 0 y «Continuar»
+1. Agregar un producto con stock 0 en el origen
+2. En el diálogo «Atención», tocar **Continuar**
+
+**Esperado:** el diálogo dice que el producto tiene stock 0 en la sucursal de
+origen. Al continuar el ítem se carga y aparece en **Control de stock negativo**
+del escritorio.
+
+### 79.3 · Stock 0 y cancelar
+1. Agregar un producto con stock 0 en el origen
+2. En el diálogo, tocar **Cancelar**
+
+**Esperado:** el ítem **no** se carga.
+
+### 79.4 · Stock negativo con la configuración sin permitir
+1. Con «permitir stock negativo» apagado en la configuración de transferencias,
+   agregar un producto con stock negativo en el origen
+
+**Esperado:** aviso «no puede ser transferido»; el ítem no se carga.
+
+### 79.5 · Sin poder consultar el stock *(el que importa)*
+1. Con el central caído o sin red, agregar un producto
+
+**Esperado:** **un solo** aviso, «No se pudo verificar el stock del producto: no
+se agregó.». El ítem no se carga y no aparece el diálogo de «stock 0».
+
+### 79.6 · El aviso del diálogo no promete «se manda igual»
+1. Agregar un producto **nuevo** cuyo stock en el origen sea 0 (o negativo) y,
+   en el diálogo del ítem, escribir una cantidad mayor que cero
+
+**Esperado:** el aviso dice «En origen hay 0 unidades. Al agregar se te va a
+pedir confirmación.» (o, con negativo, que al agregar se verifica el stock y
+puede pedir confirmación o no permitirlo). **No** dice «se manda igual». Al
+editar un ítem ya cargado, el aviso sigue siendo el de siempre.
+
+---
+
+## Bloque 80 — El botón flotante solo en pantallas de navegación *(nuevo, sin probar)*
+
+**Por qué está acá:** el flotante **siempre navega** —un QR del sistema abre su
+registro, un código de barras lleva a Buscar—, y eso estorbaba en cuatro clases
+de pantalla. Se apagó en 19, con el mismo `conEscaner` del bloque 53:
+
+- **Formularios** (11): abrir y cerrar caja, nueva devolución, nueva solicitud
+  de pago, nueva solicitud de gasto, registrar cupón, nuevo producto y, dentro
+  de editar producto, datos generales, familia, presentación y precios. Un
+  toque se llevaba lo cargado sin preguntar.
+- **Pantallas con su propio escanear** (6): códigos del producto, detalle de
+  recepción, nueva recepción, caja chica, venta con tarjeta y mis finanzas.
+  Quedaban dos botones con el mismo ícono: el de la pantalla actúa sobre el
+  registro, el flotante sacaba de ella.
+- **Kiosco de marcación** (1).
+- **Mi cuenta** (1): es configuración —servidor, tema, aplicación, rostro— y no
+  hay nada que escanear.
+
+⚠️ **Lo que se pierde, a propósito:** parado en una de esas 19 ya no se lee un
+QR de otro tipo. Se vuelve a una lista o a Inicio con un toque.
+
+⚠️ **El detalle de transferencia lo conserva**, aunque tiene escáner propio:
+una transferencia a nombre de otro se toma escaneando su QR, y los escaneos de
+esa pantalla leen sucursal y producto, no ese código.
+
+### 80.1 · Los formularios no lo muestran
+1. Abrir **Abrir caja**, **Nueva devolución**, **Nueva solicitud de pago** y,
+   en un producto, **Editar → Precios**.
+
+**Esperado:** en ninguna hay botón flotante abajo a la derecha.
+
+### 80.2 · Donde hay escanear propio, queda uno solo
+1. Abrir **Caja chica**, **Venta con tarjeta**, **Mis finanzas**, el detalle
+   de una **recepción** y **Editar producto → Códigos**.
+2. En cada una, tocar el botón de escanear de la pantalla.
+
+**Esperado:** no hay flotante. El botón propio abre la cámara y hace lo de
+siempre: en caja chica lee la solicitud, en recepción verifica el producto, en
+códigos agrega el código.
+
+### 80.3 · El kiosco de marcación no lo muestra
+1. Con un usuario con el rol de kiosco, tocar **Kiosco de marcación** en
+   Inicio.
+
+**Esperado:** no hay botón flotante. El botón de volver y la barra de
+navegación siguen estando: la pantalla vive dentro del shell.
+
+### 80.4 · El detalle de transferencia lo conserva
+1. Abrir desde la lista una transferencia **a nombre de otra persona**. El
+   aviso pide el QR o el código.
+2. Tocar el flotante y escanear el QR de **esa** transferencia.
+
+**Esperado:** el flotante está, y después de escanear se habilita el botón de
+la etapa. Con el QR de otra transferencia abre la otra, no habilita esta.
+
+### 80.5 · Las pantallas de navegación lo conservan
+1. Recorrer **Inicio**, **Operaciones**, **Mi trabajo**, la lista de
+   **Transferencias** y el detalle de una **devolución**.
+
+**Esperado:** el flotante está en todas y sigue leyendo cualquier código.
+
+### 80.6 · No queda una franja vacía al pie
+1. En **Caja chica** con muchas solicitudes, bajar hasta el final.
+
+**Esperado:** la última fila llega hasta abajo, sin el espacio que se
+reservaba para el flotante. Necesita un teléfono: el alto depende de la
+pantalla.
+
+### 80.7 · La barra inferior sigue sacando del formulario — deuda conocida
+1. En **Nueva devolución**, cargar un producto.
+2. Tocar **Inicio** en la barra de navegación de abajo.
+
+**Esperado:** navega **sin preguntar** y lo cargado se pierde. **No es una
+regresión de este cambio**: apagar el flotante quitó una de las vías, no
+todas. El botón de volver de esa pantalla sí pregunta. Queda anotado para
+cuando se resuelva con una guarda de salida.
+
+### 80.8 · Mi cuenta no lo muestra
+1. Tocar **Cuenta** en la barra de navegación.
+2. Bajar hasta **Cerrar sesión**.
+
+**Esperado:** no hay botón flotante, aunque es una pestaña de la barra —igual
+que **Buscar**—. «Cerrar sesión» queda a la vista, sin la franja vacía que se
+reservaba para el flotante. En **Inicio** el flotante sigue estando.
+
+---
+
+## Bloque 81 — Transferencias: la pestaña «Mías» *(nuevo, sin probar)*
+
+**Por qué está acá:** `frc-mobile` listaba solo las transferencias del usuario;
+la PWA mostraba únicamente vistas por sucursal. «Mías» trae de vuelta esa
+lista: las transferencias donde el usuario es **responsable de alguna etapa**
+—la creó, la preparó, la transportó o la recibió—. Haberla **solicitado** no
+alcanza. Es la pestaña por la que se entra.
+
+No necesita promover el central: la consulta (`transferenciasPorUsuario`) es la
+que usaba `frc-mobile`.
+
+### 81.1 · Se entra por «Mías»
+1. Con un usuario que haya creado o tomado alguna transferencia, ir a
+   Inicio → **Transferencias**
+
+**Esperado:** cuatro pestañas, **Mías · Salen · Llegan · Todas**, con «Mías»
+elegida. Aparecen solo transferencias en las que ese usuario figura como
+responsable de alguna etapa (se ve en el detalle, en «Responsables»).
+
+### 81.2 · Una que tomó otro no está
+1. Buscar en **Todas** una transferencia en la que el usuario no participa
+2. Volver a **Mías**
+
+**Esperado:** esa transferencia no figura en «Mías».
+
+### 81.3 · Tomar una la trae a «Mías»
+1. Abrir una transferencia sin responsable de preparación (o escanear el QR de
+   una) y tomar la etapa
+2. Volver a la lista
+
+**Esperado:** ahora figura en «Mías».
+
+### 81.4 · Sin ninguna, dice dónde están las demás
+1. Entrar con un usuario que nunca participó en una transferencia
+
+**Esperado:** «No participás en ninguna», y el texto manda a Salen, Llegan y
+Todas. **No** dice «Sin transferencias».
+
+### 81.5 · Más de veinte
+1. Entrar con un usuario con más de 20 transferencias a su nombre
+
+**Esperado:** 20 filas, sin «Cargar más», y al pie «Son tus últimas 20. Si hay
+anteriores, están en Todas.». Con menos de 20 ese texto no aparece.
+
+### 81.6 · Cambiar de pestaña rápido
+1. Tocar **Todas**, y enseguida **Mías**, **Salen**, **Mías**, con la red lenta
+   (DevTools → Network → Slow 4G)
+
+**Esperado:** la lista que queda es la de la pestaña marcada, y «Cargar más»
+no queda en «Cargando…».
+
+### 81.7 · Desde el aviso del inventario *(el que importa)*
+1. Abrir una toma de inventario de una sucursal con transferencias sin recibir
+2. Tocar el aviso «N transferencias sin recibir»
+
+**Esperado:** la lista abre **acotada a esa sucursal** —con el aviso «Lista
+acotada por el filtro con el que llegaste»—, en **Todas** y **sin** la pestaña
+«Mías». Antes llegaba sin acotar: el parámetro viajaba con otro nombre.
+
+### 81.8 · Desde una notificación
+1. Tocar una notificación de transferencia que abra la lista
+
+**Esperado:** abre en «Mías». Si el usuario no participa en ninguna, el vacío
+del 81.4.
+
+---
+
+## Bloque 82 — Transferencias: filtros de la lista *(nuevo, sin probar)*
+
+**Por qué está acá:** la lista solo se podía recorrer entera. Ahora, bajo las
+pestañas, **Filtros** despliega estado, rango de fecha de creación y sucursal
+de origen y de destino. En Salen / Llegan / Todas filtra el central; en «Mías»
+se filtra sobre las que ya llegaron (como mucho, las últimas 20).
+
+No necesita promover el central: los parámetros ya existían.
+
+### 82.1 · El panel
+1. Inicio → **Transferencias** → tocar **Filtros**
+
+**Esperado:** se despliega **Estado**, **Desde / Hasta** lado a lado y
+**Origen / Destino** lado a lado. Tocar **Filtros** otra vez lo pliega. En un
+teléfono angosto nada se sale de la pantalla y las cuatro pestañas se ven sin
+flechas.
+
+### 82.2 · Estado
+1. En **Todas**, elegir Estado **En tránsito**
+
+**Esperado:** la lista se recarga sola y todas las filas dicen «En tránsito».
+El botón pasa a **Filtros (1)** y aparece **Limpiar**.
+
+### 82.3 · Rango de fechas, con el último día incluido *(el que importa)*
+1. En **Todas**, poner **Desde** y **Hasta** en el mismo día, uno en el que
+   sepas que se creó una transferencia
+
+**Esperado:** aparece esa transferencia. Si la lista queda vacía, el «hasta»
+está dejando afuera su propio día.
+
+### 82.4 · Rango invertido
+1. Poner **Hasta** 05/10 y después **Desde** 10/10
+
+**Esperado:** «Hasta» se vacía solo. No queda un rango imposible con la lista
+vacía.
+
+### 82.5 · Origen y destino
+1. Elegir un **Origen** y un **Destino**
+
+**Esperado:** solo transferencias de esa ruta. En el selector figura también
+**COMPRAS**, aunque no tenga depósito.
+
+### 82.6 · Se conservan al cambiar de pestaña
+1. Con un filtro puesto en **Todas**, pasar a **Salen** y a **Llegan**
+
+**Esperado:** el filtro sigue puesto y aplicado en cada una.
+
+### 82.7 · «Cargar más» respeta el filtro
+1. Con un filtro que deje más de 10, tocar **Cargar más**
+
+**Esperado:** las que se agregan también cumplen el filtro.
+
+### 82.8 · Limpiar
+1. Con dos o tres filtros puestos, tocar **Limpiar**
+
+**Esperado:** vuelve la lista completa, el botón dice **Filtros** y «Limpiar»
+desaparece.
+
+### 82.9 · Sin coincidencias
+1. En **Todas**, elegir un estado y un rango en el que no haya nada
+
+**Esperado:** «Ninguna coincide», **no** «Sin transferencias».
+
+### 82.10 · En «Mías»
+1. En **Mías**, elegir un estado que tengan algunas de tus transferencias
+2. Elegir uno que no tenga ninguna
+
+**Esperado:** en el primer caso quedan solo esas, al instante —y si tenés 20 o
+más, al pie dice «Se filtró sobre tus últimas 20…»—. En el segundo,
+«Ninguna coincide»; si tenés 20 o más, el texto aclara «Se buscó en tus
+últimas 20. Las anteriores están en Todas.».
+
+### 82.11 · La sucursal de la URL queda a la vista
+1. Desde una toma de inventario, tocar «N transferencias sin recibir»
+2. Abrir **Filtros**
+3. Poner **Destino** en «Todas»
+
+**Esperado:** al llegar, el botón dice **Filtros (1)** y **Destino** muestra
+esa sucursal. Al sacarla desaparece el aviso «Lista acotada…» y la lista pasa
+a mostrar todas, **sin cambiar de pestaña**.
+
+### 82.12 · El calendario en el teléfono
+1. En un teléfono (Android y, si hay, iPhone), tocar el ícono de calendario de
+   **Desde** y elegir un día
+
+**Esperado:** se abre el calendario de la app —no el del sistema—, la fecha
+queda como dd/mm/aaaa y la lista se recarga.
+
+---
+
+## Bloque 83 — Inventario: el mismo producto otra vez en la zona *(nuevo, sin probar)*
+
+**Por qué está acá:** cargar en una zona un producto que ya estaba ahí siempre
+fallaba con «Esa presentacion ya esta en la zona … sin vencimiento», porque el
+renglón nuevo nacía igual al existente —bueno y sin fecha—. Ahora se puede
+cargar de nuevo **solo como averiado o con otro vencimiento**: al elegirlo, un
+diálogo pregunta cuál de las dos. Lo bueno con la misma fecha (o sin fecha)
+sigue sin poder repetirse.
+
+⚠️ **Necesita el central de la rama `feat/inventario-renglon-por-estado`**: el
+estado (bueno / averiado) entra en la clave del duplicado. Contra un central
+viejo el averiado sin fecha se sigue rechazando; el de otro vencimiento sí entra.
+
+### 83.1 · Averiado
+1. En una zona abierta, agregar un producto (queda Bueno, sin fecha)
+2. Volver a **Agregar producto** y elegir el mismo
+3. En el diálogo «Ya está en esta zona», dejar **Averiado** y tocar **Agregar**
+
+**Esperado:** aparece un segundo renglón del producto con estado **Averiado**.
+
+### 83.2 · Otro vencimiento
+1. Repetir 83.1 eligiendo **Bueno, con otro vencimiento**
+
+**Esperado:** **Agregar** queda deshabilitado hasta cargar la fecha. Con la
+fecha, entra un renglón Bueno con ese vencimiento.
+
+### 83.3 · Lo mismo dos veces se sigue rechazando
+1. Con el renglón averiado del 83.1 ya cargado, agregar el mismo producto otra
+   vez como **Averiado** sin fecha
+
+**Esperado:** no se agrega; el mensaje dice que ya está averiado en la zona y
+que solo se puede cargar como averiado o con otro vencimiento.
+
+### 83.4 · Cancelar
+1. Agregar un producto que ya está y tocar **Cancelar** en el diálogo
+
+**Esperado:** no se agrega nada.
+
+### 83.5 · Cambiar a Averiado desde la tarjeta
+1. Con dos renglones del producto (uno Bueno y otro Averiado, sin fecha),
+   cambiar el Averiado a **Bueno** y **Guardar conteo**
+
+**Esperado:** el guardado de ese renglón falla con el mensaje del duplicado: los
+dos serían el mismo renglón.
+
+### 83.6 · Finalizar suma los dos
+1. Contar 10 en el Bueno y 2 en el Averiado, guardar y finalizar la toma
+
+**Esperado:** el stock del producto en la sucursal queda en **12**.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
 |---|---|---|---|---|
-| 1 · Arranque y sesión | 8 | | | |
+| 1 · Arranque y sesión | 10 | | | |
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
@@ -6957,7 +7466,7 @@ el cierre falló.
 | 10 · Escáner, vía ZXing (Safari en Mac) | 6 | 6 | | |
 | 11 · iOS real *(necesita dispositivo)* | 7 | | | |
 | 12 · Buscar producto | 9 | | | |
-| 13 · Devoluciones | 7 | | | |
+| 13 · Devoluciones | 11 | | | |
 | 14 · Venta con tarjeta | 6 | | | |
 | 15 · Marcación | 9 | 5 | | |
 | 16 · Notificaciones | 7 | 4 | | |
@@ -7022,7 +7531,13 @@ el cierre falló.
 | 75 · El chofer en la verificación para transporte | 10 | | | |
 | 76 · Abrir caja: elegir la sucursal | 7 | | | |
 | 77 · El balance impreso al cerrar caja | 4 | | | |
-| **Total** | **673** | | | |
+| 78 · La búsqueda de usuarios ya no trae la contraseña | 4 | | | |
+| 79 · Transferencias: aviso de stock al cargar un ítem | 6 | | | |
+| 80 · El flotante solo en pantallas de navegación | 7 | | | |
+| 81 · Transferencias: la pestaña «Mías» | 8 | | | |
+| 82 · Transferencias: filtros de la lista | 12 | | | |
+| 83 · Inventario: el mismo producto otra vez en la zona | 6 | | | |
+| **Total** | **722** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

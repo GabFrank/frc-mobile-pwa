@@ -39,6 +39,21 @@ export const transferenciaPorIdQuery = gql`
 `;
 
 /**
+ * Las transferencias en las que el usuario participa: es responsable de la
+ * pre-transferencia, la preparación, el transporte o la recepción.
+ *
+ * ⚠️ **Devuelve una lista, no una página, y el central la corta en 20**
+ * (`TransferenciaRepository.findByUsuario`). No acepta ningún otro filtro.
+ */
+export const transferenciasPorUsuarioQuery = gql`
+  query ($id: ID!) {
+    data: transferenciasPorUsuario(id: $id) {
+      ${cabecera}
+    }
+  }
+`;
+
+/**
  * ⚠️ Filtra por **`etapa`**, no por `estado` — son dos dimensiones distintas.
  * Pasar un valor de una donde va la otra devuelve una lista vacía sin error.
  */
@@ -246,5 +261,25 @@ export const deleteTransferenciaItemMutation = gql`
 export const transferenciaQrEscaneadoMutation = gql`
   mutation transferenciaQrEscaneado($id: ID!, $sucursalId: ID!) {
     data: transferenciaQrEscaneado(id: $id, sucursalId: $sucursalId)
+  }
+`;
+
+/**
+ * Stock de un producto en una sucursal, según el central. Es el número contra
+ * el que se decide el aviso al cargar un ítem.
+ */
+export const stockEnOrigenQuery = gql`
+  query ($id: ID!, $sucId: ID) {
+    data: stockPorProducto(id: $id, sucId: $sucId)
+  }
+`;
+
+/** Solo el permiso de stock negativo de la configuración de transferencias. */
+export const configuracionTransferenciaQuery = gql`
+  query {
+    data: configuracionTransferencia {
+      id
+      permitirStockNegativo
+    }
   }
 `;

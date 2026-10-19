@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from '../auth/auth.tokens';
 import { ServerConfigService } from './server-config.service';
@@ -9,9 +9,12 @@ describe('ServerConfigService', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.configureTestingModule({});
     config = TestBed.inject(ServerConfigService);
   });
+
+  afterEach(() => sessionStorage.clear());
 
   it('arma las URLs a partir de la base', () => {
     config.cambiarServidor('https://alpha.ejemplo.com');
@@ -42,6 +45,17 @@ describe('ServerConfigService', () => {
     // 401 que parecen "contraseña incorrecta".
     expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
     expect(localStorage.getItem(AUTH_USER_ID_KEY)).toBeNull();
+  });
+
+  it('invalida también la sesión que vive en sessionStorage', () => {
+    // Sin «mantenerme conectado» la sesión no está en `localStorage`.
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'token-viejo');
+    sessionStorage.setItem(AUTH_USER_ID_KEY, '42');
+
+    config.cambiarServidor('https://otra.ejemplo.com');
+
+    expect(sessionStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+    expect(sessionStorage.getItem(AUTH_USER_ID_KEY)).toBeNull();
   });
 
   it('no invalida la sesión si el servidor no cambió', () => {

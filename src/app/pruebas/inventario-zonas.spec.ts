@@ -1,5 +1,5 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -537,6 +537,22 @@ describe('Zonas de la toma', () => {
 
       expect(f.componentInstance.transferenciasPendientes()).toBe(3);
       expect(f.nativeElement.textContent).toContain('3 transferencias sin recibir');
+    });
+
+    /**
+     * ⚠️ **El nombre del parámetro es el del input de la lista.** Mandaba
+     * `sucursalId` y la lista lee `sucursal`: el salto llegaba sin acotar y
+     * mostraba otra cosa que lo que el aviso había contado.
+     */
+    it('salta a la lista con el parámetro que la lista lee', () => {
+      const f = montar();
+      const navegar = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      f.componentInstance.verTransferencias();
+
+      expect(navegar).toHaveBeenCalledWith(['/transferencias'], {
+        queryParams: { sucursal: 3 },
+      });
     });
 
     it('dice la consecuencia, sin la paradoja de antes', () => {

@@ -11,11 +11,10 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { provideApollo } from 'apollo-angular';
 import { HttpLink } from 'apollo-angular/http';
 import { ApolloLink, InMemoryCache } from '@apollo/client';
-import { SetContextLink } from '@apollo/client/link/context';
 
 import { routes } from './app.routes';
 import { ServerConfigService } from './core/config/server-config.service';
-import { AUTH_TOKEN_KEY } from './core/auth/auth.tokens';
+import { crearEnlaceDeSesion } from './core/auth/enlace-sesion';
 import { SesionService } from './core/auth/sesion.service';
 
 export const appConfig: ApplicationConfig = {
@@ -46,20 +45,9 @@ export const appConfig: ApplicationConfig = {
       const httpLink = inject(HttpLink);
       const serverConfig = inject(ServerConfigService);
 
-      const auth = new SetContextLink((prevContext) => {
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
-        if (!token || token === 'null') {
-          return prevContext;
-        }
-        return {
-          ...prevContext,
-          headers: { ...prevContext['headers'], Authorization: `Token ${token}` },
-        };
-      });
-
       return {
         link: ApolloLink.from([
-          auth,
+          crearEnlaceDeSesion(),
           // `uri` como función: se evalúa en cada operación, así que
           // cambiar de servidor no obliga a recargar la app —a
           // diferencia del repo anterior, donde la URI se calculaba

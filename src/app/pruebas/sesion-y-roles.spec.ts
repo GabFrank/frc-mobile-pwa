@@ -26,6 +26,7 @@ import { ROLES } from '../domains/personas/roles/roles.enum';
 describe('Sesión y control de acceso por rol', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.configureTestingModule({
       // Inicio muestra el resumen de crédito y el badge de no leídas: los dos
       // consultan al central. Acá se prueban los roles, no ninguna de esas

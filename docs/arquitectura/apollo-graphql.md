@@ -142,6 +142,8 @@ No mandes `usuarioId` a mano salvo que quieras un valor distinto al del usuario 
 
 - El transporte es **HTTP plano** (`androidScheme: 'http'`, `cleartext: true`), necesario porque los servidores central/filial corren en LAN sin TLS.
 - El token va en `localStorage`, accesible desde cualquier JS del bundle.
-- Varias queries de usuario piden el campo `password` (ej. `graphql/personas/usuario/graphql/graphql-query.ts`), que el backend devuelve en texto plano.
+- **Ninguna operación pide el campo `password`** del tipo `Usuario`. El repo anterior lo traía en casi todas las de `graphql/personas/usuario/graphql/graphql-query.ts`; se quitó, y `pruebas/usuario-sin-password.spec.ts` falla si alguna de ese archivo vuelve a pedirlo. El test no ve un `usuario { password }` anidado en la operación de otro módulo: ahí la regla es disciplina.
 
-Esto es deuda conocida y auditada: ver [`../../REPORTE_VULNERABILIDADES.md`](../../../../REPORTE_VULNERABILIDADES.md). **No lo empeores** agregando nuevas queries que pidan `password`.
+Esto es deuda conocida y auditada: ver [`../../REPORTE_VULNERABILIDADES.md`](../../../../REPORTE_VULNERABILIDADES.md). **No pidas `password` en una query nueva**: además de innecesario, el central va a retirar el campo, y ese día GraphQL rechaza la operación entera.
+
+⚠️ **Un `Usuario` leído por estas queries ya no trae `password`, y `toInput()` lo copia igual.** Hoy ninguna pantalla guarda un `Usuario` —`SaveUsuarioGQL` no tiene consumidor—. Si alguna lo hace, el input sale con `password` sin valor y el `saveUsuario` del central escribe lo que recibe: hay que resolverlo antes de conectar esa pantalla.

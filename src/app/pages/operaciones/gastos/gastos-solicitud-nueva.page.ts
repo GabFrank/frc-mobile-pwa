@@ -116,7 +116,7 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Nueva solicitud" [conVolver]="true">
+    <frc-pagina titulo="Nueva solicitud" [conVolver]="true" [conEscaner]="false">
       @if (cargando()) {
         <frc-skeleton [cantidad]="4" />
       } @else if (error()) {

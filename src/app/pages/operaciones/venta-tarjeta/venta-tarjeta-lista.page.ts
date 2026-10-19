@@ -46,7 +46,7 @@ import { VentaTarjetaService } from './venta-tarjeta.service';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Venta con tarjeta" [conVolver]="true">
+    <frc-pagina titulo="Venta con tarjeta" [conVolver]="true" [conEscaner]="false">
       @if (caja()) {
         <div acciones>
           <button matButton="filled" (click)="escanear()">Escanear cupón</button>

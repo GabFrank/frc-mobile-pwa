@@ -47,7 +47,7 @@ import { MonedasConDenominacionesGQL } from './graphql/moneda-y-maletin';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Cerrar caja" [conVolver]="true" (atras)="salir()">
+    <frc-pagina titulo="Cerrar caja" [conVolver]="true" [conEscaner]="false" (atras)="salir()">
       @if (cargando()) {
         <frc-skeleton [cantidad]="4" />
       } @else if (error()) {

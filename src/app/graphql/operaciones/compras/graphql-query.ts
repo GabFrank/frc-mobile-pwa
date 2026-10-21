@@ -303,3 +303,16 @@ export const crearCompraDesdeFacturaMutation = gql`
     ) { ${CAMPOS_PEDIDO} }
   }
 `;
+
+export const presentacionesCompraQuery = gql`
+  query ($productoId: ID!, $renglonId: ID) {
+    data: presentacionesCompraMobile(productoId: $productoId, renglonId: $renglonId) {
+      id
+      descripcion
+      cantidad
+      codigo
+      sugerida
+      motivo
+    }
+  }
+`;

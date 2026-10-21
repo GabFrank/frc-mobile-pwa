@@ -9,6 +9,7 @@ import type {
   FacturaProveedor,
   OpcionesNuevaCompra,
   PedidosParaFactura,
+  PresentacionCompra,
   ResumenFinalizarNotas,
 } from 'src/app/domains/compras/compras.model';
 import type { PageInfo } from 'src/app/domains/page-info.model';
@@ -22,6 +23,7 @@ import { FacturaProveedorGQL } from 'src/app/graphql/operaciones/compras/factura
 import { FinalizarRecepcionNotasGQL } from 'src/app/graphql/operaciones/compras/finalizarRecepcionNotas';
 import { LeerFacturaProveedorGQL } from 'src/app/graphql/operaciones/compras/leerFacturaProveedor';
 import { ObservarRenglonFacturaGQL } from 'src/app/graphql/operaciones/compras/observarRenglonFactura';
+import { PresentacionesCompraGQL } from 'src/app/graphql/operaciones/compras/presentacionesCompra';
 import { PedidoComprasGQL } from 'src/app/graphql/operaciones/compras/pedidoCompras';
 import { PedidosEsperandoFacturaGQL } from 'src/app/graphql/operaciones/compras/pedidosEsperandoFactura';
 import { PedidosParaFacturaGQL } from 'src/app/graphql/operaciones/compras/pedidosParaFactura';
@@ -54,6 +56,7 @@ export class ComprasService {
   private readonly opcionesGQL = inject(OpcionesNuevaCompraGQL);
   private readonly leerNuevaGQL = inject(LeerFacturaNuevaCompraGQL);
   private readonly crearCompraGQL = inject(CrearCompraDesdeFacturaGQL);
+  private readonly presentacionesGQL = inject(PresentacionesCompraGQL);
 
   // ────────────────────────────────────────────────────────────── Lecturas ──
 
@@ -142,6 +145,11 @@ export class ComprasService {
       { pedidoId },
       { mensajeExito: 'Conciliación finalizada: el pedido pasa a recepción de mercadería' },
     );
+  }
+
+  /** Las presentaciones del producto para vincular un renglón, con la sugerida marcada por el central. */
+  presentaciones(productoId: number, renglonId: number): Observable<PresentacionCompra[]> {
+    return this.datos.consultar<PresentacionCompra[]>(this.presentacionesGQL, { productoId, renglonId });
   }
 
   // ───────────────────────────────────────────── La factura crea la compra ──

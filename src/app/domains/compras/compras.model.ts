@@ -226,3 +226,15 @@ export interface OpcionesNuevaCompra {
   /** Sucursales con depósito y activas: las de entrega del desktop. */
   sucursales: OpcionCompra[];
 }
+
+/** Una presentación del producto para elegir al vincular un renglón. */
+export interface PresentacionCompra {
+  id: number;
+  descripcion?: string | null;
+  /** Unidades base: es el factor por defecto. */
+  cantidad?: number | null;
+  codigo?: string | null;
+  /** La que sugiere el central (bulto de la descripción, código de barras o unidad). */
+  sugerida?: boolean | null;
+  motivo?: string | null;
+}

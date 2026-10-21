@@ -319,6 +319,16 @@ transacción:
 
 > ⚠️ **El chofer es una `Persona` en la hoja y un `Usuario` como responsable.**
 > Por eso se elige un usuario: sin persona asociada, el central lo rechaza.
+> Tampoco aparece en el buscador: `usuarioSearch` hace `join` con la persona.
+
+### Si el central rechaza el avance
+
+La pantalla **recarga la transferencia** después del aviso, sea el avance
+normal o el diálogo del chofer (que se cierra con `false`). El rechazo típico
+es que otro ya avanzó la etapa, y reintentar sobre la pantalla vieja no puede
+andar. Si el central está caído, la recarga también falla y queda la pantalla
+de error con «Reintentar», **sin el botón de avance**: mientras carga o está en
+error, la etapa que se conoce puede estar vieja.
 
 El desktop no cambia: sigue con `avanzarEtapaTransferencia` y `saveHojaRuta`.
 
@@ -353,6 +363,15 @@ en `puedeTomarEtapa()`.
 > la regla en el detalle, cualquiera que abría una transferencia desde ahí
 > tomaba la preparación de otro. Tampoco es un control de seguridad —el QR
 > lleva solo el id y el central no lo valida—, igual que antes.
+
+**La excepción de compras.** Quien tiene `VER STOCK COMPRAS` o `ADMIN`
+(`PERMISOS.transferenciaTodasLasEtapas`) toma y cierra cualquier etapa sin
+código, aunque la tenga otro: el detalle les pasa `exento` a
+`puedeEditarEtapa()` y `puedeTomarEtapa()`. Sigue valiendo todo lo demás:
+cerrar exige los ítems revisados, y el QR de la sucursal al iniciar la
+recepción frena si es de otra sucursal. Es la misma excepción que el desktop
+(`esCompras` en `edit-transferencia.component.ts`). Pedido de Franco,
+2026-10-19.
 
 ### La verificación ítem por ítem
 
@@ -399,6 +418,18 @@ Consecuencias, las dos verificadas contra `TransferenciaItemGraphQL`:
 - **Confirmar un ítem antes rechazado son dos llamadas**: primero vaciar la
   etapa, después guardar. Si no, el ítem sigue rechazado mientras la pantalla
   lo muestra en verde.
+- **Las dos llamadas no son atómicas.** Si la segunda falla —por ejemplo,
+  `guardarItem` de un producto con lote que no consigue el lock de la
+  sucursal—, el ítem ya quedó con la etapa vacía. Por eso el error recarga
+  los ítems (issue #94). Y si la recarga también falla, la pantalla no deja
+  concluir la etapa (`itemsSinCargar`): **el central no frena el avance con
+  ítems sin verificar**, copia lo vacío a la etapa siguiente
+  (`TransferenciaGraphQL.avanzarEtapa`).
+- **Solo cuenta la última recarga de ítems.** `cargarItems()` corta la
+  anterior, y `items()` pide sin deduplicar: si no, una recarga pegada a otra
+  en vuelo recibía la respuesta de antes del guardado (issue #98). El borrador
+  (`transferencia-borrador.page.ts`) usa la misma `items()` pero todavía no
+  corta la carga anterior.
 
 > ⚠️ **Siempre viaja una cantidad y una presentación para la etapa**, incluso
 > al rechazar. El central multiplica `cantidad × presentacion.cantidad` para

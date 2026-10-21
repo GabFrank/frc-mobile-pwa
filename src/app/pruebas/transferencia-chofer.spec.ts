@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,6 +42,7 @@ describe('Verificar para transporte pide el chofer', () => {
       avanzarEtapa: ReturnType<typeof vi.fn>;
     };
     let dialogo: { abrir: ReturnType<typeof vi.fn>; confirmar: ReturnType<typeof vi.fn> };
+    let fixture: ComponentFixture<TransferenciaDetallePage>;
 
     const montar = (transferencia: Partial<Transferencia>, items: object[] = [{ id: 1 }]) => {
       servicio = {
@@ -56,13 +57,13 @@ describe('Verificar para transporte pide el chofer', () => {
         providers: [
           { provide: TransferenciaService, useValue: servicio },
           { provide: DialogoService, useValue: dialogo },
-          { provide: AuthService, useValue: { usuario: () => ({ id: 8 }) } },
+          { provide: AuthService, useValue: { usuario: () => ({ id: 8 }), roles: () => [] } },
         ],
       });
-      const f = TestBed.createComponent(TransferenciaDetallePage);
-      f.componentRef.setInput('id', '1');
-      f.detectChanges();
-      return f.componentInstance;
+      fixture = TestBed.createComponent(TransferenciaDetallePage);
+      fixture.componentRef.setInput('id', '1');
+      fixture.detectChanges();
+      return fixture.componentInstance;
     };
 
     it('abre el diálogo del chofer en vez de avanzar con el usuario logueado', async () => {
@@ -82,6 +83,15 @@ describe('Verificar para transporte pide el chofer', () => {
     it('si el diálogo verificó, recarga la transferencia', async () => {
       const pagina = montar({ etapa: EtapaTransferencia.PREPARACION_MERCADERIA_CONCLUIDA });
       dialogo.abrir.mockResolvedValue(true);
+
+      await pagina.avanzar(pagina.accion()!);
+
+      expect(servicio.porId).toHaveBeenCalledTimes(2);
+    });
+
+    it('si el central rechazó en el diálogo, también recarga', async () => {
+      const pagina = montar({ etapa: EtapaTransferencia.PREPARACION_MERCADERIA_CONCLUIDA });
+      dialogo.abrir.mockResolvedValue(false);
 
       await pagina.avanzar(pagina.accion()!);
 
@@ -114,6 +124,53 @@ describe('Verificar para transporte pide el chofer', () => {
         EtapaTransferencia.PREPARACION_MERCADERIA_CONCLUIDA,
         8,
       );
+    });
+
+    describe('si el central rechaza el avance', () => {
+      const preparando = () =>
+        montar(
+          {
+            etapa: EtapaTransferencia.PREPARACION_MERCADERIA,
+            usuarioPreparacion: { id: 8, persona: { nombre: 'U8' } } as never,
+          },
+          [{ id: 1, cantidadPreparacion: 3 }],
+        );
+
+      it('recarga la transferencia: otro puede haberla avanzado', async () => {
+        const pagina = preparando();
+        servicio.avanzarEtapa.mockReturnValueOnce(throwError(() => new Error('ya está en etapa')));
+        servicio.porId.mockReturnValueOnce(
+          of({ id: 1, etapa: EtapaTransferencia.PREPARACION_MERCADERIA_CONCLUIDA }),
+        );
+
+        await pagina.avanzar(pagina.accion()!);
+
+        expect(servicio.porId).toHaveBeenCalledTimes(2);
+        expect(pagina.transferencia()?.etapa).toBe(EtapaTransferencia.PREPARACION_MERCADERIA_CONCLUIDA);
+      });
+
+      it('si la recarga también falla, queda en el estado de error', async () => {
+        const pagina = preparando();
+        servicio.avanzarEtapa.mockReturnValueOnce(throwError(() => new Error('sin red')));
+        servicio.porId.mockReturnValueOnce(throwError(() => new Error('sin red')));
+
+        await pagina.avanzar(pagina.accion()!);
+
+        expect(pagina.error()).toBe('sin red');
+        expect(pagina.cargando()).toBe(false);
+      });
+
+      it('en error no ofrece el botón de la etapa vieja', async () => {
+        const pagina = preparando();
+        servicio.avanzarEtapa.mockReturnValueOnce(throwError(() => new Error('sin red')));
+        servicio.porId.mockReturnValueOnce(throwError(() => new Error('sin red')));
+
+        await pagina.avanzar(pagina.accion()!);
+        fixture.detectChanges();
+
+        const botones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+        expect(botones.some((b) => b.textContent?.includes('Concluir preparación'))).toBe(false);
+      });
     });
   });
 });
@@ -171,7 +228,7 @@ describe('El diálogo del chofer', () => {
         { provide: DialogoService, useValue: dialogo },
         { provide: MatDialogRef, useValue: ref },
         { provide: MAT_DIALOG_DATA, useValue: { transferenciaId: 1 } },
-        { provide: AuthService, useValue: { usuario: () => ({ id: 8 }) } },
+        { provide: AuthService, useValue: { usuario: () => ({ id: 8 }), roles: () => [] } },
         { provide: NotificacionService, useValue: { ok: vi.fn() } },
       ],
     });
@@ -258,15 +315,14 @@ describe('El diálogo del chofer', () => {
     expect(ref.close).not.toHaveBeenCalled();
   });
 
-  it('si el central rechaza, queda abierto con lo cargado', async () => {
+  it('si el central rechaza, cierra con false para que la página recargue', async () => {
     const d = await conChoferYVehiculo();
     servicio.verificarParaTransporte.mockReturnValueOnce(throwError(() => new Error('etapa')));
 
     await d.confirmar();
 
-    expect(ref.close).not.toHaveBeenCalled();
+    expect(ref.close).toHaveBeenCalledWith(false);
     expect(d.enviando()).toBe(false);
-    expect(d.chofer()?.id).toBe(10);
   });
 
   describe('continuar sin chofer', () => {
@@ -307,13 +363,13 @@ describe('El diálogo del chofer', () => {
       expect(ref.close).not.toHaveBeenCalled();
     });
 
-    it('si el central rechaza, queda abierto', async () => {
+    it('si el central rechaza, cierra con false para que la página recargue', async () => {
       const d = montar();
       servicio.avanzarEtapa.mockReturnValueOnce(throwError(() => new Error('etapa')));
 
       await d.continuarSinChofer();
 
-      expect(ref.close).not.toHaveBeenCalled();
+      expect(ref.close).toHaveBeenCalledWith(false);
       expect(d.enviando()).toBe(false);
     });
 

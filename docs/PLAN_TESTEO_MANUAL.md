@@ -7499,6 +7499,242 @@ entrar a esa sección»*.
 **Esperado:** aviso *«No tenés permiso…»* e Inicio; no queda una pantalla en
 blanco ni un error.
 
+## Bloque 85 — Transferencias: compras avanza cualquier etapa *(probado 2026-10-19 contra un central local)*
+
+**Por qué está acá:** quien tiene **`VER STOCK COMPRAS`** (o ADMIN) puede
+tomar y cerrar cualquier etapa de una transferencia, aunque esté a nombre de
+otro y sin pedirle el QR. El resto de los usuarios sigue con la regla de
+siempre: la etapa la trabaja quien la tomó, y a una ajena se entra con el
+código.
+
+⚠️ Un rol recién asignado se ve **al reabrir la app**.
+
+### 85.1 · Sin el rol, la regla de siempre
+1. Entrar con un usuario sin `VER STOCK COMPRAS` ni ADMIN
+2. Abrir una transferencia *Pendiente en origen* creada por otro
+
+**Esperado:** *Preparar productos* apagado y el aviso *«Esta transferencia está
+a nombre de …, pedile el QR»*.
+
+### 85.2 · Con el rol, la toma sin QR
+1. Repetir con un usuario que tenga `VER STOCK COMPRAS` (y no ADMIN)
+
+**Esperado:** *Preparar productos* habilitado, sin aviso.
+
+### 85.3 · Cierra la etapa de otro *(el que importa)*
+1. Con ese usuario, abrir una transferencia en *Preparando mercadería* que
+   preparó otro, con todos los ítems revisados
+
+**Esperado:** *Concluir preparación* habilitado y los ítems se pueden tocar.
+Al concluir, el responsable sigue siendo el que preparó.
+
+### 85.4 · Igual exige revisar todos los ítems
+1. Misma situación, con un ítem sin revisar
+
+**Esperado:** el botón apagado y *«Falta revisar 1 producto…»*.
+
+### 85.5 · Recepción desde otra sucursal
+1. Con ese usuario, en una transferencia *En camino* a nombre de otro, tocar
+   *Iniciar recepción*
+2. Cancelar el escáner del QR de la sucursal
+
+**Esperado:** pide la confirmación de siempre y abre la recepción. Si en vez de
+cancelar se escanea el QR de **otra** sucursal, frena con *«El QR no es de la
+sucursal de destino…»*.
+
+---
+
+## Bloque 86 — Transferencias: el rechazo del avance recarga la pantalla *(nuevo, sin probar)*
+
+**Por qué está acá:** cuando el central rechaza un avance de etapa, la app
+mostraba el motivo pero se quedaba en la etapa vieja, con el mismo botón. El
+rechazo típico es *«la transferencia N ya está en etapa X: la avanzó otro
+usuario»* (issue #92), y justo ahí la pantalla está desactualizada.
+
+⚠️ El caso 86.1 necesita un central con el fix de la issue #450 del central
+(`fix/transferencia-no-repetir-etapa`). Sin él, el central repite la etapa y
+responde OK: no hay rechazo que ver.
+
+### 86.1 · Otro ya la avanzó *(el que importa)*
+1. Abrir la misma transferencia *Preparando mercadería*, con todos los ítems
+   revisados, en dos sesiones (dos teléfonos o dos navegadores)
+2. En la primera, *Concluir preparación*
+3. En la segunda, sin recargar, *Concluir preparación*
+
+**Esperado:** en la segunda, el aviso rojo con el motivo y, enseguida, la
+pantalla en *Preparación concluida*, con el botón de la etapa siguiente.
+
+### 86.2 · Lo mismo en la verificación con chofer
+1. Igual que 86.1, con la transferencia en *Preparación concluida*
+2. En la primera, *Verificar para transporte* → elegir chofer y vehículo →
+   confirmar
+3. En la segunda, sin recargar, lo mismo
+
+**Esperado:** en la segunda, el aviso con el motivo, el diálogo **se cierra**
+y la pantalla muestra *Verificando para transporte*.
+
+### 86.3 · «Continuar sin chofer» también
+1. Como 86.2, pero en la segunda tocar *Continuar sin chofer*
+
+**Esperado:** igual que 86.2.
+
+### 86.4 · Cancelar el diálogo no recarga
+1. Abrir el diálogo del chofer y tocar *Cancelar*
+
+**Esperado:** se cierra sin aviso y la pantalla no parpadea (no recarga).
+
+### 86.5 · Central caído en el momento del avance
+1. Con la transferencia abierta, cortar el central (o la red)
+2. Tocar el botón de avance y confirmar
+
+**Esperado:** el aviso del error y la pantalla de error con *Reintentar*, no
+la etapa vieja, y **sin el botón de avance** abajo. Con el central de vuelta, *Reintentar* muestra la
+transferencia.
+
+---
+
+## Bloque 87 — Push: el aviso sigue llegando después de reabrir la app *(nuevo, sin probar)*
+
+**Por qué está acá:** el push se apagaba solo. Al arrancar, la PWA buscaba
+su sesión en `usuario.inicioSesion`, pero el central devuelve ahí la última
+sesión abierta del usuario **en cualquier aparato**. Quien usa también el
+escritorio o la app Android abría una sesión nueva en cada arranque, el
+central cerraba la anterior **y le borraba el token**, y la PWA no lo volvía
+a mandar hasta que alguien tocara *Activar*. Ahora busca la sesión de **este**
+aparato y reenvía el token en cada arranque si el permiso ya está concedido.
+
+⚠️ Igual que el bloque 38: **`ng serve` no sirve**, hace falta un build con
+service worker. Y el central tiene casi todos los tipos suspendidos desde el
+PR #241 del central: para disparar el aviso usá un **gasto** o una **compra a
+crédito** a nombre del usuario de prueba. El envío manual desde el escritorio
+(`PERSONALIZADA`) está apagado y no sirve para esta prueba.
+
+### 87.1 · Reabrir no cambia de sesión *(el que importa)*
+1. Con un usuario que tenga **también** una sesión abierta en el escritorio o
+   en Android, abrir la PWA y activar las notificaciones.
+2. Abrir el escritorio con ese usuario (para que su sesión sea la más nueva).
+3. Cerrar la PWA por completo y volver a abrirla.
+4. Mirar `configuraciones.inicio_sesion` filtrando por el `frc.idDispositivo`
+   de `localStorage`.
+
+**Esperado:** **una sola** fila abierta (`hora_fin` nula) para ese aparato, la
+misma que antes de reabrir, con el token todavía cargado.
+
+### 87.2 · Llega después de reabrir
+1. Después de 87.1, cerrar la PWA y disparar un gasto a nombre del usuario.
+
+**Esperado:** el aviso aparece en la bandeja del sistema.
+
+### 87.3 · Mi cuenta muestra el estado real sin tocar nada
+1. Con el permiso ya concedido, reabrir la app e ir a *Mi cuenta*.
+
+**Esperado:** a los pocos segundos la fila dice «Activados en este
+dispositivo», sin haber tocado *Activar*.
+
+### 87.4 · Sin permiso no pregunta nada
+1. En un navegador donde nunca se activaron las notificaciones, entrar.
+
+**Esperado:** el navegador **no** muestra el pedido de permiso al arrancar.
+Solo aparece al tocar *Activar*.
+
+### 87.5 · Un usuario que solo usa la PWA sigue igual
+1. Con un usuario sin otras sesiones, reabrir la app dos veces.
+
+**Esperado:** una sola fila abierta para el aparato y el aviso sigue llegando.
+
+---
+
+## Bloque 88 — El aviso de un rechazo sin «Exception while fetching data» *(probado 2026-10-21 contra un central local)*
+
+**Por qué está acá:** el central rechaza con un texto de negocio, pero graphql-java
+le antepone *«Exception while fetching data (/data) : »*, y la app lo mostraba
+tal cual (issue #93). Vale para todos los rechazos de la app.
+
+### 88.1 · Un rechazo de transferencia
+1. Repetir el caso 86.1 (otra sesión ya avanzó la etapa)
+
+**Esperado:** el aviso rojo empieza directo con *«La transferencia N ya esta en
+etapa …»*, sin *«Exception while fetching data»*.
+
+### 88.2 · Un rechazo de otro módulo
+1. Mi trabajo → Vacaciones → *Solicitar vacaciones* con más días de los
+   disponibles (el diálogo avisa pero deja enviar)
+
+**Esperado:** *«Los dias del periodo superan los dias disponibles: N»*, sin el
+prefijo, y no se crea ninguna solicitud.
+
+---
+
+## Bloque 89 — Transferencias: si falla guardar la verificación, la grilla no miente *(probado 2026-10-21 contra un central local)*
+
+**Por qué está acá:** confirmar un ítem antes rechazado o modificado son dos
+operaciones: primero se vacía la etapa del ítem y después se guarda. Si la
+segunda fallaba, la grilla seguía mostrando el ítem verificado aunque en el
+central había quedado vacío, y el botón de concluir seguía habilitado
+(issue #94). El central no frena ese avance: copia lo vacío a la etapa
+siguiente.
+
+⚠️ La segunda operación puede fallar sola con un producto con lote, si hay
+otra operación con lotes en curso en la sucursal (*«Reintentá en unos
+segundos»*). Si no aparece sola, se fuerza cortando la red justo después del
+primer paso, o desde las herramientas del navegador.
+
+> Probado forzando un error de red en el guardado (y en la recarga, para
+> 89.2) desde la consola del navegador, no con el lock real de lotes.
+
+### 89.1 · Falla el guardado *(el que importa)*
+1. Transferencia *Preparando mercadería*, a tu nombre, con un ítem
+   **rechazado**
+2. Confirmar ese ítem y hacer que el guardado falle
+
+**Esperado:** el aviso rojo del error y, enseguida, el ítem **sin revisar**
+(no en verde ni rechazado), con *Falta revisar 1 producto* y el botón de
+concluir apagado.
+
+### 89.2 · Falla también la recarga
+1. Como 89.1, pero sin red también para la recarga de los ítems
+
+**Esperado:** el botón de concluir apagado, con *No se pudieron cargar los
+productos. Volvé a abrir la transferencia.* Al reabrirla con red, el ítem
+sin revisar.
+
+### 89.3 · Sin fallas, igual que antes
+1. Confirmar, modificar y rechazar ítems con la red bien
+
+**Esperado:** cada acción guarda, el ítem cambia de estado y el aviso de
+rechazo sale como siempre.
+
+---
+
+## Bloque 90 — Transferencias: dos recargas de ítems que se cruzan *(probado 2026-10-21 contra un central local)*
+
+**Por qué está acá:** después de cada acción sobre un ítem la pantalla recarga
+los ítems, siempre con la misma consulta. Si una recarga salía mientras otra
+seguía esperando respuesta, Apollo **le pegaba la respuesta de la anterior**
+—la de antes del guardado— y la grilla quedaba vieja; y si dos respuestas
+llegaban en otro orden, ganaba la que llegaba última (issue #98).
+
+⚠️ Con buena red no se ve: hace falta una red lenta (el teléfono con datos
+flojos) o retener la respuesta desde las herramientas del navegador.
+
+> Probado reteniendo la respuesta de la primera consulta desde la consola:
+> con el código anterior la segunda recarga no salía y la grilla quedaba en
+> *Sin revisar* con el ítem verificado en la base; con el arreglo salen dos y
+> la grilla queda con lo último.
+
+### 90.1 · Dos acciones seguidas con red lenta *(el que importa)*
+1. Transferencia *Preparando mercadería*, a tu nombre, con red lenta
+2. Rechazar un ítem y, sin esperar a que la grilla se actualice, confirmarlo
+
+**Esperado:** al terminar, el ítem **Verificado**, que es lo último que se
+hizo; no queda en *Rechazado* cuando llega la respuesta lenta. En la pestaña
+Network salen **dos** consultas de ítems, no una.
+
+### 90.2 · Sin red lenta, igual que antes
+1. Confirmar, modificar, rechazar y deshacer ítems con la red bien
+
+**Esperado:** cada acción actualiza la grilla como siempre.
+
 ---
 
 ## Resumen para completar
@@ -7589,7 +7825,13 @@ blanco ni un error.
 | 82 · Transferencias: filtros de la lista | 12 | | | |
 | 83 · Inventario: el mismo producto otra vez en la zona | 6 | | | |
 | 84 · Solicitudes de pago con rol | 6 | 6 | | |
-| **Total** | **728** | | | |
+| 85 · Transferencias: compras avanza cualquier etapa | 5 | 5 | | |
+| 86 · Transferencias: el rechazo del avance recarga la pantalla | 5 | | | |
+| 87 · Push: el aviso sigue llegando después de reabrir | 5 | | | |
+| 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
+| 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
+| 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
+| **Total** | **750** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   input,
@@ -11,7 +12,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { transferenciaDelQr } from 'src/app/core/dispositivo/escaneo-ruteo';
@@ -20,6 +21,8 @@ import { FORMATOS_PRODUCTO, FORMATOS_QR } from 'src/app/core/dispositivo/escaner
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
+import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
 import {
   EtapaTransferencia,
@@ -147,14 +150,17 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
         de etapas sería una invitación a saltear pasos que mueven stock.
       -->
       <div acciones class="botonera">
-        @if (accion(); as a) {
-          <button
-            matButton="filled"
-            [disabled]="!accionHabilitada()"
-            (click)="avanzar(a)"
-          >
-            {{ a.texto }}
-          </button>
+        <!-- Cargando o en error, la etapa que se conoce puede estar vieja. -->
+        @if (!cargando() && !error()) {
+          @if (accion(); as a) {
+            <button
+              matButton="filled"
+              [disabled]="!accionHabilitada()"
+              (click)="avanzar(a)"
+            >
+              {{ a.texto }}
+            </button>
+          }
         }
       </div>
 
@@ -382,6 +388,7 @@ export class TransferenciaDetallePage {
   private readonly dialog = inject(MatDialog);
   private readonly servicio = inject(TransferenciaService);
   private readonly auth = inject(AuthService);
+  private readonly roles = inject(RoleService);
   private readonly escaner = inject(EscanerService);
   private readonly productos = inject(ProductoBusquedaService);
   private readonly notificacion = inject(NotificacionService);
@@ -402,6 +409,13 @@ export class TransferenciaDetallePage {
 
   readonly transferencia = signal<Transferencia | null>(null);
   readonly items = signal<TransferenciaItem[]>([]);
+  /**
+   * `true` si la última carga de los ítems falló: `items` puede no ser lo
+   * que hay en el central, y contar pendientes sobre eso dejaría concluir.
+   */
+  readonly itemsSinCargar = signal(false);
+  /** La carga de ítems en vuelo: se corta al pedir otra. */
+  private cargaItems?: Subscription;
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -441,9 +455,14 @@ export class TransferenciaDetallePage {
   /** `true` si en esta etapa los ítems se verifican uno por uno. */
   readonly verificando = computed(() => esEtapaDeVerificacion(this.transferencia()?.etapa));
 
+  /** Compras (o ADMIN): avanza cualquier etapa, la haya tomado quien sea. */
+  readonly exento = computed(() =>
+    this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.transferenciaTodasLasEtapas),
+  );
+
   /** `true` si este usuario es quien tomó la etapa —o si nadie la tomó—. */
   readonly puedeEditar = computed(() =>
-    puedeEditarEtapa(this.transferencia(), this.auth.usuario()?.id),
+    puedeEditarEtapa(this.transferencia(), this.auth.usuario()?.id, this.exento()),
   );
 
   /**
@@ -458,7 +477,7 @@ export class TransferenciaDetallePage {
 
   /** `true` si este usuario puede hacerse cargo de la etapa siguiente. */
   readonly puedeTomar = computed(() =>
-    puedeTomarEtapa(this.transferencia(), this.auth.usuario()?.id, this.conCodigo()),
+    puedeTomarEtapa(this.transferencia(), this.auth.usuario()?.id, this.conCodigo(), this.exento()),
   );
 
   /** `true` si se pueden tocar los ítems ahora mismo. */
@@ -500,7 +519,9 @@ export class TransferenciaDetallePage {
     if (!accion.exigeItemsVerificados) {
       return this.puedeTomar();
     }
-    return this.puedeEditar() && this.pendientes().length === 0;
+    // El central no frena el avance con ítems sin verificar: copia lo vacío
+    // a la etapa siguiente. Sin la lista real no se puede saber si faltan.
+    return this.puedeEditar() && !this.itemsSinCargar() && this.pendientes().length === 0;
   });
 
   /** Por qué el botón está apagado, en palabras. */
@@ -522,6 +543,9 @@ export class TransferenciaDetallePage {
         ? 'Esta etapa la está trabajando ' + nombre + '.'
         : 'Esta etapa la está trabajando otra persona.';
     }
+    if (this.itemsSinCargar()) {
+      return 'No se pudieron cargar los productos. Volvé a abrir la transferencia.';
+    }
     const faltan = this.pendientes().length;
     return faltan === 1
       ? 'Falta revisar 1 producto para poder continuar.'
@@ -534,6 +558,7 @@ export class TransferenciaDetallePage {
         this.cargar();
       }
     });
+    inject(DestroyRef).onDestroy(() => this.cargaItems?.unsubscribe());
   }
 
   cargar(): void {
@@ -572,11 +597,18 @@ export class TransferenciaDetallePage {
     if (!Number.isFinite(id)) {
       return;
     }
-    this.servicio.items(id, 0, TODOS).subscribe({
-      next: (lista) => this.items.set(lista),
+    // Solo cuenta la última pedida: la respuesta de una carga anterior que
+    // llegue tarde pisaría a la nueva (#98).
+    this.cargaItems?.unsubscribe();
+    this.cargaItems = this.servicio.items(id, 0, TODOS).subscribe({
+      next: (lista) => {
+        this.items.set(lista);
+        this.itemsSinCargar.set(false);
+      },
       // Los ítems son secundarios respecto de la cabecera: si fallan, el
-      // detalle sigue mostrando en qué estado está la transferencia.
-      error: () => undefined,
+      // detalle sigue mostrando en qué estado está la transferencia, pero no
+      // se deja concluir la etapa (ver `accionHabilitada`).
+      error: () => this.itemsSinCargar.set(true),
     });
   }
 
@@ -626,7 +658,9 @@ export class TransferenciaDetallePage {
           this.cargar();
         }
       },
-      error: () => undefined,
+      // `DatosService` ya mostró el motivo. Lo típico es que otro ya avanzó
+      // la etapa: recargar muestra la real en vez del botón viejo.
+      error: () => this.cargar(),
     });
   }
 
@@ -637,7 +671,9 @@ export class TransferenciaDetallePage {
    * como responsable al usuario logueado; acá lo es el chofer elegido, y el
    * central además le crea la hoja de ruta. El chofer es opcional: «Continuar
    * sin chofer» sí va por el camino normal. En los dos casos el diálogo hace
-   * la mutation y devuelve `true` solo si el central la aceptó.
+   * la mutation y devuelve `true` si el central la aceptó, `false` si la
+   * rechazó y `undefined` si se canceló. Con cualquier respuesta del central
+   * se recarga: un rechazo suele querer decir que la pantalla está vieja.
    */
   private async verificarConChofer(transferenciaId: number): Promise<void> {
     const verificado = await this.dialogo.abrir<
@@ -645,7 +681,7 @@ export class TransferenciaDetallePage {
       AsignarChoferData,
       boolean
     >(AsignarChoferDialogComponent, { transferenciaId }, '460px');
-    if (verificado) {
+    if (verificado !== undefined) {
       this.cargar();
     }
   }
@@ -858,7 +894,9 @@ export class TransferenciaDetallePage {
       this.cargarItems();
       return true;
     } catch {
-      // `DatosService` ya mostró el error.
+      // `DatosService` ya mostró el error. Se recarga igual: si el
+      // desconfirmar ya corrió, el ítem quedó con la etapa vacía en el central.
+      this.cargarItems();
       return false;
     }
   }

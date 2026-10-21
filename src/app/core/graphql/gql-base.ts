@@ -1,6 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { Apollo } from 'apollo-angular';
-import type { ErrorPolicy, FetchPolicy, MutationFetchPolicy } from '@apollo/client';
+import type {
+  DefaultContext,
+  ErrorPolicy,
+  FetchPolicy,
+  MutationFetchPolicy,
+} from '@apollo/client';
 import type { DocumentNode } from 'graphql';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -35,6 +40,13 @@ import { map } from 'rxjs/operators';
 export interface GqlOptions {
   fetchPolicy?: FetchPolicy;
   errorPolicy?: ErrorPolicy;
+  /**
+   * Contexto de Apollo. El uso que tiene: `{ queryDeduplication: false }`.
+   * Apollo deduplica por defecto, así que una consulta igual a otra que
+   * sigue en vuelo recibe **la respuesta de esa**, aunque se haya pedido
+   * después de un guardado.
+   */
+  context?: DefaultContext;
 }
 
 export interface GqlMutationOptions {
@@ -59,7 +71,7 @@ export interface GqlResult<T> {
  *
  * Una pantalla puede pasar otra política explícitamente.
  */
-const DEFAULTS: Required<GqlOptions> = {
+const DEFAULTS: Required<Omit<GqlOptions, 'context'>> = {
   fetchPolicy: 'no-cache',
   errorPolicy: 'all',
 };

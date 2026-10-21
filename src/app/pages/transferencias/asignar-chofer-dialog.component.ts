@@ -34,8 +34,10 @@ type Acompanante = Pick<Persona, 'id' | 'nombre'>;
  * (`avanzarEtapaTransferencia`), con el usuario logueado como responsable y
  * sin hoja de ruta nueva.
  *
- * El diálogo hace la mutation él mismo y se cierra con `true` solo si el
- * central la aceptó: si la rechaza, queda abierto con lo cargado.
+ * El diálogo hace la mutation él mismo y se cierra con `true` si el central
+ * la aceptó y con `false` si la rechazó, para que la página recargue: el
+ * rechazo típico es que otro ya avanzó la etapa, y reintentar desde acá no
+ * puede andar. `undefined` es que se canceló.
  */
 @Component({
   selector: 'frc-asignar-chofer-dialog',
@@ -257,7 +259,8 @@ export class AsignarChoferDialogComponent {
       );
       this.ref.close(true);
     } catch {
-      // `DatosService` ya mostró el motivo; se queda abierto con lo cargado.
+      // `DatosService` ya mostró el motivo; la página recarga la transferencia.
+      this.ref.close(false);
     } finally {
       this.enviando.set(false);
     }
@@ -299,7 +302,8 @@ export class AsignarChoferDialogComponent {
         this.ref.close(true);
       }
     } catch {
-      // `DatosService` ya mostró el motivo; se queda abierto con lo cargado.
+      // `DatosService` ya mostró el motivo; la página recarga la transferencia.
+      this.ref.close(false);
     } finally {
       this.enviando.set(false);
     }

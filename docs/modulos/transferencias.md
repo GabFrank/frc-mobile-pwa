@@ -418,6 +418,13 @@ Consecuencias, las dos verificadas contra `TransferenciaItemGraphQL`:
 - **Confirmar un ítem antes rechazado son dos llamadas**: primero vaciar la
   etapa, después guardar. Si no, el ítem sigue rechazado mientras la pantalla
   lo muestra en verde.
+- **Las dos llamadas no son atómicas.** Si la segunda falla —por ejemplo,
+  `guardarItem` de un producto con lote que no consigue el lock de la
+  sucursal—, el ítem ya quedó con la etapa vacía. Por eso el error recarga
+  los ítems (issue #94). Y si la recarga también falla, la pantalla no deja
+  concluir la etapa (`itemsSinCargar`): **el central no frena el avance con
+  ítems sin verificar**, copia lo vacío a la etapa siguiente
+  (`TransferenciaGraphQL.avanzarEtapa`).
 
 > ⚠️ **Siempre viaja una cantidad y una presentación para la etapa**, incluso
 > al rechazar. El central multiplica `cantidad × presentacion.cantidad` para

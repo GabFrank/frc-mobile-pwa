@@ -23,14 +23,16 @@ pantalla está desactualizada. Visto con la 58220 el 2026-10-20.
 3. `verificarConChofer` en la página: recarga si el diálogo devolvió `true`
    **o `false`**; con `undefined` (Cancelar, clic afuera, Escape) no recarga.
 
-4. `asignar-chofer-dialog.component.ts`, `elegirChofer`: un usuario sin
-   persona no se acepta como chofer (aviso y no se asigna). Es el único
-   rechazo de `verificarParaTransporteMobile` que se arreglaba reintentando
-   en el diálogo (`TransferenciaGraphQL.java:519-521`); atajarlo antes
-   justifica cerrar siempre con `false`. (Auditoría eje B.)
+4. ~~`elegirChofer`: no aceptar un usuario sin persona.~~ **Descartado en la
+   prueba por pantalla:** el buscador nunca lo ofrece, porque `usuarioSearch`
+   del central hace `join u.persona` (`UsuarioRepository.java:20-23`). El
+   rechazo que el auditor B veía no se alcanza desde el diálogo.
 5. Comentarios que quedan falsos: JSDoc de `verificarConChofer` («`true` solo
    si el central la aceptó») y los `catch` del diálogo («se queda abierto con
    lo cargado»). (Auditoría eje A.)
+6. Agregado en la prueba por pantalla: si la recarga falla, la página quedaba
+   en error con el botón de avance de la etapa vieja todavía visible. El botón
+   se esconde mientras la página carga o está en error.
 
 **Tests** (`src/app/pruebas/transferencia-chofer.spec.ts`):
 - página: si el avance normal falla, recarga (`porId` 2 veces);
@@ -38,14 +40,14 @@ pantalla está desactualizada. Visto con la 58220 el 2026-10-20.
 - página: si el diálogo devuelve `false`, recarga; con `undefined`, no (ya existe);
 - diálogo: los dos «si el central rechaza, queda abierto» pasan a «cierra con
   `false`». «Si devuelve false, queda abierto» se mantiene;
-- diálogo: un usuario sin persona no queda como chofer.
+- página: en error no se ofrece el botón de la etapa vieja.
 Revertir cada cambio y ver que su test falla.
 
 ## Auditoría (paso 5) y qué se hizo
 
 | Hallazgo | Eje | Qué se hizo |
 |---|---|---|
-| Chofer sin persona: único rechazo que se arreglaba reintentando; cerrar con `false` obliga a recargar todo | B | Punto 4: se ataja al elegirlo |
+| Chofer sin persona: único rechazo que se arreglaba reintentando; cerrar con `false` obliga a recargar todo | B | Descartado al probar: el buscador no ofrece usuarios sin persona (punto 4) |
 | Error de red: la recarga también falla y la página pasa a la pantalla de error con «Reintentar» en vez del detalle viejo; dos avisos seguidos | A y B | Aceptado: con la red caída reintentar desde la vista vieja tampoco anda, y si fue timeout con commit, recargar muestra la verdad. Caso propio en el bloque 86 |
 | `ok === false` sin error en `avanzar` no recarga ni avisa | A | Fuera de alcance: pasa solo con la transferencia inexistente en el central. Igual que hoy |
 | Comentarios que quedan falsos | A | Punto 5 |

@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,6 +42,7 @@ describe('Verificar para transporte pide el chofer', () => {
       avanzarEtapa: ReturnType<typeof vi.fn>;
     };
     let dialogo: { abrir: ReturnType<typeof vi.fn>; confirmar: ReturnType<typeof vi.fn> };
+    let fixture: ComponentFixture<TransferenciaDetallePage>;
 
     const montar = (transferencia: Partial<Transferencia>, items: object[] = [{ id: 1 }]) => {
       servicio = {
@@ -59,10 +60,10 @@ describe('Verificar para transporte pide el chofer', () => {
           { provide: AuthService, useValue: { usuario: () => ({ id: 8 }), roles: () => [] } },
         ],
       });
-      const f = TestBed.createComponent(TransferenciaDetallePage);
-      f.componentRef.setInput('id', '1');
-      f.detectChanges();
-      return f.componentInstance;
+      fixture = TestBed.createComponent(TransferenciaDetallePage);
+      fixture.componentRef.setInput('id', '1');
+      fixture.detectChanges();
+      return fixture.componentInstance;
     };
 
     it('abre el diálogo del chofer en vez de avanzar con el usuario logueado', async () => {
@@ -158,6 +159,18 @@ describe('Verificar para transporte pide el chofer', () => {
         expect(pagina.error()).toBe('sin red');
         expect(pagina.cargando()).toBe(false);
       });
+
+      it('en error no ofrece el botón de la etapa vieja', async () => {
+        const pagina = preparando();
+        servicio.avanzarEtapa.mockReturnValueOnce(throwError(() => new Error('sin red')));
+        servicio.porId.mockReturnValueOnce(throwError(() => new Error('sin red')));
+
+        await pagina.avanzar(pagina.accion()!);
+        fixture.detectChanges();
+
+        const botones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+        expect(botones.some((b) => b.textContent?.includes('Concluir preparación'))).toBe(false);
+      });
     });
   });
 });
@@ -216,7 +229,7 @@ describe('El diálogo del chofer', () => {
         { provide: MatDialogRef, useValue: ref },
         { provide: MAT_DIALOG_DATA, useValue: { transferenciaId: 1 } },
         { provide: AuthService, useValue: { usuario: () => ({ id: 8 }), roles: () => [] } },
-        { provide: NotificacionService, useValue: { ok: vi.fn(), warn: vi.fn() } },
+        { provide: NotificacionService, useValue: { ok: vi.fn() } },
       ],
     });
   });
@@ -300,16 +313,6 @@ describe('El diálogo del chofer', () => {
 
     expect(servicio.verificarParaTransporte).not.toHaveBeenCalled();
     expect(ref.close).not.toHaveBeenCalled();
-  });
-
-  it('un usuario sin persona no queda como chofer: el central lo rechazaría', async () => {
-    const d = montar();
-    dialogo.abrir.mockResolvedValueOnce({ id: 11, nickname: 'sinpersona' });
-
-    await d.elegirChofer();
-
-    expect(d.chofer()).toBeNull();
-    expect(TestBed.inject(NotificacionService).warn).toHaveBeenCalled();
   });
 
   it('si el central rechaza, cierra con false para que la página recargue', async () => {

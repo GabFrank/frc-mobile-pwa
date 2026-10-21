@@ -7578,23 +7578,17 @@ y la pantalla muestra *Verificando para transporte*.
 
 **Esperado:** igual que 86.2.
 
-### 86.4 · Un usuario sin persona no puede ser chofer
-1. En el diálogo del chofer, buscar y elegir un usuario sin persona asociada
-
-**Esperado:** aviso *«… no tiene una persona asociada y no puede ser
-chofer.»* y el chofer queda *Sin elegir*.
-
-### 86.5 · Cancelar el diálogo no recarga
+### 86.4 · Cancelar el diálogo no recarga
 1. Abrir el diálogo del chofer y tocar *Cancelar*
 
 **Esperado:** se cierra sin aviso y la pantalla no parpadea (no recarga).
 
-### 86.6 · Central caído en el momento del avance
+### 86.5 · Central caído en el momento del avance
 1. Con la transferencia abierta, cortar el central (o la red)
 2. Tocar el botón de avance y confirmar
 
 **Esperado:** el aviso del error y la pantalla de error con *Reintentar*, no
-la etapa vieja. Con el central de vuelta, *Reintentar* muestra la
+la etapa vieja, y **sin el botón de avance** abajo. Con el central de vuelta, *Reintentar* muestra la
 transferencia.
 
 ---
@@ -7688,8 +7682,8 @@ transferencia.
 | 83 · Inventario: el mismo producto otra vez en la zona | 6 | | | |
 | 84 · Solicitudes de pago con rol | 6 | 6 | | |
 | 85 · Transferencias: compras avanza cualquier etapa | 5 | 5 | | |
-| 86 · Transferencias: el rechazo del avance recarga la pantalla | 6 | | | |
-| **Total** | **739** | | | |
+| 86 · Transferencias: el rechazo del avance recarga la pantalla | 5 | | | |
+| **Total** | **738** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -318,8 +318,8 @@ transacción:
 > hoja, esa queda como estaba, con sus otras transferencias.
 
 > ⚠️ **El chofer es una `Persona` en la hoja y un `Usuario` como responsable.**
-> Por eso se elige un usuario: sin persona asociada, el central lo rechaza, y
-> el diálogo ya no deja elegirlo.
+> Por eso se elige un usuario: sin persona asociada, el central lo rechaza.
+> Tampoco aparece en el buscador: `usuarioSearch` hace `join` con la persona.
 
 ### Si el central rechaza el avance
 
@@ -327,7 +327,8 @@ La pantalla **recarga la transferencia** después del aviso, sea el avance
 normal o el diálogo del chofer (que se cierra con `false`). El rechazo típico
 es que otro ya avanzó la etapa, y reintentar sobre la pantalla vieja no puede
 andar. Si el central está caído, la recarga también falla y queda la pantalla
-de error con «Reintentar».
+de error con «Reintentar», **sin el botón de avance**: mientras carga o está en
+error, la etapa que se conoce puede estar vieja.
 
 El desktop no cambia: sigue con `avanzarEtapaTransferencia` y `saveHojaRuta`.
 

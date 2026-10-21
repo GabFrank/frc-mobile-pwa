@@ -176,11 +176,6 @@ export class AsignarChoferDialogComponent {
     if (!elegido) {
       return;
     }
-    // El central lo rechaza: la hoja de ruta lleva la persona del chofer.
-    if (elegido.persona == null) {
-      this.notificacion.warn(nombreDeUsuario(elegido) + ' no tiene una persona asociada y no puede ser chofer.');
-      return;
-    }
     this.chofer.set(elegido);
     // Si ya figuraba como acompañante, deja de serlo: no puede ir dos veces.
     const personaId = elegido.persona?.id;

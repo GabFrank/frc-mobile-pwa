@@ -149,14 +149,17 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
         de etapas sería una invitación a saltear pasos que mueven stock.
       -->
       <div acciones class="botonera">
-        @if (accion(); as a) {
-          <button
-            matButton="filled"
-            [disabled]="!accionHabilitada()"
-            (click)="avanzar(a)"
-          >
-            {{ a.texto }}
-          </button>
+        <!-- Cargando o en error, la etapa que se conoce puede estar vieja. -->
+        @if (!cargando() && !error()) {
+          @if (accion(); as a) {
+            <button
+              matButton="filled"
+              [disabled]="!accionHabilitada()"
+              (click)="avanzar(a)"
+            >
+              {{ a.texto }}
+            </button>
+          }
         }
       </div>
 

@@ -60,6 +60,20 @@ export class EscanearFacturaService {
     return await this.leerYAbrir(pedidoId, texto.trim());
   }
 
+  /** Pide la factura al central y abre la compra nueva que se va a crear con ella. */
+  abrirNuevaCompra(qr: string, reemplazar = false): Promise<boolean> {
+    return new Promise((resolver) => {
+      this.servicio.leerFacturaNuevaCompra(qr).subscribe({
+        next: (factura) => {
+          void this.router
+            .navigate(['/operaciones/compras/nueva', factura.id], { replaceUrl: reemplazar })
+            .then(() => resolver(true));
+        },
+        error: () => resolver(false),
+      });
+    });
+  }
+
   /** Pide la factura al central y abre la conciliación. */
   leerYAbrir(pedidoId: number, qr: string, reemplazar = false): Promise<boolean> {
     return new Promise((resolver) => {

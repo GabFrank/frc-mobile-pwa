@@ -7,7 +7,22 @@ desktop (`PERMISOS.compras`), que el central vuelve a exigir.
 mercadería: esto es la etapa anterior, la **Recepción documental**
 (`RECEPCION_NOTA`) de Gestión de compras.
 
-## Qué hace
+## Dos caminos
+
+- **La factura crea la compra** (el normal): «Nueva compra con factura» →
+  escanear el KuDE. De la factura sale todo lo que trae —proveedor (por RUC),
+  moneda y cotización, un ítem por renglón con su presentación, cantidad,
+  precio con IVA y bonificación, y **la forma de pago y el plazo solo si
+  vienen**—. El comprador elige lo que no trae: la forma de pago si falta, y la
+  **sucursal** que recibe todo. «Crear compra» hace en el central, en una sola
+  transacción, los mismos pasos del desktop: crear el pedido con sus
+  sucursales, cada ítem con su reparto, finalizar la planificación, cargar la
+  nota y, si se tilda, finalizar la recepción documental.
+- **Cargar la factura a un pedido planificado en el desktop**: el flujo de
+  abajo. Si al escanear hay pedidos del proveedor esperando factura, la
+  pantalla ofrece los dos caminos.
+
+## Cargar la factura a un pedido existente
 
 El comprador tiene el pedido planificado y la factura electrónica del
 proveedor en la mano:
@@ -28,6 +43,10 @@ proveedor en la mano:
 
 ## Reglas que conviene saber
 
+- **Compra nueva y última compra:** sin pedido no hay precio contra el cual
+  comparar, así que se compara con el último precio de compra del producto;
+  si la diferencia es justo el IVA, avisa que la compra anterior se cargó sin
+  IVA.
 - **Precios con IVA incluido**, como los cargan hoy los compradores en el
   desktop (verificado contra las notas anteriores de MARVI) y como los trae la
   factura. Si el precio de la factura es justo el del pedido más el 5 o el

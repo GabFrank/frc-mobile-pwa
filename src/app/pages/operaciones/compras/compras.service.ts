@@ -7,11 +7,16 @@ import type {
   CompraPedido,
   CompraPedidoResumen,
   FacturaProveedor,
+  OpcionesNuevaCompra,
   PedidosParaFactura,
   ResumenFinalizarNotas,
 } from 'src/app/domains/compras/compras.model';
 import type { PageInfo } from 'src/app/domains/page-info.model';
 import { ConfirmarFacturaGQL } from 'src/app/graphql/operaciones/compras/confirmarFactura';
+import { CrearCompraDesdeFacturaGQL } from 'src/app/graphql/operaciones/compras/crearCompraDesdeFactura';
+import { FacturaNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/facturaNuevaCompra';
+import { LeerFacturaNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/leerFacturaNuevaCompra';
+import { OpcionesNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/opcionesNuevaCompra';
 import { EliminarNotaComprasGQL } from 'src/app/graphql/operaciones/compras/eliminarNotaCompras';
 import { FacturaProveedorGQL } from 'src/app/graphql/operaciones/compras/facturaProveedor';
 import { FinalizarRecepcionNotasGQL } from 'src/app/graphql/operaciones/compras/finalizarRecepcionNotas';
@@ -45,6 +50,10 @@ export class ComprasService {
   private readonly confirmarGQL = inject(ConfirmarFacturaGQL);
   private readonly eliminarGQL = inject(EliminarNotaComprasGQL);
   private readonly finalizarGQL = inject(FinalizarRecepcionNotasGQL);
+  private readonly facturaNuevaGQL = inject(FacturaNuevaCompraGQL);
+  private readonly opcionesGQL = inject(OpcionesNuevaCompraGQL);
+  private readonly leerNuevaGQL = inject(LeerFacturaNuevaCompraGQL);
+  private readonly crearCompraGQL = inject(CrearCompraDesdeFacturaGQL);
 
   // ────────────────────────────────────────────────────────────── Lecturas ──
 
@@ -133,5 +142,38 @@ export class ComprasService {
       { pedidoId },
       { mensajeExito: 'Conciliación finalizada: el pedido pasa a recepción de mercadería' },
     );
+  }
+
+  // ───────────────────────────────────────────── La factura crea la compra ──
+
+  /** Trae la factura de SIFEN para crear con ella la compra entera (sin pedido previo). */
+  leerFacturaNuevaCompra(qr: string): Observable<FacturaProveedor> {
+    return this.datos.mutar<FacturaProveedor>(this.leerNuevaGQL, { qr });
+  }
+
+  facturaNuevaCompra(documentoId: number): Observable<FacturaProveedor> {
+    return this.datos.consultar<FacturaProveedor>(this.facturaNuevaGQL, { id: documentoId });
+  }
+
+  /** Formas de pago y sucursales, para lo que la factura no trae. Consulta secundaria: no avisa sola. */
+  opcionesNuevaCompra(): Observable<OpcionesNuevaCompra> {
+    return this.datos.consultar<OpcionesNuevaCompra>(this.opcionesGQL, {}, { notificarError: false });
+  }
+
+  /**
+   * Crea el pedido, sus ítems con el reparto, finaliza la planificación, carga
+   * la nota y, si se pide, finaliza la recepción documental. Todo en el
+   * central, en una sola transacción.
+   */
+  crearCompraDesdeFactura(datos: {
+    documentoId: number;
+    formaPagoId: number | null;
+    plazoCredito: number | null;
+    sucursalId: number;
+    finalizarNotas: boolean;
+  }): Observable<CompraPedido> {
+    return this.datos.mutar<CompraPedido>(this.crearCompraGQL, datos, {
+      mensajeExito: 'Compra creada con la factura',
+    });
   }
 }

@@ -7,7 +7,12 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
@@ -15,6 +20,7 @@ import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import type {
   AvisoFactura,
   FacturaProveedor,
+  OpcionesNuevaCompra,
   RenglonFactura,
   SugerenciaProducto,
 } from 'src/app/domains/compras/compras.model';
@@ -56,6 +62,11 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
 /**
  * La factura del proveedor, con todos sus datos, cruzada contra el pedido.
  *
+ * **Dos modos**, la misma pantalla. Con un pedido (`:pedidoId/factura/:id`) la
+ * factura se carga a ese pedido. En `nueva/:id` la factura **crea la compra**:
+ * de la factura sale todo lo que trae (proveedor, moneda, ítems, precios, forma
+ * de pago y plazo si vienen); el comprador elige lo que no trae y la sucursal.
+ *
  * Cada renglón dice si coincide con el pedido (verde), si tiene una
  * diferencia o no estaba en el pedido (amarillo, pide observación, como el
  * desktop) o si el producto no se reconoció (rojo: hay que vincularlo con uno
@@ -82,10 +93,15 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
     SkeletonComponent,
     EstadoErrorComponent,
     MatButtonModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatInputModule,
+    MatCheckboxModule,
+    FormsModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <frc-pagina titulo="Factura del proveedor" [conVolver]="true">
+    <frc-pagina [titulo]="esNueva() ? 'Nueva compra' : 'Factura del proveedor'" [conVolver]="true">
       @if (cargando()) {
         <frc-skeleton [cantidad]="5" />
       } @else if (error()) {
@@ -104,9 +120,64 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
           <frc-dato etiqueta="Condición" [valor]="f.condicion ?? '—'" />
           <frc-dato etiqueta="Moneda" [valor]="moneda(f)" />
           <frc-dato etiqueta="A nombre de" [valor]="(f.receptorNombre ?? '—') + ' · ' + (f.receptorRuc ?? '')" />
-          <frc-dato etiqueta="Pedido" [valor]="'Pedido ' + f.pedidoId + ' · ' + (f.proveedorNombre ?? '')" />
+          @if (f.tipoPagoFactura) {
+            <frc-dato etiqueta="Pago" [valor]="f.tipoPagoFactura" />
+          }
+          @if (f.plazoCredito != null) {
+            <frc-dato etiqueta="Plazo" [valor]="f.plazoCredito + ' días'" />
+          }
+          @if (!esNueva()) {
+            <frc-dato etiqueta="Pedido" [valor]="'Pedido ' + f.pedidoId + ' · ' + (f.proveedorNombre ?? '')" />
+          }
           <p class="cdc">CDC {{ f.cdc }}</p>
         </frc-seccion>
+
+        @if (esNueva() && !f.notaRecepcionId) {
+          <frc-seccion titulo="Datos de la compra" [panel]="true">
+            <p class="ayuda">
+              Proveedor, moneda, ítems y precios salen de la factura. Lo que la factura no trae, elegilo acá.
+            </p>
+            <frc-dato etiqueta="Proveedor" [valor]="f.proveedorNombre ?? '—'" />
+            @if (opcionesFallaron()) {
+              <p class="nota t-danger">No se pudieron traer las formas de pago y las sucursales.</p>
+              <button matButton (click)="cargarOpciones()">Reintentar</button>
+            } @else {
+              <mat-form-field appearance="outline" class="campo">
+                <mat-label>Forma de pago</mat-label>
+                <mat-select [ngModel]="formaPagoId()" (ngModelChange)="formaPagoId.set($event)">
+                  @for (o of opciones()?.formasPago ?? []; track o.id) {
+                    <mat-option [value]="o.id">{{ o.descripcion }}</mat-option>
+                  }
+                </mat-select>
+                <mat-hint>{{ f.formaPagoId ? 'De la factura' : 'La factura no la trae: elegila' }}</mat-hint>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="campo">
+                <mat-label>Plazo de crédito (días)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  inputmode="numeric"
+                  min="0"
+                  [ngModel]="plazo()"
+                  (ngModelChange)="plazo.set($event === '' || $event == null ? null : +$event)"
+                />
+                <mat-hint>{{ f.plazoCredito != null ? 'De la factura' : 'Opcional: la factura no lo trae' }}</mat-hint>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="campo">
+                <mat-label>Sucursal que recibe</mat-label>
+                <mat-select [ngModel]="sucursalId()" (ngModelChange)="sucursalId.set($event)">
+                  @for (o of opciones()?.sucursales ?? []; track o.id) {
+                    <mat-option [value]="o.id">{{ o.descripcion }}</mat-option>
+                  }
+                </mat-select>
+                <mat-hint>Recibe todo lo de la factura</mat-hint>
+              </mat-form-field>
+            }
+            <mat-checkbox [ngModel]="finalizarNotas()" (ngModelChange)="finalizarNotas.set($event)">
+              Finalizar la recepción documental (no espero otra factura para esta compra)
+            </mat-checkbox>
+          </frc-seccion>
+        }
 
         <frc-seccion titulo="Totales" [panel]="true">
           @if ((f.subtotalExenta ?? 0) > 0) {
@@ -274,13 +345,22 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
           @if (factura()?.motivoNoConfirma; as motivo) {
             <span class="motivo">{{ motivo }}</span>
           }
-          <button
-            matButton="filled"
-            [disabled]="!factura()?.puedeConfirmar || trabajando()"
-            (click)="confirmar()"
-          >
-            {{ trabajando() ? 'Guardando…' : 'Confirmar factura' }}
-          </button>
+          @if (esNueva()) {
+            @if (faltaParaCrear(); as falta) {
+              <span class="motivo">{{ falta }}</span>
+            }
+            <button matButton="filled" [disabled]="!puedeCrear() || trabajando()" (click)="crearCompra()">
+              {{ trabajando() ? 'Creando la compra…' : 'Crear compra' }}
+            </button>
+          } @else {
+            <button
+              matButton="filled"
+              [disabled]="!factura()?.puedeConfirmar || trabajando()"
+              (click)="confirmar()"
+            >
+              {{ trabajando() ? 'Guardando…' : 'Confirmar factura' }}
+            </button>
+          }
         </div>
       }
     </frc-pagina>
@@ -336,6 +416,8 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
     .aclaracion { color: var(--text-mute); font-size: var(--fs-caption); margin: var(--sp-2) 0 0; }
     .botonera { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-1); }
     .motivo { color: var(--text-mute); font-size: var(--fs-caption); text-align: center; }
+    .campo { width: 100%; margin-top: var(--sp-2); }
+    .ayuda { margin: 0 0 var(--sp-2); color: var(--text-mute); font-size: var(--fs-caption); }
   `,
 })
 export class FacturaProveedorPage {
@@ -348,6 +430,28 @@ export class FacturaProveedorPage {
   /** Llegan de la ruta `:pedidoId/factura/:documentoId`. */
   readonly pedidoId = input<string>();
   readonly documentoId = input<string>();
+  /** `nueva` por el `data` de la ruta: la factura crea la compra en vez de cargarse a un pedido. */
+  readonly modo = input<string>();
+  readonly esNueva = computed(() => this.modo() === 'nueva');
+
+  readonly opciones = signal<OpcionesNuevaCompra | null>(null);
+  readonly opcionesFallaron = signal(false);
+  readonly formaPagoId = signal<number | null>(null);
+  readonly plazo = signal<number | null>(null);
+  readonly sucursalId = signal<number | null>(null);
+  readonly finalizarNotas = signal(true);
+  /** Lo que falta para crear la compra, o null. Los datos de la factura los valida el central. */
+  readonly faltaParaCrear = computed<string | null>(() => {
+    const f = this.factura();
+    if (!f) return null;
+    if (!f.puedeConfirmar) return f.motivoNoConfirma ?? 'La factura todavía no se puede cargar.';
+    if (this.formaPagoId() == null) return 'Elegí la forma de pago.';
+    if (this.sucursalId() == null) return 'Elegí la sucursal que recibe.';
+    if (this.plazo() != null && this.plazo()! < 0) return 'El plazo no puede ser negativo.';
+    return null;
+  });
+  readonly puedeCrear = computed(() => this.factura() != null && this.faltaParaCrear() == null);
+  private prellenado = false;
 
   readonly factura = signal<FacturaProveedor | null>(null);
   readonly cargando = signal(true);
@@ -369,13 +473,19 @@ export class FacturaProveedorPage {
 
   constructor() {
     effect(() => {
-      if (this.pedidoId() !== undefined && this.documentoId() !== undefined) {
+      const listo = this.esNueva() ? this.documentoId() !== undefined
+        : this.pedidoId() !== undefined && this.documentoId() !== undefined;
+      if (listo) {
         this.cargar();
       }
     });
   }
 
   cargar(): void {
+    if (this.esNueva()) {
+      this.cargarNueva();
+      return;
+    }
     const pedido = aId(this.pedidoId());
     const documento = aId(this.documentoId());
     if (pedido == null || documento == null) {
@@ -394,8 +504,53 @@ export class FacturaProveedorPage {
     });
   }
 
+  private cargarNueva(): void {
+    const documento = aId(this.documentoId());
+    if (documento == null) {
+      this.error.set('La factura no tiene un identificador válido.');
+      this.cargando.set(false);
+      return;
+    }
+    this.cargando.set(true);
+    this.error.set(null);
+    if (!this.opciones()) this.cargarOpciones();
+    this.servicio.facturaNuevaCompra(documento).subscribe({
+      next: (f) => this.mostrar(f),
+      error: (err: Error) => {
+        this.error.set(err.message);
+        this.cargando.set(false);
+      },
+    });
+  }
+
+  cargarOpciones(): void {
+    this.opcionesFallaron.set(false);
+    this.servicio.opcionesNuevaCompra().subscribe({
+      next: (crudas) => {
+        // ⚠️ GraphQL manda los ID como texto: sin pasarlos a número, el select no
+        // reconoce la forma de pago que trae la factura y se ve vacío.
+        const o: OpcionesNuevaCompra = {
+          formasPago: (crudas?.formasPago ?? []).map((x) => ({ ...x, id: Number(x.id) })),
+          sucursales: (crudas?.sucursales ?? []).map((x) => ({ ...x, id: Number(x.id) })),
+        };
+        this.opciones.set(o);
+        // Con una sola sucursal posible no hay nada que elegir
+        if (this.sucursalId() == null && o?.sucursales?.length === 1) {
+          this.sucursalId.set(o.sucursales[0].id);
+        }
+      },
+      error: () => this.opcionesFallaron.set(true),
+    });
+  }
+
   private mostrar(f: FacturaProveedor | null | undefined): void {
     this.factura.set(f ?? null);
+    // Solo lo que trae la factura, y una sola vez: después manda lo que eligió el comprador
+    if (f && this.esNueva() && !this.prellenado) {
+      this.prellenado = true;
+      if (f.formaPagoId != null) this.formaPagoId.set(Number(f.formaPagoId));
+      if (f.plazoCredito != null) this.plazo.set(f.plazoCredito);
+    }
     if (!f) {
       this.error.set('La factura ya no está. Escaneala de nuevo.');
     } else if (this.filtro() === 'revisar' && contarFiltros(f.renglones).revisar === 0) {
@@ -469,6 +624,40 @@ export class FacturaProveedorPage {
       },
       error: () => this.trabajando.set(false),
     });
+  }
+
+  async crearCompra(): Promise<void> {
+    const f = this.factura();
+    const formaPago = this.formaPagoId();
+    const sucursal = this.sucursalId();
+    if (!f || !this.puedeCrear() || formaPago == null || sucursal == null) return;
+    const nombreSucursal = this.opciones()?.sucursales.find((s) => s.id === sucursal)?.descripcion ?? '';
+    const ok = await this.dialogo.confirmar({
+      titulo: 'Crear la compra',
+      mensaje:
+        'Se crea el pedido de ' + (f.proveedorNombre ?? '') + ' con ' + f.renglones.length +
+        ' renglones para ' + nombreSucursal + ', se finaliza la planificación y se carga la factura ' +
+        (f.numeroCompleto ?? '') + ' por ' + this.numero(f.totalNota) + ' ' + (f.monedaSimbolo ?? '') +
+        ' (con IVA).' + (this.finalizarNotas() ? ' La compra queda lista para la recepción de mercadería.' : ''),
+      confirmar: 'Crear compra',
+    });
+    if (!ok) return;
+    this.trabajando.set(true);
+    this.servicio
+      .crearCompraDesdeFactura({
+        documentoId: f.id,
+        formaPagoId: formaPago,
+        plazoCredito: this.plazo(),
+        sucursalId: sucursal,
+        finalizarNotas: this.finalizarNotas(),
+      })
+      .subscribe({
+        next: (p) => {
+          this.trabajando.set(false);
+          void this.router.navigate(['/operaciones/compras', p.pedidoId], { replaceUrl: true });
+        },
+        error: () => this.trabajando.set(false),
+      });
   }
 
   puedeCrearProducto(): boolean {

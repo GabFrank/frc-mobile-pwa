@@ -76,6 +76,11 @@ const CAMPOS_PEDIDO = `
 
 const CAMPOS_FACTURA = `
   id
+  modo
+  formaPagoId
+  formaPagoDescripcion
+  tipoPagoFactura
+  plazoCredito
   pedidoId
   cdc
   tipoDocumento
@@ -257,5 +262,44 @@ export const eliminarNotaComprasMutation = gql`
 export const finalizarRecepcionNotasMutation = gql`
   mutation ($pedidoId: ID!) {
     data: finalizarRecepcionNotasMobile(pedidoId: $pedidoId) { ${CAMPOS_PEDIDO} }
+  }
+`;
+
+export const facturaNuevaCompraQuery = gql`
+  query ($id: ID!) {
+    data: facturaNuevaCompraMobile(id: $id) { ${CAMPOS_FACTURA} }
+  }
+`;
+
+export const opcionesNuevaCompraQuery = gql`
+  query {
+    data: opcionesNuevaCompraMobile {
+      formasPago { id descripcion }
+      sucursales { id descripcion }
+    }
+  }
+`;
+
+export const leerFacturaNuevaCompraMutation = gql`
+  mutation ($qr: String!) {
+    data: leerFacturaNuevaCompraMobile(qr: $qr) { ${CAMPOS_FACTURA} }
+  }
+`;
+
+export const crearCompraDesdeFacturaMutation = gql`
+  mutation (
+    $documentoId: ID!
+    $formaPagoId: ID
+    $plazoCredito: Int
+    $sucursalId: ID!
+    $finalizarNotas: Boolean
+  ) {
+    data: crearCompraDesdeFacturaMobile(
+      documentoId: $documentoId
+      formaPagoId: $formaPagoId
+      plazoCredito: $plazoCredito
+      sucursalId: $sucursalId
+      finalizarNotas: $finalizarNotas
+    ) { ${CAMPOS_PEDIDO} }
   }
 `;

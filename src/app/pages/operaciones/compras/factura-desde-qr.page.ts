@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 
 import type { CompraPedidoResumen, PedidosParaFactura } from 'src/app/domains/compras/compras.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
@@ -13,12 +14,12 @@ import { EscanearFacturaService } from './escanear-factura.service';
 
 /**
  * Se llega acá escaneando un KuDE sin haber elegido el pedido: desde el botón
- * universal o desde «Escanear factura» en la lista.
+ * universal o desde «Nueva compra» en la lista.
  *
  * El CDC trae el RUC del emisor, así que el central ya sabe de qué proveedor
- * es sin ir a SIFEN. Si ese proveedor tiene **un solo** pedido esperando
- * factura, se abre directo; si tiene varios, se elige; si no tiene ninguno,
- * se dice por qué en vez de abrir una factura que no va a ningún lado.
+ * es sin ir a SIFEN. Si ningún pedido de ese proveedor espera factura —el caso
+ * normal—, la factura **crea la compra** entera: se abre directo. Si alguno la
+ * espera (un pedido planificado en el escritorio), se ofrecen las dos cosas.
  */
 @Component({
   selector: 'frc-factura-desde-qr',
@@ -30,6 +31,7 @@ import { EscanearFacturaService } from './escanear-factura.service';
     SkeletonComponent,
     EstadoVacioComponent,
     EstadoErrorComponent,
+    MatButtonModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -39,17 +41,27 @@ import { EscanearFacturaService } from './escanear-factura.service';
       } @else if (error()) {
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
       } @else if (datos(); as d) {
-        @if (d.pedidos.length === 0) {
+        @if (!d.proveedorId) {
+          <frc-estado-vacio titulo="Proveedor no encontrado" [detalle]="vacio(d)" icono="documento" />
+        } @else if (d.pedidos.length === 0) {
           <frc-estado-vacio
-            [titulo]="d.proveedorId ? 'Ningún pedido espera esta factura' : 'Proveedor no encontrado'"
-            [detalle]="vacio(d)"
+            titulo="No se pudo abrir la factura"
+            detalle="Revisá el aviso de arriba y probá de nuevo."
             icono="documento"
           />
+          <button matButton="filled" class="nueva" [disabled]="abriendo()" (click)="nuevaCompra()">
+            {{ abriendo() ? 'Consultando SIFEN…' : 'Crear la compra con esta factura' }}
+          </button>
         } @else {
           <p class="intro">
             {{ d.tipoDocumentoDescripcion }} {{ d.numeroCompleto }} de
-            <strong>{{ d.proveedorNombre }}</strong>. ¿A qué pedido se carga?
+            <strong>{{ d.proveedorNombre }}</strong>. Creá la compra con esta factura, o cargala a un
+            pedido que ya la espera.
           </p>
+          <button matButton="filled" class="nueva" [disabled]="abriendo()" (click)="nuevaCompra()">
+            {{ abriendo() ? 'Consultando SIFEN…' : 'Crear una compra nueva' }}
+          </button>
+          <p class="intro">Pedidos de {{ d.proveedorNombre }} esperando factura:</p>
           @for (p of d.pedidos; track p.pedidoId) {
             <frc-card
               [titulo]="'Pedido ' + p.pedidoId"
@@ -66,6 +78,7 @@ import { EscanearFacturaService } from './escanear-factura.service';
   `,
   styles: `
     .intro { margin: 0 0 var(--sp-3); font-size: var(--fs-label); }
+    .nueva { width: 100%; margin-bottom: var(--sp-4); }
   `,
 })
 export class FacturaDesdeQrPage {
@@ -78,6 +91,7 @@ export class FacturaDesdeQrPage {
   readonly datos = signal<PedidosParaFactura | null>(null);
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
+  readonly abriendo = signal(false);
 
   constructor() {
     effect(() => {
@@ -98,9 +112,9 @@ export class FacturaDesdeQrPage {
     this.error.set(null);
     this.servicio.pedidosParaFactura(qr).subscribe({
       next: (d) => {
-        if (d?.pedidos?.length === 1) {
-          // Un solo candidato: directo a la factura, sin dejar esta pantalla en el historial
-          void this.escaneo.leerYAbrir(d.pedidos[0].pedidoId, qr, true).then((ok) => {
+        if (d?.proveedorId && (d.pedidos?.length ?? 0) === 0) {
+          // Ningún pedido la espera: la factura crea la compra, desde la etapa de creación
+          void this.escaneo.abrirNuevaCompra(qr, true).then((ok) => {
             if (!ok) {
               this.datos.set(d);
               this.cargando.set(false);
@@ -118,6 +132,11 @@ export class FacturaDesdeQrPage {
     });
   }
 
+  nuevaCompra(): void {
+    this.abriendo.set(true);
+    void this.escaneo.abrirNuevaCompra((this.qr() ?? '').trim()).then(() => this.abriendo.set(false));
+  }
+
   elegir(p: CompraPedidoResumen): void {
     void this.escaneo.leerYAbrir(p.pedidoId, (this.qr() ?? '').trim(), true);
   }
@@ -133,12 +152,9 @@ export class FacturaDesdeQrPage {
   }
 
   vacio(d: PedidosParaFactura): string {
-    if (!d.proveedorId) {
-      return 'El RUC ' + (d.proveedorRuc ?? '') + ' de esta factura no corresponde a ningún proveedor cargado.';
-    }
     return (
-      d.proveedorNombre +
-      ' no tiene pedidos esperando factura. El pedido tiene que estar en la etapa de notas (planificación finalizada en el sistema de escritorio).'
+      'El RUC ' + (d.proveedorRuc ?? '') +
+      ' de esta factura no corresponde a ningún proveedor cargado. Dalo de alta como proveedor en el sistema de escritorio.'
     );
   }
 }

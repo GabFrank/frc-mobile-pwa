@@ -7840,9 +7840,9 @@ SIFEN ni crea nada.
 ### 91.12 · Desde el botón universal
 1. Desde Inicio, el botón flotante de escanear → el KuDE de MARVI
 
-**Esperado:** si MARVI tiene un solo pedido esperando factura, abre directo la
-factura de ese pedido; si tiene varios, pregunta a cuál; si no tiene, lo dice.
-**No** abre el buscador de productos como antes.
+**Esperado:** si ningún pedido de MARVI espera factura, abre directo **Nueva
+compra** (ver 91.16); si alguno la espera, ofrece «Crear una compra nueva» y
+la lista de esos pedidos. **No** abre el buscador de productos como antes.
 
 ### 91.13 · El CDC escrito a mano
 1. Escanear factura → en el campo de carga manual, escribir los 44 dígitos (con espacios)
@@ -7864,6 +7864,45 @@ vuelve a «Esperando factura».
 a entrar en la recepción de mercadería). Al confirmar, el pedido pasa a
 recepción de mercadería y desaparece de la lista de Compras; en el desktop se
 ve el tab de recepción de mercadería habilitado.
+
+### 91.16 · La factura crea la compra *(el que importa)*
+1. Compras → **Nueva compra con factura** → escanear el KuDE de MARVI (sin pedidos de MARVI esperando)
+
+**Esperado:** se abre **Nueva compra** con todos los datos de la factura y la
+sección «Datos de la compra»: proveedor MARVI, y **forma de pago y plazo
+precargados solo si la factura los trae**. La de MARVI es a crédito: el plazo
+dice 30 «De la factura» y la forma de pago queda vacía con «La factura no la
+trae: elegila». La sucursal hay que elegirla.
+
+### 91.17 · Lo que no trae la factura lo elige el comprador
+1. En la misma pantalla, sin elegir forma de pago ni sucursal
+
+**Esperado:** «Crear compra» deshabilitado con el motivo («Elegí la forma de
+pago», después «Elegí la sucursal que recibe»). Con un renglón rojo, primero
+pide vincularlo.
+
+### 91.18 · El aviso de IVA contra la última compra
+1. Mirar las papas Sensei en «Para revisar»
+
+**Esperado:** «IVA: la última compra se cargó a 14.228, que es este precio sin
+el IVA del 10 %…». Arriba, una advertencia cuenta cuántos productos tienen ese
+aviso.
+
+### 91.19 · Crear la compra
+1. Elegir CHEQUE, sucursal **DEPOSITO AQUARIO**, dejar tildado «Finalizar la recepción documental» → **Crear compra** → confirmar
+
+**Esperado:** abre el pedido nuevo con la factura cargada y nada «Falta
+facturar». En el **desktop**, Gestión de compras: el pedido de MARVI con forma
+de pago CHEQUE, plazo 30, moneda guaraní, sucursal de entrega e influencia
+Aquario, un ítem por renglón con su precio **con IVA** y la distribución
+completa, la planificación finalizada, la nota 67495 conciliada y el tab de
+recepción de mercadería habilitado.
+
+### 91.20 · Crear la compra sin finalizar las notas
+1. Repetir con otra factura, destildando «Finalizar la recepción documental»
+
+**Esperado:** el pedido queda en la recepción documental con la factura
+cargada: se le pueden escanear más facturas (91.3) y finalizar después (91.15).
 
 ---
 
@@ -7961,8 +8000,8 @@ ve el tab de recepción de mercadería habilitado.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 15 | | | |
-| **Total** | **765** | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 20 | | | |
+| **Total** | **770** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

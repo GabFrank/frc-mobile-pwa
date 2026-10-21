@@ -48,7 +48,7 @@ const TAMANO = 20;
   template: `
     <frc-pagina titulo="Compras" [conVolver]="true">
       <div acciones>
-        <button matButton="filled" (click)="escanear()">Escanear factura</button>
+        <button matButton="filled" (click)="escanear()">Nueva compra con factura</button>
       </div>
 
       <mat-form-field appearance="outline" class="buscar">
@@ -72,7 +72,7 @@ const TAMANO = 20;
           [detalle]="
             buscado()
               ? 'Ningún pedido esperando factura coincide con «' + buscado() + '».'
-              : 'Los pedidos aparecen acá cuando terminan la planificación en el sistema de escritorio.'
+              : 'Para cargar una compra, tocá «Nueva compra con factura» y escaneá el KuDE del proveedor.'
           "
           icono="documento"
         />

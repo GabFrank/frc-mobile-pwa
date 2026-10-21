@@ -142,6 +142,15 @@ export interface RenglonFactura {
 
 export interface FacturaProveedor {
   id: number;
+  /** PEDIDO: se carga a un pedido existente. NUEVA_COMPRA: la factura crea el pedido. */
+  modo?: 'PEDIDO' | 'NUEVA_COMPRA' | string | null;
+  /** Solo si la factura la trae (pago al contado con su tipo). Si no, la elige el comprador. */
+  formaPagoId?: number | null;
+  formaPagoDescripcion?: string | null;
+  /** Cómo lo escribió el proveedor: «Cheque», «Efectivo»… */
+  tipoPagoFactura?: string | null;
+  /** Días de crédito, solo si la factura los trae. */
+  plazoCredito?: number | null;
   pedidoId?: number | null;
   cdc: string;
   tipoDocumento?: number | null;
@@ -204,4 +213,16 @@ export interface PedidosParaFactura {
   proveedorId?: number | null;
   proveedorNombre?: string | null;
   pedidos: CompraPedidoResumen[];
+}
+
+export interface OpcionCompra {
+  id: number;
+  descripcion?: string | null;
+}
+
+/** Lo que se elige al crear la compra desde la factura, cuando la factura no lo trae. */
+export interface OpcionesNuevaCompra {
+  formasPago: OpcionCompra[];
+  /** Sucursales con depósito y activas: las de entrega del desktop. */
+  sucursales: OpcionCompra[];
 }

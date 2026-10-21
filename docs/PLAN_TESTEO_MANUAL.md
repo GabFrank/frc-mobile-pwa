@@ -7826,10 +7826,14 @@ nota aparece con número 67495, timbrado 18153001, tipo FACTURA, los ítems con
 precio **con IVA** y la distribución por sucursal completa (ítems conciliados).
 
 ### 91.10 · La misma factura dos veces
-1. Escanear otra vez el mismo KuDE en el mismo pedido o en otro
+1. Escanear otra vez el mismo KuDE, en el mismo pedido, en otro o como compra nueva
+2. Con una factura que ya se cargó **a mano en el desktop** (mismo proveedor y número, sin timbrado y con la misma fecha o el mismo monto), escanearla como compra nueva
 
-**Esperado:** «Esta factura ya está cargada: nota 67495 del pedido …». No se
-crea nada.
+**Esperado:** en 1, «Esta factura ya está cargada: nota … del pedido …». En 2,
+el aviso rojo «Esta factura ya está cargada: la nota … (cargada sin timbrado,
+con la misma fecha o monto)» y **Crear compra** deshabilitado. Si la nota a
+mano tiene el mismo número pero otra fecha y otro monto, solo un aviso
+amarillo («Revisá que no sea esta misma factura») y deja seguir.
 
 ### 91.11 · Factura de otro proveedor
 1. En un pedido de otro proveedor, escanear el KuDE de MARVI

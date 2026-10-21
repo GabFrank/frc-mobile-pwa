@@ -96,6 +96,37 @@ equipo recibiéndolos dos veces, sin que nadie toque nada.
 así desde siempre (`login.service.ts` → `registrarSesionActiva`); la PWA se
 había quedado solo con la segunda mitad.
 
+### La sesión propia se busca por `idDispositivo`, no en `usuario.inicioSesion`
+
+Corregido el 2026-10-21: el push **dejaba de llegar solo** al reabrir la app.
+
+`usuario.inicioSesion` es la última sesión abierta del usuario **en cualquier
+aparato** (`UsuarioResolver.inicioSesion` en el central, ordenada por id).
+Quien usa también el escritorio o Android casi nunca tiene ahí la de la PWA,
+así que en cada arranque:
+
+1. la PWA guardaba una sesión **nueva**, sin token;
+2. el central cerraba la anterior de ese aparato y **le borraba el token**
+   (`InicioSesionService.cerrarOtrasSesionesActivasDelDispositivo`);
+3. la PWA no volvía a mandar el token hasta que alguien tocara *Activar*.
+
+Ahora `SesionDispositivoService` consulta las sesiones abiertas del usuario
+(`inicioSesionListPorUsuarioIdAndAbierto`) y reusa la que tenga **este**
+`idDispositivo`, con **su** sucursal —la clave de `inicio_sesion` es
+`(id, sucursal_id)`: el id de una fila con la sucursal de otra crea una fila
+nueva—.
+
+### El token se reenvía en cada arranque
+
+Después de registrar la sesión, `PushService.sincronizar()` vuelve a acuñar el
+token y lo manda **si el permiso ya está concedido**. Cubre dos cosas: una
+sesión que haya nacido sin token por cualquier motivo, y la renovación del
+token que hace Firebase, que antes nunca llegaba al central.
+
+No pide permiso nunca: con el permiso en `default` no hace nada. Y si no se
+pudo registrar la sesión, no manda el token, porque el central lo escribiría
+en la sesión de otro aparato.
+
 ### Es un token de FCM, no una suscripción cruda
 
 `SwPush.requestSubscription()` de Angular devuelve un `PushSubscription` del

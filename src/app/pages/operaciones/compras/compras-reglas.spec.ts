@@ -9,6 +9,7 @@ import {
   textoFactor,
   textoParaBuscar,
   tonoAviso,
+  tonoEtapa,
   tonoRenglon,
 } from './compras-reglas';
 
@@ -108,5 +109,15 @@ describe('textoParaBuscar', () => {
     expect(textoParaBuscar('SENSEI PAPAS FRITAS PIZZA 140gr.C/20')).toBe('SENSEI PAPAS FRITAS');
     expect(textoParaBuscar('POLIFOAM ESPONJA DE ACERO INOX C/60')).toBe('POLIFOAM ESPONJA ACERO');
     expect(textoParaBuscar(null)).toBe('');
+  });
+});
+
+describe('tonoEtapa', () => {
+  it('lo que espera la factura en amarillo, lo que sigue en otra área en azul, lo terminado en verde', () => {
+    expect(tonoEtapa('RECEPCION_NOTA', 'PENDIENTE')).toBe('warn');
+    expect(tonoEtapa('RECEPCION_NOTA', 'EN_PROCESO')).toBe('info');
+    expect(tonoEtapa('RECEPCION_MERCADERIA')).toBe('info');
+    expect(tonoEtapa('CONCLUIDA')).toBe('ok');
+    expect(tonoEtapa(null)).toBe('neutral');
   });
 });

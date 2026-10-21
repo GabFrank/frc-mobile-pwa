@@ -20,8 +20,11 @@ export interface CompraPedidoResumen {
   cantidadItems?: number | null;
   itemsPendientes?: number | null;
   cantidadNotas?: number | null;
-  /** PENDIENTE o EN_PROCESO */
+  /** Estado de la etapa de notas: PENDIENTE, EN_PROCESO, COMPLETADA… */
   estadoEtapa?: string | null;
+  /** Dónde está la compra: CREACION, RECEPCION_NOTA, RECEPCION_MERCADERIA, SOLICITUD_PAGO o CONCLUIDA. */
+  etapaActual?: string | null;
+  etapaEtiqueta?: string | null;
 }
 
 export interface CompraPedidoItem {

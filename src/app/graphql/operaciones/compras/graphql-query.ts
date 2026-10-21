@@ -52,6 +52,8 @@ const CAMPOS_RESUMEN = `
   itemsPendientes
   cantidadNotas
   estadoEtapa
+  etapaActual
+  etapaEtiqueta
 `;
 
 const CAMPOS_PEDIDO = `
@@ -173,8 +175,8 @@ const CAMPOS_FACTURA = `
 `;
 
 export const pedidosEsperandoFacturaQuery = gql`
-  query ($texto: String, $proveedorId: ID, $page: Int, $size: Int) {
-    data: pedidosEsperandoFacturaMobile(texto: $texto, proveedorId: $proveedorId, page: $page, size: $size) {
+  query ($texto: String, $soloEsperandoFactura: Boolean, $page: Int, $size: Int) {
+    data: comprasMobile(texto: $texto, soloEsperandoFactura: $soloEsperandoFactura, page: $page, size: $size) {
       getTotalPages
       getTotalElements
       hasNext

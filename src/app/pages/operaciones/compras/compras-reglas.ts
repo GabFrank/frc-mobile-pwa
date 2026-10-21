@@ -132,3 +132,26 @@ export function textoParaBuscar(descripcion: string | null | undefined): string 
     .filter((p) => p.length > 1 && !/^\d+[A-Z]*$/.test(p) && !PALABRAS_VACIAS.has(p));
   return palabras.slice(0, 3).join(' ');
 }
+
+/**
+ * El tono del chip de la etapa en la lista: amarillo lo que espera al
+ * comprador (la factura), azul lo que sigue en otra área, verde lo terminado.
+ */
+export function tonoEtapa(
+  etapaActual: string | null | undefined,
+  estadoNotas?: string | null,
+): TonoEstado {
+  switch (etapaActual) {
+    case 'RECEPCION_NOTA':
+      return estadoNotas === 'EN_PROCESO' ? 'info' : 'warn';
+    case 'CREACION':
+      return 'neutral';
+    case 'RECEPCION_MERCADERIA':
+    case 'SOLICITUD_PAGO':
+      return 'info';
+    case 'CONCLUIDA':
+      return 'ok';
+    default:
+      return 'neutral';
+  }
+}

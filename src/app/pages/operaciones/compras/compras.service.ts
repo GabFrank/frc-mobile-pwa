@@ -60,11 +60,19 @@ export class ComprasService {
 
   // ────────────────────────────────────────────────────────────── Lecturas ──
 
-  pedidos(texto: string, page = 0, size = 20): Observable<PageInfo<CompraPedidoResumen>> {
-    return this.datos.consultar<PageInfo<CompraPedidoResumen>>(
-      this.pedidosGQL,
-      { texto: texto.trim() || null, proveedorId: null, page, size },
-    );
+  /** Las compras, la última primero. Con `soloEsperandoFactura`, solo las de la etapa de notas abierta. */
+  pedidos(
+    texto: string,
+    page = 0,
+    size = 20,
+    soloEsperandoFactura = false,
+  ): Observable<PageInfo<CompraPedidoResumen>> {
+    return this.datos.consultar<PageInfo<CompraPedidoResumen>>(this.pedidosGQL, {
+      texto: texto.trim() || null,
+      soloEsperandoFactura,
+      page,
+      size,
+    });
   }
 
   pedido(pedidoId: number): Observable<CompraPedido> {

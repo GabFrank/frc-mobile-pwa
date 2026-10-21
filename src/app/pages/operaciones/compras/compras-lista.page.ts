@@ -14,14 +14,17 @@ import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.com
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
+import type { TonoEstado } from 'src/app/shared/estado/estado-registry';
+import { tonoEtapa } from './compras-reglas';
 import { ComprasService } from './compras.service';
 import { EscanearFacturaService } from './escanear-factura.service';
 
 const TAMANO = 20;
 
 /**
- * Pedidos que esperan la factura del proveedor: los que tienen la etapa de
- * notas («Recepción documental» en el desktop) pendiente o en proceso.
+ * Las compras, la última primero, con la etapa en la que está cada una. El
+ * filtro «Esperando factura» deja solo las que tienen la etapa de notas
+ * («Recepción documental» en el desktop) pendiente o en proceso.
  *
  * Es la misma lista que la pestaña 3 de Gestión de compras, pero acá se entra
  * para escanear el KuDE. El botón «Escanear factura» no necesita elegir el
@@ -51,6 +54,15 @@ const TAMANO = 20;
         <button matButton="filled" (click)="escanear()">Nueva compra con factura</button>
       </div>
 
+      <div class="filtros">
+        <button type="button" class="filtro" [class.activo]="!soloEsperando()" (click)="filtrar(false)">
+          Todas
+        </button>
+        <button type="button" class="filtro" [class.activo]="soloEsperando()" (click)="filtrar(true)">
+          Esperando factura
+        </button>
+      </div>
+
       <mat-form-field appearance="outline" class="buscar">
         <mat-label>Proveedor, RUC o número de pedido</mat-label>
         <input
@@ -68,10 +80,10 @@ const TAMANO = 20;
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
       } @else if (filas().length === 0) {
         <frc-estado-vacio
-          [titulo]="buscado() ? 'Sin resultados' : 'Ningún pedido espera factura'"
+          [titulo]="buscado() ? 'Sin resultados' : soloEsperando() ? 'Ningún pedido espera factura' : 'Todavía no hay compras'"
           [detalle]="
             buscado()
-              ? 'Ningún pedido esperando factura coincide con «' + buscado() + '».'
+              ? 'Ninguna compra coincide con «' + buscado() + '».'
               : 'Para cargar una compra, tocá «Nueva compra con factura» y escaneá el KuDE del proveedor.'
           "
           icono="documento"
@@ -86,8 +98,8 @@ const TAMANO = 20;
           >
             <frc-estado-chip
               pie
-              [etiqueta]="p.estadoEtapa === 'EN_PROCESO' ? 'Con facturas cargadas' : 'Esperando factura'"
-              [tono]="p.estadoEtapa === 'EN_PROCESO' ? 'info' : 'warn'"
+              [etiqueta]="p.etapaEtiqueta ?? p.etapaActual ?? '—'"
+              [tono]="tono(p)"
             />
             <frc-importe
               aparte
@@ -107,6 +119,17 @@ const TAMANO = 20;
   `,
   styles: `
     .buscar { width: 100%; }
+    .filtros { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-3); }
+    .filtro {
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--text);
+      border-radius: var(--radius-full);
+      padding: var(--sp-1) var(--sp-3);
+      font-size: var(--fs-caption);
+      cursor: pointer;
+    }
+    .filtro.activo { background: var(--brand-fill); border-color: var(--brand-fill); color: var(--on-tono); }
     .mas { align-self: center; margin-top: var(--sp-3); }
   `,
 })
@@ -122,6 +145,8 @@ export class ComprasListaPage {
   readonly cargando = signal(true);
   readonly cargandoMas = signal(false);
   readonly hayMas = signal(false);
+  /** Por defecto todas, la última primero: la compra recién creada tiene que verse arriba. */
+  readonly soloEsperando = signal(false);
   readonly error = signal<string | null>(null);
 
   private pagina = 0;
@@ -139,7 +164,7 @@ export class ComprasListaPage {
     this.error.set(null);
     const texto = this.texto().trim();
 
-    this.servicio.pedidos(texto, this.pagina, TAMANO).subscribe({
+    this.servicio.pedidos(texto, this.pagina, TAMANO, this.soloEsperando()).subscribe({
       next: (page) => {
         const contenido = page?.getContent ?? [];
         this.filas.update((previas) => (agregando ? [...previas, ...contenido] : contenido));
@@ -154,6 +179,16 @@ export class ComprasListaPage {
         this.cargandoMas.set(false);
       },
     });
+  }
+
+  filtrar(soloEsperando: boolean): void {
+    if (this.soloEsperando() === soloEsperando) return;
+    this.soloEsperando.set(soloEsperando);
+    this.cargar();
+  }
+
+  tono(p: CompraPedidoResumen): TonoEstado {
+    return tonoEtapa(p.etapaActual, p.estadoEtapa);
   }
 
   cargarMas(): void {

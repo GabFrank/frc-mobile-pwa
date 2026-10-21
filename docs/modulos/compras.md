@@ -16,8 +16,11 @@ mercadería: esto es la etapa anterior, la **Recepción documental**
   vienen**—. El comprador elige lo que no trae: la forma de pago si falta, y la
   **sucursal** que recibe todo. «Crear compra» hace en el central, en una sola
   transacción, los mismos pasos del desktop: crear el pedido con sus
-  sucursales, cada ítem con su reparto, finalizar la planificación, cargar la
-  nota y, si se tilda, finalizar la recepción documental.
+  sucursales, cada ítem con su reparto, finalizar la planificación y cargar la
+  nota. **La compra queda en la recepción documental**, sin finalizarla: así la
+  planificación se puede reabrir desde el desktop si la carga automática tomó
+  mal algún ítem, y se le pueden sumar más facturas. «Finalizar» la pasa a
+  recepción de mercadería.
 - **Cargar la factura a un pedido planificado en el desktop**: el flujo de
   abajo. Si al escanear hay pedidos del proveedor esperando factura, la
   pantalla ofrece los dos caminos.

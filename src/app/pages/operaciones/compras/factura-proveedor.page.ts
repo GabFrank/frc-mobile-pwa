@@ -9,7 +9,6 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -96,7 +95,6 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
     MatFormFieldModule,
     MatSelectModule,
     MatInputModule,
-    MatCheckboxModule,
     FormsModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -173,9 +171,6 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
                 <mat-hint>Recibe todo lo de la factura</mat-hint>
               </mat-form-field>
             }
-            <mat-checkbox [ngModel]="finalizarNotas()" (ngModelChange)="finalizarNotas.set($event)">
-              Finalizar la recepción documental (no espero otra factura para esta compra)
-            </mat-checkbox>
           </frc-seccion>
         }
 
@@ -439,7 +434,6 @@ export class FacturaProveedorPage {
   readonly formaPagoId = signal<number | null>(null);
   readonly plazo = signal<number | null>(null);
   readonly sucursalId = signal<number | null>(null);
-  readonly finalizarNotas = signal(true);
   /** Lo que falta para crear la compra, o null. Los datos de la factura los valida el central. */
   readonly faltaParaCrear = computed<string | null>(() => {
     const f = this.factura();
@@ -638,7 +632,8 @@ export class FacturaProveedorPage {
         'Se crea el pedido de ' + (f.proveedorNombre ?? '') + ' con ' + f.renglones.length +
         ' renglones para ' + nombreSucursal + ', se finaliza la planificación y se carga la factura ' +
         (f.numeroCompleto ?? '') + ' por ' + this.numero(f.totalNota) + ' ' + (f.monedaSimbolo ?? '') +
-        ' (con IVA).' + (this.finalizarNotas() ? ' La compra queda lista para la recepción de mercadería.' : ''),
+        ' (con IVA). La compra queda en la recepción documental: si algo se cargó mal, se reabre la' +
+        ' planificación desde el sistema de escritorio.',
       confirmar: 'Crear compra',
     });
     if (!ok) return;
@@ -649,7 +644,6 @@ export class FacturaProveedorPage {
         formaPagoId: formaPago,
         plazoCredito: this.plazo(),
         sucursalId: sucursal,
-        finalizarNotas: this.finalizarNotas(),
       })
       .subscribe({
         next: (p) => {

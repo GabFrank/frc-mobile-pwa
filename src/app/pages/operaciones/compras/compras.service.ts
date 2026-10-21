@@ -177,16 +177,17 @@ export class ComprasService {
   }
 
   /**
-   * Crea el pedido, sus ítems con el reparto, finaliza la planificación, carga
-   * la nota y, si se pide, finaliza la recepción documental. Todo en el
-   * central, en una sola transacción.
+   * Crea el pedido, sus ítems con el reparto, finaliza la planificación y
+   * carga la nota. Todo en el central, en una sola transacción.
+   *
+   * ⚠️ La compra queda **en la recepción documental**: no la finaliza, así la
+   * planificación se puede reabrir desde el desktop para corregir un ítem.
    */
   crearCompraDesdeFactura(datos: {
     documentoId: number;
     formaPagoId: number | null;
     plazoCredito: number | null;
     sucursalId: number;
-    finalizarNotas: boolean;
   }): Observable<CompraPedido> {
     return this.datos.mutar<CompraPedido>(this.crearCompraGQL, datos, {
       mensajeExito: 'Compra creada con la factura',

@@ -7889,20 +7889,25 @@ el IVA del 10 %…». Arriba, una advertencia cuenta cuántos productos tienen e
 aviso.
 
 ### 91.19 · Crear la compra
-1. Elegir CHEQUE, sucursal **DEPOSITO AQUARIO**, dejar tildado «Finalizar la recepción documental» → **Crear compra** → confirmar
+1. Elegir CHEQUE, sucursal **DEPOSITO AQUARIO** → **Crear compra** → confirmar
 
 **Esperado:** abre el pedido nuevo con la factura cargada y nada «Falta
-facturar». En el **desktop**, Gestión de compras: el pedido de MARVI con forma
+facturar», en la etapa **«Con facturas cargadas»**: **no** pasa a recepción de
+mercadería. En el **desktop**, Gestión de compras: el pedido de MARVI con forma
 de pago CHEQUE, plazo 30, moneda guaraní, sucursal de entrega e influencia
 Aquario, un ítem por renglón con su precio **con IVA** y la distribución
-completa, la planificación finalizada, la nota 67495 conciliada y el tab de
-recepción de mercadería habilitado.
+completa, la planificación finalizada y la nota 67495 en la recepción
+documental.
 
-### 91.20 · Crear la compra sin finalizar las notas
-1. Repetir con otra factura, destildando «Finalizar la recepción documental»
+### 91.20 · Corregir lo que se cargó mal: reabrir la planificación
+1. Con la compra de 91.19, en el **desktop** tab 2 → **Reabrir**
+2. Corregir un ítem (cantidad o presentación) → Finalizar planificación
+3. En el tab 3, ajustar el ítem de la nota y **Finalizar conciliación** (desde el desktop o desde Finalizar en el celular)
 
-**Esperado:** el pedido queda en la recepción documental con la factura
-cargada: se le pueden escanear más facturas (91.3) y finalizar después (91.15).
+**Esperado:** se puede reabrir (antes, la compra ya estaba en recepción de
+mercadería y el desktop lo rechazaba). Al finalizar de nuevo la planificación,
+la recepción documental retoma «en proceso» con la nota que ya tenía; recién al
+finalizar la conciliación pasa a recepción de mercadería.
 
 ---
 

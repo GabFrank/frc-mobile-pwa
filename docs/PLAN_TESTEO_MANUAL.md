@@ -7593,19 +7593,70 @@ transferencia.
 
 ---
 
-## Bloque 87 — El aviso de un rechazo sin «Exception while fetching data» *(probado 2026-10-21 contra un central local)*
+## Bloque 87 — Push: el aviso sigue llegando después de reabrir la app *(nuevo, sin probar)*
+
+**Por qué está acá:** el push se apagaba solo. Al arrancar, la PWA buscaba
+su sesión en `usuario.inicioSesion`, pero el central devuelve ahí la última
+sesión abierta del usuario **en cualquier aparato**. Quien usa también el
+escritorio o la app Android abría una sesión nueva en cada arranque, el
+central cerraba la anterior **y le borraba el token**, y la PWA no lo volvía
+a mandar hasta que alguien tocara *Activar*. Ahora busca la sesión de **este**
+aparato y reenvía el token en cada arranque si el permiso ya está concedido.
+
+⚠️ Igual que el bloque 38: **`ng serve` no sirve**, hace falta un build con
+service worker. Y el central tiene casi todos los tipos suspendidos desde el
+PR #241 del central: para disparar el aviso usá un **gasto** o una **compra a
+crédito** a nombre del usuario de prueba. El envío manual desde el escritorio
+(`PERSONALIZADA`) está apagado y no sirve para esta prueba.
+
+### 87.1 · Reabrir no cambia de sesión *(el que importa)*
+1. Con un usuario que tenga **también** una sesión abierta en el escritorio o
+   en Android, abrir la PWA y activar las notificaciones.
+2. Abrir el escritorio con ese usuario (para que su sesión sea la más nueva).
+3. Cerrar la PWA por completo y volver a abrirla.
+4. Mirar `configuraciones.inicio_sesion` filtrando por el `frc.idDispositivo`
+   de `localStorage`.
+
+**Esperado:** **una sola** fila abierta (`hora_fin` nula) para ese aparato, la
+misma que antes de reabrir, con el token todavía cargado.
+
+### 87.2 · Llega después de reabrir
+1. Después de 87.1, cerrar la PWA y disparar un gasto a nombre del usuario.
+
+**Esperado:** el aviso aparece en la bandeja del sistema.
+
+### 87.3 · Mi cuenta muestra el estado real sin tocar nada
+1. Con el permiso ya concedido, reabrir la app e ir a *Mi cuenta*.
+
+**Esperado:** a los pocos segundos la fila dice «Activados en este
+dispositivo», sin haber tocado *Activar*.
+
+### 87.4 · Sin permiso no pregunta nada
+1. En un navegador donde nunca se activaron las notificaciones, entrar.
+
+**Esperado:** el navegador **no** muestra el pedido de permiso al arrancar.
+Solo aparece al tocar *Activar*.
+
+### 87.5 · Un usuario que solo usa la PWA sigue igual
+1. Con un usuario sin otras sesiones, reabrir la app dos veces.
+
+**Esperado:** una sola fila abierta para el aparato y el aviso sigue llegando.
+
+---
+
+## Bloque 88 — El aviso de un rechazo sin «Exception while fetching data» *(probado 2026-10-21 contra un central local)*
 
 **Por qué está acá:** el central rechaza con un texto de negocio, pero graphql-java
 le antepone *«Exception while fetching data (/data) : »*, y la app lo mostraba
 tal cual (issue #93). Vale para todos los rechazos de la app.
 
-### 87.1 · Un rechazo de transferencia
+### 88.1 · Un rechazo de transferencia
 1. Repetir el caso 86.1 (otra sesión ya avanzó la etapa)
 
 **Esperado:** el aviso rojo empieza directo con *«La transferencia N ya esta en
 etapa …»*, sin *«Exception while fetching data»*.
 
-### 87.2 · Un rechazo de otro módulo
+### 88.2 · Un rechazo de otro módulo
 1. Mi trabajo → Vacaciones → *Solicitar vacaciones* con más días de los
    disponibles (el diálogo avisa pero deja enviar)
 
@@ -7704,8 +7755,9 @@ prefijo, y no se crea ninguna solicitud.
 | 84 · Solicitudes de pago con rol | 6 | 6 | | |
 | 85 · Transferencias: compras avanza cualquier etapa | 5 | 5 | | |
 | 86 · Transferencias: el rechazo del avance recarga la pantalla | 5 | | | |
-| 87 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
-| **Total** | **740** | | | |
+| 87 · Push: el aviso sigue llegando después de reabrir | 5 | | | |
+| 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
+| **Total** | **745** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

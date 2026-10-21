@@ -48,6 +48,10 @@ export type EstadoPush =
  * el de Angular es pelearse por el control de la página. Se le pasa la
  * registración de `ngsw-worker.js`, que ya está activa.
  *
+ * ⚠️ **El token se vuelve a mandar en cada arranque** (`sincronizar`). Cada
+ * sesión nueva nace sin token, así que mandarlo solo al tocar «Activar» hacía
+ * que el push dejara de llegar en el siguiente inicio de sesión, sin error.
+ *
  * ⚠️ **En iOS solo funciona con la PWA instalada** (16.4+). En Safari sin
  * instalar, `Notification` ni siquiera existe: por eso hay un estado
  * `requiereInstalar` en vez de un botón que falla.
@@ -114,6 +118,41 @@ export class PushService {
     }
   }
 
+  /**
+   * Vuelve a mandar el token al central si el permiso ya está concedido.
+   *
+   * Corre al arrancar, después de registrar la sesión de este aparato. Sin
+   * esto el push se apagaba solo: una sesión nueva nace sin token, y la PWA
+   * solo lo mandaba cuando alguien tocaba «Activar» en Mi cuenta. Cubre además
+   * la renovación del token que hace Firebase, que de otro modo nunca llegaba
+   * al central.
+   *
+   * ⚠️ **Nunca pide permiso.** Con el permiso en `default` no hace nada: el
+   * pedido tiene que salir de un toque de la persona, o el navegador lo bloquea
+   * para siempre (ver `activar`).
+   *
+   * Falla en silencio: es una tarea de fondo y la persona no hizo nada que
+   * merezca un aviso de error.
+   */
+  async sincronizar(): Promise<void> {
+    if (!this.configurado || !soportaPush() || Notification.permission !== 'granted') {
+      return;
+    }
+    if (this.trabajando()) {
+      return;
+    }
+    try {
+      const token = await this.acunarToken();
+      if (!token) {
+        return;
+      }
+      await this.registrarEnCentral(token);
+      this.estado.set('activo');
+    } catch (err) {
+      console.warn('[push] No se pudo resincronizar el token:', err);
+    }
+  }
+
   private async acunarToken(): Promise<string | null> {
     const [{ initializeApp, getApps }, { getMessaging, getToken, isSupported }] = await Promise.all([
       import('firebase/app'),
@@ -173,7 +212,8 @@ export class PushService {
     }
     if (Notification.permission === 'granted') {
       // Concedido no es lo mismo que registrado: el token puede haber
-      // caducado o haberse acuñado contra otro servidor. Se rearma al activar.
+      // caducado o haberse acuñado contra otro servidor. `sincronizar` lo
+      // rearma al arrancar y recién ahí pasa a `activo`.
       return 'desactivado';
     }
     return Notification.permission === 'denied' ? 'bloqueado' : 'desactivado';

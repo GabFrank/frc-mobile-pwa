@@ -29,6 +29,8 @@ import { Query } from 'src/app/core/graphql/gql-base';
 
 Los defaults de toda operación son `fetchPolicy: 'no-cache'` y `errorPolicy: 'all'`. Una pantalla puede pedir otra política por operación.
 
+⚠️ **`no-cache` no evita la deduplicación.** Apollo deduplica por defecto: una consulta con el mismo documento y las mismas variables que otra **en vuelo** recibe la respuesta de esa, aunque se haya pedido después de un guardado. Y cortar la suscripción no cancela nada: `apollo-angular` envuelve `client.query()` en una Promise. Una recarga que se repite con las mismas variables tras cada acción pide `{ gql: { context: { queryDeduplication: false } } }` (`GqlOptions.context`), como `TransferenciaService.items()` (issue #98).
+
 > **Por qué sin caché:** el backend es la fuente de verdad de saldos, stock y estados. Mostrar un dato viejo en una pantalla de arqueo o de existencias tiene consecuencias operativas. Si algún día un catálogo estable justifica cachear, se pide explícitamente en esa operación.
 
 ## La convención `data:` — sigue vigente

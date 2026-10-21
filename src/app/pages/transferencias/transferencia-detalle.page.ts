@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   input,
@@ -11,7 +12,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { transferenciaDelQr } from 'src/app/core/dispositivo/escaneo-ruteo';
@@ -413,6 +414,8 @@ export class TransferenciaDetallePage {
    * que hay en el central, y contar pendientes sobre eso dejaría concluir.
    */
   readonly itemsSinCargar = signal(false);
+  /** La carga de ítems en vuelo: se corta al pedir otra. */
+  private cargaItems?: Subscription;
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -555,6 +558,7 @@ export class TransferenciaDetallePage {
         this.cargar();
       }
     });
+    inject(DestroyRef).onDestroy(() => this.cargaItems?.unsubscribe());
   }
 
   cargar(): void {
@@ -593,7 +597,10 @@ export class TransferenciaDetallePage {
     if (!Number.isFinite(id)) {
       return;
     }
-    this.servicio.items(id, 0, TODOS).subscribe({
+    // Solo cuenta la última pedida: la respuesta de una carga anterior que
+    // llegue tarde pisaría a la nueva (#98).
+    this.cargaItems?.unsubscribe();
+    this.cargaItems = this.servicio.items(id, 0, TODOS).subscribe({
       next: (lista) => {
         this.items.set(lista);
         this.itemsSinCargar.set(false);

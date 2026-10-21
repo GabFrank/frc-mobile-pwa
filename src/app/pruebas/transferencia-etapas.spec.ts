@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
+import { DatosService } from '../core/graphql/datos.service';
 import {
   EtapaTransferencia,
   MotivoModificacion,
@@ -723,5 +724,85 @@ describe('Si falla guardar la verificación después de desconfirmar (#94)', () 
     await vi.waitFor(() => expect(items).toHaveBeenCalledTimes(2));
     expect(pagina.accionHabilitada()).toBe(false);
     expect(pagina.motivoDeBloqueo()).toContain('No se pudieron cargar los productos');
+  });
+});
+
+describe('Recargas de ítems que se cruzan (#98)', () => {
+  const montar = (...respuestas: Observable<TransferenciaItem[]>[]) => {
+    const items = vi.fn<() => Observable<TransferenciaItem[]>>();
+    // La primera la pide `cargar()` al montar.
+    items.mockReturnValueOnce(of([]));
+    for (const r of respuestas) {
+      items.mockReturnValueOnce(r);
+    }
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [APOLLO_DE_PRUEBA],
+      providers: [
+        {
+          provide: TransferenciaService,
+          useValue: {
+            porId: vi.fn(() =>
+              of({
+                id: 1,
+                etapa: EtapaTransferencia.PREPARACION_MERCADERIA,
+                usuarioPreparacion: usuario(7),
+              }),
+            ),
+            items,
+          },
+        },
+        { provide: AuthService, useValue: { usuario: () => usuario(7), roles: () => [] } },
+      ],
+    });
+    const f = TestBed.createComponent(TransferenciaDetallePage);
+    f.componentRef.setInput('id', '1');
+    f.detectChanges();
+    return f.componentInstance;
+  };
+
+  it('gana la última pedida, aunque la anterior responda después', () => {
+    const vieja = new Subject<TransferenciaItem[]>();
+    const nueva = new Subject<TransferenciaItem[]>();
+    const pagina = montar(vieja, nueva);
+
+    pagina.cargarItems();
+    pagina.cargarItems();
+    nueva.next([{ id: 1, cantidadPreparacion: 8 }]);
+    vieja.next([{ id: 1 }]);
+
+    expect(pagina.items()).toEqual([{ id: 1, cantidadPreparacion: 8 }]);
+    expect(pagina.pendientes().length).toBe(0);
+  });
+
+  it('un error de la anterior que llega tarde no bloquea el botón', () => {
+    const vieja = new Subject<TransferenciaItem[]>();
+    const nueva = new Subject<TransferenciaItem[]>();
+    const pagina = montar(vieja, nueva);
+
+    pagina.cargarItems();
+    pagina.cargarItems();
+    nueva.next([{ id: 1, cantidadPreparacion: 8 }]);
+    vieja.error(new Error('sin red'));
+
+    expect(pagina.itemsSinCargar()).toBe(false);
+    expect(pagina.accionHabilitada()).toBe(true);
+  });
+
+  it('la consulta de ítems no se deduplica con otra igual en vuelo', () => {
+    // Con deduplicación, la recarga posterior a un guardado recibiría la
+    // respuesta de una anterior que seguía en vuelo.
+    const consultar = vi.fn(() => of({ getContent: [] }));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [APOLLO_DE_PRUEBA],
+      providers: [TransferenciaService, { provide: DatosService, useValue: { consultar } }],
+    });
+
+    TestBed.inject(TransferenciaService).items(1).subscribe();
+
+    expect(consultar).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      gql: { context: { queryDeduplication: false } },
+    });
   });
 });

@@ -425,6 +425,11 @@ Consecuencias, las dos verificadas contra `TransferenciaItemGraphQL`:
   concluir la etapa (`itemsSinCargar`): **el central no frena el avance con
   ítems sin verificar**, copia lo vacío a la etapa siguiente
   (`TransferenciaGraphQL.avanzarEtapa`).
+- **Solo cuenta la última recarga de ítems.** `cargarItems()` corta la
+  anterior, y `items()` pide sin deduplicar: si no, una recarga pegada a otra
+  en vuelo recibía la respuesta de antes del guardado (issue #98). El borrador
+  (`transferencia-borrador.page.ts`) usa la misma `items()` pero todavía no
+  corta la carga anterior.
 
 > ⚠️ **Siempre viaja una cantidad y una presentación para la etapa**, incluso
 > al rechazar. El central multiplica `cantidad × presentacion.cantidad` para

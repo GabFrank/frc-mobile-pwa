@@ -7665,6 +7665,47 @@ prefijo, y no se crea ninguna solicitud.
 
 ---
 
+## Bloque 89 — Transferencias: si falla guardar la verificación, la grilla no miente *(probado 2026-10-21 contra un central local)*
+
+**Por qué está acá:** confirmar un ítem antes rechazado o modificado son dos
+operaciones: primero se vacía la etapa del ítem y después se guarda. Si la
+segunda fallaba, la grilla seguía mostrando el ítem verificado aunque en el
+central había quedado vacío, y el botón de concluir seguía habilitado
+(issue #94). El central no frena ese avance: copia lo vacío a la etapa
+siguiente.
+
+⚠️ La segunda operación puede fallar sola con un producto con lote, si hay
+otra operación con lotes en curso en la sucursal (*«Reintentá en unos
+segundos»*). Si no aparece sola, se fuerza cortando la red justo después del
+primer paso, o desde las herramientas del navegador.
+
+> Probado forzando un error de red en el guardado (y en la recarga, para
+> 89.2) desde la consola del navegador, no con el lock real de lotes.
+
+### 89.1 · Falla el guardado *(el que importa)*
+1. Transferencia *Preparando mercadería*, a tu nombre, con un ítem
+   **rechazado**
+2. Confirmar ese ítem y hacer que el guardado falle
+
+**Esperado:** el aviso rojo del error y, enseguida, el ítem **sin revisar**
+(no en verde ni rechazado), con *Falta revisar 1 producto* y el botón de
+concluir apagado.
+
+### 89.2 · Falla también la recarga
+1. Como 89.1, pero sin red también para la recarga de los ítems
+
+**Esperado:** el botón de concluir apagado, con *No se pudieron cargar los
+productos. Volvé a abrir la transferencia.* Al reabrirla con red, el ítem
+sin revisar.
+
+### 89.3 · Sin fallas, igual que antes
+1. Confirmar, modificar y rechazar ítems con la red bien
+
+**Esperado:** cada acción guarda, el ítem cambia de estado y el aviso de
+rechazo sale como siempre.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7757,7 +7798,8 @@ prefijo, y no se crea ninguna solicitud.
 | 86 · Transferencias: el rechazo del avance recarga la pantalla | 5 | | | |
 | 87 · Push: el aviso sigue llegando después de reabrir | 5 | | | |
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
-| **Total** | **745** | | | |
+| 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
+| **Total** | **748** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

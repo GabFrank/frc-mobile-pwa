@@ -408,6 +408,11 @@ export class TransferenciaDetallePage {
 
   readonly transferencia = signal<Transferencia | null>(null);
   readonly items = signal<TransferenciaItem[]>([]);
+  /**
+   * `true` si la última carga de los ítems falló: `items` puede no ser lo
+   * que hay en el central, y contar pendientes sobre eso dejaría concluir.
+   */
+  readonly itemsSinCargar = signal(false);
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -511,7 +516,9 @@ export class TransferenciaDetallePage {
     if (!accion.exigeItemsVerificados) {
       return this.puedeTomar();
     }
-    return this.puedeEditar() && this.pendientes().length === 0;
+    // El central no frena el avance con ítems sin verificar: copia lo vacío
+    // a la etapa siguiente. Sin la lista real no se puede saber si faltan.
+    return this.puedeEditar() && !this.itemsSinCargar() && this.pendientes().length === 0;
   });
 
   /** Por qué el botón está apagado, en palabras. */
@@ -532,6 +539,9 @@ export class TransferenciaDetallePage {
       return nombre
         ? 'Esta etapa la está trabajando ' + nombre + '.'
         : 'Esta etapa la está trabajando otra persona.';
+    }
+    if (this.itemsSinCargar()) {
+      return 'No se pudieron cargar los productos. Volvé a abrir la transferencia.';
     }
     const faltan = this.pendientes().length;
     return faltan === 1
@@ -584,10 +594,14 @@ export class TransferenciaDetallePage {
       return;
     }
     this.servicio.items(id, 0, TODOS).subscribe({
-      next: (lista) => this.items.set(lista),
+      next: (lista) => {
+        this.items.set(lista);
+        this.itemsSinCargar.set(false);
+      },
       // Los ítems son secundarios respecto de la cabecera: si fallan, el
-      // detalle sigue mostrando en qué estado está la transferencia.
-      error: () => undefined,
+      // detalle sigue mostrando en qué estado está la transferencia, pero no
+      // se deja concluir la etapa (ver `accionHabilitada`).
+      error: () => this.itemsSinCargar.set(true),
     });
   }
 
@@ -873,7 +887,9 @@ export class TransferenciaDetallePage {
       this.cargarItems();
       return true;
     } catch {
-      // `DatosService` ya mostró el error.
+      // `DatosService` ya mostró el error. Se recarga igual: si el
+      // desconfirmar ya corrió, el ítem quedó con la etapa vacía en el central.
+      this.cargarItems();
       return false;
     }
   }

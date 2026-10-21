@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
@@ -659,5 +659,69 @@ describe('El botón de avance, en la pantalla', () => {
         motivoRechazoPreparacion: MotivoRechazo.PRODUCTO_VENCIDO,
       }),
     ).toBe('rechazado');
+  });
+});
+
+describe('Si falla guardar la verificación después de desconfirmar (#94)', () => {
+  // Confirmar un ítem rechazado son dos mutations: la primera ya vació la
+  // etapa en el central cuando la segunda falla.
+  const rechazado: TransferenciaItem = {
+    id: 1,
+    cantidadPreparacion: 0,
+    motivoRechazoPreparacion: MotivoRechazo.FALTA_PRODUCTO,
+  };
+
+  const montar = (recarga: Observable<TransferenciaItem[]>) => {
+    const items = vi
+      .fn<() => Observable<TransferenciaItem[]>>()
+      .mockReturnValueOnce(of([rechazado]))
+      .mockReturnValueOnce(recarga);
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [APOLLO_DE_PRUEBA],
+      providers: [
+        {
+          provide: TransferenciaService,
+          useValue: {
+            porId: vi.fn(() =>
+              of({
+                id: 1,
+                etapa: EtapaTransferencia.PREPARACION_MERCADERIA,
+                usuarioPreparacion: usuario(7),
+              }),
+            ),
+            items,
+            desconfirmarItem: vi.fn(() => of(true)),
+            guardarItem: vi.fn(() => throwError(() => new Error('lock de lotes'))),
+          },
+        },
+        { provide: AuthService, useValue: { usuario: () => usuario(7), roles: () => [] } },
+      ],
+    });
+    const f = TestBed.createComponent(TransferenciaDetallePage);
+    f.componentRef.setInput('id', '1');
+    f.detectChanges();
+    return { pagina: f.componentInstance, items };
+  };
+
+  it('recarga los ítems: el que quedó sin verificar vuelve a estar pendiente', async () => {
+    const { pagina, items } = montar(of([{ id: 1 }]));
+    expect(pagina.accionHabilitada()).toBe(true);
+
+    pagina.confirmar(rechazado);
+
+    await vi.waitFor(() => expect(items).toHaveBeenCalledTimes(2));
+    expect(pagina.pendientes().length).toBe(1);
+    expect(pagina.accionHabilitada()).toBe(false);
+  });
+
+  it('si la recarga también falla, no deja concluir y dice por qué', async () => {
+    const { pagina, items } = montar(throwError(() => new Error('sin red')));
+
+    pagina.confirmar(rechazado);
+
+    await vi.waitFor(() => expect(items).toHaveBeenCalledTimes(2));
+    expect(pagina.accionHabilitada()).toBe(false);
+    expect(pagina.motivoDeBloqueo()).toContain('No se pudieron cargar los productos');
   });
 });

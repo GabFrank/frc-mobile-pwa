@@ -634,7 +634,9 @@ export class TransferenciaDetallePage {
           this.cargar();
         }
       },
-      error: () => undefined,
+      // `DatosService` ya mostró el motivo. Lo típico es que otro ya avanzó
+      // la etapa: recargar muestra la real en vez del botón viejo.
+      error: () => this.cargar(),
     });
   }
 
@@ -645,7 +647,9 @@ export class TransferenciaDetallePage {
    * como responsable al usuario logueado; acá lo es el chofer elegido, y el
    * central además le crea la hoja de ruta. El chofer es opcional: «Continuar
    * sin chofer» sí va por el camino normal. En los dos casos el diálogo hace
-   * la mutation y devuelve `true` solo si el central la aceptó.
+   * la mutation y devuelve `true` si el central la aceptó, `false` si la
+   * rechazó y `undefined` si se canceló. Con cualquier respuesta del central
+   * se recarga: un rechazo suele querer decir que la pantalla está vieja.
    */
   private async verificarConChofer(transferenciaId: number): Promise<void> {
     const verificado = await this.dialogo.abrir<
@@ -653,7 +657,7 @@ export class TransferenciaDetallePage {
       AsignarChoferData,
       boolean
     >(AsignarChoferDialogComponent, { transferenciaId }, '460px');
-    if (verificado) {
+    if (verificado !== undefined) {
       this.cargar();
     }
   }

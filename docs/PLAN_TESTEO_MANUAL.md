@@ -7544,6 +7544,55 @@ sucursal de destino…»*.
 
 ---
 
+## Bloque 86 — Transferencias: el rechazo del avance recarga la pantalla *(nuevo, sin probar)*
+
+**Por qué está acá:** cuando el central rechaza un avance de etapa, la app
+mostraba el motivo pero se quedaba en la etapa vieja, con el mismo botón. El
+rechazo típico es *«la transferencia N ya está en etapa X: la avanzó otro
+usuario»* (issue #92), y justo ahí la pantalla está desactualizada.
+
+⚠️ El caso 86.1 necesita un central con el fix de la issue #450 del central
+(`fix/transferencia-no-repetir-etapa`). Sin él, el central repite la etapa y
+responde OK: no hay rechazo que ver.
+
+### 86.1 · Otro ya la avanzó *(el que importa)*
+1. Abrir la misma transferencia *Preparando mercadería*, con todos los ítems
+   revisados, en dos sesiones (dos teléfonos o dos navegadores)
+2. En la primera, *Concluir preparación*
+3. En la segunda, sin recargar, *Concluir preparación*
+
+**Esperado:** en la segunda, el aviso rojo con el motivo y, enseguida, la
+pantalla en *Preparación concluida*, con el botón de la etapa siguiente.
+
+### 86.2 · Lo mismo en la verificación con chofer
+1. Igual que 86.1, con la transferencia en *Preparación concluida*
+2. En la primera, *Verificar para transporte* → elegir chofer y vehículo →
+   confirmar
+3. En la segunda, sin recargar, lo mismo
+
+**Esperado:** en la segunda, el aviso con el motivo, el diálogo **se cierra**
+y la pantalla muestra *Verificando para transporte*.
+
+### 86.3 · «Continuar sin chofer» también
+1. Como 86.2, pero en la segunda tocar *Continuar sin chofer*
+
+**Esperado:** igual que 86.2.
+
+### 86.4 · Cancelar el diálogo no recarga
+1. Abrir el diálogo del chofer y tocar *Cancelar*
+
+**Esperado:** se cierra sin aviso y la pantalla no parpadea (no recarga).
+
+### 86.5 · Central caído en el momento del avance
+1. Con la transferencia abierta, cortar el central (o la red)
+2. Tocar el botón de avance y confirmar
+
+**Esperado:** el aviso del error y la pantalla de error con *Reintentar*, no
+la etapa vieja, y **sin el botón de avance** abajo. Con el central de vuelta, *Reintentar* muestra la
+transferencia.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7633,7 +7682,8 @@ sucursal de destino…»*.
 | 83 · Inventario: el mismo producto otra vez en la zona | 6 | | | |
 | 84 · Solicitudes de pago con rol | 6 | 6 | | |
 | 85 · Transferencias: compras avanza cualquier etapa | 5 | 5 | | |
-| **Total** | **733** | | | |
+| 86 · Transferencias: el rechazo del avance recarga la pantalla | 5 | | | |
+| **Total** | **738** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

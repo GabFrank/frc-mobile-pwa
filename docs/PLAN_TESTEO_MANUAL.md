@@ -7706,6 +7706,37 @@ rechazo sale como siempre.
 
 ---
 
+## Bloque 90 — Transferencias: dos recargas de ítems que se cruzan *(probado 2026-10-21 contra un central local)*
+
+**Por qué está acá:** después de cada acción sobre un ítem la pantalla recarga
+los ítems, siempre con la misma consulta. Si una recarga salía mientras otra
+seguía esperando respuesta, Apollo **le pegaba la respuesta de la anterior**
+—la de antes del guardado— y la grilla quedaba vieja; y si dos respuestas
+llegaban en otro orden, ganaba la que llegaba última (issue #98).
+
+⚠️ Con buena red no se ve: hace falta una red lenta (el teléfono con datos
+flojos) o retener la respuesta desde las herramientas del navegador.
+
+> Probado reteniendo la respuesta de la primera consulta desde la consola:
+> con el código anterior la segunda recarga no salía y la grilla quedaba en
+> *Sin revisar* con el ítem verificado en la base; con el arreglo salen dos y
+> la grilla queda con lo último.
+
+### 90.1 · Dos acciones seguidas con red lenta *(el que importa)*
+1. Transferencia *Preparando mercadería*, a tu nombre, con red lenta
+2. Rechazar un ítem y, sin esperar a que la grilla se actualice, confirmarlo
+
+**Esperado:** al terminar, el ítem **Verificado**, que es lo último que se
+hizo; no queda en *Rechazado* cuando llega la respuesta lenta. En la pestaña
+Network salen **dos** consultas de ítems, no una.
+
+### 90.2 · Sin red lenta, igual que antes
+1. Confirmar, modificar, rechazar y deshacer ítems con la red bien
+
+**Esperado:** cada acción actualiza la grilla como siempre.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7799,7 +7830,8 @@ rechazo sale como siempre.
 | 87 · Push: el aviso sigue llegando después de reabrir | 5 | | | |
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
-| **Total** | **748** | | | |
+| 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
+| **Total** | **750** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

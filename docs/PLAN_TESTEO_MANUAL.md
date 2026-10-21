@@ -7903,6 +7903,16 @@ Aquario, un ítem por renglón con su precio **con IVA** y la distribución
 completa, la planificación finalizada y la nota 67495 en la recepción
 documental.
 
+### 91.21 · Los ítems en el orden de la factura
+1. Crear una compra desde una factura de varios renglones (91.19)
+2. Abrirla en el **desktop**: tab 2 (Ítems del pedido) y tab 3 (la nota)
+3. Abrirla en el celular
+
+**Esperado:** en los tres lugares los productos aparecen **en el mismo orden
+que en la factura impresa**, el primer renglón arriba, para revisarla con el
+papel en la mano. Un producto que la factura trae en dos renglones con
+cantidades distintas no sale con diferencia de cantidad.
+
 ### 91.20 · Corregir lo que se cargó mal: reabrir la planificación
 1. Con la compra de 91.19, en el **desktop** tab 2 → **Reabrir**
 2. Corregir un ítem (cantidad o presentación) → Finalizar planificación
@@ -8009,8 +8019,8 @@ finalizar la conciliación pasa a recepción de mercadería.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 20 | | | |
-| **Total** | **770** | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 21 | | | |
+| **Total** | **771** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

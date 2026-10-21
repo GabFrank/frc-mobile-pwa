@@ -37,8 +37,12 @@ interface ProductoElegido {
 /**
  * Vincula un renglón de la factura con un producto nuestro **eligiendo la
  * presentación**, no escribiendo números: la cantidad de la factura ya viene,
- * y cada presentación trae sus unidades. El central marca la sugerida (el
- * bulto que dice la descripción, la del código de barras o la unidad).
+ * y cada presentación trae sus unidades.
+ *
+ * ⚠️ **El precio decide.** Una caja o un pack se factura a otro precio que la
+ * unidad: cada presentación muestra el precio por unidad que resultaría y si
+ * cierra con la última compra (lo calcula el central). La sugerida es la que
+ * cierra; si ninguna, la del bulto de la descripción, el código o la unidad.
  *
  * «Otra cantidad» queda para el caso raro de un proveedor que factura cajas
  * con otra cantidad que la nuestra.
@@ -65,7 +69,7 @@ interface ProductoElegido {
         <span class="etiqueta">En la factura</span>
         <strong>{{ data.renglon.descripcion }}</strong>
         <span class="codigo">{{ codigos() }}</span>
-        <span>Trae {{ cantidadFactura() }} {{ unidad() }}</span>
+        <span>Trae {{ cantidadFactura() }} {{ unidad() }} a {{ numero(data.renglon.precioUnitario) }} cada uno</span>
       </p>
 
       @if (producto(); as p) {
@@ -94,8 +98,16 @@ interface ProductoElegido {
                 <span class="nombre">{{ pr.descripcion }}</span>
                 <span class="detalle">
                   {{ numero(pr.cantidad) }} u.
+                  @if (pr.factorSugerido && pr.factorSugerido !== pr.cantidad) {
+                    · bulto de {{ numero(pr.factorSugerido) }} u.
+                  }
                   @if (pr.codigo) { · {{ pr.codigo }} }
                 </span>
+                @if (pr.precioPorUnidad != null) {
+                  <span class="precio" [class.cierra]="pr.cierraConUltimaCompra" [class.no-cierra]="pr.cierraConUltimaCompra === false">
+                    {{ numero(pr.precioPorUnidad) }} por u.{{ pr.comparacion ? ' · ' + pr.comparacion : '' }}
+                  </span>
+                }
                 @if (pr.sugerida) {
                   <span class="sugerida">Sugerida{{ pr.motivo ? ': ' + pr.motivo : '' }}</span>
                 }
@@ -164,6 +176,9 @@ interface ProductoElegido {
     .nombre { font-size: var(--fs-label); font-weight: var(--fw-medium); }
     .detalle { color: var(--text-soft); font-size: var(--fs-caption); font-family: var(--font-num); }
     .sugerida { color: var(--ok); font-size: var(--fs-caption); }
+    .precio { font-size: var(--fs-caption); font-family: var(--font-num); color: var(--text-soft); }
+    .precio.cierra { color: var(--ok); }
+    .precio.no-cierra { color: var(--warn); }
     .campo { width: 100%; margin-top: var(--sp-2); }
     .resultado { margin: var(--sp-2) 0; font-size: var(--fs-label); }
     .ayuda { color: var(--text-mute); font-size: var(--fs-caption); }
@@ -272,7 +287,13 @@ export class VincularRenglonDialogComponent {
 
   elegir(p: PresentacionCompra): void {
     this.elegidaId.set(p.id);
-    this.factor.set(p.cantidad != null && p.cantidad > 0 ? p.cantidad : 1);
+    // El bulto sugerido puede ser varias veces la presentación (12 bolsas de 67 = 804)
+    const factor = p.factorSugerido != null && p.factorSugerido > 0 ? p.factorSugerido : p.cantidad;
+    this.factor.set(factor != null && factor > 0 ? factor : 1);
+    const cantidad = p.cantidad ?? 1;
+    if (p.factorSugerido != null && Math.abs(p.factorSugerido - cantidad) > 0.001) {
+      this.otraCantidad.set(true);
+    }
   }
 
   guardar(): void {

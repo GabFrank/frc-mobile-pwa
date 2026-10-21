@@ -313,6 +313,10 @@ export const presentacionesCompraQuery = gql`
       codigo
       sugerida
       motivo
+      precioPorUnidad
+      comparacion
+      cierraConUltimaCompra
+      factorSugerido
     }
   }
 `;

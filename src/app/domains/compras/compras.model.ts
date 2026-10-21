@@ -237,4 +237,11 @@ export interface PresentacionCompra {
   /** La que sugiere el central (bulto de la descripción, código de barras o unidad). */
   sugerida?: boolean | null;
   motivo?: string | null;
+  /** Precio de la factura dividido por las unidades de esta presentación (con IVA). Lo calcula el central. */
+  precioPorUnidad?: number | null;
+  /** «como la última compra (4.729)» o «+400 % sobre la última compra (4.729)». */
+  comparacion?: string | null;
+  cierraConUltimaCompra?: boolean | null;
+  /** En la sugerida: las unidades del bulto cuando son varias veces la presentación (804 = 12 × 67). */
+  factorSugerido?: number | null;
 }

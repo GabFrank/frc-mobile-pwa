@@ -7737,6 +7737,136 @@ Network salen **dos** consultas de ítems, no una.
 
 ---
 
+## Bloque 91 — Compras: cargar la factura del proveedor escaneando el KuDE *(sin probar: necesita el central con `V253.3`)*
+
+**Por qué está acá:** el comprador carga la factura del proveedor al pedido
+desde el celular. Escanea el QR del KuDE, el central trae la factura entera de
+SIFEN y la cruza con el pedido; al confirmar se crea la nota de recepción con
+sus ítems y su reparto por sucursal, igual que «Recepción documental» del
+desktop. Ver [`docs/modulos/compras.md`](modulos/compras.md).
+
+⚠️ **Necesita el central de la rama `feat/compras-mobile-kude` con la
+migración `V253.3`** y el certificado de la empresa (el que ya usa para
+facturar). Contra un central sin eso, el menú aparece pero toda la pantalla
+falla con «Validation error».
+
+Datos de prueba: un pedido de **MARVI S.R.L.** con la planificación
+finalizada (etapa de notas pendiente) que incluya las papas Sensei a 14.228,
+y la factura **001-001-0067495** (CDC
+`0180 0625 0720 0100 1006 7495 2202 6100 8133 1278 1711`).
+
+### 91.1 · El menú
+1. Entrar con un usuario con `RECIBIR PEDIDOS` (o cualquier rol del menú Compras del desktop)
+2. Operaciones
+
+**Esperado:** la tarjeta **Compras** aparece **debajo de Devoluciones**. Con un
+usuario que solo tiene `VENTA TOUCH` no aparece, y escribir
+`/operaciones/compras` a mano rebota a Inicio con el aviso de permiso.
+
+### 91.2 · La lista
+1. Operaciones → Compras
+2. Buscar «marvi», después el número del pedido
+
+**Esperado:** solo pedidos con la etapa de notas pendiente o en proceso, cada
+uno con «Esperando factura» o «Con facturas cargadas», los ítems sin facturar y
+el total. La búsqueda por proveedor, RUC y número de pedido funciona.
+
+### 91.3 · Escanear el KuDE desde el pedido *(el que importa)*
+1. Abrir el pedido de MARVI → **Escanear factura** → apuntar al QR del KuDE
+
+**Esperado:** se abre **Factura del proveedor** con todos los datos de la
+factura (proveedor, RUC 80062507-2, número, timbrado 18153001, fecha,
+condición, moneda, CDC, a nombre de FRANCO AREVALOS S.A.) y los totales:
+gravadas 10 %, **IVA 10 % 801.164**, total **8.812.800**. El aviso azul dice que
+los precios incluyen IVA.
+
+### 91.4 · El aviso de IVA
+1. En la misma factura, filtro **Para revisar**
+
+**Esperado:** las papas Sensei salen en **amarillo**: «Precio: pedido 14.228 →
+factura 15.651» y el aviso «IVA: …el pedido se cargó sin IVA…». Arriba, una
+advertencia cuenta cuántos productos tienen el precio del pedido sin IVA.
+
+### 91.5 · La bonificación
+1. Mirar un producto que viene cobrado (80) y bonificado (8)
+
+**Esperado:** el renglón de 8 sale como **Bonificación**, en verde, «A la nota:
+8 u. × sin cargo». **No** pide observación y no le resta pendiente al de 80.
+
+### 91.6 · Un producto que no está en el sistema
+1. Filtro **Sin producto** (por ejemplo las esponjas Polifoam si no están cargadas)
+
+**Esperado:** en **rojo**, «No está en el sistema con este código», con las
+sugerencias (código parecido o descripción parecida) y los botones **Buscar
+producto** y **Dar de alta** (este último solo con `EDITAR PRODUCTOS`).
+**Confirmar factura** está deshabilitado y dice cuántos faltan vincular.
+
+### 91.7 · Vincular y que lo recuerde
+1. En un renglón rojo → **Usar** una sugerencia, o **Buscar producto**
+2. Revisar «Unidades por cada UNI de la factura», dejar **Recordar** prendido → Vincular
+3. Volver a escanear otra factura del mismo proveedor con ese código
+
+**Esperado:** el renglón pasa a verde (o amarillo si no estaba en el pedido)
+con «Vinculado a mano». En la factura siguiente ese código ya sale
+«Reconocido por el código del proveedor», sin tocar nada.
+
+### 91.8 · La diferencia pide observación
+1. Un renglón amarillo → **Observación** → escribir el motivo → Guardar
+
+**Esperado:** antes de guardarla, el renglón dice «Falta la observación…» y el
+botón de confirmar explica qué falta. Con la observación cargada, deja de
+pedirla.
+
+### 91.9 · Confirmar *(el que importa)*
+1. Con todo vinculado y observado → **Confirmar factura** → Cargar
+
+**Esperado:** vuelve al pedido con la factura en «Facturas cargadas» y su
+monto; «Falta facturar» baja. En el **desktop**, tab Recepción documental, la
+nota aparece con número 67495, timbrado 18153001, tipo FACTURA, los ítems con
+precio **con IVA** y la distribución por sucursal completa (ítems conciliados).
+
+### 91.10 · La misma factura dos veces
+1. Escanear otra vez el mismo KuDE en el mismo pedido o en otro
+
+**Esperado:** «Esta factura ya está cargada: nota 67495 del pedido …». No se
+crea nada.
+
+### 91.11 · Factura de otro proveedor
+1. En un pedido de otro proveedor, escanear el KuDE de MARVI
+
+**Esperado:** «Esta factura es del RUC 80062507-2 y el pedido es de …». No va a
+SIFEN ni crea nada.
+
+### 91.12 · Desde el botón universal
+1. Desde Inicio, el botón flotante de escanear → el KuDE de MARVI
+
+**Esperado:** si MARVI tiene un solo pedido esperando factura, abre directo la
+factura de ese pedido; si tiene varios, pregunta a cuál; si no tiene, lo dice.
+**No** abre el buscador de productos como antes.
+
+### 91.13 · El CDC escrito a mano
+1. Escanear factura → en el campo de carga manual, escribir los 44 dígitos (con espacios)
+
+**Esperado:** igual que escanear el QR. Un dígito mal escrito da «El CDC no es
+válido (dígito verificador)».
+
+### 91.14 · Eliminar una factura cargada
+1. En el pedido, **Eliminar** la factura recién cargada → confirmar
+
+**Esperado:** desaparece de «Facturas cargadas», los ítems vuelven a «Falta
+facturar» y la factura se puede volver a escanear. Si era la única, la etapa
+vuelve a «Esperando factura».
+
+### 91.15 · Finalizar
+1. Con al menos una factura cargada → **Finalizar**
+
+**Esperado:** antes de finalizar avisa cuántos ítems quedan sin facturar (no van
+a entrar en la recepción de mercadería). Al confirmar, el pedido pasa a
+recepción de mercadería y desaparece de la lista de Compras; en el desktop se
+ve el tab de recepción de mercadería habilitado.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7831,7 +7961,8 @@ Network salen **dos** consultas de ítems, no una.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| **Total** | **750** | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 15 | | | |
+| **Total** | **765** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

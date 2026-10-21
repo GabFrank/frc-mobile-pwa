@@ -68,6 +68,15 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
         icono="tirar"
         (abrir)="ir('/operaciones/devolucion')"
       />
+
+      @if (puedeCompras()) {
+        <frc-card
+          titulo="Compras"
+          subtitulo="Cargar la factura del proveedor al pedido"
+          icono="entrada"
+          (abrir)="ir('/operaciones/compras')"
+        />
+      }
     </frc-pagina>
   `,
 })
@@ -94,6 +103,10 @@ export class OperacionesPage {
 
   puedeSolicitudPago(): boolean {
     return this.roleService.tieneAlgunRol(this.auth.roles(), PERMISOS.solicitudPago);
+  }
+
+  puedeCompras(): boolean {
+    return this.roleService.tieneAlgunRol(this.auth.roles(), PERMISOS.compras);
   }
 
   ir(ruta: string): void {

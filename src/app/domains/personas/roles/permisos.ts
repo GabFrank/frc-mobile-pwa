@@ -188,6 +188,25 @@ export const PERMISOS = {
     ROLES.TESORERIA_VER,
     ROLES.TESORERIA_GESTIONAR,
   ],
+
+  /**
+   * Compras: cargar la factura del proveedor al pedido escaneando el KuDE.
+   *
+   * Los mismos roles que muestran «Compras» en el menú del desktop
+   * (`side-mini-variant.component.ts`). No se inventó un rol para el
+   * celular: quien compra en el escritorio, compra acá. **El central también
+   * los exige** (`ComprasSecurityService`), así que esto no es solo interfaz.
+   */
+  compras: [
+    ROLES.ADMIN,
+    ROLES.ANALISIS_DE_CAJA,
+    ROLES.ANALISIS_FINANCIERO,
+    ROLES.ANALISIS_CONTABLE,
+    ROLES.VER_PRECIO_COSTO,
+    ROLES.RECIBIR_PEDIDOS,
+    ROLES.TESORERIA_VER,
+    ROLES.TESORERIA_GESTIONAR,
+  ],
 } as const satisfies Record<string, readonly ROLES[]>;
 
 export type AreaProtegida = keyof typeof PERMISOS;

@@ -119,6 +119,7 @@ const RUTAS_PROPIAS: ReadonlySet<string> = new Set([
   '/operaciones/recepcion',
   '/operaciones/devolucion',
   '/operaciones/solicitud-pago',
+  '/operaciones/compras',
   '/operaciones/venta-tarjeta',
   '/mi-trabajo',
   '/mi-trabajo/aprobaciones',

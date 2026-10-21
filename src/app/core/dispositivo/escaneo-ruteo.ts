@@ -1,5 +1,6 @@
 import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
 import { descodificarQr, QrData } from 'src/app/generic/utils/qrUtils';
+import { esKude } from 'src/app/pages/operaciones/compras/compras-reglas';
 import {
   interpretarQrRetiro,
   TIPO_ENTIDAD_RETIRO,
@@ -123,6 +124,14 @@ export function rutearEscaneo(texto: string): DestinoEscaneo {
   const codigo = texto.trim();
   if (!codigo) {
     return { clase: 'desconocido', mensaje: 'No se leyó ningún código.' };
+  }
+
+  // El KuDE de una factura electrónica (o su CDC escrito a mano). Antes caía
+  // en el buscador de productos como si fuera un código de barras. Se abre en
+  // Compras, que con el CDC busca el pedido del proveedor; sin el rol, el
+  // guard de la ruta lo dice.
+  if (esKude(codigo)) {
+    return { clase: 'navegar', ruta: ['/operaciones/compras/factura'], queryParams: { qr: codigo } };
   }
 
   const qr = descodificarQr(codigo);

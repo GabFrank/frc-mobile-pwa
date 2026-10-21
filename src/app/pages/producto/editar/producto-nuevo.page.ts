@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -209,6 +218,12 @@ export class ProductoNuevoPage {
   protected readonly mismoId = mismoId;
 
   readonly descripcion = signal('');
+  /**
+   * `?descripcion=`: Compras abre el alta con la descripción que trae la
+   * factura del proveedor, para un renglón que no está en el sistema. Solo
+   * llena el campo si está vacío; se puede corregir antes de crear.
+   */
+  readonly descripcionInicial = input<string>(undefined, { alias: 'descripcion' });
   readonly familia = signal<Familia | null>(null);
   readonly subfamiliaId = signal<number | null>(null);
 
@@ -218,6 +233,16 @@ export class ProductoNuevoPage {
 
   readonly duplicado = signal(false);
   readonly guardando = signal(false);
+
+  constructor() {
+    // El router asigna el input después de construir (NG0950): va en un efecto.
+    effect(() => {
+      const inicial = (this.descripcionInicial() ?? '').trim().toUpperCase();
+      if (inicial && untracked(() => this.descripcion()) === '') {
+        this.descripcion.set(inicial);
+      }
+    });
+  }
 
   /** Lo que falta para poder crear, o `null` si está todo. */
   readonly falta = computed<string | null>(() => {

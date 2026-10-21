@@ -85,6 +85,18 @@ describe('Permisos y guard de rol', () => {
       expect(String(entrarCon([], 'solicitudPago'))).toBe('/inicio');
     });
 
+    /**
+     * Mismos roles que «Compras» en el menú del desktop. El central los vuelve
+     * a exigir (`ComprasSecurityService`): esto es la capa de interfaz.
+     */
+    it('compras: entra quien compra en el escritorio, no la caja', () => {
+      expect(entrarCon([ROLES.RECIBIR_PEDIDOS], 'compras')).toBe(true);
+      expect(entrarCon([ROLES.VER_PRECIO_COSTO], 'compras')).toBe(true);
+      expect(entrarCon([ROLES.ANALISIS_FINANCIERO], 'compras')).toBe(true);
+      expect(String(entrarCon([ROLES.VENTA_TOUCH], 'compras'))).toBe('/inicio');
+      expect(String(entrarCon([], 'compras'))).toBe('/inicio');
+    });
+
     it('rebota a Inicio a quien no lo tiene', () => {
       const resultado = entrarCon([ROLES.VENTA_TOUCH], 'inventario');
 
@@ -114,7 +126,7 @@ describe('Permisos y guard de rol', () => {
   describe('las rutas de operaciones', () => {
     // Los tests de arriba llaman al guard directo: si alguien saca el
     // `canActivate` de la ruta, siguen en verde y la URL a mano entra igual.
-    it.each(['caja', 'recepcion', 'solicitud-pago'])(
+    it.each(['caja', 'recepcion', 'solicitud-pago', 'compras'])(
       '%s lleva guard de rol',
       (path) => {
         const ruta = rutasOperaciones.find((r) => r.path === path);

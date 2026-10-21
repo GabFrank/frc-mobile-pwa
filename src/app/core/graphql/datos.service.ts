@@ -237,7 +237,7 @@ export class DatosService {
           // La causa es el error original: con `errorPolicy: 'all'` un fallo
           // HTTP no llega por el canal de error sino acá, y sin ella se
           // pierde el status que distingue un 401 de un 503.
-          throw new ErrorDatos(res.errors.map((e) => e.message).join(' · '), res.errors[0]);
+          throw new ErrorDatos(mensajeDeRechazo(res.errors), res.errors[0]);
         }
         return this.extraer(res);
       }),
@@ -359,6 +359,28 @@ export function esFalloDeTransporte(err: unknown): boolean {
 
 const SIN_RESPUESTA =
   /^Http failure response for .+: 0(?:\s|$)|failed to fetch|networkerror|err_connection/i;
+
+/** Lo que graphql-java antepone a toda excepción de un resolver; la ruta varía. */
+const PREFIJO_GRAPHQL_JAVA = /^Exception while fetching data \([^)]*\) : /;
+
+/**
+ * El texto de negocio de un rechazo, sin el envoltorio de graphql-java.
+ *
+ * Apollo 4 entrega todos los errores juntos en un `CombinedGraphQLErrors`, con
+ * los mensajes unidos por salto de línea: se separan para limpiar cada uno.
+ * Una excepción sin mensaje deja `… : null`; ahí se conserva el original, que
+ * al menos dice dónde falló.
+ */
+function mensajeDeRechazo(errores: readonly { message?: string }[]): string {
+  return errores
+    .flatMap<{ message?: string } | null>((e) => (CombinedGraphQLErrors.is(e) ? e.errors : [e]))
+    .map((e) => {
+      const original = e?.message?.trim() ?? '';
+      const limpio = original.replace(PREFIJO_GRAPHQL_JAVA, '').trim();
+      return limpio && limpio !== 'null' ? limpio : original || 'Ocurrió un error inesperado.';
+    })
+    .join(' · ');
+}
 
 function mensajeDeError(err: unknown): string {
   if (err instanceof ErrorDatos) {

@@ -7644,6 +7644,27 @@ Solo aparece al tocar *Activar*.
 
 ---
 
+## Bloque 88 — El aviso de un rechazo sin «Exception while fetching data» *(probado 2026-10-21 contra un central local)*
+
+**Por qué está acá:** el central rechaza con un texto de negocio, pero graphql-java
+le antepone *«Exception while fetching data (/data) : »*, y la app lo mostraba
+tal cual (issue #93). Vale para todos los rechazos de la app.
+
+### 88.1 · Un rechazo de transferencia
+1. Repetir el caso 86.1 (otra sesión ya avanzó la etapa)
+
+**Esperado:** el aviso rojo empieza directo con *«La transferencia N ya esta en
+etapa …»*, sin *«Exception while fetching data»*.
+
+### 88.2 · Un rechazo de otro módulo
+1. Mi trabajo → Vacaciones → *Solicitar vacaciones* con más días de los
+   disponibles (el diálogo avisa pero deja enviar)
+
+**Esperado:** *«Los dias del periodo superan los dias disponibles: N»*, sin el
+prefijo, y no se crea ninguna solicitud.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7735,7 +7756,8 @@ Solo aparece al tocar *Activar*.
 | 85 · Transferencias: compras avanza cualquier etapa | 5 | 5 | | |
 | 86 · Transferencias: el rechazo del avance recarga la pantalla | 5 | | | |
 | 87 · Push: el aviso sigue llegando después de reabrir | 5 | | | |
-| **Total** | **743** | | | |
+| 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
+| **Total** | **745** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

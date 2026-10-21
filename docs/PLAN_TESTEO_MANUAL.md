@@ -7593,7 +7593,7 @@ transferencia.
 
 ---
 
-## Bloque 87 — El aviso de un rechazo sin «Exception while fetching data» *(nuevo, sin probar)*
+## Bloque 87 — El aviso de un rechazo sin «Exception while fetching data» *(probado 2026-10-21 contra un central local)*
 
 **Por qué está acá:** el central rechaza con un texto de negocio, pero graphql-java
 le antepone *«Exception while fetching data (/data) : »*, y la app lo mostraba
@@ -7606,10 +7606,11 @@ tal cual (issue #93). Vale para todos los rechazos de la app.
 etapa …»*, sin *«Exception while fetching data»*.
 
 ### 87.2 · Un rechazo de otro módulo
-1. Provocar cualquier otro rechazo del central (por ejemplo, guardar algo que
-   una regla de negocio no permite)
+1. Mi trabajo → Vacaciones → *Solicitar vacaciones* con más días de los
+   disponibles (el diálogo avisa pero deja enviar)
 
-**Esperado:** el mismo aviso, sin el prefijo.
+**Esperado:** *«Los dias del periodo superan los dias disponibles: N»*, sin el
+prefijo, y no se crea ninguna solicitud.
 
 ---
 
@@ -7703,7 +7704,7 @@ etapa …»*, sin *«Exception while fetching data»*.
 | 84 · Solicitudes de pago con rol | 6 | 6 | | |
 | 85 · Transferencias: compras avanza cualquier etapa | 5 | 5 | | |
 | 86 · Transferencias: el rechazo del avance recarga la pantalla | 5 | | | |
-| 87 · El aviso de un rechazo sin «Exception while fetching data» | 2 | | | |
+| 87 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | **Total** | **740** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

@@ -9,6 +9,8 @@ import {
   signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { Router } from '@angular/router';
@@ -32,6 +34,7 @@ import {
 } from 'src/app/domains/transferencia/transferencia.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { comparatorLike } from 'src/app/generic/utils/string-utils';
 import { codificarQr, descodificarQr } from 'src/app/generic/utils/qrUtils';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
@@ -133,6 +136,8 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
     EstadoErrorComponent,
     MatButtonModule,
     MatMenuModule,
+    MatFormFieldModule,
+    MatInputModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -170,6 +175,7 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
         <frc-estado-error [detalle]="error()!" (reintentar)="cargar()" />
       } @else if (transferencia(); as t) {
         <frc-seccion titulo="Transferencia" [panel]="true">
+          <frc-dato etiqueta="Número" [valor]="'#' + t.id" />
           <frc-dato etiqueta="Estado">
             <frc-estado-chip enumerado="TransferenciaEstado" [valor]="t.estado ?? null" />
           </frc-dato>
@@ -211,6 +217,50 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
           <frc-dato etiqueta="Recibió" [valor]="quien(t.usuarioRecepcion)" />
         </frc-seccion>
 
+        @if (items().length > 0) {
+          <!--
+            Buscador de frc-mobile («Nombre o Código de Barra»), más el
+            número de ítem. Filtra en memoria: los ítems ya están todos
+            cargados, y la cuenta de pendientes se sigue haciendo sobre la
+            lista completa, no sobre lo filtrado.
+          -->
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="buscador">
+            <mat-label>Nombre, Nº de ítem o código de barra</mat-label>
+            <input
+              matInput
+              autocomplete="off"
+              autocapitalize="characters"
+              enterkeyhint="search"
+              [value]="textoBusqueda()"
+              (input)="alEscribirBusqueda($event)"
+              (keyup.enter)="buscarCodigo()"
+            />
+            @if (textoBusqueda() || productoBuscado()) {
+              <button
+                matSuffix
+                type="button"
+                class="icono-campo"
+                aria-label="Limpiar búsqueda"
+                (click)="limpiarBusqueda()"
+              >
+                <frc-icono nombre="cerrar" [tamano]="20" />
+              </button>
+            }
+            <button
+              matSuffix
+              type="button"
+              class="icono-campo"
+              aria-label="Escanear código de barra"
+              (click)="escanearParaBuscar()"
+            >
+              <frc-icono nombre="camara" [tamano]="22" />
+            </button>
+          </mat-form-field>
+          @if (productoBuscado(); as p) {
+            <p class="filtro-activo">Código de: {{ p.descripcion }}</p>
+          }
+        }
+
         @if (t.hojaRuta; as hoja) {
           <frc-seccion titulo="Viaje" [panel]="true">
             <frc-dato etiqueta="Chofer" [valor]="hoja.chofer?.nombre ?? '—'" />
@@ -227,16 +277,27 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
             icono="producto"
           />
         } @else {
-          <frc-seccion [titulo]="'Productos (' + items().length + ')'">
+          <frc-seccion [titulo]="tituloProductos()">
             @if (verificando()) {
               <button matButton="tonal" class="escanear" (click)="escanearParaVerificar()">
                 Escanear producto
               </button>
             }
-            @for (item of items(); track item.id) {
+            @if (itemsVisibles().length === 0) {
+              <frc-estado-vacio
+                titulo="Sin resultados"
+                detalle="Ningún producto de la transferencia coincide con la búsqueda."
+                icono="buscar"
+              />
+            }
+            @for (fila of itemsVisibles(); track fila.item.id) {
+              @let item = fila.item;
               <article class="item">
                 <div class="cabecera">
-                  <div class="nombre">{{ item.producto?.descripcion ?? 'Producto' }}</div>
+                  <div class="nombre">
+                    <span class="numero">{{ fila.numero }} -</span>
+                    {{ item.producto?.descripcion ?? 'Producto' }}
+                  </div>
                   @if (verificando()) {
                     <span class="marca" [class]="'marca-' + marcaDe(item)">
                       {{ textoDeMarca(item) }}
@@ -317,6 +378,25 @@ const ETIQUETA_DE_ETAPA: Record<EtapaVerificacion, string> = {
       font-size: var(--fs-caption);
     }
     .escanear { align-self: stretch; }
+    .buscador { width: 100%; }
+    .icono-campo {
+      background: none;
+      border: 0;
+      color: var(--text-mute);
+      cursor: pointer;
+      padding: var(--sp-2);
+      line-height: 0;
+    }
+    .filtro-activo {
+      margin: 0;
+      font-size: var(--fs-caption);
+      color: var(--text-soft);
+    }
+    .numero {
+      font-family: var(--font-num);
+      font-variant-numeric: tabular-nums;
+      color: var(--text-mute);
+    }
     .item {
       background: var(--surface);
       border: 1px solid var(--border-light);
@@ -418,6 +498,46 @@ export class TransferenciaDetallePage {
   private cargaItems?: Subscription;
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
+
+  /** Lo escrito en el buscador de productos. */
+  readonly textoBusqueda = signal('');
+  /** El producto de un código de barra leído o tipeado: filtra por él. */
+  readonly productoBuscado = signal<{ id: number; descripcion: string } | null>(null);
+
+  /**
+   * Cada ítem con su número, el mismo que mostraba `frc-mobile` («3 - …»).
+   * Se numera sobre la lista completa: filtrar no cambia el número de un
+   * ítem, así se lo puede buscar por el número que se ve.
+   */
+  readonly itemsNumerados = computed(() =>
+    this.items().map((item, i) => ({ item, numero: i + 1 })),
+  );
+
+  /** Los ítems que pasan el filtro del buscador. */
+  readonly itemsVisibles = computed(() => {
+    const filas = this.itemsNumerados();
+    const producto = this.productoBuscado();
+    if (producto) {
+      return filas.filter((f) => Number(f.item.producto?.id) === producto.id);
+    }
+    const texto = this.textoBusqueda().trim();
+    if (!texto) {
+      return filas;
+    }
+    const numero = /^\d+$/.test(texto) ? Number(texto) : null;
+    return filas.filter(
+      (f) =>
+        f.numero === numero || comparatorLike(texto, f.item.producto?.descripcion ?? ''),
+    );
+  });
+
+  readonly tituloProductos = computed(() => {
+    const total = this.items().length;
+    const visibles = this.itemsVisibles().length;
+    return visibles === total
+      ? 'Productos (' + total + ')'
+      : 'Productos (' + visibles + ' de ' + total + ')';
+  });
 
   readonly etapaLegible = computed(() => {
     const etapa = this.transferencia()?.etapa;
@@ -860,6 +980,63 @@ export class TransferenciaDetallePage {
       return;
     }
     await this.modificar(item);
+  }
+
+  // ──────────────────────────────────────────────────── Buscador de ítems ──
+
+  alEscribirBusqueda(evento: Event): void {
+    this.textoBusqueda.set((evento.target as HTMLInputElement).value);
+    this.productoBuscado.set(null);
+  }
+
+  limpiarBusqueda(): void {
+    this.textoBusqueda.set('');
+    this.productoBuscado.set(null);
+  }
+
+  /**
+   * Enter en el buscador: si lo escrito no coincide con ningún nombre ni
+   * número de ítem, se lo prueba como código de barra.
+   */
+  async buscarCodigo(): Promise<void> {
+    const texto = this.textoBusqueda().trim();
+    if (!texto || this.productoBuscado() || this.itemsVisibles().length > 0) {
+      return;
+    }
+    await this.filtrarPorCodigo(texto);
+  }
+
+  /** Lee un código con la cámara y deja a la vista solo ese producto. */
+  async escanearParaBuscar(): Promise<void> {
+    const codigo = await this.escaner.escanear({
+      titulo: 'Escaneá el producto',
+      ayuda: 'Se filtra la lista con el producto de ese código.',
+      formatos: FORMATOS_PRODUCTO,
+    });
+    if (!codigo) {
+      return;
+    }
+    this.textoBusqueda.set(codigo.trim());
+    await this.filtrarPorCodigo(codigo);
+  }
+
+  private async filtrarPorCodigo(codigo: string): Promise<void> {
+    let leido;
+    try {
+      leido = await firstValueFrom(this.productos.porEscaneo(codigo));
+    } catch {
+      leido = null;
+    }
+    if (!leido?.id) {
+      this.notificacion.danger('Ningún producto tiene ese código.');
+      return;
+    }
+    const id = Number(leido.id);
+    if (!this.items().some((i) => Number(i.producto?.id) === id)) {
+      this.notificacion.warn('Ese producto no está en esta transferencia.');
+      return;
+    }
+    this.productoBuscado.set({ id, descripcion: leido.descripcion ?? 'Producto' });
   }
 
   // ────────────────────────────────────────────────────────────── Interno ──

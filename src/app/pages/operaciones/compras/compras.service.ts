@@ -6,6 +6,7 @@ import type {
   CompraNota,
   CompraPedido,
   CompraPedidoResumen,
+  ConversionMoneda,
   FacturaProveedor,
   OpcionesNuevaCompra,
   PedidosParaFactura,
@@ -19,6 +20,7 @@ import { CrearCompraDesdeFacturaGQL } from 'src/app/graphql/operaciones/compras/
 import { FacturaNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/facturaNuevaCompra';
 import { LeerFacturaNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/leerFacturaNuevaCompra';
 import { OpcionesNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/opcionesNuevaCompra';
+import { ConversionMonedaCompraGQL } from 'src/app/graphql/operaciones/compras/conversionMonedaCompra';
 import { EliminarNotaComprasGQL } from 'src/app/graphql/operaciones/compras/eliminarNotaCompras';
 import { FacturaProveedorGQL } from 'src/app/graphql/operaciones/compras/facturaProveedor';
 import { FinalizarRecepcionNotasGQL } from 'src/app/graphql/operaciones/compras/finalizarRecepcionNotas';
@@ -55,6 +57,7 @@ export class ComprasService {
   private readonly finalizarGQL = inject(FinalizarRecepcionNotasGQL);
   private readonly facturaNuevaGQL = inject(FacturaNuevaCompraGQL);
   private readonly opcionesGQL = inject(OpcionesNuevaCompraGQL);
+  private readonly conversionGQL = inject(ConversionMonedaCompraGQL);
   private readonly leerNuevaGQL = inject(LeerFacturaNuevaCompraGQL);
   private readonly crearCompraGQL = inject(CrearCompraDesdeFacturaGQL);
   private readonly presentacionesGQL = inject(PresentacionesCompraGQL);
@@ -177,6 +180,11 @@ export class ComprasService {
     return this.datos.consultar<OpcionesNuevaCompra>(this.opcionesGQL, {}, { notificarError: false });
   }
 
+  /** Los precios del pedido en otra moneda que la factura. La conversión la hace el central. */
+  conversionMoneda(documentoId: number, monedaId: number): Observable<ConversionMoneda> {
+    return this.datos.consultar<ConversionMoneda>(this.conversionGQL, { documentoId, monedaId }, { notificarError: false });
+  }
+
   /**
    * Crea el pedido, sus ítems con el reparto, finaliza la planificación y
    * carga la nota. Todo en el central, en una sola transacción.
@@ -191,6 +199,8 @@ export class ComprasService {
     sucursalIds: number[];
     /** Solo con varias sucursales: cuánto de cada renglón va a cada una. */
     repartos: RepartoRenglon[];
+    /** La moneda del pedido; sin ella, la de la factura. */
+    monedaId: number | null;
   }): Observable<CompraPedido> {
     return this.datos.mutar<CompraPedido>(this.crearCompraGQL, datos, {
       mensajeExito: 'Compra creada con la factura',

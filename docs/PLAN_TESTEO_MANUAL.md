@@ -7926,6 +7926,20 @@ Si en el tab 2 se cambió la cantidad de un ítem antes de finalizar, la
 planificación se finaliza igual y la factura queda para cargarla desde el pedido
 en el celular (escaneando el KuDE, con la observación de la diferencia).
 
+### 91.24 · La moneda de la compra
+1. En una factura nueva en guaraníes, mirar el campo **Moneda** de «Datos de la compra»
+2. Cambiarlo a **DOLAR**
+3. Volver a **GUARANI**
+4. Con DOLAR elegido, **Crear compra**
+
+**Esperado:** el campo arranca en la moneda de la factura con «De la factura».
+Con DOLAR dice «Distinta de la factura (PYG)» y debajo la cotización usada y el
+total del pedido en dólares; si no hay cotización del dólar, lo dice en rojo y
+«Crear compra» queda deshabilitado. Al volver a GUARANI desaparece el texto. En
+el desktop el pedido queda en dólares con los precios convertidos y la
+cotización cargada; al finalizar la planificación **la nota queda en guaraníes**,
+como la factura.
+
 ### 91.21 · Los ítems en el orden de la factura
 1. Crear una compra desde una factura de varios renglones (91.19)
 2. Abrirla en el **desktop**: tab 2 (Ítems del pedido) y tab 3 (la nota)
@@ -8041,7 +8055,7 @@ otra); recién al finalizar la conciliación pasa a recepción de mercadería.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 23 | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 24 | | | |
 | **Total** | **771** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

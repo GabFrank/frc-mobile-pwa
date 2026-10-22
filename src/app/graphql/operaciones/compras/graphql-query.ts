@@ -99,6 +99,7 @@ const CAMPOS_FACTURA = `
   fechaEmision
   condicion
   moneda
+  monedaId
   monedaSimbolo
   cotizacion
   subtotalExenta
@@ -278,6 +279,20 @@ export const opcionesNuevaCompraQuery = gql`
     data: opcionesNuevaCompraMobile {
       formasPago { id descripcion }
       sucursales { id descripcion }
+      monedas { id descripcion }
+    }
+  }
+`;
+
+export const conversionMonedaCompraQuery = gql`
+  query ($documentoId: ID!, $monedaId: ID!) {
+    data: conversionMonedaCompraMobile(documentoId: $documentoId, monedaId: $monedaId) {
+      monedaId
+      monedaSimbolo
+      mismaMoneda
+      factor
+      totalPedido
+      texto
     }
   }
 `;
@@ -295,6 +310,7 @@ export const crearCompraDesdeFacturaMutation = gql`
     $plazoCredito: Int
     $sucursalIds: [ID!]
     $repartos: [RepartoRenglonMobileInput!]
+    $monedaId: ID
   ) {
     data: crearCompraDesdeFacturaMobile(
       documentoId: $documentoId
@@ -302,6 +318,7 @@ export const crearCompraDesdeFacturaMutation = gql`
       plazoCredito: $plazoCredito
       sucursalIds: $sucursalIds
       repartos: $repartos
+      monedaId: $monedaId
     ) { ${CAMPOS_PEDIDO} }
   }
 `;

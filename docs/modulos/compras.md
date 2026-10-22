@@ -25,6 +25,10 @@ mercadería: esto es la etapa anterior, la **Recepción documental**
   (marca `cargar_al_finalizar`, V254.3): si no puede —se cambió un ítem y hay
   una diferencia que pide observación— la planificación se finaliza igual y la
   factura se carga desde el pedido en el celular.
+  La **moneda** arranca en la de la factura y se puede cambiar: el pedido va
+  en la elegida con los precios convertidos a la cotización (la de la factura
+  si es su moneda; si no, el último cambio), y la nota sigue en la moneda de
+  la factura, que es la que informa la SET.
 - **Cargar la factura a un pedido planificado en el desktop**: el flujo de
   abajo. Si al escanear hay pedidos del proveedor esperando factura, la
   pantalla ofrece los dos caminos.

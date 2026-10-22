@@ -170,6 +170,8 @@ export interface FacturaProveedor {
   fechaEmision?: string | null;
   condicion?: string | null;
   moneda?: string | null;
+  /** La moneda del sistema que corresponde a la de la factura. */
+  monedaId?: number | string | null;
   monedaSimbolo?: string | null;
   cotizacion?: number | null;
   subtotalExenta?: number | null;
@@ -235,6 +237,19 @@ export interface OpcionesNuevaCompra {
   formasPago: OpcionCompra[];
   /** Sucursales con depósito y activas: las de entrega del desktop. */
   sucursales: OpcionCompra[];
+  /** Monedas activas: la compra puede ir en otra que la factura, con los precios convertidos. */
+  monedas: OpcionCompra[];
+}
+
+/** Cómo quedan los precios del pedido en otra moneda. Lo calcula el central. */
+export interface ConversionMoneda {
+  monedaId: number | string;
+  monedaSimbolo?: string | null;
+  mismaMoneda?: boolean | null;
+  factor?: number | null;
+  totalPedido?: number | null;
+  /** Listo para mostrar debajo del campo. */
+  texto?: string | null;
 }
 
 /** Una presentación del producto para elegir al vincular un renglón. */

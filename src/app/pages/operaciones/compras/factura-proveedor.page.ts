@@ -20,6 +20,7 @@ import type {
   AvisoFactura,
   FacturaProveedor,
   OpcionesNuevaCompra,
+  ConversionMoneda,
   RenglonFactura,
   RepartoRenglon,
   SugerenciaProducto,
@@ -148,6 +149,24 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
               <p class="nota t-danger">No se pudieron traer las formas de pago y las sucursales.</p>
               <button matButton (click)="cargarOpciones()">Reintentar</button>
             } @else {
+              <mat-form-field appearance="outline" class="campo">
+                <mat-label>Moneda</mat-label>
+                <mat-select [ngModel]="monedaId()" (ngModelChange)="elegirMoneda($event)">
+                  @for (o of opciones()?.monedas ?? []; track o.id) {
+                    <mat-option [value]="o.id">{{ o.descripcion }}</mat-option>
+                  }
+                </mat-select>
+                <mat-hint>{{ otraMoneda() ? 'Distinta de la factura (' + (f.moneda ?? '') + ')' : 'De la factura' }}</mat-hint>
+              </mat-form-field>
+              @if (otraMoneda()) {
+                @if (conversionCargando()) {
+                  <p class="nota">Calculando la conversión…</p>
+                } @else if (conversionError()) {
+                  <p class="nota t-danger">{{ conversionError() }}</p>
+                } @else if (conversion()?.texto) {
+                  <p class="nota t-info">{{ conversion()!.texto }}</p>
+                }
+              }
               <mat-form-field appearance="outline" class="campo">
                 <mat-label>Forma de pago</mat-label>
                 <mat-select [ngModel]="formaPagoId()" (ngModelChange)="formaPagoId.set($event)">
@@ -476,6 +495,15 @@ export class FacturaProveedorPage {
   readonly formaPagoId = signal<number | null>(null);
   readonly plazo = signal<number | null>(null);
   readonly sucursalIds = signal<number[]>([]);
+  /** La moneda del pedido: arranca en la de la factura. */
+  readonly monedaId = signal<number | null>(null);
+  readonly conversion = signal<ConversionMoneda | null>(null);
+  readonly conversionCargando = signal(false);
+  readonly conversionError = signal<string | null>(null);
+  readonly otraMoneda = computed(() => {
+    const deFactura = aId(this.factura()?.monedaId);
+    return this.monedaId() != null && deFactura != null && this.monedaId() !== deFactura;
+  });
   /** Lo que el comprador cambió del reparto propuesto, por «renglón:sucursal». Elegir otras sucursales lo borra. */
   readonly edicionesReparto = signal<Record<string, number | null>>({});
   readonly sucursalesElegidas = computed(() => {
@@ -496,6 +524,9 @@ export class FacturaProveedorPage {
     if (!f) return null;
     if (!f.puedeConfirmar) return f.motivoNoConfirma ?? 'La factura todavía no se puede cargar.';
     if (this.formaPagoId() == null) return 'Elegí la forma de pago.';
+    if (this.monedaId() == null) return 'Elegí la moneda.';
+    if (this.otraMoneda() && this.conversionCargando()) return 'Calculando la conversión de moneda…';
+    if (this.otraMoneda() && this.conversionError()) return this.conversionError();
     if (this.sucursalIds().length === 0) return 'Elegí la sucursal que recibe.';
     const sinRepartir = this.renglonesSinRepartir();
     if (sinRepartir > 0) {
@@ -588,6 +619,7 @@ export class FacturaProveedorPage {
         const o: OpcionesNuevaCompra = {
           formasPago: (crudas?.formasPago ?? []).map((x) => ({ ...x, id: Number(x.id) })),
           sucursales: (crudas?.sucursales ?? []).map((x) => ({ ...x, id: Number(x.id) })),
+          monedas: (crudas?.monedas ?? []).map((x) => ({ ...x, id: Number(x.id) })),
         };
         this.opciones.set(o);
         // Con una sola sucursal posible no hay nada que elegir
@@ -606,6 +638,7 @@ export class FacturaProveedorPage {
       this.prellenado = true;
       if (f.formaPagoId != null) this.formaPagoId.set(Number(f.formaPagoId));
       if (f.plazoCredito != null) this.plazo.set(f.plazoCredito);
+      this.monedaId.set(aId(f.monedaId));
     }
     if (!f) {
       this.error.set('La factura ya no está. Escaneala de nuevo.');
@@ -695,7 +728,11 @@ export class FacturaProveedorPage {
         ' renglones para ' + nombres + (sucursales.length > 1 ? ', repartidos como cargaste' : '') +
         '. La compra queda en «Ítems del pedido» para que la revises en el sistema de escritorio con la' +
         ' factura en la mano; al finalizar la planificación, la factura ' + (f.numeroCompleto ?? '') + ' por ' +
-        this.numero(f.totalNota) + ' ' + (f.monedaSimbolo ?? '') + ' (con IVA) se carga sola.',
+        this.numero(f.totalNota) + ' ' + (f.monedaSimbolo ?? '') + ' (con IVA) se carga sola.' +
+        (this.otraMoneda() && this.conversion()
+          ? ' El pedido va en ' + (this.conversion()!.monedaSimbolo ?? '') + ' por ' +
+            this.numero(this.conversion()!.totalPedido) + ', convertido a la cotización.'
+          : ''),
       confirmar: 'Crear compra',
     });
     if (!ok) return;
@@ -706,6 +743,7 @@ export class FacturaProveedorPage {
         formaPagoId: formaPago,
         plazoCredito: this.plazo(),
         sucursalIds: sucursales,
+        monedaId: this.monedaId(),
         repartos: sucursales.length > 1 ? this.repartosParaEnviar(f) : [],
       })
       .subscribe({
@@ -715,6 +753,28 @@ export class FacturaProveedorPage {
         },
         error: () => this.trabajando.set(false),
       });
+  }
+
+  /** Otra moneda que la factura: el central dice a qué cotización se convierten los precios. */
+  elegirMoneda(id: number | null): void {
+    this.monedaId.set(id);
+    this.conversion.set(null);
+    this.conversionError.set(null);
+    const f = this.factura();
+    if (!f || id == null || !this.otraMoneda()) return;
+    this.conversionCargando.set(true);
+    this.servicio.conversionMoneda(Number(f.id), id).subscribe({
+      next: (c) => {
+        if (this.monedaId() !== id) return;
+        this.conversion.set(c ?? null);
+        this.conversionCargando.set(false);
+      },
+      error: (err: Error) => {
+        if (this.monedaId() !== id) return;
+        this.conversionError.set(err.message);
+        this.conversionCargando.set(false);
+      },
+    });
   }
 
   elegirSucursales(ids: number[] | null): void {

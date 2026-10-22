@@ -7953,6 +7953,19 @@ varias páginas—, totales, IVA, CDC y QR). No crea ninguna compra. Con una
 factura ajena dice a nombre de quién está y no muestra nada. En iPhone
 instalada, el PDF se abre dentro de la app y «atrás» vuelve.
 
+### 91.26 · Iniciar la compra desde el botón de escanear o desde Buscar
+1. En cualquier pantalla, tocar el **botón rojo flotante** y escanear el QR del KuDE (o escribir el CDC en «Código, QR o CDC de la factura»)
+2. En la pestaña **Buscar**, escribir el CDC en «Código o descripción» y tocar Enter (ej. 01800521480001001034685022026101711190967160)
+3. En **Buscar**, tocar el ícono de escanear del campo y apuntar al QR del KuDE
+4. En **Buscar**, escribir un código de barras o una descripción común
+5. Repetir 1 con un usuario **sin** el rol de compras
+
+**Esperado:** 1, 2 y 3 abren «Factura del proveedor» y, si ningún pedido de ese
+proveedor espera la factura, pasan directo a crear la compra (igual que «Nueva
+compra con factura»); si alguno la espera, ofrece las dos cosas. Ninguno muestra
+«Sin resultados». 4 busca productos como siempre. En 5 la app avisa que no
+tiene permiso y no abre Compras.
+
 ### 91.21 · Los ítems en el orden de la factura
 1. Crear una compra desde una factura de varios renglones (91.19)
 2. Abrirla en el **desktop**: tab 2 (Ítems del pedido) y tab 3 (la nota)
@@ -8068,8 +8081,8 @@ otra); recién al finalizar la conciliación pasa a recepción de mercadería.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 25 | | | |
-| **Total** | **771** | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 26 | | | |
+| **Total** | **772** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

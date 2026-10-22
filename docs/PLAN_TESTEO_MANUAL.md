@@ -7940,6 +7940,19 @@ el desktop el pedido queda en dólares con los precios convertidos y la
 cotización cargada; al finalizar la planificación **la nota queda en guaraníes**,
 como la factura.
 
+### 91.25 · Factura del proveedor en PDF
+1. Operaciones → **Factura del proveedor (PDF)** (debajo de Compras)
+2. **Escanear factura** → el QR del KuDE, o escribir el CDC (ej. el de CAMPOS: 01800521480001001034685022026101711190967160)
+3. **Ver PDF**
+4. Escanear el QR de una factura que no es a nombre de la empresa
+
+**Esperado:** muestra proveedor, RUC, número, fecha, condición, renglones y
+total; «Ver PDF» abre el KuDE con el formato de nuestras facturas electrónicas
+(emisor, timbrado, receptor, todos los renglones —una factura larga ocupa
+varias páginas—, totales, IVA, CDC y QR). No crea ninguna compra. Con una
+factura ajena dice a nombre de quién está y no muestra nada. En iPhone
+instalada, el PDF se abre dentro de la app y «atrás» vuelve.
+
 ### 91.21 · Los ítems en el orden de la factura
 1. Crear una compra desde una factura de varios renglones (91.19)
 2. Abrirla en el **desktop**: tab 2 (Ítems del pedido) y tab 3 (la nota)
@@ -8055,7 +8068,7 @@ otra); recién al finalizar la conciliación pasa a recepción de mercadería.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 24 | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 25 | | | |
 | **Total** | **771** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

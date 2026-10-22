@@ -241,6 +241,24 @@ export interface OpcionesNuevaCompra {
   monedas: OpcionCompra[];
 }
 
+/** Una factura de proveedor leída de SIFEN, con su KuDE en PDF (base64). */
+export interface KudeProveedor {
+  documentoId: number | string;
+  cdc: string;
+  tipoDocumentoDescripcion?: string | null;
+  numeroCompleto?: string | null;
+  emisorNombre?: string | null;
+  emisorRuc?: string | null;
+  fechaEmision?: string | null;
+  condicion?: string | null;
+  monedaSimbolo?: string | null;
+  totalGeneral?: number | null;
+  cantidadRenglones?: number | null;
+  cancelada?: boolean | null;
+  nombreArchivo?: string | null;
+  pdf: string;
+}
+
 /** Cómo quedan los precios del pedido en otra moneda. Lo calcula el central. */
 export interface ConversionMoneda {
   monedaId: number | string;

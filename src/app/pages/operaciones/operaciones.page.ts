@@ -76,6 +76,12 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
           icono="entrada"
           (abrir)="ir('/operaciones/compras')"
         />
+        <frc-card
+          titulo="Factura del proveedor (PDF)"
+          subtitulo="Escanear el KuDE y ver la factura en PDF"
+          icono="documento"
+          (abrir)="ir('/operaciones/compras/factura-pdf')"
+        />
       }
     </frc-pagina>
   `,

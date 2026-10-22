@@ -96,3 +96,13 @@ sucursal y la nota de un proveedor **sin factura electrónica**.
 
 El botón universal reconoce un KuDE (`esKude`) antes de mandar el código al
 buscador de productos: `escaneo-ruteo.ts`.
+
+## Factura del proveedor en PDF
+
+Operaciones → «Factura del proveedor (PDF)», con los mismos roles que Compras.
+Se escanea el KuDE (o se escribe el CDC), el central trae la factura de SIFEN
+—o de la caché, `documento_recibido`— y la devuelve armada en PDF con la
+plantilla de nuestras facturas electrónicas (`factura-electronica-kude.jrxml`),
+sin logo. No es el PDF que imprimió el proveedor (la SET no lo guarda: cada
+emisor diseña el suyo), pero tiene todos los datos legales, el CDC y el QR.
+Solo consulta: no crea compras ni notas. Mutation `kudeFacturaProveedorMobile`.

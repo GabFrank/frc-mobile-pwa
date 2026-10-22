@@ -7,6 +7,7 @@ import type {
   CompraPedido,
   CompraPedidoResumen,
   ConversionMoneda,
+  KudeProveedor,
   FacturaProveedor,
   OpcionesNuevaCompra,
   PedidosParaFactura,
@@ -21,6 +22,7 @@ import { FacturaNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/factu
 import { LeerFacturaNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/leerFacturaNuevaCompra';
 import { OpcionesNuevaCompraGQL } from 'src/app/graphql/operaciones/compras/opcionesNuevaCompra';
 import { ConversionMonedaCompraGQL } from 'src/app/graphql/operaciones/compras/conversionMonedaCompra';
+import { KudeFacturaProveedorGQL } from 'src/app/graphql/operaciones/compras/kudeFacturaProveedor';
 import { EliminarNotaComprasGQL } from 'src/app/graphql/operaciones/compras/eliminarNotaCompras';
 import { FacturaProveedorGQL } from 'src/app/graphql/operaciones/compras/facturaProveedor';
 import { FinalizarRecepcionNotasGQL } from 'src/app/graphql/operaciones/compras/finalizarRecepcionNotas';
@@ -58,6 +60,7 @@ export class ComprasService {
   private readonly facturaNuevaGQL = inject(FacturaNuevaCompraGQL);
   private readonly opcionesGQL = inject(OpcionesNuevaCompraGQL);
   private readonly conversionGQL = inject(ConversionMonedaCompraGQL);
+  private readonly kudeGQL = inject(KudeFacturaProveedorGQL);
   private readonly leerNuevaGQL = inject(LeerFacturaNuevaCompraGQL);
   private readonly crearCompraGQL = inject(CrearCompraDesdeFacturaGQL);
   private readonly presentacionesGQL = inject(PresentacionesCompraGQL);
@@ -178,6 +181,11 @@ export class ComprasService {
   /** Formas de pago y sucursales, para lo que la factura no trae. Consulta secundaria: no avisa sola. */
   opcionesNuevaCompra(): Observable<OpcionesNuevaCompra> {
     return this.datos.consultar<OpcionesNuevaCompra>(this.opcionesGQL, {}, { notificarError: false });
+  }
+
+  /** La factura del proveedor en PDF: el central la trae de SIFEN y la arma. Solo consulta. */
+  kudeFacturaProveedor(qr: string): Observable<KudeProveedor> {
+    return this.datos.mutar<KudeProveedor>(this.kudeGQL, { qr });
   }
 
   /** Los precios del pedido en otra moneda que la factura. La conversión la hace el central. */

@@ -19,6 +19,12 @@ export const rutasCompras: Routes = [
       import('./factura-desde-qr.page').then((m) => m.FacturaDesdeQrPage),
   },
   {
+    // Escanear el KuDE y ver la factura del proveedor en PDF. Solo consulta
+    path: 'factura-pdf',
+    loadComponent: () =>
+      import('./factura-proveedor-pdf.page').then((m) => m.FacturaProveedorPdfPage),
+  },
+  {
     // La factura crea la compra entera: misma pantalla que la conciliación, en modo «nueva».
     path: 'nueva/:documentoId',
     data: { modo: 'nueva' },

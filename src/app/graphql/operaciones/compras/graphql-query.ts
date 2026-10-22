@@ -284,6 +284,27 @@ export const opcionesNuevaCompraQuery = gql`
   }
 `;
 
+export const kudeFacturaProveedorMutation = gql`
+  mutation ($qr: String!) {
+    data: kudeFacturaProveedorMobile(qr: $qr) {
+      documentoId
+      cdc
+      tipoDocumentoDescripcion
+      numeroCompleto
+      emisorNombre
+      emisorRuc
+      fechaEmision
+      condicion
+      monedaSimbolo
+      totalGeneral
+      cantidadRenglones
+      cancelada
+      nombreArchivo
+      pdf
+    }
+  }
+`;
+
 export const conversionMonedaCompraQuery = gql`
   query ($documentoId: ID!, $monedaId: ID!) {
     data: conversionMonedaCompraMobile(documentoId: $documentoId, monedaId: $monedaId) {

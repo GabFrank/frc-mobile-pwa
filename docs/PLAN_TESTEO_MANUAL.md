@@ -7919,8 +7919,11 @@ deshabilitado con «Un renglón tiene el reparto incompleto». En el desktop cad
 1. Con la compra de 91.19 o 91.22, en el **desktop** tab 2 → **Finalizar planificación**
 2. Ir al tab 3
 
-**Esperado:** la nota con el número de la factura ya está cargada, con su
-reparto por sucursal completo, y la recepción documental «en proceso». Volver a
+**Esperado:** la nota con el número y el timbrado de la factura ya está cargada,
+con su reparto por sucursal completo. Si quedó todo conciliado (ningún ítem sin
+facturar ni sin distribuir), la recepción documental ya está **finalizada** y la
+compra pasa a recepción de mercadería sin tocar «Finalizar conciliación»; si
+falta algo, queda «en proceso» para resolverlo a mano. Volver a
 escanear el mismo KuDE como compra nueva dice «Esta factura ya creó la compra N».
 Si en el tab 2 se cambió la cantidad de un ítem antes de finalizar, la
 planificación se finaliza igual y la factura queda para cargarla desde el pedido

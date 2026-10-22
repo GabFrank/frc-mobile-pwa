@@ -7737,6 +7737,243 @@ Network salen **dos** consultas de ítems, no una.
 
 ---
 
+## Bloque 91 — Compras: cargar la factura del proveedor escaneando el KuDE *(sin probar: necesita el central con `V253.3`)*
+
+**Por qué está acá:** el comprador carga la factura del proveedor al pedido
+desde el celular. Escanea el QR del KuDE, el central trae la factura entera de
+SIFEN y la cruza con el pedido; al confirmar se crea la nota de recepción con
+sus ítems y su reparto por sucursal, igual que «Recepción documental» del
+desktop. Ver [`docs/modulos/compras.md`](modulos/compras.md).
+
+⚠️ **Necesita el central de la rama `feat/compras-mobile-kude` con la
+migración `V253.3`** y el certificado de la empresa (el que ya usa para
+facturar). Contra un central sin eso, el menú aparece pero toda la pantalla
+falla con «Validation error».
+
+Datos de prueba: un pedido de **MARVI S.R.L.** con la planificación
+finalizada (etapa de notas pendiente) que incluya las papas Sensei a 14.228,
+y la factura **001-001-0067495** (CDC
+`0180 0625 0720 0100 1006 7495 2202 6100 8133 1278 1711`).
+
+### 91.1 · El menú
+1. Entrar con un usuario con `RECIBIR PEDIDOS` (o cualquier rol del menú Compras del desktop)
+2. Operaciones
+
+**Esperado:** la tarjeta **Compras** aparece **debajo de Devoluciones**. Con un
+usuario que solo tiene `VENTA TOUCH` no aparece, y escribir
+`/operaciones/compras` a mano rebota a Inicio con el aviso de permiso.
+
+### 91.2 · La lista
+1. Operaciones → Compras
+2. Buscar «marvi», después el número del pedido
+
+**Esperado:** solo pedidos con la etapa de notas pendiente o en proceso, cada
+uno con «Esperando factura» o «Con facturas cargadas», los ítems sin facturar y
+el total. La búsqueda por proveedor, RUC y número de pedido funciona.
+
+### 91.3 · Escanear el KuDE desde el pedido *(el que importa)*
+1. Abrir el pedido de MARVI → **Escanear factura** → apuntar al QR del KuDE
+
+**Esperado:** se abre **Factura del proveedor** con todos los datos de la
+factura (proveedor, RUC 80062507-2, número, timbrado 18153001, fecha,
+condición, moneda, CDC, a nombre de FRANCO AREVALOS S.A.) y los totales:
+gravadas 10 %, **IVA 10 % 801.164**, total **8.812.800**. El aviso azul dice que
+los precios incluyen IVA.
+
+### 91.4 · El aviso de IVA
+1. En la misma factura, filtro **Para revisar**
+
+**Esperado:** las papas Sensei salen en **amarillo**: «Precio: pedido 14.228 →
+factura 15.651» y el aviso «IVA: …el pedido se cargó sin IVA…». Arriba, una
+advertencia cuenta cuántos productos tienen el precio del pedido sin IVA.
+
+### 91.5 · La bonificación
+1. Mirar un producto que viene cobrado (80) y bonificado (8)
+
+**Esperado:** el renglón de 8 sale como **Bonificación**, en verde, «A la nota:
+8 u. × sin cargo». **No** pide observación y no le resta pendiente al de 80.
+
+### 91.6 · Un producto que no está en el sistema
+1. Filtro **Sin producto** (por ejemplo las esponjas Polifoam si no están cargadas)
+
+**Esperado:** en **rojo**, «No está en el sistema con este código», con las
+sugerencias (código parecido o descripción parecida) y los botones **Buscar
+producto** y **Dar de alta** (este último solo con `EDITAR PRODUCTOS`).
+**Confirmar factura** está deshabilitado y dice cuántos faltan vincular.
+
+### 91.7 · Vincular y que lo recuerde
+1. En un renglón rojo → **Usar** una sugerencia, o **Buscar producto**
+2. Revisar «Unidades por cada UNI de la factura», dejar **Recordar** prendido → Vincular
+3. Volver a escanear otra factura del mismo proveedor con ese código
+
+**Esperado:** el renglón pasa a verde (o amarillo si no estaba en el pedido)
+con «Vinculado a mano». En la factura siguiente ese código ya sale
+«Reconocido por el código del proveedor», sin tocar nada.
+
+### 91.8 · La diferencia pide observación
+1. Un renglón amarillo → **Observación** → escribir el motivo → Guardar
+
+**Esperado:** antes de guardarla, el renglón dice «Falta la observación…» y el
+botón de confirmar explica qué falta. Con la observación cargada, deja de
+pedirla.
+
+### 91.9 · Confirmar *(el que importa)*
+1. Con todo vinculado y observado → **Confirmar factura** → Cargar
+
+**Esperado:** vuelve al pedido con la factura en «Facturas cargadas» y su
+monto; «Falta facturar» baja. En el **desktop**, tab Recepción documental, la
+nota aparece con número 67495, timbrado 18153001, tipo FACTURA, los ítems con
+precio **con IVA** y la distribución por sucursal completa (ítems conciliados).
+
+### 91.10 · La misma factura dos veces
+1. Escanear otra vez el mismo KuDE, en el mismo pedido, en otro o como compra nueva
+2. Con una factura que ya se cargó **a mano en el desktop** (mismo proveedor y número, sin timbrado y con la misma fecha o el mismo monto), escanearla como compra nueva
+
+**Esperado:** en 1, «Esta factura ya está cargada: nota … del pedido …». En 2,
+el aviso rojo «Esta factura ya está cargada: la nota … (cargada sin timbrado,
+con la misma fecha o monto)» y **Crear compra** deshabilitado. Si la nota a
+mano tiene el mismo número pero otra fecha y otro monto, solo un aviso
+amarillo («Revisá que no sea esta misma factura») y deja seguir.
+
+### 91.11 · Factura de otro proveedor
+1. En un pedido de otro proveedor, escanear el KuDE de MARVI
+
+**Esperado:** «Esta factura es del RUC 80062507-2 y el pedido es de …». No va a
+SIFEN ni crea nada.
+
+### 91.12 · Desde el botón universal
+1. Desde Inicio, el botón flotante de escanear → el KuDE de MARVI
+
+**Esperado:** si ningún pedido de MARVI espera factura, abre directo **Nueva
+compra** (ver 91.16); si alguno la espera, ofrece «Crear una compra nueva» y
+la lista de esos pedidos. **No** abre el buscador de productos como antes.
+
+### 91.13 · El CDC escrito a mano
+1. Escanear factura → en el campo de carga manual, escribir los 44 dígitos (con espacios)
+
+**Esperado:** igual que escanear el QR. Un dígito mal escrito da «El CDC no es
+válido (dígito verificador)».
+
+### 91.14 · Eliminar una factura cargada
+1. En el pedido, **Eliminar** la factura recién cargada → confirmar
+
+**Esperado:** desaparece de «Facturas cargadas», los ítems vuelven a «Falta
+facturar» y la factura se puede volver a escanear. Si era la única, la etapa
+vuelve a «Esperando factura».
+
+### 91.15 · Finalizar
+1. Con al menos una factura cargada → **Finalizar**
+
+**Esperado:** antes de finalizar avisa cuántos ítems quedan sin facturar (no van
+a entrar en la recepción de mercadería). Al confirmar, el pedido pasa a
+recepción de mercadería y desaparece de la lista de Compras; en el desktop se
+ve el tab de recepción de mercadería habilitado.
+
+### 91.16 · La factura crea la compra *(el que importa)*
+1. Compras → **Nueva compra con factura** → escanear el KuDE de MARVI (sin pedidos de MARVI esperando)
+
+**Esperado:** se abre **Nueva compra** con todos los datos de la factura y la
+sección «Datos de la compra»: proveedor MARVI, y **forma de pago y plazo
+precargados solo si la factura los trae**. La de MARVI es a crédito: el plazo
+dice 30 «De la factura» y la forma de pago queda vacía con «La factura no la
+trae: elegila». La sucursal hay que elegirla.
+
+### 91.17 · Lo que no trae la factura lo elige el comprador
+1. En la misma pantalla, sin elegir forma de pago ni sucursal
+
+**Esperado:** «Crear compra» deshabilitado con el motivo («Elegí la forma de
+pago», después «Elegí la sucursal que recibe»). Con un renglón rojo, primero
+pide vincularlo.
+
+### 91.18 · El aviso de IVA contra la última compra
+1. Mirar las papas Sensei en «Para revisar»
+
+**Esperado:** «IVA: la última compra se cargó a 14.228, que es este precio sin
+el IVA del 10 %…». Arriba, una advertencia cuenta cuántos productos tienen ese
+aviso.
+
+### 91.19 · Crear la compra
+1. Elegir CHEQUE, sucursal **DEPOSITO AQUARIO** → **Crear compra** → confirmar
+
+**Esperado:** abre el pedido nuevo con el aviso «La compra está en Ítems del
+pedido… la factura se carga sola». En el **desktop**, Gestión de compras: el
+pedido de MARVI con forma de pago CHEQUE, plazo 30, moneda guaraní, sucursal de
+entrega e influencia Aquario, **en el tab 2 (Ítems del pedido)**, un ítem por
+renglón con su precio **con IVA** y todos en «Concluida». **Todavía no hay
+nota.**
+
+### 91.22 · Varias sucursales: el reparto en el celular
+1. En una factura nueva, elegir **dos o tres sucursales** en «Sucursales que reciben»
+2. Mirar un renglón de 14 cajas con 3 sucursales
+3. Cambiar una casilla para que no sume (ej. 5, 5, 3)
+4. Corregirla y **Crear compra**
+
+**Esperado:** la lista pasa a «Todos» y cada renglón trae una casilla por
+sucursal, en la unidad de la factura, prellenada en partes iguales (5, 5, 4).
+Con 5, 5, 3 el renglón dice «Suma 13 de 14» en rojo y «Crear compra» queda
+deshabilitado con «Un renglón tiene el reparto incompleto». En el desktop cada
+ítem queda «Concluida» con el reparto cargado, pasado a unidades (5 cajas de 12
+= 60 u.).
+
+### 91.23 · La factura se carga sola al finalizar la planificación
+1. Con la compra de 91.19 o 91.22, en el **desktop** tab 2 → **Finalizar planificación**
+2. Ir al tab 3
+
+**Esperado:** la nota con el número de la factura ya está cargada, con su
+reparto por sucursal completo, y la recepción documental «en proceso». Volver a
+escanear el mismo KuDE como compra nueva dice «Esta factura ya creó la compra N».
+Si en el tab 2 se cambió la cantidad de un ítem antes de finalizar, la
+planificación se finaliza igual y la factura queda para cargarla desde el pedido
+en el celular (escaneando el KuDE, con la observación de la diferencia).
+
+### 91.24 · La moneda de la compra
+1. En una factura nueva en guaraníes, mirar el campo **Moneda** de «Datos de la compra»
+2. Cambiarlo a **DOLAR**
+3. Volver a **GUARANI**
+4. Con DOLAR elegido, **Crear compra**
+
+**Esperado:** el campo arranca en la moneda de la factura con «De la factura».
+Con DOLAR dice «Distinta de la factura (PYG)» y debajo la cotización usada y el
+total del pedido en dólares; si no hay cotización del dólar, lo dice en rojo y
+«Crear compra» queda deshabilitado. Al volver a GUARANI desaparece el texto. En
+el desktop el pedido queda en dólares con los precios convertidos y la
+cotización cargada; al finalizar la planificación **la nota queda en guaraníes**,
+como la factura.
+
+### 91.25 · Factura del proveedor en PDF
+1. Operaciones → **Factura del proveedor (PDF)** (debajo de Compras)
+2. **Escanear factura** → el QR del KuDE, o escribir el CDC (ej. el de CAMPOS: 01800521480001001034685022026101711190967160)
+3. **Ver PDF**
+4. Escanear el QR de una factura que no es a nombre de la empresa
+
+**Esperado:** muestra proveedor, RUC, número, fecha, condición, renglones y
+total; «Ver PDF» abre el KuDE con el formato de nuestras facturas electrónicas
+(emisor, timbrado, receptor, todos los renglones —una factura larga ocupa
+varias páginas—, totales, IVA, CDC y QR). No crea ninguna compra. Con una
+factura ajena dice a nombre de quién está y no muestra nada. En iPhone
+instalada, el PDF se abre dentro de la app y «atrás» vuelve.
+
+### 91.21 · Los ítems en el orden de la factura
+1. Crear una compra desde una factura de varios renglones (91.19)
+2. Abrirla en el **desktop**: tab 2 (Ítems del pedido) y tab 3 (la nota)
+3. Abrirla en el celular
+
+**Esperado:** en los tres lugares los productos aparecen **en el mismo orden
+que en la factura impresa**, el primer renglón arriba, para revisarla con el
+papel en la mano. Un producto que la factura trae en dos renglones con
+cantidades distintas no sale con diferencia de cantidad.
+
+### 91.20 · Corregir lo que se cargó mal: reabrir la planificación
+1. Con la compra de 91.23 (nota ya cargada), en el **desktop** tab 2 → **Reabrir**
+2. Corregir un ítem (cantidad o presentación) → Finalizar planificación
+3. En el tab 3, ajustar el ítem de la nota y **Finalizar conciliación** (desde el desktop o desde Finalizar en el celular)
+
+**Esperado:** se puede reabrir. Al finalizar de nuevo la planificación, la
+recepción documental retoma «en proceso» con la nota que ya tenía (no se crea
+otra); recién al finalizar la conciliación pasa a recepción de mercadería.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -7831,7 +8068,8 @@ Network salen **dos** consultas de ítems, no una.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| **Total** | **750** | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 25 | | | |
+| **Total** | **771** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

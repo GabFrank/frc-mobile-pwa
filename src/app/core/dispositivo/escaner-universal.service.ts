@@ -16,7 +16,8 @@ import { rutearEscaneo, transferenciaDelQr } from './escaneo-ruteo';
  * Es lo que hay detrás del botón flotante: abre la cámara sin preguntar qué
  * se va a leer, y decide después. Un QR de transferencia abre esa
  * transferencia; el de un inventario, ese inventario; un código de barras
- * abre el producto en Buscar.
+ * abre el producto en Buscar; el QR del KuDE de un proveedor arranca una
+ * compra nueva con esa factura.
  *
  * ⚠️ **Se piden todos los formatos, no solo QR.** Es la diferencia con los
  * escaneos de cada pantalla, que restringen a propósito —el de venta con
@@ -81,9 +82,11 @@ export class EscanerUniversalService {
   async escanearYNavegar(): Promise<boolean> {
     const texto = await this.escaner.escanear({
       titulo: 'Escanear',
-      ayuda: 'Apuntá a un código de barras o a un QR del sistema',
+      // La factura electrónica del proveedor también entra por acá: su QR (o
+      // el CDC escrito a mano) crea una compra nueva. Ver `rutearEscaneo`.
+      ayuda: 'Apuntá a un código de barras, a un QR del sistema o al QR de una factura',
       formatos: FORMATOS_PRODUCTO,
-      etiquetaManual: 'Código o QR',
+      etiquetaManual: 'Código, QR o CDC de la factura',
     });
     if (!texto) {
       return false;

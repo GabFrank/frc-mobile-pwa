@@ -41,6 +41,15 @@ export interface OpcionesBuscador {
    * caja por error multiplica el stock. Ver `presentacionesContables()`.
    */
   soloPresentacionUnitaria?: boolean;
+  /**
+   * Se consulta antes de buscar lo escrito o escaneado. Si devuelve `true`,
+   * el llamador ya se hizo cargo del texto y no se busca como producto.
+   *
+   * Lo usa la pestaña Buscar para mandar el CDC o el QR del KuDE a Compras.
+   * El buscador no sabe nada de facturas: las demás pantallas que lo usan
+   * (devolución, inventario, transferencias) no lo pasan y siguen igual.
+   */
+  interceptar?: (texto: string) => boolean;
 }
 
 export interface SeleccionProducto {

@@ -21,6 +21,7 @@ import type {
   FacturaProveedor,
   OpcionesNuevaCompra,
   RenglonFactura,
+  RepartoRenglon,
   SugerenciaProducto,
 } from 'src/app/domains/compras/compras.model';
 import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
@@ -40,6 +41,9 @@ import {
   contarFiltros,
   filtrarRenglones,
   FiltroRenglones,
+  repartoCompleto,
+  repartoIgual,
+  sumaReparto,
   textoFactor,
   tonoAviso,
   tonoRenglon,
@@ -64,7 +68,11 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
  * **Dos modos**, la misma pantalla. Con un pedido (`:pedidoId/factura/:id`) la
  * factura se carga a ese pedido. En `nueva/:id` la factura **crea la compra**:
  * de la factura sale todo lo que trae (proveedor, moneda, ítems, precios, forma
- * de pago y plazo si vienen); el comprador elige lo que no trae y la sucursal.
+ * de pago y plazo si vienen); el comprador elige lo que no trae y las
+ * sucursales. Con varias, carga en cada renglón cuánto va a cada una (en la
+ * unidad de la factura, lo que dice el papel); se prellena en partes iguales.
+ * La compra queda en «Ítems del pedido» y la factura se carga sola como nota
+ * al finalizar la planificación en el desktop.
  *
  * Cada renglón dice si coincide con el pedido (verde), si tiene una
  * diferencia o no estaba en el pedido (amarillo, pide observación, como el
@@ -162,13 +170,17 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
                 <mat-hint>{{ f.plazoCredito != null ? 'De la factura' : 'Opcional: la factura no lo trae' }}</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="campo">
-                <mat-label>Sucursal que recibe</mat-label>
-                <mat-select [ngModel]="sucursalId()" (ngModelChange)="sucursalId.set($event)">
+                <mat-label>Sucursales que reciben</mat-label>
+                <mat-select multiple [ngModel]="sucursalIds()" (ngModelChange)="elegirSucursales($event)">
                   @for (o of opciones()?.sucursales ?? []; track o.id) {
                     <mat-option [value]="o.id">{{ o.descripcion }}</mat-option>
                   }
                 </mat-select>
-                <mat-hint>Recibe todo lo de la factura</mat-hint>
+                <mat-hint>
+                  {{ sucursalIds().length > 1
+                    ? 'Repartí cada renglón entre las ' + sucursalIds().length + ' sucursales'
+                    : 'Una sola recibe todo lo de la factura' }}
+                </mat-hint>
               </mat-form-field>
             }
           </frc-seccion>
@@ -300,6 +312,31 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
               </div>
             }
 
+            @if (conReparto()) {
+              <div class="reparto" [class.incompleto]="!repartoOk(r)">
+                <span class="codigos">Reparto, en {{ r.unidadMedida || 'unidades de la factura' }}</span>
+                <div class="reparto-filas">
+                  @for (suc of sucursalesElegidas(); track suc.id) {
+                    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="reparto-campo">
+                      <mat-label>{{ suc.descripcion }}</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        inputmode="decimal"
+                        min="0"
+                        [ngModel]="valorReparto(r, suc.id)"
+                        (ngModelChange)="editarReparto(r, suc.id, $event)"
+                      />
+                    </mat-form-field>
+                  }
+                </div>
+                <span class="reparto-suma">
+                  Suma {{ numero(sumaDe(r)) }} de {{ numero(r.cantidad) }}
+                  @if (!repartoOk(r)) { · tiene que sumar lo de la factura }
+                </span>
+              </div>
+            }
+
             @if (editable()) {
               <div class="acciones-renglon">
                 <button matButton (click)="vincular(r)">
@@ -413,6 +450,11 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
     .motivo { color: var(--text-mute); font-size: var(--fs-caption); text-align: center; }
     .campo { width: 100%; margin-top: var(--sp-2); }
     .ayuda { margin: 0 0 var(--sp-2); color: var(--text-mute); font-size: var(--fs-caption); }
+    .reparto { display: flex; flex-direction: column; gap: var(--sp-1); padding-top: var(--sp-2); }
+    .reparto-filas { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--sp-2); }
+    .reparto-campo { width: 100%; }
+    .reparto-suma { font-size: var(--fs-caption); color: var(--text-mute); }
+    .reparto.incompleto .reparto-suma { color: var(--danger); }
   `,
 })
 export class FacturaProveedorPage {
@@ -433,14 +475,34 @@ export class FacturaProveedorPage {
   readonly opcionesFallaron = signal(false);
   readonly formaPagoId = signal<number | null>(null);
   readonly plazo = signal<number | null>(null);
-  readonly sucursalId = signal<number | null>(null);
+  readonly sucursalIds = signal<number[]>([]);
+  /** Lo que el comprador cambió del reparto propuesto, por «renglón:sucursal». Elegir otras sucursales lo borra. */
+  readonly edicionesReparto = signal<Record<string, number | null>>({});
+  readonly sucursalesElegidas = computed(() => {
+    const todas = this.opciones()?.sucursales ?? [];
+    return this.sucursalIds()
+      .map((id) => todas.find((s) => s.id === id))
+      .filter((s): s is NonNullable<typeof s> => s != null);
+  });
+  readonly conReparto = computed(() => this.esNueva() && this.editable() && this.sucursalIds().length > 1);
+  readonly renglonesSinRepartir = computed(() =>
+    this.sucursalIds().length > 1
+      ? (this.factura()?.renglones ?? []).filter((r) => !this.repartoOk(r)).length
+      : 0,
+  );
   /** Lo que falta para crear la compra, o null. Los datos de la factura los valida el central. */
   readonly faltaParaCrear = computed<string | null>(() => {
     const f = this.factura();
     if (!f) return null;
     if (!f.puedeConfirmar) return f.motivoNoConfirma ?? 'La factura todavía no se puede cargar.';
     if (this.formaPagoId() == null) return 'Elegí la forma de pago.';
-    if (this.sucursalId() == null) return 'Elegí la sucursal que recibe.';
+    if (this.sucursalIds().length === 0) return 'Elegí la sucursal que recibe.';
+    const sinRepartir = this.renglonesSinRepartir();
+    if (sinRepartir > 0) {
+      return sinRepartir === 1
+        ? 'Un renglón tiene el reparto incompleto.'
+        : sinRepartir + ' renglones tienen el reparto incompleto.';
+    }
     if (this.plazo() != null && this.plazo()! < 0) return 'El plazo no puede ser negativo.';
     return null;
   });
@@ -529,8 +591,8 @@ export class FacturaProveedorPage {
         };
         this.opciones.set(o);
         // Con una sola sucursal posible no hay nada que elegir
-        if (this.sucursalId() == null && o?.sucursales?.length === 1) {
-          this.sucursalId.set(o.sucursales[0].id);
+        if (this.sucursalIds().length === 0 && o?.sucursales?.length === 1) {
+          this.sucursalIds.set([o.sucursales[0].id]);
         }
       },
       error: () => this.opcionesFallaron.set(true),
@@ -623,17 +685,17 @@ export class FacturaProveedorPage {
   async crearCompra(): Promise<void> {
     const f = this.factura();
     const formaPago = this.formaPagoId();
-    const sucursal = this.sucursalId();
-    if (!f || !this.puedeCrear() || formaPago == null || sucursal == null) return;
-    const nombreSucursal = this.opciones()?.sucursales.find((s) => s.id === sucursal)?.descripcion ?? '';
+    const sucursales = this.sucursalIds();
+    if (!f || !this.puedeCrear() || formaPago == null || sucursales.length === 0) return;
+    const nombres = this.sucursalesElegidas().map((s) => s.descripcion ?? '').join(', ');
     const ok = await this.dialogo.confirmar({
       titulo: 'Crear la compra',
       mensaje:
         'Se crea el pedido de ' + (f.proveedorNombre ?? '') + ' con ' + f.renglones.length +
-        ' renglones para ' + nombreSucursal + ', se finaliza la planificación y se carga la factura ' +
-        (f.numeroCompleto ?? '') + ' por ' + this.numero(f.totalNota) + ' ' + (f.monedaSimbolo ?? '') +
-        ' (con IVA). La compra queda en la recepción documental: si algo se cargó mal, se reabre la' +
-        ' planificación desde el sistema de escritorio.',
+        ' renglones para ' + nombres + (sucursales.length > 1 ? ', repartidos como cargaste' : '') +
+        '. La compra queda en «Ítems del pedido» para que la revises en el sistema de escritorio con la' +
+        ' factura en la mano; al finalizar la planificación, la factura ' + (f.numeroCompleto ?? '') + ' por ' +
+        this.numero(f.totalNota) + ' ' + (f.monedaSimbolo ?? '') + ' (con IVA) se carga sola.',
       confirmar: 'Crear compra',
     });
     if (!ok) return;
@@ -643,7 +705,8 @@ export class FacturaProveedorPage {
         documentoId: f.id,
         formaPagoId: formaPago,
         plazoCredito: this.plazo(),
-        sucursalId: sucursal,
+        sucursalIds: sucursales,
+        repartos: sucursales.length > 1 ? this.repartosParaEnviar(f) : [],
       })
       .subscribe({
         next: (p) => {
@@ -652,6 +715,54 @@ export class FacturaProveedorPage {
         },
         error: () => this.trabajando.set(false),
       });
+  }
+
+  elegirSucursales(ids: number[] | null): void {
+    this.sucursalIds.set(ids ?? []);
+    // Con otras sucursales el reparto cargado ya no aplica: vuelve a partes iguales
+    this.edicionesReparto.set({});
+    // El reparto se carga en cada renglón: hay que verlos todos, no solo los que piden revisión
+    if ((ids?.length ?? 0) > 1) this.filtro.set('todos');
+  }
+
+  /** Lo cargado por el comprador o, si no tocó esa casilla, la parte igual. */
+  valorReparto(r: RenglonFactura, sucursalId: number): number | null {
+    const clave = r.id + ':' + sucursalId;
+    const ediciones = this.edicionesReparto();
+    if (clave in ediciones) return ediciones[clave];
+    const ids = this.sucursalIds();
+    return repartoIgual(r.cantidad, ids.length)[ids.indexOf(sucursalId)] ?? 0;
+  }
+
+  editarReparto(r: RenglonFactura, sucursalId: number, valor: unknown): void {
+    const texto = String(valor ?? '').trim();
+    const numero = texto === '' ? null : Number(texto);
+    this.edicionesReparto.update((e) => ({
+      ...e,
+      [r.id + ':' + sucursalId]: numero != null && Number.isFinite(numero) ? numero : null,
+    }));
+  }
+
+  private valoresReparto(r: RenglonFactura): (number | null)[] {
+    return this.sucursalIds().map((id) => this.valorReparto(r, id));
+  }
+
+  sumaDe(r: RenglonFactura): number {
+    return sumaReparto(this.valoresReparto(r));
+  }
+
+  repartoOk(r: RenglonFactura): boolean {
+    return repartoCompleto(r.cantidad, this.valoresReparto(r));
+  }
+
+  private repartosParaEnviar(f: FacturaProveedor): RepartoRenglon[] {
+    return f.renglones.flatMap((r) =>
+      this.sucursalIds().map((sucursalId) => ({
+        renglonId: Number(r.id),
+        sucursalId,
+        cantidad: this.valorReparto(r, sucursalId) ?? 0,
+      })),
+    );
   }
 
   puedeCrearProducto(): boolean {

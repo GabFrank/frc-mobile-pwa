@@ -224,6 +224,13 @@ export interface OpcionCompra {
 }
 
 /** Lo que se elige al crear la compra desde la factura, cuando la factura no lo trae. */
+/** Cuánto de un renglón va a una sucursal, en la unidad de la factura. */
+export interface RepartoRenglon {
+  renglonId: number;
+  sucursalId: number;
+  cantidad: number;
+}
+
 export interface OpcionesNuevaCompra {
   formasPago: OpcionCompra[];
   /** Sucursales con depósito y activas: las de entrega del desktop. */

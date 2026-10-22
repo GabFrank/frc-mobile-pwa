@@ -293,13 +293,15 @@ export const crearCompraDesdeFacturaMutation = gql`
     $documentoId: ID!
     $formaPagoId: ID
     $plazoCredito: Int
-    $sucursalId: ID!
+    $sucursalIds: [ID!]
+    $repartos: [RepartoRenglonMobileInput!]
   ) {
     data: crearCompraDesdeFacturaMobile(
       documentoId: $documentoId
       formaPagoId: $formaPagoId
       plazoCredito: $plazoCredito
-      sucursalId: $sucursalId
+      sucursalIds: $sucursalIds
+      repartos: $repartos
     ) { ${CAMPOS_PEDIDO} }
   }
 `;

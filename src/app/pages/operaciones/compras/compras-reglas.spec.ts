@@ -6,6 +6,9 @@ import {
   contarFiltros,
   esKude,
   filtrarRenglones,
+  repartoCompleto,
+  repartoIgual,
+  sumaReparto,
   textoFactor,
   textoParaBuscar,
   tonoAviso,
@@ -119,5 +122,32 @@ describe('tonoEtapa', () => {
     expect(tonoEtapa('RECEPCION_MERCADERIA')).toBe('info');
     expect(tonoEtapa('CONCLUIDA')).toBe('ok');
     expect(tonoEtapa(null)).toBe('neutral');
+  });
+});
+
+describe('repartoIgual', () => {
+  it('reparte entero y da las sobras a las primeras', () => {
+    expect(repartoIgual(14, 3)).toEqual([5, 5, 4]);
+    expect(repartoIgual(2, 3)).toEqual([1, 1, 0]);
+  });
+
+  it('con cantidad decimal la última se lleva el resto', () => {
+    const partes = repartoIgual(10.5, 2);
+    expect(sumaReparto(partes)).toBeCloseTo(10.5, 6);
+  });
+
+  it('sin sucursales no reparte', () => {
+    expect(repartoIgual(5, 0)).toEqual([]);
+  });
+});
+
+describe('repartoCompleto', () => {
+  it('pide que sume el renglón', () => {
+    expect(repartoCompleto(14, [5, 5, 4])).toBe(true);
+    expect(repartoCompleto(14, [5, 5, null])).toBe(false);
+  });
+
+  it('no acepta negativos aunque sume', () => {
+    expect(repartoCompleto(4, [5, -1])).toBe(false);
   });
 });

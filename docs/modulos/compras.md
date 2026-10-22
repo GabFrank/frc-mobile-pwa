@@ -14,13 +14,17 @@ mercadería: esto es la etapa anterior, la **Recepción documental**
   moneda y cotización, un ítem por renglón con su presentación, cantidad,
   precio con IVA y bonificación, y **la forma de pago y el plazo solo si
   vienen**—. El comprador elige lo que no trae: la forma de pago si falta, y la
-  **sucursal** que recibe todo. «Crear compra» hace en el central, en una sola
-  transacción, los mismos pasos del desktop: crear el pedido con sus
-  sucursales, cada ítem con su reparto, finalizar la planificación y cargar la
-  nota. **La compra queda en la recepción documental**, sin finalizarla: así la
-  planificación se puede reabrir desde el desktop si la carga automática tomó
-  mal algún ítem, y se le pueden sumar más facturas. «Finalizar» la pasa a
-  recepción de mercadería.
+  **sucursal** que recibe, o **varias**: con varias, cada renglón trae una
+  casilla por sucursal en la unidad de la factura (lo que dice el papel),
+  prellenada en partes iguales; el central valida que sume el renglón y lo pasa
+  a unidades base. «Crear compra» hace en el central, en una sola transacción,
+  los mismos pasos del desktop: crear el pedido con sus sucursales y cada ítem
+  con su reparto. **La compra queda en «Ítems del pedido» (la planificación)**,
+  con todo distribuido, para revisarla en el desktop con la factura en la mano.
+  **Al finalizar la planificación, el central carga la factura como nota solo**
+  (marca `cargar_al_finalizar`, V254.3): si no puede —se cambió un ítem y hay
+  una diferencia que pide observación— la planificación se finaliza igual y la
+  factura se carga desde el pedido en el celular.
 - **Cargar la factura a un pedido planificado en el desktop**: el flujo de
   abajo. Si al escanear hay pedidos del proveedor esperando factura, la
   pantalla ofrece los dos caminos.

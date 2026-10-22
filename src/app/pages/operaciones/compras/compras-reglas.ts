@@ -155,3 +155,38 @@ export function tonoEtapa(
       return 'neutral';
   }
 }
+
+/** Lo que se tolera entre la suma del reparto y el renglón (redondeos). */
+const TOLERANCIA_REPARTO = 0.001;
+
+/**
+ * El reparto que se propone al elegir varias sucursales: partes iguales y, si
+ * la cantidad es entera, enteras (14 cajas en 3 → 5, 5, 4). Solo prellena: el
+ * comprador lo corrige y el central valida que sume el renglón.
+ */
+export function repartoIgual(cantidad: number | null | undefined, partes: number): number[] {
+  if (partes <= 0) return [];
+  const total = cantidad ?? 0;
+  if (Number.isInteger(total)) {
+    const base = Math.floor(total / partes);
+    const sobra = total - base * partes;
+    return Array.from({ length: partes }, (_, i) => base + (i < sobra ? 1 : 0));
+  }
+  const parte = Math.floor((total / partes) * 1000) / 1000;
+  const resultado = Array.from({ length: partes }, () => parte);
+  resultado[partes - 1] = Math.round((total - parte * (partes - 1)) * 1000) / 1000;
+  return resultado;
+}
+
+export function sumaReparto(valores: readonly (number | null | undefined)[]): number {
+  return valores.reduce<number>((suma, v) => suma + (v ?? 0), 0);
+}
+
+/** ¿El reparto cubre el renglón entero, sin negativos? */
+export function repartoCompleto(
+  cantidad: number | null | undefined,
+  valores: readonly (number | null | undefined)[],
+): boolean {
+  if (valores.some((v) => v != null && v < 0)) return false;
+  return Math.abs(sumaReparto(valores) - (cantidad ?? 0)) <= TOLERANCIA_REPARTO;
+}

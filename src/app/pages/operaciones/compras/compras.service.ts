@@ -10,6 +10,7 @@ import type {
   OpcionesNuevaCompra,
   PedidosParaFactura,
   PresentacionCompra,
+  RepartoRenglon,
   ResumenFinalizarNotas,
 } from 'src/app/domains/compras/compras.model';
 import type { PageInfo } from 'src/app/domains/page-info.model';
@@ -187,7 +188,9 @@ export class ComprasService {
     documentoId: number;
     formaPagoId: number | null;
     plazoCredito: number | null;
-    sucursalId: number;
+    sucursalIds: number[];
+    /** Solo con varias sucursales: cuánto de cada renglón va a cada una. */
+    repartos: RepartoRenglon[];
   }): Observable<CompraPedido> {
     return this.datos.mutar<CompraPedido>(this.crearCompraGQL, datos, {
       mensajeExito: 'Compra creada con la factura',

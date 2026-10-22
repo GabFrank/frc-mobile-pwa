@@ -7895,13 +7895,36 @@ aviso.
 ### 91.19 · Crear la compra
 1. Elegir CHEQUE, sucursal **DEPOSITO AQUARIO** → **Crear compra** → confirmar
 
-**Esperado:** abre el pedido nuevo con la factura cargada y nada «Falta
-facturar», en la etapa **«Con facturas cargadas»**: **no** pasa a recepción de
-mercadería. En el **desktop**, Gestión de compras: el pedido de MARVI con forma
-de pago CHEQUE, plazo 30, moneda guaraní, sucursal de entrega e influencia
-Aquario, un ítem por renglón con su precio **con IVA** y la distribución
-completa, la planificación finalizada y la nota 67495 en la recepción
-documental.
+**Esperado:** abre el pedido nuevo con el aviso «La compra está en Ítems del
+pedido… la factura se carga sola». En el **desktop**, Gestión de compras: el
+pedido de MARVI con forma de pago CHEQUE, plazo 30, moneda guaraní, sucursal de
+entrega e influencia Aquario, **en el tab 2 (Ítems del pedido)**, un ítem por
+renglón con su precio **con IVA** y todos en «Concluida». **Todavía no hay
+nota.**
+
+### 91.22 · Varias sucursales: el reparto en el celular
+1. En una factura nueva, elegir **dos o tres sucursales** en «Sucursales que reciben»
+2. Mirar un renglón de 14 cajas con 3 sucursales
+3. Cambiar una casilla para que no sume (ej. 5, 5, 3)
+4. Corregirla y **Crear compra**
+
+**Esperado:** la lista pasa a «Todos» y cada renglón trae una casilla por
+sucursal, en la unidad de la factura, prellenada en partes iguales (5, 5, 4).
+Con 5, 5, 3 el renglón dice «Suma 13 de 14» en rojo y «Crear compra» queda
+deshabilitado con «Un renglón tiene el reparto incompleto». En el desktop cada
+ítem queda «Concluida» con el reparto cargado, pasado a unidades (5 cajas de 12
+= 60 u.).
+
+### 91.23 · La factura se carga sola al finalizar la planificación
+1. Con la compra de 91.19 o 91.22, en el **desktop** tab 2 → **Finalizar planificación**
+2. Ir al tab 3
+
+**Esperado:** la nota con el número de la factura ya está cargada, con su
+reparto por sucursal completo, y la recepción documental «en proceso». Volver a
+escanear el mismo KuDE como compra nueva dice «Esta factura ya creó la compra N».
+Si en el tab 2 se cambió la cantidad de un ítem antes de finalizar, la
+planificación se finaliza igual y la factura queda para cargarla desde el pedido
+en el celular (escaneando el KuDE, con la observación de la diferencia).
 
 ### 91.21 · Los ítems en el orden de la factura
 1. Crear una compra desde una factura de varios renglones (91.19)
@@ -7914,14 +7937,13 @@ papel en la mano. Un producto que la factura trae en dos renglones con
 cantidades distintas no sale con diferencia de cantidad.
 
 ### 91.20 · Corregir lo que se cargó mal: reabrir la planificación
-1. Con la compra de 91.19, en el **desktop** tab 2 → **Reabrir**
+1. Con la compra de 91.23 (nota ya cargada), en el **desktop** tab 2 → **Reabrir**
 2. Corregir un ítem (cantidad o presentación) → Finalizar planificación
 3. En el tab 3, ajustar el ítem de la nota y **Finalizar conciliación** (desde el desktop o desde Finalizar en el celular)
 
-**Esperado:** se puede reabrir (antes, la compra ya estaba en recepción de
-mercadería y el desktop lo rechazaba). Al finalizar de nuevo la planificación,
-la recepción documental retoma «en proceso» con la nota que ya tenía; recién al
-finalizar la conciliación pasa a recepción de mercadería.
+**Esperado:** se puede reabrir. Al finalizar de nuevo la planificación, la
+recepción documental retoma «en proceso» con la nota que ya tenía (no se crea
+otra); recién al finalizar la conciliación pasa a recepción de mercadería.
 
 ---
 
@@ -8019,7 +8041,7 @@ finalizar la conciliación pasa a recepción de mercadería.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 21 | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 23 | | | |
 | **Total** | **771** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

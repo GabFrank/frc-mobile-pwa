@@ -295,6 +295,8 @@ export class CompraPedidoPage {
 
   etiquetaEtapa(estado: string | null | undefined): string {
     switch (estado) {
+      case 'EN_PLANIFICACION':
+        return 'En planificación';
       case 'PENDIENTE':
         return 'Esperando factura';
       case 'EN_PROCESO':

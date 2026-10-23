@@ -60,16 +60,21 @@ export class EscanearFacturaService {
     return await this.leerYAbrir(pedidoId, texto.trim());
   }
 
-  /** Pide la factura al central y abre la compra nueva que se va a crear con ella. */
-  abrirNuevaCompra(qr: string, reemplazar = false): Promise<boolean> {
+  /**
+   * Pide la factura al central y abre la compra nueva que se va a crear con ella.
+   * Devuelve `null` si abrió, o el motivo del central si no: la pantalla lo deja
+   * escrito, porque el aviso flotante se va solo.
+   */
+  abrirNuevaCompra(qr: string, reemplazar = false): Promise<string | null> {
     return new Promise((resolver) => {
       this.servicio.leerFacturaNuevaCompra(qr).subscribe({
         next: (factura) => {
           void this.router
             .navigate(['/operaciones/compras/nueva', factura.id], { replaceUrl: reemplazar })
-            .then(() => resolver(true));
+            .then(() => resolver(null));
         },
-        error: () => resolver(false),
+        error: (err: unknown) =>
+          resolver(err instanceof Error && err.message ? err.message : 'No se pudo abrir la factura.'),
       });
     });
   }

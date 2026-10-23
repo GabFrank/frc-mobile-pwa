@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 
 import type { CompraPedidoResumen, PedidosParaFactura } from 'src/app/domains/compras/compras.model';
@@ -9,6 +9,7 @@ import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.com
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
+import { facturaYaUsada } from './compras-reglas';
 import { ComprasService } from './compras.service';
 import { EscanearFacturaService } from './escanear-factura.service';
 
@@ -46,12 +47,14 @@ import { EscanearFacturaService } from './escanear-factura.service';
         } @else if (d.pedidos.length === 0) {
           <frc-estado-vacio
             titulo="No se pudo abrir la factura"
-            detalle="Revisá el aviso de arriba y probá de nuevo."
+            [detalle]="motivo() ?? 'El central no pudo leer la factura. Probá de nuevo.'"
             icono="documento"
           />
-          <button matButton="filled" class="nueva" [disabled]="abriendo()" (click)="nuevaCompra()">
-            {{ abriendo() ? 'Consultando SIFEN…' : 'Crear la compra con esta factura' }}
-          </button>
+          @if (!yaUsada()) {
+            <button matButton="filled" class="nueva" [disabled]="abriendo()" (click)="nuevaCompra()">
+              {{ abriendo() ? 'Consultando SIFEN…' : 'Crear la compra con esta factura' }}
+            </button>
+          }
         } @else {
           <p class="intro">
             {{ d.tipoDocumentoDescripcion }} {{ d.numeroCompleto }} de
@@ -92,6 +95,9 @@ export class FacturaDesdeQrPage {
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
   readonly abriendo = signal(false);
+  /** Por qué el central no abrió la factura: queda escrito en la pantalla. */
+  readonly motivo = signal<string | null>(null);
+  readonly yaUsada = computed(() => facturaYaUsada(this.motivo()));
 
   constructor() {
     effect(() => {
@@ -114,8 +120,9 @@ export class FacturaDesdeQrPage {
       next: (d) => {
         if (d?.proveedorId && (d.pedidos?.length ?? 0) === 0) {
           // Ningún pedido la espera: la factura crea la compra, desde la etapa de creación
-          void this.escaneo.abrirNuevaCompra(qr, true).then((ok) => {
-            if (!ok) {
+          void this.escaneo.abrirNuevaCompra(qr, true).then((motivo) => {
+            if (motivo) {
+              this.motivo.set(motivo);
               this.datos.set(d);
               this.cargando.set(false);
             }
@@ -134,7 +141,10 @@ export class FacturaDesdeQrPage {
 
   nuevaCompra(): void {
     this.abriendo.set(true);
-    void this.escaneo.abrirNuevaCompra((this.qr() ?? '').trim()).then(() => this.abriendo.set(false));
+    void this.escaneo.abrirNuevaCompra((this.qr() ?? '').trim()).then((motivo) => {
+      if (motivo) this.motivo.set(motivo);
+      this.abriendo.set(false);
+    });
   }
 
   elegir(p: CompraPedidoResumen): void {

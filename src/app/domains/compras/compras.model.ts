@@ -137,6 +137,8 @@ export interface RenglonFactura {
   diferencias: string[];
   avisosIva: string[];
   avisos: string[];
+  /** No bloquean, pero mandan el renglón a «Para revisar» (código de otro producto, producto repetido). */
+  alertas?: string[];
   requiereObservacion?: boolean | null;
   observacionFaltante?: boolean | null;
   observacion?: string | null;

@@ -7988,6 +7988,57 @@ cantidades distintas no sale con diferencia de cantidad.
 recepción documental retoma «en proceso» con la nota que ya tenía (no se crea
 otra); recién al finalizar la conciliación pasa a recepción de mercadería.
 
+### 91.27 · Un producto inactivo no se reconoce *(necesita el central con `fix/compras-aprendido-producto-inactivo`)*
+1. Con una factura de un proveedor cuyo código quedó vinculado (aprendido) a un
+   producto que después se **inactivó**, escanearla → «Nueva compra con factura»
+
+**Esperado:** ese renglón sale en **Sin producto**, con el aviso «Este código
+estaba vinculado a «…», que está inactivo. Elegí el producto.». «Crear compra»
+queda bloqueado hasta vincularlo a un producto activo. En el buscador de
+«Cambiar producto» no aparecen productos inactivos.
+
+### 91.28 · El valor de la nota es el total de la factura
+1. Escanear una factura con descuento por renglón y cantidades grandes (CAMPOS:
+   80.640 latas con 9,85 % de descuento)
+
+**Esperado:** en Totales, «Valor de la nota» es **igual** a «Total de la
+factura», al guaraní (antes daba Gs. 3,02 de más). Lo mismo en la nota que se
+carga sola al finalizar la planificación (91.23).
+
+### 91.29 · Revisá: el código de barras es de otro producto
+1. Escanear una factura donde el proveedor mandó en un renglón el código de
+   barras de otro producto (GENFI: «GOMAS MOGUL COLA» con el código de las
+   Hogareñas 7 semillas), sin vínculo aprendido para ese código
+
+**Esperado:** el renglón sale en **Para revisar** con «Revisá: El código es de
+«…HOGAREÑAS…», pero la factura dice «GOMAS MOGUL COLA»…». No bloquea: se
+corrige con «Cambiar producto». Las abreviaturas del proveedor («ALF.» por
+«ALFAJOR», «BUBBLEFUN» por «BUBBLE FUN») **no** generan este aviso.
+
+### 91.30 · Revisá: dos códigos al mismo producto
+1. Escanear una factura con dos renglones de códigos distintos que el sistema
+   cargó al mismo producto (MARVI: esponja INOX y esponja ECONÓMICA)
+
+**Esperado:** los dos renglones salen en **Para revisar** con «Revisá: El
+renglón #… también se cargó a «…»». Un renglón y su bonificación del mismo
+código **no** generan el aviso.
+
+### 91.31 · Avisos que se van y rechazos que quedan escritos
+1. «Nueva compra con factura» con una factura que no trae la forma de pago →
+   elegir una
+2. Escanear una factura que ya tiene nota cargada, y otra que ya creó una
+   compra todavía en planificación
+3. En el **desktop**, tab 3 de un pedido con la conciliación **finalizada** →
+   Eliminar Nota
+
+**Esperado:** (1) al elegirla, desaparece el aviso «La factura no dice la forma
+de pago» y la ayuda dice «Elegida a mano». (2) la pantalla dice el motivo del
+central («ya está cargada: nota … del pedido …» / «ya creó la compra …») y
+**no** ofrece «Crear la compra con esta factura». (3) el desktop no la borra:
+«La recepción documental del pedido … ya está finalizada: no se puede eliminar
+la nota.» — antes la borraba y el pedido quedaba trabado sin notas. Un pedido
+**sin ítems** ya no aparece como «esperando factura».
+
 ---
 
 ## Resumen para completar
@@ -8084,8 +8135,8 @@ otra); recién al finalizar la conciliación pasa a recepción de mercadería.
 | 88 · El aviso de un rechazo sin «Exception while fetching data» | 2 | 2 | | |
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
-| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 26 | | | |
-| **Total** | **772** | | | |
+| 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 31 | | | |
+| **Total** | **781** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

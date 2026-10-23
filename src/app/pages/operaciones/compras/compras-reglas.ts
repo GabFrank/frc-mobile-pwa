@@ -70,10 +70,11 @@ export type FiltroRenglones = 'todos' | 'revisar' | 'sin-producto' | 'ok';
 /**
  * «Para revisar» es todo lo que el comprador tiene que tocar: diferencias,
  * productos fuera del pedido, sin producto, y también lo que coincide pero
- * trae un aviso de IVA —no bloquea, pero es justamente lo que pidió ver—.
+ * trae un aviso de IVA o una alerta del central (código de otro producto, dos
+ * renglones al mismo producto) —no bloquean, pero es justamente lo que hay que ver—.
  */
 export function paraRevisar(r: RenglonFactura): boolean {
-  return r.estado !== 'OK' || (r.avisosIva?.length ?? 0) > 0;
+  return r.estado !== 'OK' || (r.avisosIva?.length ?? 0) > 0 || (r.alertas?.length ?? 0) > 0;
 }
 
 export function filtrarRenglones(
@@ -189,4 +190,24 @@ export function repartoCompleto(
 ): boolean {
   if (valores.some((v) => v != null && v < 0)) return false;
   return Math.abs(sumaReparto(valores) - (cantidad ?? 0)) <= TOLERANCIA_REPARTO;
+}
+
+/**
+ * Los avisos de la factura que siguen valiendo. «La factura no dice la forma de
+ * pago» sobra en cuanto el comprador la eligió: quedaba a la vista y parecía
+ * que la elección no se había tomado.
+ */
+export function avisosVisibles(
+  avisos: readonly AvisoFactura[],
+  formaPagoElegida: boolean,
+): AvisoFactura[] {
+  return avisos.filter((a) => !(formaPagoElegida && a.tipo === 'PAGO'));
+}
+
+/**
+ * El central dice que la factura ya tiene su compra o su nota: volver a pedirla
+ * da el mismo rechazo, así que no se ofrece el botón de crear la compra.
+ */
+export function facturaYaUsada(motivo: string | null | undefined): boolean {
+  return /ya est[aá] cargada|ya cre[oó] la compra/i.test(motivo ?? '');
 }

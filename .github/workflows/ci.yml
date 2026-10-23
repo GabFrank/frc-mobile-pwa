@@ -3,6 +3,9 @@ name: CI
 on:
   pull_request:
     branches: [develop, 'release/*', master]
+  # Lo dispara auto-update-prs.yml despues de hacer 'Update branch' en una PR
+  # (un push con GITHUB_TOKEN no dispara pull_request).
+  workflow_dispatch:
 
 # Una corrida por rama: si se pushea encima de una PR, la anterior se cancela.
 # No es por costo --este repo es PUBLICO y los minutos de Actions no se facturan,

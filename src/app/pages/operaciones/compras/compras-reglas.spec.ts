@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { RenglonFactura } from 'src/app/domains/compras/compras.model';
 import {
+  facturaYaUsada,
+  avisosVisibles,
   aId,
   contarFiltros,
   esKude,
@@ -98,6 +100,18 @@ describe('filtros de renglones', () => {
   it('los conteos cuadran con los filtros', () => {
     expect(contarFiltros(renglones)).toEqual({ todos: 5, revisar: 4, 'sin-producto': 1, ok: 1 });
   });
+
+  it('una alerta del central manda a «para revisar» lo que coincide', () => {
+    const conAlerta = {
+      ...renglon(6, 'OK'),
+      alertas: ['El código es de «ARCOR HOGAREÑAS 7 SEMILLAS 189G», pero la factura dice «GOMAS MOGUL COLA»'],
+    };
+    expect(filtrarRenglones([renglon(1, 'OK'), conAlerta], 'revisar').map((r) => r.id)).toEqual([6]);
+  });
+
+  it('un central sin el campo alertas no rompe el filtro', () => {
+    expect(filtrarRenglones([renglon(1, 'OK')], 'ok').map((r) => r.id)).toEqual([1]);
+  });
 });
 
 describe('textoFactor', () => {
@@ -149,5 +163,34 @@ describe('repartoCompleto', () => {
 
   it('no acepta negativos aunque sume', () => {
     expect(repartoCompleto(4, [5, -1])).toBe(false);
+  });
+});
+
+describe('avisosVisibles', () => {
+  const avisos = [
+    { tipo: 'PAGO', nivel: 'INFO', mensaje: 'La factura no dice la forma de pago: elegila antes de crear la compra.' },
+    { tipo: 'IVA', nivel: 'INFO', mensaje: 'Los precios de la factura incluyen IVA.' },
+  ];
+
+  it('sin forma de pago elegida se ven todos', () => {
+    expect(avisosVisibles(avisos, false).map((a) => a.tipo)).toEqual(['PAGO', 'IVA']);
+  });
+
+  it('con la forma de pago elegida, el aviso de pago se va', () => {
+    expect(avisosVisibles(avisos, true).map((a) => a.tipo)).toEqual(['IVA']);
+  });
+});
+
+describe('facturaYaUsada', () => {
+  it('reconoce los dos rechazos definitivos del central', () => {
+    expect(facturaYaUsada('Esta factura ya está cargada: nota 55357 del pedido 2069.')).toBe(true);
+    expect(
+      facturaYaUsada('Esta factura ya creó la compra 2069: se carga sola cuando se finalice su planificación en el desktop.'),
+    ).toBe(true);
+  });
+
+  it('un error de SIFEN o de red sí deja reintentar', () => {
+    expect(facturaYaUsada('SIFEN no respondió. Probá de nuevo.')).toBe(false);
+    expect(facturaYaUsada(null)).toBe(false);
   });
 });

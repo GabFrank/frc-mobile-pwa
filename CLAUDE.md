@@ -302,7 +302,7 @@ Verificación: **115 archivos de test, 1.476 tests**, cero errores de tipos, AOT
 
 ⚠️ **El aviso de «no se pudo imprimir el balance» necesita la filial con `fix/imprimir-balance-avisa-si-no-imprimio`** (2026-10-06). Al cerrar caja la PWA pide el balance a la filial, que lo imprime por servidor. Contra una filial anterior el ticket sale igual si hay impresora, pero si no la hay la PWA dice «Balance enviado a imprimir» de todos modos: publicar la PWA antes no rompe nada, solo miente en ese caso. Ver «El balance impreso al cerrar» en [`docs/modulos/operaciones-caja.md`](docs/modulos/operaciones-caja.md).
 
-⚠️ **Compras (la factura del proveedor por KuDE) necesita un central con `compras-mobile.graphqls` y la migración `V253.3`** (rama `feat/compras-mobile-kude` del central, 2026-10-21). Contra un central viejo la tarjeta aparece pero la pantalla falla al cargar; el botón universal manda el KuDE a Compras en vez de al buscador. Las dos mitades se publican juntas. Ver [`docs/modulos/compras.md`](docs/modulos/compras.md).
+⚠️ **Compras (la factura del proveedor por KuDE) necesita un central con `compras-mobile.graphqls` y la migración `V253.3`** (rama `feat/compras-mobile-kude` del central, 2026-10-21). Contra un central viejo la tarjeta aparece pero la pantalla falla al cargar; el botón universal manda el KuDE a Compras en vez de al buscador. Las dos mitades se publican juntas. Ver [`docs/modulos/compras.md`](docs/modulos/compras.md). **Desde `fix/compras-revision-factura` la factura pide el campo `alertas`**: contra un central sin `fix/compras-aprendido-producto-inactivo` la pantalla de la factura falla entera (campo desconocido). Se publica primero el central.
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

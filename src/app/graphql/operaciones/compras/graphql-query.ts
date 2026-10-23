@@ -158,6 +158,7 @@ const CAMPOS_FACTURA = `
     diferencias
     avisosIva
     avisos
+    alertas
     requiereObservacion
     observacionFaltante
     observacion

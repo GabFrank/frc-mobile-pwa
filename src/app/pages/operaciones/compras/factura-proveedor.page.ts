@@ -38,6 +38,7 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import {
   aId,
+  avisosVisibles,
   cantidadPorPrecio,
   contarFiltros,
   filtrarRenglones,
@@ -174,7 +175,7 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
                     <mat-option [value]="o.id">{{ o.descripcion }}</mat-option>
                   }
                 </mat-select>
-                <mat-hint>{{ f.formaPagoId ? 'De la factura' : 'La factura no la trae: elegila' }}</mat-hint>
+                <mat-hint>{{ f.formaPagoId ? 'De la factura' : formaPagoId() != null ? 'Elegida a mano: la factura no la trae' : 'La factura no la trae: elegila' }}</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="campo">
                 <mat-label>Plazo de crédito (días)</mat-label>
@@ -228,7 +229,7 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
           <frc-dato etiqueta="Valor de la nota"><frc-importe [valor]="f.totalNota ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
         </frc-seccion>
 
-        @for (a of f.avisos; track $index) {
+        @for (a of avisos(); track $index) {
           <p [class]="'aviso t-' + tono(a)">{{ a.mensaje }}</p>
         }
 
@@ -304,6 +305,9 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
             }
             @for (a of r.avisosIva; track $index) {
               <p class="nota t-warn">IVA: {{ a }}</p>
+            }
+            @for (a of r.alertas ?? []; track $index) {
+              <p class="nota t-warn">Revisá: {{ a }}</p>
             }
             @for (a of r.avisos; track $index) {
               <p class="nota t-info">{{ a }}</p>
@@ -493,6 +497,7 @@ export class FacturaProveedorPage {
   readonly opciones = signal<OpcionesNuevaCompra | null>(null);
   readonly opcionesFallaron = signal(false);
   readonly formaPagoId = signal<number | null>(null);
+  readonly avisos = computed(() => avisosVisibles(this.factura()?.avisos ?? [], this.formaPagoId() != null));
   readonly plazo = signal<number | null>(null);
   readonly sucursalIds = signal<number[]>([]);
   /** La moneda del pedido: arranca en la de la factura. */

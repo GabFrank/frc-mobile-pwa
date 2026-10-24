@@ -137,7 +137,7 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
           @if (!esNueva()) {
             <frc-dato etiqueta="Pedido" [valor]="'Pedido ' + f.pedidoId + ' · ' + (f.proveedorNombre ?? '')" />
           }
-          <p class="cdc">CDC {{ f.cdc }}</p>
+          <p class="cdc">{{ f.origen === 'FOTO' || !f.cdc ? 'Factura en papel' : 'CDC ' + f.cdc }}</p>
         </frc-seccion>
 
         @if (esNueva() && !f.notaRecepcionId) {

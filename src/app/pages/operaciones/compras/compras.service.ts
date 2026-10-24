@@ -8,6 +8,8 @@ import type {
   CompraPedidoResumen,
   ConversionMoneda,
   KudeProveedor,
+  CabeceraFacturaFoto,
+  CabeceraFacturaFotoInput,
   FacturaProveedor,
   OpcionesNuevaCompra,
   PedidosParaFactura,
@@ -33,6 +35,9 @@ import { PedidoComprasGQL } from 'src/app/graphql/operaciones/compras/pedidoComp
 import { PedidosEsperandoFacturaGQL } from 'src/app/graphql/operaciones/compras/pedidosEsperandoFactura';
 import { PedidosParaFacturaGQL } from 'src/app/graphql/operaciones/compras/pedidosParaFactura';
 import { ResumenFinalizarNotasGQL } from 'src/app/graphql/operaciones/compras/resumenFinalizarNotas';
+import { ConfirmarCabeceraFacturaFotoGQL } from 'src/app/graphql/operaciones/compras/confirmarCabeceraFacturaFoto';
+import { FotoFacturaGQL } from 'src/app/graphql/operaciones/compras/fotoFactura';
+import { LeerFacturaFotoGQL } from 'src/app/graphql/operaciones/compras/leerFacturaFoto';
 import { VincularRenglonFacturaGQL } from 'src/app/graphql/operaciones/compras/vincularRenglonFactura';
 
 /**
@@ -64,6 +69,9 @@ export class ComprasService {
   private readonly leerNuevaGQL = inject(LeerFacturaNuevaCompraGQL);
   private readonly crearCompraGQL = inject(CrearCompraDesdeFacturaGQL);
   private readonly presentacionesGQL = inject(PresentacionesCompraGQL);
+  private readonly leerFotoGQL = inject(LeerFacturaFotoGQL);
+  private readonly confirmarFotoGQL = inject(ConfirmarCabeceraFacturaFotoGQL);
+  private readonly fotoGQL = inject(FotoFacturaGQL);
 
   // ────────────────────────────────────────────────────────────── Lecturas ──
 
@@ -165,6 +173,23 @@ export class ComprasService {
   /** Las presentaciones del producto para vincular un renglón, con la sugerida marcada por el central. */
   presentaciones(productoId: number, renglonId: number): Observable<PresentacionCompra[]> {
     return this.datos.consultar<PresentacionCompra[]>(this.presentacionesGQL, { productoId, renglonId });
+  }
+
+  // ──────────────────────────────────────────────────── Factura en papel ──
+
+  /** La IA lee las fotos (data URI) y devuelve la cabecera para revisar. Con `pedidoId`, la factura va a ese pedido. */
+  leerFacturaFoto(fotos: string[], pedidoId: number | null): Observable<CabeceraFacturaFoto> {
+    return this.datos.mutar<CabeceraFacturaFoto>(this.leerFotoGQL, { fotos, pedidoId });
+  }
+
+  /** Confirma la cabecera corregida por el comprador; devuelve la factura entera recalculada. */
+  confirmarCabeceraFoto(input: CabeceraFacturaFotoInput): Observable<FacturaProveedor> {
+    return this.datos.mutar<FacturaProveedor>(this.confirmarFotoGQL, { input });
+  }
+
+  /** Una de las fotos de la factura, como data URI. Consulta secundaria: no avisa sola. */
+  fotoFactura(documentoId: number, orden: number): Observable<string> {
+    return this.datos.consultar<string>(this.fotoGQL, { documentoId, orden }, { notificarError: false });
   }
 
   // ───────────────────────────────────────────── La factura crea la compra ──

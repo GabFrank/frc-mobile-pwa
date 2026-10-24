@@ -8041,6 +8041,82 @@ la nota.» — antes la borraba y el pedido quedaba trabado sin notas. Un pedido
 
 ---
 
+## Bloque 92 — Compras: cargar la factura en papel con la foto *(sin probar: necesita el central con la lectura de facturas por foto y la clave de OpenAI cargada)*
+
+En Compras, **«Nueva compra con factura»** (y **«Cargar factura»** dentro de un
+pedido) abre una hoja con dos opciones: «Factura electrónica (QR)» y «Factura en
+papel (foto)». La electrónica sigue igual que en el bloque 91.
+
+Datos de prueba: una factura impresa de un proveedor que ya esté cargado (con
+su RUC), de una hoja y con varios renglones; y un pedido de ese proveedor con la
+etapa de notas pendiente.
+
+### 92.1 · Compra nueva con una factura en papel (camino feliz)
+1. Compras → «Nueva compra con factura» → «Factura en papel (foto)»
+2. «Agregar» y sacar la foto de la factura (con buena luz, entera) → «Leer factura»
+3. En la revisión, mirar proveedor, timbrado, número, fecha, condición y total
+   contra el papel → «Continuar»
+
+**Esperado:** mientras lee, el botón se deshabilita y dice «Leyendo factura…
+(puede tardar hasta un minuto)». La revisión muestra la foto (al tocarla se
+amplía) y el proveedor ya elegido por el RUC. «Continuar» abre la pantalla de
+«Nueva compra» con los renglones leídos, igual que con el QR. Se pueden sumar
+hasta **5** fotos (una factura larga) y quitar cada una con la X; a la sexta no
+deja agregar.
+
+### 92.2 · Factura en papel de un pedido existente
+1. Compras → abrir un pedido esperando factura → «Cargar factura» → «Factura en
+   papel (foto)» → foto → «Leer factura»
+
+**Esperado:** en la revisión el proveedor es el del pedido y **no se puede
+cambiar** (no hay «Cambiar proveedor» ni buscador). «Continuar» abre la
+conciliación de ese pedido con los renglones de la foto.
+
+### 92.3 · Foto borrosa o que no es una factura
+1. Fotografiar una factura movida o desenfocada, y aparte una hoja cualquiera
+   (o una mesa)
+
+**Esperado:** si la lectura es dudosa, los campos que la IA no leyó con
+seguridad salen con **borde amarillo** y «Revisá este dato», y los avisos
+aparecen arriba. Si la foto no es una factura, el sistema lo dice con un mensaje
+claro y no se crea nada: se puede volver y sacar otra foto.
+
+### 92.4 · La misma factura dos veces, o ya cargada con el QR
+1. Cargar una factura en papel hasta «Continuar» y terminar la compra
+2. Volver a fotografiar **la misma** factura y «Continuar»
+3. Fotografiar una factura que ya se cargó antes escaneando su QR
+
+**Esperado:** en ambos casos el central la rechaza con el motivo escrito («ya
+está cargada…») y no abre una compra duplicada; la pantalla de revisión queda
+abierta con el motivo visible.
+
+### 92.5 · RUC con un dígito mal leído: elegir el proveedor a mano
+1. Fotografiar una factura cuyo RUC la IA lea con un dígito equivocado
+
+**Esperado:** la revisión avisa «El RUC leído (…) no es válido: puede tener un
+dígito mal. Elegí el proveedor a mano.». «Continuar» queda **deshabilitado**
+hasta buscar el proveedor por nombre y tocarlo. Con el proveedor elegido,
+«Continuar» se habilita. «Cambiar proveedor» permite corregir una elección.
+
+### 92.6 · Cantidades manuscritas: el aviso de totales
+1. Fotografiar una factura donde las cantidades de algún renglón están
+   escritas a mano y no coinciden con el total
+
+**Esperado:** al abrir la compra aparece el aviso «La suma de los renglones (X)
+no da el total de la factura (Y): revisá cantidades y precios con el papel».
+Las cantidades se corrigen en la pantalla antes de «Crear compra».
+
+### 92.7 · OpenAI sin configurar: mensaje claro y la electrónica sigue andando
+1. En un central **sin** la clave de OpenAI, «Factura en papel (foto)» → foto →
+   «Leer factura»
+2. Después, «Factura electrónica (QR)» con un KuDE
+
+**Esperado:** (1) un mensaje que dice que la lectura por IA «no está
+configurada»; la hoja queda abierta con las fotos y no se navega. (2) la
+factura electrónica funciona exactamente igual que en el bloque 91.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8136,7 +8212,8 @@ la nota.» — antes la borraba y el pedido quedaba trabado sin notas. Un pedido
 | 89 · Transferencias: si falla guardar la verificación | 3 | 3 | | |
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
 | 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 31 | | | |
-| **Total** | **781** | | | |
+| 92 · Compras: cargar la factura en papel con la foto | 7 | | | |
+| **Total** | **788** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

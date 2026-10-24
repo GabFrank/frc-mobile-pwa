@@ -208,6 +208,8 @@ export class ElegirTipoFacturaComponent {
     if (this.fotos().length === 0 || this.leyendo()) return;
     const pedidoId = this.data?.pedidoId ?? null;
     this.leyendo.set(true);
+    // Cerrar la hoja en plena lectura dejaría la llamada viva y la app saltaría sola a la revisión.
+    this.ref.disableClose = true;
     this.servicio.leerFacturaFoto(this.fotos().map((f) => f.url), pedidoId).subscribe({
       next: (cabecera) => {
         this.estado.cabecera.set(cabecera);
@@ -220,7 +222,10 @@ export class ElegirTipoFacturaComponent {
           .then(() => this.ref.close('papel'));
       },
       // El motivo (sin clave de OpenAI, no es una factura…) ya lo mostró DatosService.
-      error: () => this.leyendo.set(false),
+      error: () => {
+        this.leyendo.set(false);
+        this.ref.disableClose = false;
+      },
     });
   }
 }

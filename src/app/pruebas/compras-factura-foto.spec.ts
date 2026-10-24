@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CabeceraFacturaFoto } from '../domains/compras/compras.model';
@@ -38,6 +38,7 @@ const CABECERA: CabeceraFacturaFoto = {
 let compras: Record<string, ReturnType<typeof vi.fn>>;
 let router: { navigate: ReturnType<typeof vi.fn> };
 let cerrar: ReturnType<typeof vi.fn>;
+const dialogoRef = { close: vi.fn(), disableClose: false };
 
 const texto = (f: { nativeElement: HTMLElement }) => f.nativeElement.textContent ?? '';
 
@@ -48,7 +49,8 @@ beforeEach(() => {
     fotoFactura: vi.fn(() => of('data:image/jpeg;base64,AAAA')),
   };
   router = { navigate: vi.fn(async () => true) };
-  cerrar = vi.fn();
+  cerrar = dialogoRef.close = vi.fn();
+  dialogoRef.disableClose = false;
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
@@ -56,7 +58,7 @@ beforeEach(() => {
       { provide: ComprasService, useValue: compras },
       { provide: RecepcionService, useValue: { proveedores: vi.fn(() => of({ getContent: [] })) } },
       { provide: Router, useValue: router },
-      { provide: MatDialogRef, useValue: { close: cerrar } },
+      { provide: MatDialogRef, useValue: dialogoRef },
       { provide: MAT_DIALOG_DATA, useValue: { pedidoId: null } },
     ],
   });
@@ -86,6 +88,19 @@ describe('Elegir y leer la factura en papel', () => {
     });
   });
 
+  it('mientrasLeeNoSePuedeCerrarYSeLiberaAlFallar', () => {
+    const lectura = new Subject<CabeceraFacturaFoto>();
+    compras['leerFacturaFoto'].mockReturnValue(lectura);
+    const fixture = montarHoja();
+    fixture.componentInstance.anadir('data:a');
+
+    fixture.componentInstance.leer();
+    expect(dialogoRef.disableClose).toBe(true);
+
+    lectura.error(new Error('falló'));
+    expect(dialogoRef.disableClose).toBe(false);
+  });
+
   it('noDejaMasDeCinco', () => {
     const fixture = montarHoja();
     for (let i = 0; i < 7; i++) fixture.componentInstance.anadir('data:' + i);
@@ -110,6 +125,20 @@ describe('Revisión de la cabecera leída de la foto', () => {
     Array.from(f.nativeElement.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
       (b.textContent ?? '').includes('Continuar'),
     )!;
+
+  it('avisaCuandoLosTotalesNoCuadran', () => {
+    const fixture = montar({ ...CABECERA, totalesCuadran: false, sumaRenglones: 140000 });
+
+    expect(texto(fixture)).toContain('La suma de los renglones (');
+    expect(texto(fixture)).toContain('no da el total de la factura (');
+    expect(texto(fixture)).toContain('revisá cantidades y precios con el papel');
+  });
+
+  it('pideLasFotosDeLaUnaALaN', () => {
+    montar({ ...CABECERA, cantidadFotos: 3 });
+
+    expect(compras['fotoFactura'].mock.calls.map((c) => c[1])).toEqual([1, 2, 3]);
+  });
 
   it('campoDudosoSeMarca', () => {
     const fixture = montar({ ...CABECERA, dudosos: ['timbrado'] });

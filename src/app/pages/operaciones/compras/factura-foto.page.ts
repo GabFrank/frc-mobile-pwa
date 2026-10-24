@@ -5,6 +5,7 @@ import { MatInputModule } from '@angular/material/input';
 import { Router } from '@angular/router';
 
 import type { CabeceraFacturaFoto } from 'src/app/domains/compras/compras.model';
+import { formatearImporte } from 'src/app/generic/utils/moneda.util';
 import { nombreProveedor, type Proveedor } from 'src/app/domains/personas/proveedor.model';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { RecepcionService } from '../recepcion/recepcion.service';
@@ -46,6 +47,9 @@ const CONDICIONES = ['CONTADO', 'CREDITO'] as const;
   template: `
     <frc-pagina titulo="Factura en papel" [conVolver]="true">
       @if (cabecera(); as c) {
+        @if (!c.totalesCuadran) {
+          <p class="aviso">{{ avisoTotales(c) }}</p>
+        }
         @for (a of c.avisos; track a) {
           <p class="aviso">{{ a }}</p>
         }
@@ -264,6 +268,7 @@ export class FacturaFotoPage {
   );
 
   private cargada: unknown = null;
+  private fotosPorOrden: (string | undefined)[] = [];
 
   constructor() {
     effect(() => {
@@ -288,15 +293,30 @@ export class FacturaFotoPage {
 
     const docId = aId(c.documentoId);
     this.fotos.set([]);
+    this.fotosPorOrden = [];
     if (docId != null) {
-      for (let orden = 0; orden < c.cantidadFotos; orden++) {
+      // El central numera las fotos 1..n; se guardan por posición para que no queden desordenadas.
+      for (let orden = 1; orden <= c.cantidadFotos; orden++) {
         this.servicio.fotoFactura(docId, orden).subscribe({
-          next: (uri) => this.fotos.update((lista) => (uri ? [...lista, uri] : lista)),
+          next: (uri) => {
+            if (!uri) return;
+            this.fotosPorOrden[orden - 1] = uri;
+            this.fotos.set(this.fotosPorOrden.filter((f): f is string => !!f));
+          },
           // La foto es una ayuda para revisar: si no baja, el formulario sigue.
           error: () => undefined,
         });
       }
     }
+  }
+
+  avisoTotales(c: CabeceraFacturaFoto): string {
+    const moneda = c.moneda ?? null;
+    return (
+      'La suma de los renglones (' + formatearImporte(c.sumaRenglones ?? null, moneda) +
+      ') no da el total de la factura (' + formatearImporte(c.totalGeneral ?? null, moneda) +
+      '): revisá cantidades y precios con el papel'
+    );
   }
 
   esDudoso(campo: string): boolean {

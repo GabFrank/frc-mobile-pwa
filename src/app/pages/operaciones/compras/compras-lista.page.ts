@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Router } from '@angular/router';
 
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import type { CompraPedidoResumen } from 'src/app/domains/compras/compras.model';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
 import { CardComponent } from 'src/app/shared/card/card.component';
@@ -16,6 +17,11 @@ import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import type { TonoEstado } from 'src/app/shared/estado/estado-registry';
 import { tonoEtapa } from './compras-reglas';
+import {
+  ElegirTipoFacturaComponent,
+  type ElegirTipoFacturaData,
+  type TipoFacturaElegido,
+} from './elegir-tipo-factura.component';
 import { ComprasService } from './compras.service';
 import { EscanearFacturaService } from './escanear-factura.service';
 
@@ -137,6 +143,7 @@ export class ComprasListaPage {
   private readonly servicio = inject(ComprasService);
   private readonly escaneo = inject(EscanearFacturaService);
   private readonly router = inject(Router);
+  private readonly dialogo = inject(DialogoService);
 
   readonly texto = signal('');
   /** El texto con el que se hizo la última búsqueda: decide qué dice el vacío. */
@@ -218,7 +225,14 @@ export class ComprasListaPage {
     void this.router.navigate(['/operaciones/compras', p.pedidoId]);
   }
 
+  /** Abre la hoja: factura electrónica (QR) o en papel (foto, que se resuelve en la misma hoja). */
   async escanear(): Promise<void> {
-    await this.escaneo.escanearSinPedido();
+    const tipo = await this.dialogo.abrir<ElegirTipoFacturaComponent, ElegirTipoFacturaData, TipoFacturaElegido>(
+      ElegirTipoFacturaComponent,
+      { pedidoId: null },
+    );
+    if (tipo === 'qr') {
+      await this.escaneo.escanearSinPedido();
+    }
   }
 }

@@ -211,3 +211,32 @@ export function avisosVisibles(
 export function facturaYaUsada(motivo: string | null | undefined): boolean {
   return /ya est[aá] cargada|ya cre[oó] la compra/i.test(motivo ?? '');
 }
+
+/** Cuántas fotos admite una factura en papel (una factura larga ocupa varias hojas). */
+export const MAX_FOTOS_FACTURA = 5;
+
+/** Una factura en papel necesita más resolución que un ticket: el texto es chico y denso. */
+export const OPCIONES_FOTO_FACTURA = { ladoMaximo: 2400, calidad: 0.85 };
+
+/**
+ * Número de factura completo `001-001-0001234`, rellenando con ceros cada tramo.
+ * Devuelve `null` si algún tramo está vacío, no es numérico o excede 3-3-7.
+ * Solo presentación: la validez de la factura la decide el central.
+ */
+export function numeroFacturaCompleto(
+  establecimiento: string | null | undefined,
+  puntoExpedicion: string | null | undefined,
+  numero: string | null | undefined,
+): string | null {
+  const tramo = (valor: string | null | undefined, largo: number): string | null => {
+    const t = (valor ?? '').trim();
+    if (!/^\d+$/.test(t) || t.length > largo) {
+      return null;
+    }
+    return t.padStart(largo, '0');
+  };
+  const est = tramo(establecimiento, 3);
+  const pto = tramo(puntoExpedicion, 3);
+  const num = tramo(numero, 7);
+  return est && pto && num ? `${est}-${pto}-${num}` : null;
+}

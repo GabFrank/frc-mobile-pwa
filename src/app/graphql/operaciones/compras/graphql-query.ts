@@ -85,6 +85,7 @@ const CAMPOS_FACTURA = `
   plazoCredito
   pedidoId
   cdc
+  origen
   tipoDocumento
   tipoDocumentoDescripcion
   emisorRuc
@@ -359,5 +360,47 @@ export const presentacionesCompraQuery = gql`
       cierraConUltimaCompra
       factorSugerido
     }
+  }
+`;
+
+export const fotoFacturaQuery = gql`
+  query ($documentoId: ID!, $orden: Int!) {
+    data: fotoFacturaMobile(documentoId: $documentoId, orden: $orden)
+  }
+`;
+
+export const leerFacturaFotoMutation = gql`
+  mutation ($fotos: [String!]!, $pedidoId: ID) {
+    data: leerFacturaFotoMobile(fotos: $fotos, pedidoId: $pedidoId) {
+      documentoId
+      pedidoId
+      cantidadFotos
+      emisorRuc
+      emisorNombre
+      rucValido
+      proveedorId
+      proveedorNombre
+      receptorRuc
+      receptorEsEmpresa
+      timbrado
+      establecimiento
+      puntoExpedicion
+      numero
+      fechaEmision
+      condicion
+      moneda
+      totalGeneral
+      sumaRenglones
+      totalesCuadran
+      cantidadRenglones
+      dudosos
+      avisos
+    }
+  }
+`;
+
+export const confirmarCabeceraFacturaFotoMutation = gql`
+  mutation ($input: CabeceraFacturaFotoInput!) {
+    data: confirmarCabeceraFacturaFotoMobile(input: $input) { ${CAMPOS_FACTURA} }
   }
 `;

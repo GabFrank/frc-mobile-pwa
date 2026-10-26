@@ -7,6 +7,9 @@ import {
   aId,
   contarFiltros,
   esKude,
+  MAX_FOTOS_FACTURA,
+  numeroFacturaCompleto,
+  OPCIONES_FOTO_FACTURA,
   filtrarRenglones,
   repartoCompleto,
   repartoIgual,
@@ -192,5 +195,22 @@ describe('facturaYaUsada', () => {
   it('un error de SIFEN o de red sí deja reintentar', () => {
     expect(facturaYaUsada('SIFEN no respondió. Probá de nuevo.')).toBe(false);
     expect(facturaYaUsada(null)).toBe(false);
+  });
+});
+
+describe('factura en papel', () => {
+  it('arma el número con ceros a la izquierda', () => {
+    expect(numeroFacturaCompleto('1', '1', '1234')).toBe('001-001-0001234');
+  });
+
+  it('devuelve null si algún tramo no entra en 3-3-7', () => {
+    expect(numeroFacturaCompleto('1', '1', '123456789')).toBeNull();
+    expect(numeroFacturaCompleto('', '1', '1')).toBeNull();
+    expect(numeroFacturaCompleto('1', 'ab', '1')).toBeNull();
+  });
+
+  it('limita las fotos y define la calidad de la foto de factura', () => {
+    expect(MAX_FOTOS_FACTURA).toBe(5);
+    expect(OPCIONES_FOTO_FACTURA).toEqual({ ladoMaximo: 2400, calidad: 0.85 });
   });
 });

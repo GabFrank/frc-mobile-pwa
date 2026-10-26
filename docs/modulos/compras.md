@@ -29,6 +29,7 @@ mercadería: esto es la etapa anterior, la **Recepción documental**
   en la elegida con los precios convertidos a la cotización (la de la factura
   si es su moneda; si no, el último cambio), y la nota sigue en la moneda de
   la factura, que es la que informa la SET.
+- **Factura en papel** (foto): ver la sección de abajo.
 - **Cargar la factura a un pedido planificado en el desktop**: el flujo de
   abajo. Si al escanear hay pedidos del proveedor esperando factura, la
   pantalla ofrece los dos caminos.
@@ -106,3 +107,25 @@ plantilla de nuestras facturas electrónicas (`factura-electronica-kude.jrxml`),
 sin logo. No es el PDF que imprimió el proveedor (la SET no lo guarda: cada
 emisor diseña el suyo), pero tiene todos los datos legales, el CDC y el QR.
 Solo consulta: no crea compras ni notas. Mutation `kudeFacturaProveedorMobile`.
+
+## Factura en papel (foto)
+
+Un proveedor sin factura electrónica se carga con la cámara. «Nueva compra con
+factura» (lista) y «Cargar factura» (pedido) abren una hoja
+(`elegir-tipo-factura.component.ts`) con «Factura electrónica (QR)» —el flujo de
+siempre— y «Factura en papel (foto)». Con papel, la misma hoja junta hasta
+`MAX_FOTOS_FACTURA` (5) fotos, reducidas a 2400 px (`OPCIONES_FOTO_FACTURA`), y
+llama a `leerFacturaFotoMobile`: la IA del central lee la cabecera y crea un
+documento sin confirmar. De ahí se navega a `foto` (compra nueva) o
+`:pedidoId/foto` (`factura-foto.page.ts`), donde el comprador revisa proveedor,
+timbrado, número, fecha, condición y total. Los campos que la IA marcó en
+`dudosos` salen con borde amarillo y «Revisá este dato»; los `avisos` van
+arriba. Un RUC inválido (`rucValido` falso) obliga a elegir el proveedor a mano
+con el buscador de proveedores de la recepción; con pedido el proveedor es el
+del pedido y no se cambia. «Continuar» llama a `confirmarCabeceraFacturaFotoMobile`
+y abre `nueva/:documentoId` o `:pedidoId/factura/:documentoId` (con
+`replaceUrl`), la misma conciliación que la factura electrónica.
+
+La cabecera leída viaja de la hoja a la revisión por `FacturaFotoEstado`
+(no hay consulta que la devuelva): recargar la página la pierde y la pantalla lo
+dice. Las rutas `foto` y `:pedidoId/foto` van **antes** de `:pedidoId`.

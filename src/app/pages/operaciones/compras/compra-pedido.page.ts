@@ -22,6 +22,7 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { aId } from './compras-reglas';
 import { ComprasService } from './compras.service';
+import { ElegirTipoFacturaComponent, type ElegirTipoFacturaData, type TipoFacturaElegido } from './elegir-tipo-factura.component';
 import { EscanearFacturaService } from './escanear-factura.service';
 
 /**
@@ -148,7 +149,7 @@ import { EscanearFacturaService } from './escanear-factura.service';
           }
           @if (p.puedeCargarFacturas) {
             <button matButton="filled" [disabled]="leyendo()" (click)="escanear()">
-              {{ leyendo() ? 'Consultando SIFEN…' : 'Escanear factura' }}
+              {{ leyendo() ? 'Consultando SIFEN…' : 'Cargar factura' }}
             </button>
           }
         </div>
@@ -221,6 +222,11 @@ export class CompraPedidoPage {
   async escanear(): Promise<void> {
     const id = this.id();
     if (id == null) return;
+    const tipo = await this.dialogo.abrir<ElegirTipoFacturaComponent, ElegirTipoFacturaData, TipoFacturaElegido>(
+      ElegirTipoFacturaComponent,
+      { pedidoId: id },
+    );
+    if (tipo !== 'qr') return;
     this.leyendo.set(true);
     try {
       await this.escaneo.escanearParaPedido(id);

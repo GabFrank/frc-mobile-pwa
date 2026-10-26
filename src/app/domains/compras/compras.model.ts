@@ -157,7 +157,10 @@ export interface FacturaProveedor {
   /** Días de crédito, solo si la factura los trae. */
   plazoCredito?: number | null;
   pedidoId?: number | null;
-  cdc: string;
+  /** `null` en una factura en papel (no tiene CDC). */
+  cdc: string | null;
+  /** SIFEN: leída del QR. FOTO: leída de una foto de la factura en papel. */
+  origen?: 'SIFEN' | 'FOTO' | null;
   tipoDocumento?: number | null;
   tipoDocumentoDescripcion?: string | null;
   emisorRuc?: string | null;
@@ -289,4 +292,45 @@ export interface PresentacionCompra {
   cierraConUltimaCompra?: boolean | null;
   /** En la sugerida: las unidades del bulto cuando son varias veces la presentación (804 = 12 × 67). */
   factorSugerido?: number | null;
+}
+
+/** Cabecera leída por IA de la foto de una factura en papel; el comprador la revisa antes de confirmar. */
+export interface CabeceraFacturaFoto {
+  documentoId: number | string;
+  pedidoId?: number | string | null;
+  cantidadFotos: number;
+  emisorRuc?: string | null;
+  emisorNombre?: string | null;
+  rucValido: boolean;
+  proveedorId?: number | string | null;
+  proveedorNombre?: string | null;
+  receptorRuc?: string | null;
+  receptorEsEmpresa?: boolean | null;
+  timbrado?: number | null;
+  establecimiento?: string | null;
+  puntoExpedicion?: string | null;
+  numero?: string | null;
+  fechaEmision?: string | null;
+  condicion?: string | null;
+  moneda?: string | null;
+  totalGeneral?: number | null;
+  sumaRenglones?: number | null;
+  totalesCuadran: boolean;
+  cantidadRenglones: number;
+  /** Campos que la IA leyó con duda. */
+  dudosos: string[];
+  avisos: string[];
+}
+
+/** Cabecera corregida por el comprador, para confirmar. */
+export interface CabeceraFacturaFotoInput {
+  documentoId: number | string;
+  proveedorId: number | string;
+  timbrado: number;
+  establecimiento: string;
+  puntoExpedicion: string;
+  numero: string;
+  fechaEmision: string;
+  condicion?: string | null;
+  totalGeneral: number;
 }

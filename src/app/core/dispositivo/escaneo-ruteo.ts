@@ -1,3 +1,4 @@
+import { devolucionDelIdentificador } from 'src/app/domains/devolucion/devolucion-identificador';
 import { TipoEntidad } from 'src/app/domains/enums/tipo-entidad.enum';
 import { descodificarQr, QrData } from 'src/app/generic/utils/qrUtils';
 import { esKude } from 'src/app/pages/operaciones/compras/compras-reglas';
@@ -132,6 +133,13 @@ export function rutearEscaneo(texto: string): DestinoEscaneo {
   // guard de la ruta lo dice.
   if (esKude(codigo)) {
     return { clase: 'navegar', ruta: ['/operaciones/compras/factura'], queryParams: { qr: codigo } };
+  }
+
+  // La etiqueta de una devolución: un solo QR por devolución, con su
+  // identificador (`DEV-1-24`). Abre el detalle con todos sus productos.
+  const devolucionId = devolucionDelIdentificador(codigo);
+  if (devolucionId != null) {
+    return { clase: 'navegar', ruta: ['/operaciones/devolucion/detalle', devolucionId] };
   }
 
   const qr = descodificarQr(codigo);

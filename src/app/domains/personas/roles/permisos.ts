@@ -207,6 +207,17 @@ export const PERMISOS = {
     ROLES.TESORERIA_VER,
     ROLES.TESORERIA_GESTIONAR,
   ],
+
+  /**
+   * Retiro de devoluciones por el proveedor: escanear la etiqueta de cada
+   * una y pasarlas a RETIRADO.
+   *
+   * A diferencia de la carga de devoluciones —que no lleva rol—, retirar sí:
+   * **el central lo exige** (`retirarDevolucionesEnBloque` pide
+   * `TransferenciaRoles.ROLES`), y estos son esos mismos roles. Mostrar la
+   * opción a quien no los tiene solo lo llevaría a un error al confirmar.
+   */
+  devolucionRetiro: [ROLES.ADMIN, ROLES.VER_TRANSFERENCIA, ROLES.CREAR_TRANSFERENCIA],
 } as const satisfies Record<string, readonly ROLES[]>;
 
 export type AreaProtegida = keyof typeof PERMISOS;

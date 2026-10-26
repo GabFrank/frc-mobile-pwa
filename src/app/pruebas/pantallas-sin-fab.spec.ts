@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
  * Lo que rompe es que una de estas vuelva a encenderlo, o que otra lo apague
  * sin anotarse acá: apagarlo es una decisión y tiene que quedar escrita.
  *
- * Se lee el fuente en vez de montar cada pantalla: son 26 fixtures con sus
+ * Se lee el fuente en vez de montar cada pantalla: son 27 fixtures con sus
  * dobles de Apollo para verificar un atributo. Que el atributo efectivamente
  * quita el botón del DOM ya lo prueba `buscar-sin-fab.spec.ts`.
  */
@@ -54,6 +54,7 @@ const SIN_FLOTANTE: readonly string[] = [
   'producto/editar/producto-nuevo.page.ts',
   // Tienen su propio escanear.
   'mis-finanzas/mis-finanzas.page.ts',
+  'operaciones/devolucion/devolucion-retiro.page.ts',
   'operaciones/gastos/gastos-lista.page.ts',
   'operaciones/recepcion/recepcion-detalle.page.ts',
   'operaciones/recepcion/recepcion-nueva.page.ts',

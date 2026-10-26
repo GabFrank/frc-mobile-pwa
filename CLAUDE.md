@@ -304,6 +304,8 @@ Verificación: **115 archivos de test, 1.476 tests**, cero errores de tipos, AOT
 
 ⚠️ **Compras (la factura del proveedor por KuDE) necesita un central con `compras-mobile.graphqls` y la migración `V253.3`** (rama `feat/compras-mobile-kude` del central, 2026-10-21). Contra un central viejo la tarjeta aparece pero la pantalla falla al cargar; el botón universal manda el KuDE a Compras en vez de al buscador. Las dos mitades se publican juntas. Ver [`docs/modulos/compras.md`](docs/modulos/compras.md). **Desde `fix/compras-revision-factura` la factura pide el campo `alertas`**: contra un central sin `fix/compras-aprendido-producto-inactivo` la pantalla de la factura falla entera (campo desconocido). Se publica primero el central.
 
+⚠️ **El retiro de devoluciones necesita un central con `feat/devolucion-etiqueta-unica`** (2026-10-26). Pide `devoluciones` y `presentacion` en `retiroProveedorConsolidado`, sin migración: contra un central viejo la pantalla de retiro falla al cargar y el resto del módulo sigue igual. La etiqueta de una sola hoja por devolución también sale del central. Se publica primero el central. Ver «El retiro a proveedor» en [`docs/modulos/operaciones-devolucion.md`](docs/modulos/operaciones-devolucion.md).
+
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
 Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.

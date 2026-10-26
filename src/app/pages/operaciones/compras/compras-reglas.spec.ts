@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { RenglonFactura } from 'src/app/domains/compras/compras.model';
+import type { RenglonFactura, SugerenciaProducto } from 'src/app/domains/compras/compras.model';
 import {
   facturaYaUsada,
   avisosVisibles,
@@ -10,6 +10,8 @@ import {
   MAX_FOTOS_FACTURA,
   numeroFacturaCompleto,
   OPCIONES_FOTO_FACTURA,
+  otrasSugerencias,
+  sugerenciaPreseleccionada,
   filtrarRenglones,
   repartoCompleto,
   repartoIgual,
@@ -212,5 +214,36 @@ describe('factura en papel', () => {
   it('limita las fotos y define la calidad de la foto de factura', () => {
     expect(MAX_FOTOS_FACTURA).toBe(5);
     expect(OPCIONES_FOTO_FACTURA).toEqual({ ladoMaximo: 2400, calidad: 0.85 });
+  });
+});
+
+describe('sugerenciaPreseleccionada', () => {
+  const sug = (presentacionId: number, preseleccionada?: boolean): SugerenciaProducto => ({
+    productoId: presentacionId,
+    presentacionId,
+    preseleccionada,
+  });
+
+  it('devuelve la única marcada por el central y deja las demás aparte', () => {
+    const r = { sugerencias: [sug(1, true), sug(2, false), sug(3)] };
+    expect(sugerenciaPreseleccionada(r)?.presentacionId).toBe(1);
+    expect(otrasSugerencias(r).map((s) => s.presentacionId)).toEqual([2, 3]);
+  });
+
+  it('sin marcadas no preselecciona nada y muestra todas', () => {
+    const r = { sugerencias: [sug(1, false), sug(2)] };
+    expect(sugerenciaPreseleccionada(r)).toBeNull();
+    expect(otrasSugerencias(r)).toHaveLength(2);
+  });
+
+  it('con más de una marcada no elige ninguna', () => {
+    const r = { sugerencias: [sug(1, true), sug(2, true)] };
+    expect(sugerenciaPreseleccionada(r)).toBeNull();
+    expect(otrasSugerencias(r)).toHaveLength(2);
+  });
+
+  it('sin sugerencias', () => {
+    expect(sugerenciaPreseleccionada({ sugerencias: [] })).toBeNull();
+    expect(otrasSugerencias({ sugerencias: [] })).toEqual([]);
   });
 });

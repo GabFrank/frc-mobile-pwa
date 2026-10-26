@@ -43,8 +43,10 @@ import {
   contarFiltros,
   filtrarRenglones,
   FiltroRenglones,
+  otrasSugerencias,
   repartoCompleto,
   repartoIgual,
+  sugerenciaPreseleccionada,
   sumaReparto,
   textoFactor,
   tonoAviso,
@@ -294,6 +296,18 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
                   {{ r.esBonificacion ? 'sin cargo' : numero(r.precioUnitarioBase) }}
                 </span>
               </div>
+            } @else if (sugerenciaPreseleccionada(r); as s) {
+              <div class="preseleccionada">
+                <span class="codigos">Reconocido por la descripción, falta confirmarlo</span>
+                <span>→ {{ s.descripcion }} · {{ s.presentacionDescripcion }}</span>
+                <span class="codigos">{{ textoFactor(s.factor, r.unidadMedida) }} · {{ s.motivo }}</span>
+                @if (editable()) {
+                  <div class="acciones-renglon">
+                    <button matButton (click)="vincular(r, s)">Elegir otro</button>
+                    <button matButton="filled" (click)="confirmarSugerencia(r, s)">Confirmar</button>
+                  </div>
+                }
+              </div>
             } @else {
               <p class="falta">
                 No está en el sistema con este código. Vinculalo con un producto nuestro o dalo de alta.
@@ -318,10 +332,10 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
               <p class="nota t-danger">Falta la observación que justifique la diferencia.</p>
             }
 
-            @if (r.sugerencias.length > 0) {
+            @if (otrasSugerencias(r).length > 0) {
               <div class="sugerencias">
                 <span class="codigos">¿Es alguno de estos?</span>
-                @for (s of r.sugerencias; track s.presentacionId) {
+                @for (s of otrasSugerencias(r); track $index) {
                   <div class="sugerencia">
                     <div>
                       <span>{{ s.descripcion }} · {{ s.presentacionDescripcion }}</span>
@@ -459,6 +473,16 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
     .linea { font-family: var(--font-num); font-size: var(--fs-label); }
     .producto { display: flex; flex-direction: column; gap: var(--sp-1); padding-top: var(--sp-1); font-size: var(--fs-label); }
     .falta { margin: 0; color: var(--danger); font-size: var(--fs-label); }
+    .preseleccionada {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      padding: var(--sp-2);
+      border: 1px dashed var(--warn);
+      border-radius: var(--radius-sm);
+      background: var(--warn-bg);
+      font-size: var(--fs-label);
+    }
     .nota { margin: 0; font-size: var(--fs-label); }
     .nota.t-warn { color: var(--warn); }
     .nota.t-info { color: var(--info); }
@@ -562,6 +586,8 @@ export class FacturaProveedorPage {
   readonly tonoRenglon = tonoRenglon;
   readonly cantidadPorPrecio = cantidadPorPrecio;
   readonly textoFactor = textoFactor;
+  readonly sugerenciaPreseleccionada = sugerenciaPreseleccionada;
+  readonly otrasSugerencias = otrasSugerencias;
 
   constructor() {
     effect(() => {
@@ -666,6 +692,21 @@ export class FacturaProveedorPage {
     this.trabajando.set(true);
     this.servicio
       .vincularRenglon(r.id, resultado.presentacionId, resultado.factor, resultado.recordar)
+      .subscribe({ next: (f) => this.mostrar(f), error: () => this.trabajando.set(false) });
+  }
+
+  /**
+   * Confirma lo reconocido por la descripción tal cual lo sugirió el central:
+   * misma presentación y mismo bulto, y lo recuerda (con el código, si el
+   * renglón lo trae). Para cambiar algo está «Elegir otro».
+   */
+  confirmarSugerencia(r: RenglonFactura, s: SugerenciaProducto): void {
+    const presentacionId = aId(s.presentacionId);
+    if (presentacionId == null) return;
+    const factor = s.factor != null && s.factor > 0 ? s.factor : 1;
+    this.trabajando.set(true);
+    this.servicio
+      .vincularRenglon(r.id, presentacionId, factor, true)
       .subscribe({ next: (f) => this.mostrar(f), error: () => this.trabajando.set(false) });
   }
 

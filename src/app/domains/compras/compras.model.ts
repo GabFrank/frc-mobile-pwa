@@ -95,9 +95,14 @@ export interface SugerenciaProducto {
   presentacionDescripcion?: string | null;
   factor?: number | null;
   codigo?: string | null;
-  /** CODIGO_PARECIDO, DESCRIPCION, PROVEEDOR */
+  /** APRENDIDO_DESCRIPCION, CODIGO_PARECIDO, DESCRIPCION, PROVEEDOR */
   tipo?: string | null;
   motivo?: string | null;
+  /**
+   * La descripción del renglón ya se vinculó antes a este producto, sin
+   * ambigüedad: se ofrece para confirmar con un toque. Lo decide el central.
+   */
+  preseleccionada?: boolean | null;
 }
 
 export type EstadoRenglon = 'OK' | 'DIFERENCIA' | 'FUERA_DE_PEDIDO' | 'SIN_PRODUCTO';

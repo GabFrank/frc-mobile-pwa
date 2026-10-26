@@ -47,8 +47,10 @@ interface ProductoElegido {
  * «Otra cantidad» queda para el caso raro de un proveedor que factura cajas
  * con otra cantidad que la nuestra.
  *
- * «Recordar» guarda el vínculo para ese proveedor y ese código: la próxima
- * factura lo reconoce sola.
+ * «Recordar» guarda el vínculo para ese proveedor y ese código (y su
+ * descripción): la próxima factura lo reconoce sola por el código, y un
+ * renglón sin código con la misma descripción lo trae como sugerencia
+ * preseleccionada.
  */
 @Component({
   selector: 'frc-vincular-renglon-dialog',
@@ -221,11 +223,20 @@ export class VincularRenglonDialogComponent {
 
   /** La presentación que se eligió en el buscador, para preferirla sobre la sugerida. */
   private preferida: number | null = null;
+  /**
+   * El bulto aprendido de la sugerencia por descripción (ej. 30 u. por caja):
+   * manda sobre el que deduce el central del precio, porque ya lo confirmó
+   * alguien antes.
+   */
+  private factorAprendido: number | null = null;
 
   constructor() {
     const s = this.data.sugerencia;
     if (s) {
       this.preferida = aId(s.presentacionId);
+      if (s.tipo === 'APRENDIDO_DESCRIPCION' && s.factor != null && s.factor > 0) {
+        this.factorAprendido = s.factor;
+      }
       this.usarProducto({ id: Number(s.productoId), descripcion: s.descripcion ?? 'Producto ' + s.productoId });
     } else if (this.data.renglon.productoId) {
       // «Cambiar producto» sobre uno ya vinculado: arranca con el actual y su presentación
@@ -255,6 +266,7 @@ export class VincularRenglonDialogComponent {
     const id = aId(seleccion?.producto?.id);
     if (id == null) return;
     this.preferida = aId(seleccion?.presentacion?.id);
+    this.factorAprendido = null;
     this.usarProducto({ id, descripcion: seleccion?.producto?.descripcion ?? 'Producto ' + id });
   }
 
@@ -276,6 +288,10 @@ export class VincularRenglonDialogComponent {
         const inicial =
           lista.find((x) => x.id === this.preferida) ?? lista.find((x) => x.sugerida) ?? lista[0];
         if (inicial) this.elegir(inicial);
+        if (inicial && inicial.id === this.preferida && this.factorAprendido != null) {
+          this.factor.set(this.factorAprendido);
+          this.otraCantidad.set(Math.abs(this.factorAprendido - (inicial.cantidad ?? 1)) > 0.001);
+        }
         this.cargandoPresentaciones.set(false);
       },
       error: () => {

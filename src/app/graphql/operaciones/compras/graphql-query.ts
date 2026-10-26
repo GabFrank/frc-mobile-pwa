@@ -172,6 +172,7 @@ const CAMPOS_FACTURA = `
       codigo
       tipo
       motivo
+      preseleccionada
     }
   }
   itemsNoFacturados { ${CAMPOS_ITEM} }

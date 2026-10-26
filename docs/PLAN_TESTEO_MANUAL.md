@@ -8188,6 +8188,71 @@ devolución. En el escritorio la devolución figura **Retirada**; la otra sigue
 **Separada**. Con `retiroPermitirSeleccionManual` encendido en la
 configuración del módulo, cada tarjeta tiene además «Marcar sin escanear».
 
+## Bloque 94 — Compras: lo aprendido por la descripción, como sugerencia preseleccionada *(sin probar: necesita el central con `feature/compras-alias-descripcion` y la migración `V257.3`)*
+
+Un vínculo producto-proveedor ahora guarda **siempre** la descripción del
+renglón, venga la factura con código o sin código. Un renglón que no se
+reconoce por código, pero cuya descripción ya se vinculó antes con ese
+proveedor, aparece con **«Reconocido por la descripción, falta confirmarlo»**
+y los botones «Confirmar» y «Elegir otro». Nunca entra solo a la compra.
+
+Preparación: un proveedor con vínculos aprendidos de facturas electrónicas
+(GENFI o MARVI en bodega3: después de `V257.3` sus 96 vínculos tienen la
+descripción cargada).
+
+### 94.1 · Factura en papel de un proveedor con vínculos de la electrónica *(el que importa)*
+1. «Factura en papel (foto)» con una factura de GENFI que **no** traiga
+   códigos, con renglones que ya vinieron en una electrónica (ej. «SALADIX
+   JAMON 6*100GR»)
+2. Abrir la compra
+
+**Esperado:** esos renglones quedan en rojo (sin producto) pero con el recuadro
+«Reconocido por la descripción, falta confirmarlo», el producto, la
+presentación y el bulto aprendido (ej. «bulto de 30 u.»), y el motivo «Esta
+descripción ya se vinculó a este producto». «Confirmar» los pasa a verde con
+«Vinculado a mano» y la cantidad × bulto correcta, sin abrir ningún diálogo.
+
+### 94.2 · «Elegir otro» arranca con lo aprendido
+1. En un renglón del 94.1, «Elegir otro»
+
+**Esperado:** el diálogo abre con el producto y la presentación sugeridos y el
+bulto aprendido en «Unidades por cada…» (si difiere de la presentación, el
+campo ya está abierto). «Buscar el producto» permite cambiarlo.
+
+### 94.3 · Renglón con código que no se reconoce
+1. Una factura (papel o electrónica) donde un renglón trae un código del
+   proveedor **nuevo o mal leído** pero la descripción de siempre
+
+**Esperado:** igual que el 94.1: el recuadro preseleccionado aparece aunque el
+renglón tenga código. Al confirmarlo, la próxima factura con ese código lo
+reconoce sola («Reconocido por el código del proveedor»).
+
+### 94.4 · La misma descripción en dos productos
+1. Vincular a mano, con «Recordar», dos renglones con la **misma descripción**
+   y códigos distintos a productos distintos (o a la misma presentación con
+   bultos distintos)
+2. Cargar otra factura con esa descripción y sin código
+
+**Esperado:** no hay recuadro preseleccionado. Los dos productos aparecen en
+«¿Es alguno de estos?» con el motivo «Esta descripción se vinculó a más de un
+producto o bulto: confirmá cuál es».
+
+### 94.5 · Lo aprendido apunta a un producto inactivo
+1. Inactivar el producto de un vínculo aprendido por descripción
+2. Cargar una factura con esa descripción y sin código
+
+**Esperado:** sin recuadro preseleccionado; el renglón dice «Esta descripción
+estaba vinculada a «…», que está inactivo. Elegí el producto.»
+
+### 94.6 · La factura electrónica también aprende la descripción
+1. Confirmar una factura electrónica (QR) de un proveedor
+2. En la base: `SELECT codigo_proveedor, descripcion_normalizada FROM productos.proveedor_codigo_producto WHERE proveedor_id = <id> ORDER BY id DESC LIMIT 5;`
+
+**Esperado:** los vínculos de esa factura tienen código **y**
+`descripcion_normalizada` (mayúsculas, sin tildes ni signos).
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8285,7 +8350,8 @@ configuración del módulo, cada tarjeta tiene además «Marcar sin escanear».
 | 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 31 | | | |
 | 92 · Compras: cargar la factura en papel con la foto | 7 | | | |
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
-| **Total** | **796** | | | |
+| 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
+| **Total** | **802** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

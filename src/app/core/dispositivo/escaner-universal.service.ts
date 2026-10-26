@@ -17,7 +17,8 @@ import { rutearEscaneo, transferenciaDelQr } from './escaneo-ruteo';
  * se va a leer, y decide después. Un QR de transferencia abre esa
  * transferencia; el de un inventario, ese inventario; un código de barras
  * abre el producto en Buscar; el QR del KuDE de un proveedor arranca una
- * compra nueva con esa factura.
+ * compra nueva con esa factura; el de la etiqueta de una devolución
+ * (`DEV-1-24`) abre esa devolución con todos sus productos.
  *
  * ⚠️ **Se piden todos los formatos, no solo QR.** Es la diferencia con los
  * escaneos de cada pantalla, que restringen a propósito —el de venta con

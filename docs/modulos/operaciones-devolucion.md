@@ -151,7 +151,7 @@ La estructura agrupa **por sucursal** y dentro de cada una ofrece dos vistas: `l
 
 ### `ImpresionEtiquetaService`
 
-`preguntarEImprimir(devolucionId)` — pregunta al usuario y, si acepta, obtiene las etiquetas y las imprime. Se llama al pasar a `SEPARADO`: la etiqueta identifica físicamente el producto apartado.
+`preguntarEImprimir(devolucionId)` — pregunta al usuario y, si acepta, obtiene la etiqueta y la imprime. Se llama al pasar a `SEPARADO`: la etiqueta identifica físicamente la devolución apartada. Desde el 2026-10-26 es **una sola por devolución**, con un QR y la lista de productos (ver «La etiqueta es una por devolución», más abajo).
 
 ## PDFs
 
@@ -199,7 +199,8 @@ Desarrollado entre el **2026-07-08 y el 2026-07-16**, integrado a `develop` vía
 |---|---|---|
 | `/operaciones/devolucion` | `DevolucionHistorialPage` | ✅ |
 | `/operaciones/devolucion/nueva` | `DevolucionNuevaPage` | ✅ |
-| `/operaciones/devolucion/detalle/:id` | `DevolucionDetallePage` | ✅ solo avanza a `SEPARADO` |
+| `/operaciones/devolucion/detalle/:id` | `DevolucionDetallePage` | ✅ solo avanza a `SEPARADO`; reimprime la etiqueta |
+| `/operaciones/devolucion/retiro` | `DevolucionRetiroPage` | ✅ retiro a proveedor escaneando, rol `devolucionRetiro` |
 
 ## Es el primer consumidor del buscador de productos
 
@@ -285,16 +286,61 @@ circuito cuando ya no se puede cambiar.
 
 ## La máquina de estados no se replica
 
-Solo se ofrece **Separar**, y solo desde `PENDIENTE`. Qué transición es legal
-lo contesta el central. Las etiquetas se piden **después** de que confirme:
-imprimirlas antes pegaría una etiqueta de un estado que no llegó a existir.
+Solo se ofrece **Separar**, y solo desde `PENDIENTE` (el retiro tiene su
+pantalla). Qué transición es legal lo contesta el central. La etiqueta se pide
+**después** de que confirme: imprimirla antes pegaría una etiqueta de un estado
+que no llegó a existir.
+
+## La etiqueta es una por devolución
+
+Al separar se imprime **una sola etiqueta**: identificador, sucursal,
+proveedor, fecha, la lista de productos y **un QR** con el identificador
+(`DEV-{sucursal}-{id}`). El detalle la reimprime con «Imprimir etiqueta»
+mientras no esté `PENDIENTE` ni `CANCELADA`.
+
+Hasta el 2026-10-26 el central imprimía una por ítem, todas con el mismo QR:
+papel perdido, y el escaneo de `frc-mobile` se trababa en la segunda («ya
+estaba verificada»). Las etiquetas viejas siguen sirviendo: el QR es el mismo.
+
+Escanear el QR:
+
+- **Botón flotante:** abre el detalle de la devolución con todos sus productos
+  (`rutearEscaneo`, regla en `domains/devolucion/devolucion-identificador.ts`).
+- **Retiro a proveedor:** verifica la devolución.
+
+## El retiro a proveedor
+
+`/operaciones/devolucion/retiro`, con el rol `devolucionRetiro` (los de
+transferencias, que son los que exige `retirarDevolucionesEnBloque` en el
+central). Se entra desde «Retiro a proveedor» en la lista.
+
+1. Se elige la sucursal donde están (por defecto la de la sesión si es un
+   local; «Todas» si no) y el proveedor.
+2. `retiroProveedorConsolidado` trae las `SEPARADO` y `COLECTADO` de ese
+   proveedor, **cada una con sus productos** (`grupos[].devoluciones`).
+3. Se escanea la etiqueta de cada una: queda verificada y se abre sola con sus
+   productos. Una etiqueta ajena al retiro se rechaza con su motivo.
+4. «Retirar N devoluciones» manda solo las verificadas. El resultado es por
+   devolución: las que fallan se listan con el mensaje del central.
+5. El comprobante (`remitoRetiroProveedor`) se pide apenas termina, para que
+   «Ver comprobante» lo abra dentro del gesto (ver `PdfService`).
+
+⚠️ **Marcar sin escanear solo con `retiroPermitirSeleccionManual`**, igual que
+en el escritorio. Sin esa configuración, lo que no se escaneó no se retira.
+
+Las reglas están en `devolucion-retiro.reglas.ts`, sin Angular, con sus tests;
+la pantalla, en `src/app/pruebas/devolucion-retiro.spec.ts`.
+
+⚠️ **Necesita el central con `feat/devolucion-etiqueta-unica`**: pide
+`devoluciones` y `presentacion` en el consolidado, que un central anterior no
+conoce. Contra él la pantalla de retiro falla al cargar; el resto del módulo
+sigue igual.
 
 ## Lo que falta, y de qué depende
 
 | Qué | Espera a |
 |---|---|
 | Colecta y su historial | el actor que colecta |
-| Retiro a proveedor, consolidado y remitos | ese actor |
 | Elegir proveedor y tipo `CON_PROVEEDOR` | el módulo de personas. Hoy toda devolución nace `SIN_PROVEEDOR`, el tipo que solo puede terminar en `DESCARTADO` |
 | Editar o quitar ítems de una devolución guardada | — |
 | Revertir estado | la pantalla que lo necesite |

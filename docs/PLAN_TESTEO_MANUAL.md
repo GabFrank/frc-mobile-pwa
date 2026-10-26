@@ -8117,6 +8117,77 @@ factura electrónica funciona exactamente igual que en el bloque 91.
 
 ---
 
+## Bloque 93 — Devoluciones: una etiqueta por devolución y el retiro escaneando *(sin probar: necesita el central con `feat/devolucion-etiqueta-unica`)*
+
+La etiqueta de separado ahora es **una sola por devolución**: cabecera, la lista
+de sus productos y **un QR**. Escanear ese QR trae la devolución entera. Y la
+PWA suma el **retiro a proveedor**: se escanea la etiqueta de cada devolución y
+se confirma.
+
+Datos de prueba: un proveedor con dos devoluciones **Con proveedor** en estado
+**Separado** en la misma sucursal, una de ellas con 3 productos o más. Un
+usuario con `VER TRANSFERENCIA` y otro sin ningún rol de transferencias.
+
+### 93.1 · Separar imprime una sola etiqueta *(el que importa)*
+1. Devoluciones → abrir una **Pendiente** con varios productos → «Separar e imprimir etiqueta»
+
+**Esperado:** se abre **un PDF de una sola tarjeta**: identificador grande
+(`DEV-…`), sucursal, proveedor, fecha, «N productos», **un solo QR** y una
+tabla con todos los productos (código, producto, cantidad, motivo). No una
+tarjeta por producto.
+
+### 93.2 · Reimprimir la etiqueta
+1. En el detalle de una devolución **Separada**, tocar «Imprimir etiqueta»
+
+**Esperado:** sale la misma etiqueta, con el mismo QR. En una **Pendiente** el
+botón no aparece (aparece «Separar…»), y en una **Cancelada** tampoco.
+
+### 93.3 · Escanear la etiqueta desde el botón flotante
+1. Desde Inicio, botón de escanear → apuntar al QR de la etiqueta
+
+**Esperado:** abre el **detalle de esa devolución** con la lista completa de
+productos. Escribir `dev-1-24` a mano en la carga manual hace lo mismo.
+
+### 93.4 · Retiro: la opción depende del rol
+1. Con el usuario **sin** rol de transferencias, abrir Devoluciones
+2. Con el usuario con `VER TRANSFERENCIA`, abrir Devoluciones
+
+**Esperado:** 1, no hay botón «Retiro a proveedor» (y escribir
+`/operaciones/devolucion/retiro` en la barra avisa que falta permiso). 2, el
+botón está.
+
+### 93.5 · Retiro: una tarjeta por devolución
+1. «Retiro a proveedor» → buscar y elegir el proveedor
+
+**Esperado:** una tarjeta por **devolución** (no por producto), con «sucursal
+· N productos» y «Falta escanear». «Verificadas: 0 de 2». Cambiar la sucursal
+a «Todas las sucursales» vuelve a cargar.
+
+### 93.6 · Retiro: escanear trae todos los productos *(el que importa)*
+1. «Escanear devolución» → apuntar al QR de una de las etiquetas
+
+**Esperado:** aviso «DEV-… verificada: N productos», la tarjeta pasa a
+«Verificada» con el tilde y **se abre sola mostrando todos sus productos** con
+su cantidad. «Verificadas: 1 de 2». Escanearla otra vez avisa «ya estaba
+verificada» y el contador no cambia.
+
+### 93.7 · Retiro: una etiqueta que no es de este retiro
+1. Escanear la etiqueta de una devolución de **otro** proveedor (o una
+   Pendiente), y después el código de barras de un producto
+
+**Esperado:** «DEV-… no está lista para retirar con este proveedor.» y «Ese
+código no es la etiqueta de una devolución.». No se marca nada.
+
+### 93.8 · Retiro: confirmar y el comprobante
+1. Con una verificada y otra no, «Retirar 1 devolución» → confirmar
+2. «Ver comprobante»
+
+**Esperado:** el diálogo dice que la otra queda para otro retiro. Al
+confirmar, «Retiradas: 1» y el comprobante PDF abre con los productos de esa
+devolución. En el escritorio la devolución figura **Retirada**; la otra sigue
+**Separada**. Con `retiroPermitirSeleccionManual` encendido en la
+configuración del módulo, cada tarjeta tiene además «Marcar sin escanear».
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8213,7 +8284,8 @@ factura electrónica funciona exactamente igual que en el bloque 91.
 | 90 · Transferencias: dos recargas de ítems que se cruzan | 2 | 2 | | |
 | 91 · Compras: cargar la factura del proveedor escaneando el KuDE | 31 | | | |
 | 92 · Compras: cargar la factura en papel con la foto | 7 | | | |
-| **Total** | **788** | | | |
+| 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
+| **Total** | **796** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -42,6 +42,24 @@ describe('transferenciaDelQr', () => {
 });
 
 describe('rutearEscaneo', () => {
+  describe('etiqueta de devolución', () => {
+    // Una etiqueta por devolución: su QR trae el identificador y abre la
+    // devolución con todos sus productos.
+    it('abre el detalle de la devolución', () => {
+      expect(rutearEscaneo('DEV-1-24')).toEqual({
+        clase: 'navegar',
+        ruta: ['/operaciones/devolucion/detalle', 24],
+      });
+    });
+
+    it('vale cargada a mano, en minúsculas', () => {
+      expect(rutearEscaneo(' dev-13-1088 ')).toEqual({
+        clase: 'navegar',
+        ruta: ['/operaciones/devolucion/detalle', 1088],
+      });
+    });
+  });
+
   describe('QR que abren un registro', () => {
     it('lleva una transferencia a su detalle, por idOrigen', () => {
       // El generador escribe el mismo id en idOrigen y en idCentral; se

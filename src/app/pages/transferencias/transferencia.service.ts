@@ -154,7 +154,13 @@ export class TransferenciaService {
    */
   items(id: number, page = 0, size = 50): Observable<TransferenciaItem[]> {
     return this.datos
-      .consultar<{ getContent?: TransferenciaItem[] }>(this.itemsGQL, { id, page, size })
+      // Sin deduplicar: se recarga después de cada guardado con las mismas
+      // variables, y una recarga pegada a otra en vuelo traería lo de antes.
+      .consultar<{ getContent?: TransferenciaItem[] }>(
+        this.itemsGQL,
+        { id, page, size },
+        { gql: { context: { queryDeduplication: false } } },
+      )
       .pipe(
         map((pagina) =>
           (pagina?.getContent ?? []).map((item) => ({

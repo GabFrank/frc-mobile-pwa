@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
+import { DatosService } from '../core/graphql/datos.service';
 import {
   EtapaTransferencia,
   MotivoModificacion,
@@ -281,6 +282,27 @@ describe('Quién puede trabajar la etapa', () => {
       puedeTomarEtapa({ id: 1, etapa: EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN }, 8, false),
     ).toBe(true);
   });
+
+  it('compras trabaja y toma cualquier etapa, aunque la tenga otro y sin código', () => {
+    const enPreparacion: Transferencia = {
+      id: 1,
+      etapa: EtapaTransferencia.PREPARACION_MERCADERIA,
+      usuarioPreparacion: usuario(7) as never,
+    };
+    const enRecepcion: Transferencia = {
+      id: 1,
+      etapa: EtapaTransferencia.RECEPCION_EN_VERIFICACION,
+      usuarioRecepcion: usuario(9) as never,
+    };
+    expect(puedeEditarEtapa(enPreparacion, 8, true)).toBe(true);
+    expect(puedeEditarEtapa(enRecepcion, 8, true)).toBe(true);
+    expect(puedeTomarEtapa(enRecepcion, 8, false, true)).toBe(true);
+    // Sin el flag, la regla de siempre.
+    expect(puedeEditarEtapa(enRecepcion, 8)).toBe(false);
+    expect(puedeTomarEtapa(enRecepcion, 8, false)).toBe(false);
+    // Sin sesión no hay excepción que valga.
+    expect(puedeEditarEtapa(enRecepcion, null, true)).toBe(false);
+  });
 });
 
 describe('Cuándo un ítem está revisado', () => {
@@ -441,6 +463,7 @@ describe('El botón de avance, en la pantalla', () => {
     items: TransferenciaItem[],
     usuarioId: number | null,
     qr?: string,
+    roles: string[] = [],
   ) => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -455,7 +478,10 @@ describe('El botón de avance, en la pantalla', () => {
         },
         {
           provide: AuthService,
-          useValue: { usuario: () => (usuarioId == null ? null : usuario(usuarioId)) },
+          useValue: {
+            usuario: () => (usuarioId == null ? null : usuario(usuarioId)),
+            roles: () => roles,
+          },
         },
       ],
     });
@@ -567,6 +593,45 @@ describe('El botón de avance, en la pantalla', () => {
     });
   });
 
+  describe('con el rol de compras', () => {
+    const compras = ['VER STOCK COMPRAS'];
+
+    it('concluye la etapa ajena y edita sus ítems', () => {
+      const pagina = montar(
+        { etapa: EtapaTransferencia.PREPARACION_MERCADERIA, usuarioPreparacion: usuario(7) as never },
+        [{ id: 1, cantidadPreparacion: 8 }],
+        8,
+        undefined,
+        compras,
+      );
+      expect(pagina.accionHabilitada()).toBe(true);
+      expect(pagina.editable()).toBe(true);
+    });
+
+    it('toma una etapa a nombre de otro sin su código', () => {
+      const pagina = montar(
+        { etapa: EtapaTransferencia.TRANSPORTE_EN_CAMINO, usuarioTransporte: usuario(7) as never },
+        [{ id: 1 }],
+        8,
+        undefined,
+        compras,
+      );
+      expect(pagina.accionHabilitada()).toBe(true);
+    });
+
+    it('igual tiene que revisar todos los ítems antes de concluir', () => {
+      const pagina = montar(
+        { etapa: EtapaTransferencia.RECEPCION_EN_VERIFICACION, usuarioRecepcion: usuario(7) as never },
+        [{ id: 1, cantidadRecepcion: 8 }, { id: 2 }],
+        8,
+        undefined,
+        compras,
+      );
+      expect(pagina.accionHabilitada()).toBe(false);
+      expect(pagina.motivoDeBloqueo()).toContain('1 producto');
+    });
+  });
+
   it('en una etapa sin verificación no se muestran acciones por ítem', () => {
     const pagina = montar({ etapa: EtapaTransferencia.TRANSPORTE_EN_CAMINO }, [{ id: 1 }], 8);
     expect(pagina.verificando()).toBe(false);
@@ -595,5 +660,149 @@ describe('El botón de avance, en la pantalla', () => {
         motivoRechazoPreparacion: MotivoRechazo.PRODUCTO_VENCIDO,
       }),
     ).toBe('rechazado');
+  });
+});
+
+describe('Si falla guardar la verificación después de desconfirmar (#94)', () => {
+  // Confirmar un ítem rechazado son dos mutations: la primera ya vació la
+  // etapa en el central cuando la segunda falla.
+  const rechazado: TransferenciaItem = {
+    id: 1,
+    cantidadPreparacion: 0,
+    motivoRechazoPreparacion: MotivoRechazo.FALTA_PRODUCTO,
+  };
+
+  const montar = (recarga: Observable<TransferenciaItem[]>) => {
+    const items = vi
+      .fn<() => Observable<TransferenciaItem[]>>()
+      .mockReturnValueOnce(of([rechazado]))
+      .mockReturnValueOnce(recarga);
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [APOLLO_DE_PRUEBA],
+      providers: [
+        {
+          provide: TransferenciaService,
+          useValue: {
+            porId: vi.fn(() =>
+              of({
+                id: 1,
+                etapa: EtapaTransferencia.PREPARACION_MERCADERIA,
+                usuarioPreparacion: usuario(7),
+              }),
+            ),
+            items,
+            desconfirmarItem: vi.fn(() => of(true)),
+            guardarItem: vi.fn(() => throwError(() => new Error('lock de lotes'))),
+          },
+        },
+        { provide: AuthService, useValue: { usuario: () => usuario(7), roles: () => [] } },
+      ],
+    });
+    const f = TestBed.createComponent(TransferenciaDetallePage);
+    f.componentRef.setInput('id', '1');
+    f.detectChanges();
+    return { pagina: f.componentInstance, items };
+  };
+
+  it('recarga los ítems: el que quedó sin verificar vuelve a estar pendiente', async () => {
+    const { pagina, items } = montar(of([{ id: 1 }]));
+    expect(pagina.accionHabilitada()).toBe(true);
+
+    pagina.confirmar(rechazado);
+
+    await vi.waitFor(() => expect(items).toHaveBeenCalledTimes(2));
+    expect(pagina.pendientes().length).toBe(1);
+    expect(pagina.accionHabilitada()).toBe(false);
+  });
+
+  it('si la recarga también falla, no deja concluir y dice por qué', async () => {
+    const { pagina, items } = montar(throwError(() => new Error('sin red')));
+
+    pagina.confirmar(rechazado);
+
+    await vi.waitFor(() => expect(items).toHaveBeenCalledTimes(2));
+    expect(pagina.accionHabilitada()).toBe(false);
+    expect(pagina.motivoDeBloqueo()).toContain('No se pudieron cargar los productos');
+  });
+});
+
+describe('Recargas de ítems que se cruzan (#98)', () => {
+  const montar = (...respuestas: Observable<TransferenciaItem[]>[]) => {
+    const items = vi.fn<() => Observable<TransferenciaItem[]>>();
+    // La primera la pide `cargar()` al montar.
+    items.mockReturnValueOnce(of([]));
+    for (const r of respuestas) {
+      items.mockReturnValueOnce(r);
+    }
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [APOLLO_DE_PRUEBA],
+      providers: [
+        {
+          provide: TransferenciaService,
+          useValue: {
+            porId: vi.fn(() =>
+              of({
+                id: 1,
+                etapa: EtapaTransferencia.PREPARACION_MERCADERIA,
+                usuarioPreparacion: usuario(7),
+              }),
+            ),
+            items,
+          },
+        },
+        { provide: AuthService, useValue: { usuario: () => usuario(7), roles: () => [] } },
+      ],
+    });
+    const f = TestBed.createComponent(TransferenciaDetallePage);
+    f.componentRef.setInput('id', '1');
+    f.detectChanges();
+    return f.componentInstance;
+  };
+
+  it('gana la última pedida, aunque la anterior responda después', () => {
+    const vieja = new Subject<TransferenciaItem[]>();
+    const nueva = new Subject<TransferenciaItem[]>();
+    const pagina = montar(vieja, nueva);
+
+    pagina.cargarItems();
+    pagina.cargarItems();
+    nueva.next([{ id: 1, cantidadPreparacion: 8 }]);
+    vieja.next([{ id: 1 }]);
+
+    expect(pagina.items()).toEqual([{ id: 1, cantidadPreparacion: 8 }]);
+    expect(pagina.pendientes().length).toBe(0);
+  });
+
+  it('un error de la anterior que llega tarde no bloquea el botón', () => {
+    const vieja = new Subject<TransferenciaItem[]>();
+    const nueva = new Subject<TransferenciaItem[]>();
+    const pagina = montar(vieja, nueva);
+
+    pagina.cargarItems();
+    pagina.cargarItems();
+    nueva.next([{ id: 1, cantidadPreparacion: 8 }]);
+    vieja.error(new Error('sin red'));
+
+    expect(pagina.itemsSinCargar()).toBe(false);
+    expect(pagina.accionHabilitada()).toBe(true);
+  });
+
+  it('la consulta de ítems no se deduplica con otra igual en vuelo', () => {
+    // Con deduplicación, la recarga posterior a un guardado recibiría la
+    // respuesta de una anterior que seguía en vuelo.
+    const consultar = vi.fn(() => of({ getContent: [] }));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [APOLLO_DE_PRUEBA],
+      providers: [TransferenciaService, { provide: DatosService, useValue: { consultar } }],
+    });
+
+    TestBed.inject(TransferenciaService).items(1).subscribe();
+
+    expect(consultar).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      gql: { context: { queryDeduplication: false } },
+    });
   });
 });

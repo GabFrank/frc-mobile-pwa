@@ -29,6 +29,8 @@ import { Query } from 'src/app/core/graphql/gql-base';
 
 Los defaults de toda operación son `fetchPolicy: 'no-cache'` y `errorPolicy: 'all'`. Una pantalla puede pedir otra política por operación.
 
+⚠️ **`no-cache` no evita la deduplicación.** Apollo deduplica por defecto: una consulta con el mismo documento y las mismas variables que otra **en vuelo** recibe la respuesta de esa, aunque se haya pedido después de un guardado. Y cortar la suscripción no cancela nada: `apollo-angular` envuelve `client.query()` en una Promise. Una recarga que se repite con las mismas variables tras cada acción pide `{ gql: { context: { queryDeduplication: false } } }` (`GqlOptions.context`), como `TransferenciaService.items()` (issue #98).
+
 > **Por qué sin caché:** el backend es la fuente de verdad de saldos, stock y estados. Mostrar un dato viejo en una pantalla de arqueo o de existencias tiene consecuencias operativas. Si algún día un catálogo estable justifica cachear, se pide explícitamente en esa operación.
 
 ## La convención `data:` — sigue vigente
@@ -89,6 +91,17 @@ El repo anterior mezclaba ambos estilos —157 usaban el envoltorio y unas 40 el
 | `porFecha` sin fechas daba un rango desde 1970 | Calcula el día anterior correctamente |
 | `onDelete` abría el diálogo de confirmación | La confirmación es de la pantalla, vía `DialogoService` |
 | El toast de éxito salía siempre | Solo si el backend devolvió algo afirmativo |
+
+### El mensaje de un rechazo
+
+graphql-java antepone `Exception while fetching data (<ruta>) : ` a toda
+excepción de un resolver que no sea un `GraphQLError`. `DatosService` lo saca
+antes de armar el `ErrorDatos`, así el aviso muestra solo lo que escribió el
+backend. Apollo 4 trae todos los errores juntos en un `CombinedGraphQLErrors`
+(con los mensajes unidos por salto de línea): se separan, se limpia cada uno y
+se unen con ` · `. Si al limpiar no queda texto (una excepción sin mensaje deja
+`… : null`), se muestra el original. La **causa** del `ErrorDatos` es el error
+tal como llegó.
 
 > **Sobre el borrado:** mezclar confirmación y transporte hacía imposible eliminar sin preguntar. Ahora la pantalla confirma y después llama a `eliminar`.
 

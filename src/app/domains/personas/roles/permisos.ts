@@ -87,6 +87,14 @@ export const PERMISOS = {
   transferenciasAlta: [ROLES.ADMIN, ROLES.CREAR_TRANSFERENCIA],
 
   /**
+   * Avanzar cualquier etapa de una transferencia, aunque la haya tomado otro
+   * y sin el QR del responsable. Es la excepción de compras, igual que en el
+   * escritorio (`edit-transferencia.component.ts`, `esCompras`). No es un
+   * guard de ruta: lo usa `transferencia-detalle.page.ts`.
+   */
+  transferenciaTodasLasEtapas: [ROLES.ADMIN, ROLES.VER_STOCK_COMPRAS],
+
+  /**
    * ⚠️ **Solo 2 usuarios tienen RECIBIR PEDIDOS**, más los 28 ADMIN.
    *
    * Es el rol correcto para recibir mercadería, pero está muy poco repartido.

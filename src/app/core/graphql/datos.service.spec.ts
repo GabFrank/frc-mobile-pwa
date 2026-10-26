@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -77,6 +78,61 @@ describe('DatosService', () => {
       expect((error as ErrorDatos).causa).toBe(original);
       expect(notificacion.danger).toHaveBeenCalledTimes(1);
       expect(notificacion.danger).toHaveBeenCalledWith(original.message);
+    });
+  });
+
+  describe('rechazos sin el prefijo de graphql-java', () => {
+    /** La forma real: Apollo 4 junta los errores en un `CombinedGraphQLErrors`. */
+    const rechazo = async (...mensajes: (string | null)[]) => {
+      const combinado = new CombinedGraphQLErrors({
+        data: null,
+        errors: mensajes.map((message) => ({ message })) as never,
+      });
+      const query = {
+        document: {} as never,
+        fetch: vi.fn(() => of({ data: null, errors: [combinado], loading: false })),
+      } as unknown as Query<{ data?: unknown }>;
+      const error = await new Promise<ErrorDatos>((resolve) => {
+        datos.consultar(query, undefined, { mostrarCarga: false }).subscribe({ error: resolve });
+      });
+      return { error, combinado };
+    };
+
+    it('muestra solo el texto de negocio', async () => {
+      const { error, combinado } = await rechazo(
+        'Exception while fetching data (/data) : La transferencia 58012 ya esta en etapa X',
+      );
+
+      expect(error.message).toBe('La transferencia 58012 ya esta en etapa X');
+      expect(notificacion.danger).toHaveBeenCalledWith('La transferencia 58012 ya esta en etapa X');
+      // La causa sigue siendo lo que mandó el servidor.
+      expect(error.causa).toBe(combinado);
+    });
+
+    it('limpia cada error, no solo el primero', async () => {
+      const { error } = await rechazo(
+        'Exception while fetching data (/data) : Primero',
+        'Exception while fetching data (/otro[0]) : Segundo',
+      );
+
+      expect(error.message).toBe('Primero · Segundo');
+    });
+
+    it('una excepción sin mensaje no deja «null»', async () => {
+      const { error } = await rechazo('Exception while fetching data (/data) : null', null);
+
+      expect(error.message).toBe(
+        'Exception while fetching data (/data) : null · Ocurrió un error inesperado.',
+      );
+    });
+
+    it('no toca un mensaje sin el prefijo, ni el prefijo en el medio', async () => {
+      const { error } = await rechazo(
+        'campo inválido',
+        'Detalle: Exception while fetching data (/data) : x',
+      );
+
+      expect(error.message).toBe('campo inválido · Detalle: Exception while fetching data (/data) : x');
     });
   });
 

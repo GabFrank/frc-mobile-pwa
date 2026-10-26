@@ -8175,7 +8175,7 @@ verificada» y el contador no cambia.
 1. Escanear la etiqueta de una devolución de **otro** proveedor (o una
    Pendiente), y después el código de barras de un producto
 
-**Esperado:** «DEV-… no está lista para retirar con este proveedor.» y «Ese
+**Esperado:** «DEV-… no está en este retiro: es de otro proveedor, está en otra sucursal o no está separada.» y «Ese
 código no es la etiqueta de una devolución.». No se marca nada.
 
 ### 93.8 · Retiro: confirmar y el comprobante

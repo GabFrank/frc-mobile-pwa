@@ -306,6 +306,9 @@ export class DevolucionRetiroPage {
   );
   readonly textoRetirar = computed(() => {
     const n = this.verificadas().size;
+    if (n === 0) {
+      return 'Escaneá al menos una devolución';
+    }
     return n === 1 ? 'Retirar 1 devolución' : `Retirar ${n} devoluciones`;
   });
 
@@ -476,9 +479,14 @@ export class DevolucionRetiroPage {
     const ok = await this.dialogo.confirmar({
       titulo: 'Retirar devoluciones',
       mensaje:
-        `Se entregan ${ids.length} ${ids.length === 1 ? 'devolución' : 'devoluciones'} ` +
-        `a ${nombreProveedor(this.proveedor()!)} y pasan a Retirado.` +
-        (faltan > 0 ? ` ${faltan} sin verificar quedan para otro retiro.` : ''),
+        (ids.length === 1
+          ? `Se entrega 1 devolución a ${nombreProveedor(this.proveedor()!)} y pasa a Retirado.`
+          : `Se entregan ${ids.length} devoluciones a ${nombreProveedor(this.proveedor()!)} y pasan a Retirado.`) +
+        (faltan === 1
+          ? ' 1 sin verificar queda para otro retiro.'
+          : faltan > 1
+            ? ` ${faltan} sin verificar quedan para otro retiro.`
+            : ''),
       confirmar: 'Retirar',
     });
     if (!ok) {

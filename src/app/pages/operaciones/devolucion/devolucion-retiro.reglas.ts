@@ -63,7 +63,9 @@ export function verificarEscaneo(
   if (!devolucion) {
     return {
       clase: 'ajena',
-      mensaje: `${identificador} no está lista para retirar con este proveedor.`,
+      // Puede ser de otro proveedor, estar en otra sucursal que la elegida,
+      // o no estar separada todavía: la lista solo trae lo que se puede retirar.
+      mensaje: `${identificador} no está en este retiro: es de otro proveedor, está en otra sucursal o no está separada.`,
     };
   }
   return verificadas.has(devolucion.devolucionId)

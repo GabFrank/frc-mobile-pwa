@@ -69,7 +69,7 @@ describe('verificarEscaneo', () => {
     const r = verificarEscaneo(lista, new Set(), 'DEV-1-99');
     expect(r).toEqual({
       clase: 'ajena',
-      mensaje: 'DEV-1-99 no está lista para retirar con este proveedor.',
+      mensaje: 'DEV-1-99 no está en este retiro: es de otro proveedor, está en otra sucursal o no está separada.',
     });
   });
 

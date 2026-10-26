@@ -20,6 +20,7 @@ import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
+import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
@@ -49,6 +50,7 @@ import { DevolucionService } from './devolucion.service';
     EstadoChipComponent,
     SkeletonComponent,
     EstadoErrorComponent,
+    EstadoVacioComponent,
     MatButtonModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -119,6 +121,16 @@ import { DevolucionService } from './devolucion.service';
             </frc-card>
           }
         </frc-seccion>
+      } @else {
+        <!--
+          El central contesta null si el id no existe. Se llega así escaneando
+          una etiqueta de otra base o escribiendo mal el identificador.
+        -->
+        <frc-estado-vacio
+          titulo="No existe esa devolución"
+          detalle="Revisá el identificador de la etiqueta."
+          icono="tirar"
+        />
       }
     </frc-pagina>
   `,

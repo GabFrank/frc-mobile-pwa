@@ -139,7 +139,7 @@ describe('Devoluciones · retiro a proveedor', () => {
     await f.componentInstance.escanear();
 
     expect(notificacion['warn']).toHaveBeenCalledWith(
-      'DEV-1-99 no está lista para retirar con este proveedor.',
+      'DEV-1-99 no está en este retiro: es de otro proveedor, está en otra sucursal o no está separada.',
     );
   });
 

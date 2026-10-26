@@ -1,6 +1,7 @@
 import type {
   AvisoFactura,
   RenglonFactura,
+  SugerenciaProducto,
 } from 'src/app/domains/compras/compras.model';
 import type { TonoEstado } from 'src/app/shared/estado/estado-registry';
 
@@ -38,6 +39,24 @@ export function aId(valor: unknown): number | null {
   }
   const numero = Number(texto);
   return Number.isFinite(numero) && numero > 0 ? numero : null;
+}
+
+/**
+ * La sugerencia que el central marcó como preseleccionada (lo aprendido por la
+ * descripción, sin ambigüedad). Si por algún motivo viniera más de una, no se
+ * preselecciona ninguna: se muestran todas como sugerencias comunes.
+ */
+export function sugerenciaPreseleccionada(
+  r: Pick<RenglonFactura, 'sugerencias'>,
+): SugerenciaProducto | null {
+  const marcadas = (r.sugerencias ?? []).filter((s) => s.preseleccionada === true);
+  return marcadas.length === 1 ? marcadas[0] : null;
+}
+
+/** Las sugerencias que no son la preseleccionada, para la lista «¿Es alguno de estos?». */
+export function otrasSugerencias(r: Pick<RenglonFactura, 'sugerencias'>): SugerenciaProducto[] {
+  const elegida = sugerenciaPreseleccionada(r);
+  return (r.sugerencias ?? []).filter((s) => s !== elegida);
 }
 
 export function tonoRenglon(estado: string | null | undefined): TonoEstado {

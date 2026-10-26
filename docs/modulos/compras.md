@@ -71,6 +71,18 @@ proveedor en la mano:
   `productos.proveedor_codigo_producto` (proveedor + código del proveedor →
   presentación + factor). Al confirmar, el central también aprende los que
   reconoció por código de barras.
+- **La descripción se aprende siempre**, con o sin código (desde `V257.3`):
+  si el renglón trae código, la llave es el código y la descripción
+  normalizada se guarda al lado; si no trae, la llave es la descripción. Así lo
+  aprendido de una factura electrónica sirve para la de papel, y al revés.
+- **Por descripción solo se sugiere, nunca se asigna solo.** Si un renglón no
+  se reconoce por código y su descripción ya se vinculó con ese proveedor a
+  **una sola** presentación y bulto, el central la manda como sugerencia
+  `preseleccionada` y la pantalla muestra «Reconocido por la descripción, falta
+  confirmarlo» con «Confirmar» (vincula con ese bulto y lo recuerda) y «Elegir
+  otro». Si la descripción apunta a varias, van todas como sugerencias comunes,
+  sin preseleccionar. Se compara igual a igual (mayúsculas, sin tildes, solo
+  letras y números), nunca por parecido.
 - **Bloquea:** factura de otro proveedor, a nombre de otro RUC, ya cargada,
   cancelada en SIFEN, en una moneda que no existe, o el mismo número ya
   cargado en ese pedido.

@@ -9,6 +9,8 @@ import {
   esKude,
   MAX_FOTOS_FACTURA,
   numeroFacturaCompleto,
+  partirNumeroFactura,
+  textoNumeroFactura,
   OPCIONES_FOTO_FACTURA,
   otrasSugerencias,
   sugerenciaPreseleccionada,
@@ -209,6 +211,27 @@ describe('factura en papel', () => {
     expect(numeroFacturaCompleto('1', '1', '123456789')).toBeNull();
     expect(numeroFacturaCompleto('', '1', '1')).toBeNull();
     expect(numeroFacturaCompleto('1', 'ab', '1')).toBeNull();
+  });
+
+  it('parte el número como está impreso', () => {
+    const esperado = { establecimiento: '001', puntoExpedicion: '003', numero: '0001234' };
+    expect(partirNumeroFactura('001-003-0001234')).toEqual(esperado);
+    expect(partirNumeroFactura(' 1 - 3 - 1234 ')).toEqual(esperado);
+    expect(partirNumeroFactura('0010030001234')).toEqual(esperado);
+  });
+
+  it('no parte un número incompleto o con letras', () => {
+    expect(partirNumeroFactura('')).toBeNull();
+    expect(partirNumeroFactura('0001234')).toBeNull();
+    expect(partirNumeroFactura('001--0001234')).toBeNull();
+    expect(partirNumeroFactura('001-003-12345678')).toBeNull();
+    expect(partirNumeroFactura('001-0a3-0001234')).toBeNull();
+  });
+
+  it('muestra lo que leyó la IA aunque falte un tramo', () => {
+    expect(textoNumeroFactura('1', '3', '1234')).toBe('001-003-0001234');
+    expect(textoNumeroFactura('001', null, '0001234')).toBe('001--0001234');
+    expect(textoNumeroFactura(null, null, null)).toBe('');
   });
 
   it('limita las fotos y define la calidad de la foto de factura', () => {

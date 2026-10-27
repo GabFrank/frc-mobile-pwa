@@ -259,3 +259,46 @@ export function numeroFacturaCompleto(
   const num = tramo(numero, 7);
   return est && pto && num ? `${est}-${pto}-${num}` : null;
 }
+
+/** Número de factura partido en sus tres tramos, con ceros a la izquierda. */
+export interface TramosNumeroFactura {
+  establecimiento: string;
+  puntoExpedicion: string;
+  numero: string;
+}
+
+/**
+ * Parte el número tal como está impreso: `001-003-0001234` (también con espacios o tramos sin ceros,
+ * `1-3-1234`) o los 13 dígitos seguidos. Devuelve `null` si no tiene esa forma.
+ */
+export function partirNumeroFactura(texto: string | null | undefined): TramosNumeroFactura | null {
+  const t = (texto ?? '').replace(/\s+/g, '');
+  const conGuiones = /^(\d{1,3})-(\d{1,3})-(\d{1,7})$/.exec(t);
+  const seguido = /^(\d{3})(\d{3})(\d{7})$/.exec(t);
+  const m = conGuiones ?? seguido;
+  if (!m) {
+    return null;
+  }
+  return {
+    establecimiento: m[1].padStart(3, '0'),
+    puntoExpedicion: m[2].padStart(3, '0'),
+    numero: m[3].padStart(7, '0'),
+  };
+}
+
+/**
+ * Texto para el campo "Número de factura" a partir de lo que leyó la IA. Si falta algún tramo
+ * se muestra igual lo leído (`001--0001234`), para que se complete a mano.
+ */
+export function textoNumeroFactura(
+  establecimiento: string | null | undefined,
+  puntoExpedicion: string | null | undefined,
+  numero: string | null | undefined,
+): string {
+  const completo = numeroFacturaCompleto(establecimiento, puntoExpedicion, numero);
+  if (completo) {
+    return completo;
+  }
+  const tramos = [establecimiento, puntoExpedicion, numero].map((v) => (v ?? '').trim());
+  return tramos.some((v) => v !== '') ? tramos.join('-') : '';
+}

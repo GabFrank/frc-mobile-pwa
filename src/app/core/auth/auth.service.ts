@@ -21,6 +21,7 @@ import {
   leerUsuarioRecordado,
   limpiarSesion,
 } from './auth.tokens';
+import { MonedasSesion } from '../moneda/monedas-sesion';
 
 interface RespuestaLogin {
   token?: string;
@@ -67,6 +68,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly serverConfig = inject(ServerConfigService);
+  private readonly monedas = inject(MonedasSesion);
 
   private readonly _usuario = signal<Usuario | null>(null);
   private readonly _sucursal = signal<Sucursal | null>(null);
@@ -175,6 +177,9 @@ export class AuthService {
     localStorage.removeItem('frc.marcacion.sucursal');
     this._usuario.set(null);
     this._sucursal.set(null);
+    // La moneda de la empresa es del central de esta sesión: al cambiar de
+    // servidor se sale, y la próxima sesión carga la del nuevo.
+    this.monedas.limpiar();
     if (navegar) {
       await this.router.navigate(['/login']);
     }

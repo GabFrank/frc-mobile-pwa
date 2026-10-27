@@ -6,6 +6,7 @@ import { SesionDispositivoService } from './sesion-dispositivo.service';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { DatosService, esFalloDeTransporte } from '../graphql/datos.service';
 import { AuthService } from './auth.service';
+import { MonedaModuloService } from '../moneda/moneda-modulo.service';
 
 /**
  * Carga el `Usuario` completo y lo publica en `AuthService`.
@@ -57,6 +58,7 @@ export class SesionService {
   private readonly auth = inject(AuthService);
   private readonly usuarioLoginGQL = inject(UsuarioLoginGQL);
   private readonly sesionDispositivo = inject(SesionDispositivoService);
+  private readonly monedas = inject(MonedaModuloService);
 
   /**
    * Trae el usuario y lo publica. Devuelve `true` si lo logró.
@@ -84,6 +86,9 @@ export class SesionService {
       // Sin await: el registro del dispositivo no puede demorar la entrada, y
       // si falla no cambia nada de lo que la persona puede hacer.
       void this.sesionDispositivo.registrar(usuario);
+      // Tampoco la moneda de la empresa: mientras no llega, los importes se
+      // formatean como antes, y contra un central viejo cae a la lista.
+      void this.monedas.cargar();
       return true;
     } catch (error) {
       this.ultimoFalloFueDeRed.set(esFalloDeTransporte(error));

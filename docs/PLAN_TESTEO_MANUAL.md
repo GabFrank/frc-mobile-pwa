@@ -8251,6 +8251,107 @@ estaba vinculada a «…», que está inactivo. Elegí el producto.»
 **Esperado:** los vínculos de esa factura tienen código **y**
 `descripcion_normalizada` (mayúsculas, sin tildes ni signos).
 
+## Bloque 95 — Moneda por módulo: base común *(nuevo, sin probar)*
+
+La app aprende **qué moneda usa la empresa** al entrar, y los importes que no
+dicen su moneda se formatean con ella en vez de con dos decimales fijos. Sin
+configuración en el central todo resuelve a la moneda de la empresa —hoy el
+guaraní en las dos empresas—, así que **la app tiene que verse igual que
+antes**, salvo el «,00» que sobraba en guaraníes.
+
+Qué cambia por dentro: al cargar la sesión se pregunta `monedaEmpresa` (nueva,
+solo en un central con la configuración de moneda por módulo) y la lista de
+`monedas` (que ahora pide además `principal` y `decimales`, presentes desde
+`v4.8.0-beta.5` / `v4.12.0`). Contra un central viejo `monedaEmpresa` falla y
+se usa la principal de la lista o, si no hay, el guaraní. `frc-importe`, el pipe
+`importe` y `frc-campo-importe` usan esa moneda cuando no reciben una. Ninguna
+pantalla consulta todavía `monedaDeModulo`: eso llega en las entregas
+siguientes.
+
+Preparación: el DevTools abierto en **Network** (filtro `graphql`) y
+**Console**. Probá contra el central de hoy (alpha, farmacia o bodega) y, si lo
+tenés, contra un central local con la rama de moneda por módulo.
+
+### 95.1 · Compras: el total del pedido sin «,00» *(el que importa)*
+1. Entrar y abrir **Compras**
+2. Mirar el total de cada pedido de la lista
+
+**Esperado:** los pedidos en guaraníes muestran el total **sin decimales**
+(`Gs. 8.812.800`, no `Gs. 8.812.800,00`). Los pedidos en dólares, si hay,
+siguen con dos decimales.
+
+### 95.2 · El resto de compras
+1. Abrir un pedido (compra-pedido): totales y valor de cada nota
+2. Abrir una factura escaneando un KuDE (factura-proveedor) y su PDF
+3. Si podés, «Factura desde QR»
+
+**Esperado:** todo importe en guaraníes sin «,00». Una factura en **dólares**
+conserva los centavos (el símbolo `US$` la identifica en el catálogo de
+monedas): no se redondea a la moneda de la empresa.
+
+### 95.3 · Las pantallas que ya pasaban «Guaraní» no cambian
+1. Detalle de una caja, Mis finanzas, edición de precios, rendición de caja
+   chica y kiosco
+
+**Esperado:** exactamente igual que antes: guaraníes sin decimales, otras
+monedas con dos.
+
+### 95.4 · Contra el central de hoy (sin moneda por módulo)
+1. Cerrar sesión y volver a entrar contra alpha, farmacia o bodega
+2. Mirar Network y Console
+
+**Esperado:** salen consultas más al entrar: `monedaEmpresa` (responde con
+error de validación: campo desconocido) y `monedas` con `principal` y
+`decimales`. En Console queda **un** aviso `[moneda] El central no resolvió la
+moneda de la empresa; se usa la lista`. Contra un central anterior a
+`v4.8.0-beta.5` / `v4.12.0` también falla esa `monedas` y sale una tercera, la
+`monedas` de siempre, con un segundo aviso `No se pudo consultar la lista de
+monedas`. **No aparece ningún aviso rojo en pantalla, el login no se demora**,
+recepción y caja chica siguen listando sus monedas y el 95.1 se cumple igual.
+
+### 95.5 · Contra un central con moneda por módulo
+1. Central local con la rama de moneda por módulo, sin configurar nada
+2. Entrar y mirar Network
+
+**Esperado:** `monedaEmpresa` responde el guaraní con `codigoIso: "PYG"`,
+`principal: true` y `decimales: 0`. Sin avisos en Console. Las pantallas se ven
+igual que en el 95.4.
+
+### 95.6 · Recargar en una pantalla con importes
+1. En la lista de Compras, recargar la página (F5)
+
+**Esperado:** los importes terminan sin «,00». Si el central tarda, puede verse
+el «,00» un instante y corregirse solo cuando llega la moneda, **sin tocar
+nada**. Anotá si queda pegado con «,00».
+
+### 95.7 · Cambiar de servidor
+1. Mi cuenta → Servidor → elegir otro y volver a entrar
+
+**Esperado:** se vuelven a pedir `monedaEmpresa` y `monedas` al nuevo servidor;
+los importes salen con la moneda de ese central.
+
+### 95.8 · Un campo de importe sin moneda no pierde los centavos
+1. Caja chica → Nueva solicitud
+2. En un renglón del detalle financiero, **sin elegir moneda todavía**, escribir
+   `1234,56` en Monto y salir del campo
+3. Elegir **dólar** en ese renglón
+
+**Esperado:** después del paso 2 queda `1.234,56`, igual que antes de este
+cambio: un campo de carga sin moneda **no** cae a la de la empresa, porque el
+monto puede escribirse antes de elegirla. Después del paso 3 sigue `1.234,56`.
+
+### 95.9 · Caja chica en dólares sigue con centavos
+1. En el mismo formulario, elegir **dólar** y escribir `10,50`
+
+**Esperado:** queda `10,50` al salir del campo.
+
+**Qué quedó sin verificar:** nada de este bloque se probó a mano ni contra un
+central real; solo los tests automatizados (`moneda.util`, `MonedasSesion`,
+`MonedaModuloService`, `frc-importe`, el pipe, `frc-campo-importe`). En
+particular: que `monedaEmpresa` responda bien contra el central nuevo (95.5),
+que un central viejo no muestre ningún aviso al usuario (95.4) y que el campo
+de caja chica conserve los centavos si se elige la moneda después (95.8).
+
 ---
 
 ## Resumen para completar
@@ -8351,7 +8452,8 @@ estaba vinculada a «…», que está inactivo. Elegí el producto.»
 | 92 · Compras: cargar la factura en papel con la foto | 7 | | | |
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
-| **Total** | **802** | | | |
+| 95 · Moneda por módulo: base común | 9 | | | |
+| **Total** | **811** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

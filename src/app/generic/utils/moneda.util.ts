@@ -25,25 +25,98 @@ const PATRONES_GUARANI = ['GUARANI', 'GUARANÍ', '₲', 'GS.', 'PYG'];
  * la moneda a algo que no contenga ninguno de estos patrones, los guaraníes
  * pasan a mostrarse con dos decimales sin ningún error visible.
  */
-export function esGuarani(texto: string | null | undefined): boolean {
-  const normalizado = (texto ?? '').toUpperCase();
+export function esGuarani(moneda: MonedaReferencia): boolean {
+  const normalizado = textoDe(moneda).toUpperCase();
   return PATRONES_GUARANI.some((p) => normalizado.includes(p));
 }
 
-export function precisionDe(monedaTexto: string | null | undefined): number {
-  return esGuarani(monedaTexto) ? PRECISION_GUARANI : PRECISION_DECIMAL;
+/**
+ * Lo mínimo de una moneda que hace falta para formatear un importe.
+ *
+ * Es estructural a propósito: un `Moneda` del dominio, una fila de una query
+ * que pidió solo algunos campos o un literal en un test sirven igual.
+ */
+export interface MonedaFormato {
+  decimales?: number | null;
+  denominacion?: string | null;
+  codigoIso?: string | null;
+  simbolo?: string | null;
+}
+
+/**
+ * Cómo se le dice a este archivo de qué moneda es un importe: por el texto
+ * de siempre —denominación o símbolo— o por la moneda misma.
+ */
+export type MonedaReferencia = string | MonedaFormato | null | undefined;
+
+/** El texto con el que se reconoce una moneda cuando no dice sus decimales. */
+function textoDe(moneda: MonedaReferencia): string {
+  if (moneda == null) {
+    return '';
+  }
+  if (typeof moneda === 'string') {
+    return moneda;
+  }
+  return [moneda.codigoIso, moneda.denominacion, moneda.simbolo]
+    .filter((t): t is string => typeof t === 'string')
+    .join(' ');
+}
+
+/** Tope de `Intl.NumberFormat` para `maximumFractionDigits` que soportan todos los motores. */
+const DECIMALES_MAXIMOS = 20;
+
+/**
+ * Decimales con los que se muestra y redondea un importe.
+ *
+ * Con una moneda que trae `decimales` —el dato del central—, manda ese dato.
+ * Sin él, o con un texto, se decide como siempre: guaraní sin decimales y el
+ * resto con dos.
+ *
+ * ⚠️ Antes de `V207.5` del central `decimales` valía `0` en **todas** las
+ * monedas, también en el dólar. No hace falta defenderse de eso: el campo
+ * entró al schema en el mismo merge que esa migración, así que un central que
+ * lo expone ya tiene el dato corregido.
+ */
+export function precisionDe(moneda: MonedaReferencia): number {
+  if (moneda != null && typeof moneda === 'object') {
+    const d = moneda.decimales;
+    if (typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= DECIMALES_MAXIMOS) {
+      return d;
+    }
+  }
+  return esGuarani(moneda) ? PRECISION_GUARANI : PRECISION_DECIMAL;
+}
+
+/**
+ * Un formateador por precisión, reusado.
+ *
+ * Construir un `Intl.NumberFormat` cuesta mucho más que usarlo, y el pipe de
+ * importes se reevalúa en cada detección de cambios de su vista.
+ */
+const formateadores = new Map<number, Intl.NumberFormat>();
+
+function formateadorDe(precision: number): Intl.NumberFormat {
+  let f = formateadores.get(precision);
+  if (!f) {
+    f = new Intl.NumberFormat(LOCALE, {
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+    });
+    formateadores.set(precision, f);
+  }
+  return f;
 }
 
 /**
  * Formatea un importe según la moneda.
  *
  * @param valor   Importe. `null`/`undefined` devuelven cadena vacía.
- * @param moneda  Texto o símbolo de la moneda; define la precisión.
+ * @param moneda  Texto o símbolo de la moneda, o la moneda misma; define la precisión.
  * @param simbolo Símbolo a anteponer. Si se omite, no se antepone nada.
  */
 export function formatearImporte(
   valor: number | null | undefined,
-  moneda?: string | null,
+  moneda?: MonedaReferencia,
   simbolo?: string | null,
 ): string {
   if (valor == null || !Number.isFinite(valor)) {
@@ -54,10 +127,7 @@ export function formatearImporte(
   // donde el rojo del negativo llama la atención, un resultado balanceado no
   // debe verse como faltante.
   const normalizado = Object.is(valor, -0) ? 0 : valor;
-  const numero = new Intl.NumberFormat(LOCALE, {
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
-  }).format(normalizado);
+  const numero = formateadorDe(precision).format(normalizado);
 
   return simbolo ? `${simbolo} ${numero}` : numero;
 }
@@ -115,7 +185,7 @@ export function parsearImporte(texto: string | null | undefined): number | null 
  */
 export function redondearAMoneda(
   valor: number,
-  moneda?: string | null,
+  moneda?: MonedaReferencia,
 ): number {
   const precision = precisionDe(moneda);
   const factor = 10 ** precision;

@@ -41,6 +41,36 @@ describe('moneda.util', () => {
       // Sin moneda se asume decimal: es el caso conservador.
       expect(precisionDe(null)).toBe(PRECISION_DECIMAL);
     });
+
+    it('con una moneda que trae decimales, manda ese dato', () => {
+      expect(precisionDe({ decimales: 0, denominacion: 'Dólar' })).toBe(0);
+      expect(precisionDe({ decimales: 3, denominacion: 'Guaraní' })).toBe(3);
+      expect(precisionDe({ decimales: 2, codigoIso: 'PYG' })).toBe(2);
+    });
+
+    it('sin decimales válidos, decide por el texto de la moneda', () => {
+      expect(precisionDe({ denominacion: 'Guaraní' })).toBe(PRECISION_GUARANI);
+      expect(precisionDe({ decimales: null, codigoIso: 'PYG' })).toBe(PRECISION_GUARANI);
+      expect(precisionDe({ simbolo: '₲' })).toBe(PRECISION_GUARANI);
+      expect(precisionDe({ decimales: null, denominacion: 'Real' })).toBe(PRECISION_DECIMAL);
+      expect(precisionDe({})).toBe(PRECISION_DECIMAL);
+    });
+
+    it('descarta decimales que no son un entero razonable', () => {
+      expect(precisionDe({ decimales: -1, denominacion: 'Guaraní' })).toBe(PRECISION_GUARANI);
+      expect(precisionDe({ decimales: 1.5, denominacion: 'Dólar' })).toBe(PRECISION_DECIMAL);
+      expect(precisionDe({ decimales: 99, denominacion: 'Dólar' })).toBe(PRECISION_DECIMAL);
+      expect(precisionDe({ decimales: Number.NaN, codigoIso: 'PYG' })).toBe(PRECISION_GUARANI);
+    });
+  });
+
+  describe('esGuarani con una moneda', () => {
+    it('reconoce el guaraní por código ISO, denominación o símbolo', () => {
+      expect(esGuarani({ codigoIso: 'PYG' })).toBe(true);
+      expect(esGuarani({ denominacion: 'GUARANI' })).toBe(true);
+      expect(esGuarani({ simbolo: 'Gs.' })).toBe(true);
+      expect(esGuarani({ codigoIso: 'USD', denominacion: 'Dólar', simbolo: 'US$' })).toBe(false);
+    });
   });
 
   describe('formatearImporte', () => {
@@ -52,6 +82,12 @@ describe('moneda.util', () => {
     it('formatea otras monedas con dos decimales', () => {
       expect(formatearImporte(1284.5, 'Dólar')).toBe('1.284,50');
       expect(formatearImporte(89.9, 'Real')).toBe('89,90');
+    });
+
+    it('acepta la moneda misma y usa sus decimales', () => {
+      expect(formatearImporte(1500000, { decimales: 0, codigoIso: 'PYG' })).toBe('1.500.000');
+      expect(formatearImporte(10.5, { decimales: 2, codigoIso: 'USD' })).toBe('10,50');
+      expect(formatearImporte(1.2345, { decimales: 3, denominacion: 'Otra' })).toBe('1,235');
     });
 
     it('antepone el símbolo cuando se pasa', () => {
@@ -139,6 +175,12 @@ describe('moneda.util', () => {
 
     it('redondea el resto a dos decimales', () => {
       expect(redondearAMoneda(1234.567, 'Dólar')).toBe(1234.57);
+    });
+
+    it('con la moneda misma, redondea a sus decimales', () => {
+      expect(redondearAMoneda(1234.56, { decimales: 0, codigoIso: 'PYG' })).toBe(1235);
+      expect(redondearAMoneda(1234.567, { decimales: 2, codigoIso: 'USD' })).toBe(1234.57);
+      expect(redondearAMoneda(1234.56, { denominacion: 'Guaraní' })).toBe(1235);
     });
 
     it('no altera un valor ya redondeado', () => {

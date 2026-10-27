@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from './auth.tokens';
 import { SesionDispositivoService } from './sesion-dispositivo.service';
 import { SesionService } from './sesion.service';
+import { MonedaModuloService } from '../moneda/moneda-modulo.service';
 
 describe('SesionService', () => {
   let sesion: SesionService;
@@ -41,6 +42,8 @@ describe('SesionService', () => {
         // lo que se prueba acá. Se sustituye para que el spec no necesite
         // Apollo por la mutación de `saveInicioSesion`.
         { provide: SesionDispositivoService, useValue: { registrar: vi.fn(() => Promise.resolve()) } },
+        // Lo mismo la moneda de la empresa: tiene sus propios tests.
+        { provide: MonedaModuloService, useValue: { cargar: vi.fn(() => Promise.resolve()) } },
       ],
     });
 
@@ -69,6 +72,19 @@ describe('SesionService', () => {
     it('publica el usuario en AuthService', async () => {
       expect(await sesion.cargarUsuario(42)).toBe(true);
       expect(auth.establecerUsuario).toHaveBeenCalledWith(usuario);
+    });
+
+    it('dispara la carga de la moneda de la empresa sin esperarla', async () => {
+      const monedas = TestBed.inject(MonedaModuloService);
+      (monedas.cargar as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => undefined));
+      expect(await sesion.cargarUsuario(42)).toBe(true);
+      expect(monedas.cargar).toHaveBeenCalledTimes(1);
+    });
+
+    it('no carga la moneda si el usuario no se pudo cargar', async () => {
+      porId.mockReturnValue(throwError(() => new Error('sin red')));
+      await sesion.cargarUsuario(42);
+      expect(TestBed.inject(MonedaModuloService).cargar).not.toHaveBeenCalled();
     });
 
     it('devuelve false si la consulta falla', async () => {

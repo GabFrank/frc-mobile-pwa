@@ -8313,8 +8313,10 @@ recepción y caja chica siguen listando sus monedas y el 95.1 se cumple igual.
 1. Central local con la rama de moneda por módulo, sin configurar nada
 2. Entrar y mirar Network
 
-**Esperado:** `monedaEmpresa` responde el guaraní con `codigoIso: "PYG"`,
-`principal: true` y `decimales: 0`. Sin avisos en Console. Las pantallas se ven
+**Esperado:** `monedaEmpresa` responde el guaraní con `principal: true` y
+`decimales: 0`. `codigoIso` llega **`null`**: `V258.5` agrega la columna vacía y
+el relleno (PYG/USD/BRL/ARS) es `V259.6`, de la entrega 2; trae un valor solo si
+alguien lo cargó a mano en el ABM. Sin avisos en Console. Las pantallas se ven
 igual que en el 95.4.
 
 ### 95.6 · Recargar en una pantalla con importes
@@ -8345,12 +8347,17 @@ monto puede escribirse antes de elegirla. Después del paso 3 sigue `1.234,56`.
 
 **Esperado:** queda `10,50` al salir del campo.
 
-**Qué quedó sin verificar:** nada de este bloque se probó a mano ni contra un
-central real; solo los tests automatizados (`moneda.util`, `MonedasSesion`,
-`MonedaModuloService`, `frc-importe`, el pipe, `frc-campo-importe`). En
-particular: que `monedaEmpresa` responda bien contra el central nuevo (95.5),
-que un central viejo no muestre ningún aviso al usuario (95.4) y que el campo
-de caja chica conserve los centavos si se elige la moneda después (95.8).
+**Probado el 2026-10-28** en Chrome contra dos centrales locales sobre una copia
+de bodega: uno con la rama de moneda por módulo y otro en `develop` (sin ella).
+Pasaron **95.1** (Gs. sin decimales, R$ y US$ con dos, en los dos centrales),
+**95.4** (contra `develop`: `monedaEmpresa` falla con `FieldUndefined`, sale
+**un** aviso `[moneda]` en Console, nada en pantalla), **95.5**, **95.7** (al
+cambiar de servidor se vuelven a pedir las dos consultas al nuevo) y **95.8**
+(`1.234,56` antes y después de elegir dólar).
+
+**Qué quedó sin verificar:** 95.2, 95.3, 95.6 y 95.9; un central anterior a
+`v4.8.0-beta.5` / `v4.12.0` (la tercera consulta de 95.4: `develop` ya tiene
+`principal` y `decimales`), y el teléfono real.
 
 ---
 
@@ -8452,7 +8459,7 @@ de caja chica conserve los centavos si se elige la moneda después (95.8).
 | 92 · Compras: cargar la factura en papel con la foto | 7 | | | |
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
-| 95 · Moneda por módulo: base común | 9 | | | |
+| 95 · Moneda por módulo: base común | 9 | 5 | | |
 | **Total** | **811** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

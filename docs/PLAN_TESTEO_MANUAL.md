@@ -8392,34 +8392,33 @@ cotización mayor que 0. Volver a Guaraní la oculta. Estado: ✅ (2026-10-29; p
 1. Con Guaraní, agregar una nota e iniciar
 
 **Esperado:** la recepción se crea; en Network la mutation sale con la moneda
-guaraní y `cotizacion: 1`. Estado: pendiente.
+guaraní y `cotizacion: 1`. Estado: ✅ (2026-10-29: recepción 68 con la nota 1 en guaraníes, cotización 1).
 
 ### 96.4 · Factura del proveedor en guaraníes
 1. Compras → cargar una factura (KuDE) en guaraníes y abrir su revisión
 
 **Esperado:** «Moneda» dice solo «GUARANI» (sin «· cotización»); los totales
 salen sin decimales; el aviso de confirmar muestra el valor de la nota sin
-decimales. Igual que antes. Estado: pendiente.
+decimales. Igual que antes. Estado: ✅ (2026-10-29, factura de prueba en PYG: «PYG» sin cotización, totales «Gs 290.400»; el aviso de confirmar no se miró en PYG).
 
 ### 96.5 · Con COMPRAS = dólar *(central con la rama de moneda por módulo)*
 1. Configurar COMPRAS = USD y entrar de nuevo
 2. Abrir una recepción nueva
 
 **Esperado:** arranca en **Dólar** y pide cotización (la empresa sigue en
-guaraníes). Elegir una nota con moneda propia la adopta, como antes. Estado:
-pendiente.
+guaraníes). Elegir una nota con moneda propia la adopta, como antes. Estado: ✅ (2026-10-29, contra el central de la rama con la copia de bodega).
 
 ### 96.6 · Factura en dólares y empresa en guaraníes
 1. Abrir la revisión de una factura en dólares
 
 **Esperado:** «Moneda» dice «DOLAR · cotización N»; los totales llevan dos
-decimales y el aviso de confirmar también. Estado: ✅ (2026-10-29, contra el central de la rama con la copia de bodega).
+decimales y el aviso de confirmar también. Estado: ✅ (2026-10-29: «USD · cotización 5.980», totales «US$ 48,56», aviso «por 48,56 US$»).
 
 ### 96.7 · Contra el central de hoy
 1. Contra un central sin `monedaDeModulo`, repetir 96.1 y 96.2
 
 **Esperado:** igual que 96.1 y 96.2; en Console, a lo sumo el aviso `[moneda]`
-ya conocido del 95.4. Estado: pendiente.
+ya conocido del 95.4. Estado: ✅ (2026-10-29, contra `develop` en :8091: arranca en Guaraní y Dólar pide cotización; `monedaEmpresa`/`monedaDeModulo` rechazadas sin efecto visible).
 
 ---
 
@@ -8522,7 +8521,7 @@ ya conocido del 95.4. Estado: pendiente.
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Moneda por módulo: base común | 9 | 5 | | |
-| 96 · Moneda por módulo: recepción y factura de compras | 7 | 3 | | |
+| 96 · Moneda por módulo: recepción y factura de compras | 7 | 7 | | |
 | **Total** | **818** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

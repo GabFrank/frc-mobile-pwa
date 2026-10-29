@@ -20,6 +20,7 @@ import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
+import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
 import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
@@ -31,7 +32,7 @@ import { DevolucionService } from './devolucion.service';
  *
  * ⚠️ **Solo se ofrece «Separar».** El resto de las transiciones —colectar,
  * retirar, canjear, acreditar— las hacen otros actores desde otras pantallas
- * que todavía no están portadas. Ofrecer un botón por cada estado dejaría
+ * (el retiro, desde `devolucion-retiro.page.ts`, escaneando la etiqueta). Ofrecer un botón por cada estado dejaría
  * avanzar el circuito desde el lugar equivocado.
  *
  * ⚠️ **Qué transición es legal lo decide el backend.** Acá solo se muestra el
@@ -49,6 +50,7 @@ import { DevolucionService } from './devolucion.service';
     EstadoChipComponent,
     SkeletonComponent,
     EstadoErrorComponent,
+    EstadoVacioComponent,
     MatButtonModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,6 +60,13 @@ import { DevolucionService } from './devolucion.service';
         <div acciones>
           <button matButton="filled" [disabled]="operando()" (click)="separar()">
             {{ operando() ? 'Separando…' : 'Separar e imprimir etiqueta' }}
+          </button>
+        </div>
+      } @else if (puedeReimprimir()) {
+        <!-- Una etiqueta que se cayó o se rompió se vuelve a imprimir: es la misma, con el mismo QR. -->
+        <div acciones>
+          <button matButton="tonal" [disabled]="imprimiendo()" (click)="reimprimir()">
+            {{ imprimiendo() ? 'Generando…' : 'Imprimir etiqueta' }}
           </button>
         </div>
       }
@@ -112,6 +121,16 @@ import { DevolucionService } from './devolucion.service';
             </frc-card>
           }
         </frc-seccion>
+      } @else {
+        <!--
+          El central contesta null si el id no existe. Se llega así escaneando
+          una etiqueta de otra base o escribiendo mal el identificador.
+        -->
+        <frc-estado-vacio
+          titulo="No existe esa devolución"
+          detalle="Revisá el identificador de la etiqueta."
+          icono="tirar"
+        />
       }
     </frc-pagina>
   `,
@@ -147,12 +166,22 @@ export class DevolucionDetallePage {
   readonly devolucion = signal<Devolucion | null>(null);
   readonly cargando = signal(true);
   readonly operando = signal(false);
+  readonly imprimiendo = signal(false);
   readonly error = signal<string | null>(null);
 
   readonly fecha = computed(() => fechaLegible(this.devolucion()?.fecha) ?? '—');
   readonly puedeSeparar = computed(
     () => this.devolucion()?.estado === EstadoDevolucion.PENDIENTE,
   );
+  /** Ya separada —o más adelante—: tiene etiqueta y se puede reimprimir. */
+  readonly puedeReimprimir = computed(() => {
+    const estado = this.devolucion()?.estado;
+    return (
+      estado != null &&
+      estado !== EstadoDevolucion.PENDIENTE &&
+      estado !== EstadoDevolucion.CANCELADA
+    );
+  });
   readonly ubicacionDistinta = computed(() => {
     const d = this.devolucion();
     const origen = d?.sucursalOrigen?.id;
@@ -222,7 +251,8 @@ export class DevolucionDetallePage {
 
     const ok = await this.dialogo.confirmar({
       titulo: 'Separar devolución',
-      mensaje: 'El producto queda apartado y se imprime su etiqueta.',
+      mensaje:
+        'Los productos quedan apartados y se imprime una sola etiqueta, con un QR que trae todos los productos.',
       confirmar: 'Separar',
     });
     if (!ok) {
@@ -244,15 +274,31 @@ export class DevolucionDetallePage {
     });
   }
 
+  reimprimir(): void {
+    const id = this.devolucion()?.id;
+    if (id != null) {
+      this.imprimirEtiqueta(id);
+    }
+  }
+
+  /**
+   * Una sola etiqueta por devolución: un QR y la lista de productos. Escanear
+   * el QR abre esta misma pantalla.
+   */
   private imprimirEtiqueta(devolucionId: number): void {
-    this.servicio.etiquetas(devolucionId).subscribe({
+    this.imprimiendo.set(true);
+    this.servicio.etiqueta(devolucionId).subscribe({
       next: (base64) => {
+        this.imprimiendo.set(false);
         if (base64) {
-          this.pdf.abrirBase64(base64, `etiquetas-devolucion-${devolucionId}.pdf`);
+          this.pdf.abrirBase64(base64, `etiqueta-devolucion-${devolucionId}.pdf`);
         }
       },
       // La devolución ya avanzó: que falle la etiqueta no invalida el paso.
-      error: () => this.notificacion.warn('No se pudieron obtener las etiquetas.'),
+      error: () => {
+        this.imprimiendo.set(false);
+        this.notificacion.warn('No se pudo obtener la etiqueta.');
+      },
     });
   }
 }

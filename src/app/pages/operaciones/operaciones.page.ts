@@ -68,6 +68,21 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
         icono="tirar"
         (abrir)="ir('/operaciones/devolucion')"
       />
+
+      @if (puedeCompras()) {
+        <frc-card
+          titulo="Compras"
+          subtitulo="Cargar la factura del proveedor al pedido"
+          icono="entrada"
+          (abrir)="ir('/operaciones/compras')"
+        />
+        <frc-card
+          titulo="Factura del proveedor (PDF)"
+          subtitulo="Escanear el KuDE y ver la factura en PDF"
+          icono="documento"
+          (abrir)="ir('/operaciones/compras/factura-pdf')"
+        />
+      }
     </frc-pagina>
   `,
 })
@@ -94,6 +109,10 @@ export class OperacionesPage {
 
   puedeSolicitudPago(): boolean {
     return this.roleService.tieneAlgunRol(this.auth.roles(), PERMISOS.solicitudPago);
+  }
+
+  puedeCompras(): boolean {
+    return this.roleService.tieneAlgunRol(this.auth.roles(), PERMISOS.compras);
   }
 
   ir(ruta: string): void {

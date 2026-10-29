@@ -8422,6 +8422,82 @@ ya conocido del 95.4. Estado: ✅ (2026-10-29, contra `develop` en :8091: arranc
 
 ---
 
+## Bloque 97 — Moneda por módulo: precios y kiosco *(nuevo, sin probar)*
+
+Los precios pasan a poder estar en otra moneda que la de la empresa. La moneda
+de cada precio se lee con una consulta **aparte** (`precioPorSucursalPorPresentacionId`
+con `moneda`) y el kiosco usa `convertirPreciosDesdeMobile` para los precios que
+la tienen. Ninguna consulta compartida pidió campos nuevos: contra un central
+viejo la lectura falla y todo queda como antes. Sin precios en otra moneda
+(bodega) no cambia nada.
+
+Preparación: DevTools en **Network** (filtro `graphql`) y **Console**. Los casos
+97.1 a 97.3 y 97.8 se prueban con la empresa en guaraníes y **sin configurar
+nada**: tienen que dar lo mismo que antes. 97.4 a 97.7 piden un central con la
+rama de precios en moneda y PRECIOS = USD configurado.
+
+### 97.1 · Precios en guaraníes: la pantalla igual que antes *(el que importa)*
+1. Producto → Editar → una presentación → Precios
+
+**Esperado:** los importes salen «₲ 12.000», sin decimales. No aparece el
+selector «Moneda» al agregar un precio si todos los precios son de la empresa y
+el central es viejo. Estado: pendiente.
+
+### 97.2 · Guardar un precio en guaraníes no manda moneda
+1. Editar un precio, cambiar el importe y Guardar; mirar la mutation en Network
+
+**Esperado:** `savePrecioPorSucursal` sale **sin** la clave `monedaId` y responde
+bien. Lo mismo con «Desactivar» y «Marcar principal». Estado: pendiente.
+
+### 97.3 · Kiosco en guaraníes
+1. Entrar al kiosco de precios y escanear un producto
+2. Tocar otra bandera y volver a la del guaraní
+
+**Esperado:** el precio sale en guaraníes y, en otra moneda, el convertido con el
+guaraní abajo, igual que antes. En Network, la conversión usa
+`convertirPreciosMobile` (no `convertirPreciosDesdeMobile`). Estado: pendiente.
+
+### 97.4 · Precio nuevo en dólares *(central con precios en moneda)*
+1. En Precios, «Agregar precio»: elegir tipo, **Moneda = Dólar**, cargar 4,39
+
+**Esperado:** el campo toma el símbolo «US$» y acepta dos decimales; tras Agregar,
+la fila dice «US$ 4,39» y la mutation lleva `monedaId` del dólar. Estado: pendiente.
+
+### 97.5 · La moneda por defecto es la del módulo PRECIOS
+1. Con PRECIOS = USD, abrir «Agregar precio» sin tocar el selector
+
+**Esperado:** «Moneda» arranca en Dólar. Con PRECIOS = guaraní arranca en
+Guaraní. Elegir Guaraní con PRECIOS = USD y agregar: la mutation manda el
+`monedaId` del guaraní (si no, quedaría en dólares). Estado: pendiente.
+
+### 97.6 · Editar un precio en dólares conserva la moneda
+1. Editar el precio del 97.4 (4,39 → 4,50) y Guardar; luego Desactivar y Activar
+
+**Esperado:** sigue en «US$», con dos decimales, y cada mutation lleva el mismo
+`monedaId`. Estado: pendiente.
+
+### 97.7 · Kiosco con un precio en dólares
+1. Escanear el producto del 97.4 en el kiosco
+
+**Esperado:** arranca en «US$ 4,50» (la bandera del dólar activa). Tocar la bandera
+del guaraní: sale el convertido en guaraníes con el dólar abajo como referencia;
+en Network, `convertirPreciosDesdeMobile` con `monedaOrigenId` del dólar. Estado: pendiente.
+
+### 97.8 · Contra el central de hoy
+1. Contra un central sin precios en moneda, repetir 97.1 a 97.3
+
+**Esperado:** igual que antes; en Console, a lo sumo el rechazo de la consulta de
+moneda de precios, sin efecto visible. Estado: pendiente.
+
+### 97.9 · Guardar en otra moneda con un escritorio viejo configurado
+1. Con `cliente.desktop.version_minima` sin configurar, guardar un precio nuevo en dólares
+
+**Esperado:** aparece un aviso claro («No se puede guardar el precio en esa moneda
+todavía…») sin el texto técnico `VERSION_MINIMA:`, y el precio no se crea.
+Estado: pendiente.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8522,7 +8598,8 @@ ya conocido del 95.4. Estado: ✅ (2026-10-29, contra `develop` en :8091: arranc
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Moneda por módulo: base común | 9 | 5 | | |
 | 96 · Moneda por módulo: recepción y factura de compras | 7 | 7 | | |
-| **Total** | **818** | | | |
+| 97 · Moneda por módulo: precios y kiosco | 9 | | | |
+| **Total** | **827** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

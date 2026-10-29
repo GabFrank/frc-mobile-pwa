@@ -8379,14 +8379,14 @@ moneda por módulo.
 2. Mirar la sección «4 · Moneda»
 
 **Esperado:** la moneda elegida es **Guaraní** y **no** aparece el campo
-Cotización. Igual que antes del cambio. Estado: pendiente.
+Cotización. Igual que antes del cambio. Estado: ✅ (2026-10-29, contra el central de la rama con la copia de bodega).
 
 ### 96.2 · Recepción nueva: otra moneda pide cotización
 1. En «Moneda de las notas» elegir **Dólar**
 
 **Esperado:** aparece Cotización con la ayuda «Cuánto vale una unidad de esa
 moneda en guaraníes…»; «Iniciar» queda deshabilitado hasta cargar una
-cotización mayor que 0. Volver a Guaraní la oculta. Estado: pendiente.
+cotización mayor que 0. Volver a Guaraní la oculta. Estado: ✅ (2026-10-29; probado que aparece y que «Iniciar» queda deshabilitado; la vuelta a Guaraní no se probó).
 
 ### 96.3 · Iniciar una recepción en guaraníes
 1. Con Guaraní, agregar una nota e iniciar
@@ -8413,7 +8413,7 @@ pendiente.
 1. Abrir la revisión de una factura en dólares
 
 **Esperado:** «Moneda» dice «DOLAR · cotización N»; los totales llevan dos
-decimales y el aviso de confirmar también. Estado: pendiente.
+decimales y el aviso de confirmar también. Estado: ✅ (2026-10-29, contra el central de la rama con la copia de bodega).
 
 ### 96.7 · Contra el central de hoy
 1. Contra un central sin `monedaDeModulo`, repetir 96.1 y 96.2
@@ -8522,7 +8522,7 @@ ya conocido del 95.4. Estado: pendiente.
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Moneda por módulo: base común | 9 | 5 | | |
-| 96 · Moneda por módulo: recepción y factura de compras | 7 | | | |
+| 96 · Moneda por módulo: recepción y factura de compras | 7 | 3 | | |
 | **Total** | **818** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el

@@ -8425,8 +8425,8 @@ ya conocido del 95.4. Estado: ✅ (2026-10-29, contra `develop` en :8091: arranc
 ## Bloque 97 — Moneda por módulo: precios y kiosco *(nuevo, sin probar)*
 
 Los precios pasan a poder estar en otra moneda que la de la empresa. La moneda
-de cada precio se lee con una consulta **aparte** (`precioPorSucursalPorPresentacionId`
-con `moneda`) y el kiosco usa `convertirPreciosDesdeMobile` para los precios que
+de los precios que no están en la de la empresa se lee con una consulta **aparte**
+(`preciosEnOtraMoneda`, una vez al entrar y otra tras guardar un precio) y el kiosco usa `convertirPreciosDesdeMobile` para los precios que
 la tienen. Ninguna consulta compartida pidió campos nuevos: contra un central
 viejo la lectura falla y todo queda como antes. Sin precios en otra moneda
 (bodega) no cambia nada.
@@ -8479,15 +8479,15 @@ Guaraní. Elegir Guaraní con PRECIOS = USD y agregar: la mutation manda el
 ### 97.7 · Kiosco con un precio en dólares
 1. Escanear el producto del 97.4 en el kiosco
 
-**Esperado:** arranca en «US$ 4,50» (la bandera del dólar activa). Tocar la bandera
+**Esperado:** arranca en «US$ 4,50» (la bandera del dólar activa), **sin pasar antes por un importe en guaraníes**; en Network no hay consulta de moneda por producto. Tocar la bandera
 del guaraní: sale el convertido en guaraníes con el dólar abajo como referencia;
 en Network, `convertirPreciosDesdeMobile` con `monedaOrigenId` del dólar. Estado: pendiente.
 
 ### 97.8 · Contra el central de hoy
 1. Contra un central sin precios en moneda, repetir 97.1 a 97.3
 
-**Esperado:** igual que antes; en Console, a lo sumo el rechazo de la consulta de
-moneda de precios, sin efecto visible. Estado: pendiente.
+**Esperado:** igual que antes; en Console, a lo sumo el rechazo de `preciosEnOtraMoneda`
+(una sola vez, al entrar), sin efecto visible. Estado: pendiente.
 
 ### 97.9 · Guardar en otra moneda con un escritorio viejo configurado
 1. Con `cliente.desktop.version_minima` sin configurar, guardar un precio nuevo en dólares

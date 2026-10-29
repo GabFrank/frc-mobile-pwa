@@ -82,9 +82,9 @@ describe('referenciaDePrecio', () => {
 describe('monedasPorPrecio', () => {
   it('guarda solo los precios con moneda propia, por id de texto', () => {
     const mapa = monedasPorPrecio([
-      { id: '10', moneda: { id: '2', denominacion: 'DOLAR', simbolo: 'US$', decimales: 2 } },
-      { id: 11, moneda: null },
-      { id: 12 },
+      { precioId: '10', moneda: { id: '2', denominacion: 'DOLAR', simbolo: 'US$', decimales: 2 } },
+      { precioId: 11, moneda: null },
+      { precioId: 12 },
     ]);
     expect([...mapa.keys()]).toEqual(['10']);
     expect(mapa.get('10')?.id).toBe(2);

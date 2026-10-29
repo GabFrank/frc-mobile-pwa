@@ -11,6 +11,7 @@ import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from './auth.tokens';
 import { SesionDispositivoService } from './sesion-dispositivo.service';
 import { SesionService } from './sesion.service';
 import { MonedaModuloService } from '../moneda/moneda-modulo.service';
+import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
 
 describe('SesionService', () => {
   let sesion: SesionService;
@@ -44,6 +45,7 @@ describe('SesionService', () => {
         { provide: SesionDispositivoService, useValue: { registrar: vi.fn(() => Promise.resolve()) } },
         // Lo mismo la moneda de la empresa: tiene sus propios tests.
         { provide: MonedaModuloService, useValue: { cargar: vi.fn(() => Promise.resolve()) } },
+        { provide: PrecioMonedaService, useValue: { cargar: vi.fn(() => Promise.resolve()) } },
       ],
     });
 

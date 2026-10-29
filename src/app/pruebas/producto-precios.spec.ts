@@ -98,7 +98,7 @@ describe('Editar un precio sin tipo asignado', () => {
         { provide: TipoPreciosGQL, useValue: {} },
         { provide: DatosService, useFactory: () => datos },
         { provide: MonedaModuloService, useValue: { monedaDe: vi.fn(async () => null) } },
-        { provide: PrecioMonedaService, useValue: { cargar: () => of({ soportado: false, porPrecio: new Map() }) } },
+        { provide: PrecioMonedaService, useValue: { cargar: () => Promise.resolve() } },
       ],
     });
     const f = TestBed.createComponent(PreciosPage);

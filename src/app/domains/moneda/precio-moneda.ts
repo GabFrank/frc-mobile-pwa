@@ -13,15 +13,15 @@ import { esGuarani, type MonedaReferencia } from 'src/app/generic/utils/moneda.u
 /** Prefijo con el que el central rechaza guardar en otra moneda sin escritorio nuevo. */
 export const PREFIJO_VERSION_MINIMA = 'VERSION_MINIMA:';
 
-/** Las monedas de los precios que tienen una propia, por id de precio (como texto). */
+/** Las monedas de los precios que están en otra moneda, por id de precio (como texto). */
 export function monedasPorPrecio(
-  filas: readonly { id: number | string; moneda?: (Omit<Partial<Moneda>, 'id'> & { id?: number | string }) | null }[] | null | undefined,
+  filas: readonly { precioId: number | string; moneda?: (Omit<Partial<Moneda>, 'id'> & { id?: number | string }) | null }[] | null | undefined,
 ): Map<string, Moneda> {
   const mapa = new Map<string, Moneda>();
   for (const fila of filas ?? []) {
-    if (fila?.id != null && fila.moneda?.id != null) {
+    if (fila?.precioId != null && fila.moneda?.id != null) {
       const id = Number(fila.moneda.id);
-      mapa.set(String(fila.id), Object.assign(new Moneda(), fila.moneda, { id: Number.isFinite(id) ? id : undefined }));
+      mapa.set(String(fila.precioId), Object.assign(new Moneda(), fila.moneda, { id: Number.isFinite(id) ? id : undefined }));
     }
   }
   return mapa;

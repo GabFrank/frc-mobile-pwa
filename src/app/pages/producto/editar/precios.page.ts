@@ -6,7 +6,6 @@ import {
   inject,
   input,
   signal,
-  untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -422,9 +421,9 @@ export class PreciosPage {
    * Monedas propias de los precios, por id de precio. Vacío = todos en la
    * moneda de la empresa (lo de siempre, también contra un central viejo).
    */
-  private readonly monedasPrecio = signal<Map<string, Moneda>>(new Map());
-  /** `false` hasta que el central contesta la moneda de los precios: sin eso no se ofrece ni se manda moneda. */
-  private readonly soportaMonedaPrecio = signal(false);
+  private readonly monedasPrecio = this.monedasSesion.preciosOtraMoneda;
+  /** `false` si el central no contestó la lista de precios en otra moneda: sin eso no se ofrece ni se manda moneda. */
+  private readonly soportaMonedaPrecio = this.monedasSesion.preciosMonedaSoportado;
   /** La moneda del módulo PRECIOS: la de un precio nuevo si no se elige otra. */
   private readonly monedaPorDefecto = signal<Moneda | null>(null);
   /** La elegida para un precio nuevo; `null` = la del módulo. */
@@ -510,16 +509,6 @@ export class PreciosPage {
       }
     });
 
-    // La moneda de los precios se vuelve a leer cada vez que el producto se
-    // recarga (después de guardar).
-    effect(() => {
-      this.estado.producto();
-      const presentacionId = this.presentacionIdNum();
-      if (presentacionId != null) {
-        untracked(() => this.cargarMonedasDePrecios(presentacionId));
-      }
-    });
-
     void this.monedaModulo
       .monedaDe('PRECIOS', this.sucursalSesionId())
       .then((m) => this.monedaPorDefecto.set(m))
@@ -528,11 +517,10 @@ export class PreciosPage {
     this.cargarTipos();
   }
 
-  private cargarMonedasDePrecios(presentacionId: number): void {
-    this.precioMoneda.cargar(presentacionId).subscribe(({ soportado, porPrecio }) => {
-      this.soportaMonedaPrecio.set(soportado);
-      this.monedasPrecio.set(porPrecio);
-    });
+  /** Tras guardar, la lista de precios en otra moneda se vuelve a pedir. */
+  private recargarTrasGuardar(): void {
+    void this.precioMoneda.cargar();
+    this.estado.recargar();
   }
 
   /** Moneda y símbolo con que se muestra un precio. Sin moneda propia, lo de siempre. */
@@ -642,7 +630,7 @@ export class PreciosPage {
       .subscribe({
         next: () => {
           this.cancelarEdicion();
-          this.estado.recargar();
+          this.recargarTrasGuardar();
           this.guardando.set(false);
         },
         error: (e) => {
@@ -679,7 +667,7 @@ export class PreciosPage {
           this.nuevoTipoPrecioId.set(null);
           this.nuevoMonto.set(null);
           this.nuevaMonedaId.set(null);
-          this.estado.recargar();
+          this.recargarTrasGuardar();
           this.guardando.set(false);
         },
         error: (e) => {
@@ -720,7 +708,7 @@ export class PreciosPage {
       .guardar<PrecioPorSucursal>(this.savePrecioPorSucursal, input, undefined, this.opcionesGuardado(monedaId))
       .subscribe({
         next: () => {
-          this.estado.recargar();
+          this.recargarTrasGuardar();
           this.guardando.set(false);
         },
         error: (e) => {
@@ -807,7 +795,7 @@ export class PreciosPage {
       )
       .subscribe({
         next: () => {
-          this.estado.recargar();
+          this.recargarTrasGuardar();
           this.guardando.set(false);
         },
         error: (e) => {
@@ -837,7 +825,7 @@ export class PreciosPage {
     this.guardando.set(true);
     this.datos.eliminar(this.deletePrecioPorSucursal, p.id).subscribe({
       next: () => {
-        this.estado.recargar();
+        this.recargarTrasGuardar();
         this.guardando.set(false);
       },
       error: () => this.guardando.set(false),

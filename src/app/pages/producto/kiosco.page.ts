@@ -10,8 +10,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { forkJoin, of, Subscription } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { forkJoin, Subscription } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
@@ -442,14 +442,10 @@ export class KioscoPage implements AfterViewInit {
 
   private readonly conversion = inject(ConversionPrecioService);
   private readonly precioMoneda = inject(PrecioMonedaService);
-  private readonly empresa = inject(MonedasSesion).empresa;
-
-  /**
-   * Monedas propias de los precios del producto en pantalla, por id de
-   * precio. Vacío = todos en la moneda de la empresa, como siempre (también
-   * mientras la consulta no llegó o si el central es viejo).
-   */
-  private readonly propias = signal<Map<string, Moneda>>(new Map());
+  private readonly monedasSesion = inject(MonedasSesion);
+  private readonly empresa = this.monedasSesion.empresa;
+  /** Cuenta los escaneos: uno que esperaba la lista de monedas no pisa a uno más nuevo. */
+  private escaneo = 0;
 
   /** Las monedas que el central sabe convertir. Vacía = sin selector. */
   readonly monedas = signal<PreciosEnMoneda[]>([]);
@@ -634,37 +630,22 @@ export class KioscoPage implements AfterViewInit {
     this.buscando.set(true);
     this.error.set(null);
 
+    const escaneo = ++this.escaneo;
     this.busqueda.porEscaneo(codigo).subscribe({
       next: (producto) => {
-        this.buscando.set(false);
-        // El campo se vacía siempre: el próximo producto llega solo, sin que
-        // nadie borre lo anterior.
-        this.texto.set('');
-        this.enfocar();
-
-        if (!producto) {
-          this.producto.set(null);
-          this.escaneadaId.set(null);
-          this.olvidarImagenes();
-          this.error.set('Producto no encontrado');
-          this.programarLimpieza();
-          return;
+        // Ya se sabe qué precios están en otra moneda casi siempre (se pide
+        // al entrar). Si todavía no llegó, se espera antes de mostrar un
+        // precio: mejor un instante de demora que un importe en la moneda
+        // equivocada ante un cliente.
+        if (this.monedasSesion.preciosMonedaListos()) {
+          this.mostrar(producto, codigo);
+        } else {
+          void this.precioMoneda.listo().then(() => {
+            if (escaneo === this.escaneo && !this.saliendo) {
+              this.mostrar(producto, codigo);
+            }
+          });
         }
-
-        this.producto.set(producto);
-        this.elegidaId.set(null);
-        this.cargarImagenes(producto);
-        this.cargarConversion();
-        // Cuál de las presentaciones corresponde al código que se pasó: un
-        // producto con unidad y caja tiene dos precios correctos a la vez.
-        const referencias = codigosParaBuscar(codigo);
-        const normalizado = normalizarCodigo(codigo);
-        if (!referencias.includes(normalizado)) {
-          referencias.push(normalizado);
-        }
-        const escaneada = resolverPresentacionPorCodigo(producto, ...referencias);
-        this.escaneadaId.set(escaneada?.id ?? null);
-        this.programarLimpieza();
       },
       error: (err: Error) => {
         this.buscando.set(false);
@@ -674,6 +655,38 @@ export class KioscoPage implements AfterViewInit {
         this.programarLimpieza();
       },
     });
+  }
+
+  private mostrar(producto: Producto | null, codigo: string): void {
+    this.buscando.set(false);
+    // El campo se vacía siempre: el próximo producto llega solo, sin que
+    // nadie borre lo anterior.
+    this.texto.set('');
+    this.enfocar();
+
+    if (!producto) {
+      this.producto.set(null);
+      this.escaneadaId.set(null);
+      this.olvidarImagenes();
+      this.error.set('Producto no encontrado');
+      this.programarLimpieza();
+      return;
+    }
+
+    this.producto.set(producto);
+    this.elegidaId.set(null);
+    this.cargarImagenes(producto);
+    this.cargarConversion();
+    // Cuál de las presentaciones corresponde al código que se pasó: un
+    // producto con unidad y caja tiene dos precios correctos a la vez.
+    const referencias = codigosParaBuscar(codigo);
+    const normalizado = normalizarCodigo(codigo);
+    if (!referencias.includes(normalizado)) {
+      referencias.push(normalizado);
+    }
+    const escaneada = resolverPresentacionPorCodigo(producto, ...referencias);
+    this.escaneadaId.set(escaneada?.id ?? null);
+    this.programarLimpieza();
   }
 
   /**
@@ -720,7 +733,6 @@ export class KioscoPage implements AfterViewInit {
     this.conversionSub?.unsubscribe();
     this.conversionSub = null;
     this.convertidos.set(new Map());
-    this.propias.set(new Map());
   }
 
   /**
@@ -735,25 +747,18 @@ export class KioscoPage implements AfterViewInit {
       return;
     }
     this.conversionSub?.unsubscribe();
-    this.conversionSub = this.cargarMonedasPropias(lista)
-      .pipe(
-        switchMap((propias) => {
-          this.propias.set(propias);
-          // Los importes en la moneda de la empresa van juntos a la
-          // consulta de siempre; los que tienen moneda propia, por grupo.
-          const grupos = agruparPorOrigen(
-            lista.map((p) => ({ monto: precioDe(p), moneda: this.monedaPropiaDe(p) })),
-            this.empresa(),
-          );
-          return forkJoin(
-            grupos.map((g) =>
-              this.conversion
-                .convertirDesde(g.montos, g.monedaOrigenId)
-                .pipe(map((filas) => ({ g, filas }))),
-            ),
-          );
-        }),
-      )
+    // La moneda de cada precio sale de la lista de la sesión, sin consulta.
+    // Los importes en la moneda de la empresa van juntos a la consulta de
+    // siempre; los que tienen moneda propia, por grupo.
+    const grupos = agruparPorOrigen(
+      lista.map((p) => ({ monto: precioDe(p), moneda: this.monedaPropiaDe(p) })),
+      this.empresa(),
+    );
+    this.conversionSub = forkJoin(
+      grupos.map((g) =>
+        this.conversion.convertirDesde(g.montos, g.monedaOrigenId).pipe(map((filas) => ({ g, filas }))),
+      ),
+    )
       .subscribe((resultados) => {
         const porMoneda = new Map<number, Map<number, number>>();
         for (const { g, filas } of resultados) {
@@ -773,32 +778,10 @@ export class KioscoPage implements AfterViewInit {
       });
   }
 
-  /**
-   * La moneda de cada precio, pedida aparte. Si el central no la conoce, o
-   * falla, queda vacío: todo en la moneda de la empresa.
-   */
-  private cargarMonedasPropias(lista: Presentacion[]) {
-    const consultas = lista
-      .filter((p) => p.id != null)
-      .map((p) => this.precioMoneda.cargar(Number(p.id)));
-    if (consultas.length === 0) {
-      return of(new Map<string, Moneda>());
-    }
-    return forkJoin(consultas).pipe(
-      map((respuestas) => {
-        const todas = new Map<string, Moneda>();
-        for (const r of respuestas) {
-          r.porPrecio.forEach((m, id) => todas.set(id, m));
-        }
-        return todas;
-      }),
-    );
-  }
-
   /** La moneda propia del precio de la presentación; `null` = la de la empresa. */
   private monedaPropiaDe(p: Presentacion | null): Moneda | null {
     const precioId = precioEscogido(p)?.id;
-    return precioId != null ? (this.propias().get(String(precioId)) ?? null) : null;
+    return this.precioMoneda.monedaDe(precioId);
   }
 
   /** La fila del selector que corresponde a la moneda en que está el precio. */

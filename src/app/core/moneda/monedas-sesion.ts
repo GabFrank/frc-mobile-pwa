@@ -21,6 +21,16 @@ export class MonedasSesion {
   readonly empresa = signal<Moneda | null>(null);
   /** Las monedas del central, con `decimales` cuando el central los expone. */
   readonly catalogo = signal<readonly Moneda[]>([]);
+  /**
+   * Los precios que están en otra moneda que la de la empresa, por id de
+   * precio (como texto). Vacío = todos en la de la empresa. Lo llena
+   * `PrecioMonedaService` una vez por sesión.
+   */
+  readonly preciosOtraMoneda = signal<ReadonlyMap<string, Moneda>>(new Map());
+  /** `false` si el central no contestó la lista: uno viejo, y nada se ofrece ni se manda en otra moneda. */
+  readonly preciosMonedaSoportado = signal(false);
+  /** `true` cuando la lista ya se resolvió, bien o mal. */
+  readonly preciosMonedaListos = signal(false);
 
   /**
    * La moneda con la que se formatea un importe que no dijo la suya.
@@ -35,6 +45,9 @@ export class MonedasSesion {
   limpiar(): void {
     this.empresa.set(null);
     this.catalogo.set([]);
+    this.preciosOtraMoneda.set(new Map());
+    this.preciosMonedaSoportado.set(false);
+    this.preciosMonedaListos.set(false);
   }
 }
 

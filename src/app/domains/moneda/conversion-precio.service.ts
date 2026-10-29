@@ -3,7 +3,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { DatosService } from 'src/app/core/graphql/datos.service';
-import { ConvertirPreciosGQL, PreciosEnMoneda } from 'src/app/graphql/operaciones/moneda/convertirPrecios';
+import { ConvertirPreciosDesdeGQL, ConvertirPreciosGQL, PreciosEnMoneda } from 'src/app/graphql/operaciones/moneda/convertirPrecios';
 
 /**
  * Precios en otras monedas, convertidos por el central.
@@ -20,6 +20,7 @@ import { ConvertirPreciosGQL, PreciosEnMoneda } from 'src/app/graphql/operacione
 export class ConversionPrecioService {
   private readonly datos = inject(DatosService);
   private readonly gql = inject(ConvertirPreciosGQL);
+  private readonly gqlDesde = inject(ConvertirPreciosDesdeGQL);
 
   convertir(montosGs: (number | null)[]): Observable<PreciosEnMoneda[]> {
     return this.datos
@@ -33,6 +34,30 @@ export class ConversionPrecioService {
       .pipe(
         map((filas) => filas ?? []),
         catchError(() => of([])),
+      );
+  }
+
+  /**
+   * Los importes de `montos` están en `monedaOrigenId`, no en la moneda de
+   * la empresa. Con `null` es `convertir()` de siempre.
+   *
+   * Si el central no tiene `convertirPreciosDesdeMobile` (uno viejo, que
+   * tampoco tiene precios en otra moneda) se vuelve a `convertirPreciosMobile`
+   * tratando el importe como de la empresa: la pantalla queda como hoy.
+   */
+  convertirDesde(montos: (number | null)[], monedaOrigenId: number | null): Observable<PreciosEnMoneda[]> {
+    if (monedaOrigenId == null) {
+      return this.convertir(montos);
+    }
+    return this.datos
+      .consultar(
+        this.gqlDesde,
+        { montos, monedaOrigenId },
+        { mostrarCarga: false, notificarError: false, gql: { fetchPolicy: 'network-only' } },
+      )
+      .pipe(
+        map((filas) => filas ?? []),
+        catchError(() => this.convertir(montos)),
       );
   }
 }

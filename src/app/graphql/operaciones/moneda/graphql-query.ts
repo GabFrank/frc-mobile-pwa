@@ -40,3 +40,47 @@ export const convertirPreciosQuery = gql`
     }
   }
 `;
+
+/**
+ * Como `convertirPreciosQuery`, pero con los importes en `monedaOrigenId` en
+ * vez de guaraníes (`null` = la moneda de la empresa, como la de arriba).
+ *
+ * ⚠️ Solo existe en un central con precios en otra moneda. Contra uno viejo
+ * falla, y `ConversionPrecioService` vuelve a `convertirPreciosMobile`.
+ */
+export const convertirPreciosDesdeQuery = gql`
+  query ($montos: [Float]!, $monedaOrigenId: ID) {
+    data: convertirPreciosDesdeMobile(montos: $montos, monedaOrigenId: $monedaOrigenId) {
+      moneda {
+        id
+        denominacion
+        simbolo
+      }
+      decimales
+      montos
+    }
+  }
+`;
+
+/**
+ * La moneda de cada precio de una presentación.
+ *
+ * ⚠️ **Aparte a propósito.** `PrecioPorSucursal.moneda` solo existe en un
+ * central con precios en otra moneda: pedirlo dentro de `productoPorIdQuery`
+ * o de las búsquedas haría fallar todas esas consultas contra un central
+ * viejo. Esta puede fallar sin consecuencias: quien la usa se comporta
+ * entonces como siempre (todo en la moneda de la empresa).
+ */
+export const preciosMonedaPorPresentacionQuery = gql`
+  query ($id: Int) {
+    data: precioPorSucursalPorPresentacionId(id: $id) {
+      id
+      moneda {
+        id
+        denominacion
+        simbolo
+        decimales
+      }
+    }
+  }
+`;

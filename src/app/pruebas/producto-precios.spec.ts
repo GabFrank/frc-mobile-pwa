@@ -4,6 +4,8 @@ import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
+import { MonedaModuloService } from '../core/moneda/moneda-modulo.service';
+import { PrecioMonedaService } from '../domains/moneda/precio-moneda.service';
 import { DatosService } from '../core/graphql/datos.service';
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
@@ -95,6 +97,8 @@ describe('Editar un precio sin tipo asignado', () => {
         { provide: DeletePrecioPorSucursalGQL, useValue: {} },
         { provide: TipoPreciosGQL, useValue: {} },
         { provide: DatosService, useFactory: () => datos },
+        { provide: MonedaModuloService, useValue: { monedaDe: vi.fn(async () => null) } },
+        { provide: PrecioMonedaService, useValue: { cargar: () => of({ soportado: false, porPrecio: new Map() }) } },
       ],
     });
     const f = TestBed.createComponent(PreciosPage);

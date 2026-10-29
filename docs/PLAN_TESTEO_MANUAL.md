@@ -8361,6 +8361,68 @@ cambiar de servidor se vuelven a pedir las dos consultas al nuevo) y **95.8**
 
 ---
 
+## Bloque 96 — Moneda por módulo: recepción y factura de compras *(nuevo, sin probar)*
+
+La recepción nueva y la factura del proveedor dejan de suponer que la moneda de
+la casa es el guaraní: comparan con **la moneda de la empresa** (por id, no por
+nombre) y la recepción arranca en la **moneda de COMPRAS** (`monedaDeModulo`,
+que cae a la de la empresa si no hay configuración o el central es viejo).
+Ninguna consulta compartida pidió campos nuevos.
+
+Preparación: DevTools en **Network** (filtro `graphql`) y **Console**. Los casos
+96.1 a 96.4 se prueban con la empresa en guaraníes y **sin configurar nada**:
+tienen que dar lo mismo que antes. 96.5 y 96.6 piden un central con la rama de
+moneda por módulo.
+
+### 96.1 · Recepción nueva: arranca en guaraníes, sin cotización *(el que importa)*
+1. Operaciones → Recepción → Nueva recepción, elegir sucursal y proveedor
+2. Mirar la sección «4 · Moneda»
+
+**Esperado:** la moneda elegida es **Guaraní** y **no** aparece el campo
+Cotización. Igual que antes del cambio. Estado: pendiente.
+
+### 96.2 · Recepción nueva: otra moneda pide cotización
+1. En «Moneda de las notas» elegir **Dólar**
+
+**Esperado:** aparece Cotización con la ayuda «Cuánto vale una unidad de esa
+moneda en guaraníes…»; «Iniciar» queda deshabilitado hasta cargar una
+cotización mayor que 0. Volver a Guaraní la oculta. Estado: pendiente.
+
+### 96.3 · Iniciar una recepción en guaraníes
+1. Con Guaraní, agregar una nota e iniciar
+
+**Esperado:** la recepción se crea; en Network la mutation sale con la moneda
+guaraní y `cotizacion: 1`. Estado: pendiente.
+
+### 96.4 · Factura del proveedor en guaraníes
+1. Compras → cargar una factura (KuDE) en guaraníes y abrir su revisión
+
+**Esperado:** «Moneda» dice solo «GUARANI» (sin «· cotización»); los totales
+salen sin decimales; el aviso de confirmar muestra el valor de la nota sin
+decimales. Igual que antes. Estado: pendiente.
+
+### 96.5 · Con COMPRAS = dólar *(central con la rama de moneda por módulo)*
+1. Configurar COMPRAS = USD y entrar de nuevo
+2. Abrir una recepción nueva
+
+**Esperado:** arranca en **Dólar** y pide cotización (la empresa sigue en
+guaraníes). Elegir una nota con moneda propia la adopta, como antes. Estado:
+pendiente.
+
+### 96.6 · Factura en dólares y empresa en guaraníes
+1. Abrir la revisión de una factura en dólares
+
+**Esperado:** «Moneda» dice «DOLAR · cotización N»; los totales llevan dos
+decimales y el aviso de confirmar también. Estado: pendiente.
+
+### 96.7 · Contra el central de hoy
+1. Contra un central sin `monedaDeModulo`, repetir 96.1 y 96.2
+
+**Esperado:** igual que 96.1 y 96.2; en Console, a lo sumo el aviso `[moneda]`
+ya conocido del 95.4. Estado: pendiente.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8460,7 +8522,8 @@ cambiar de servidor se vuelven a pedir las dos consultas al nuevo) y **95.8**
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Moneda por módulo: base común | 9 | 5 | | |
-| **Total** | **811** | | | |
+| 96 · Moneda por módulo: recepción y factura de compras | 7 | | | |
+| **Total** | **818** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

@@ -8439,9 +8439,10 @@ rama de precios en moneda y PRECIOS = USD configurado.
 ### 97.1 · Precios en guaraníes: la pantalla igual que antes *(el que importa)*
 1. Producto → Editar → una presentación → Precios
 
-**Esperado:** los importes salen «₲ 12.000», sin decimales. No aparece el
-selector «Moneda» al agregar un precio si todos los precios son de la empresa y
-el central es viejo. Estado: pendiente.
+**Esperado:** los importes salen «₲ 12.000», sin decimales. **No aparece** el
+selector «Moneda» al agregar un precio, ni contra un central nuevo: solo se muestra
+si PRECIOS está en una moneda que no es la de la empresa o ya hay algún precio
+en otra moneda. Estado: pendiente.
 
 ### 97.2 · Guardar un precio en guaraníes no manda moneda
 1. Editar un precio, cambiar el importe y Guardar; mirar la mutation en Network
@@ -8458,7 +8459,7 @@ guaraní abajo, igual que antes. En Network, la conversión usa
 `convertirPreciosMobile` (no `convertirPreciosDesdeMobile`). Estado: pendiente.
 
 ### 97.4 · Precio nuevo en dólares *(central con precios en moneda)*
-1. En Precios, «Agregar precio»: elegir tipo, **Moneda = Dólar**, cargar 4,39
+1. Con PRECIOS = USD (o con algún precio ya en dólares), en Precios, «Agregar precio»: elegir tipo, **Moneda = Dólar**, cargar 4,39
 
 **Esperado:** el campo toma el símbolo «US$» y acepta dos decimales; tras Agregar,
 la fila dice «US$ 4,39» y la mutation lleva `monedaId` del dólar. Estado: pendiente.

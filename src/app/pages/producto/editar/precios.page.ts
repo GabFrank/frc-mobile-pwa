@@ -22,6 +22,7 @@ import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { Moneda } from 'src/app/domains/moneda/moneda.model';
 import {
+  debeMostrarSelectorMoneda,
   esErrorVersionMinima,
   monedaIdParaGuardar,
   referenciaDePrecio,
@@ -435,8 +436,14 @@ export class PreciosPage {
     this.monedasSesion.catalogo().filter((m) => m.activo !== false && m.id != null),
   );
 
-  readonly mostrarSelectorMoneda = computed(
-    () => this.soportaMonedaPrecio() && this.monedasElegibles().length > 1,
+  readonly mostrarSelectorMoneda = computed(() =>
+    debeMostrarSelectorMoneda({
+      soportado: this.soportaMonedaPrecio(),
+      cantidadElegibles: this.monedasElegibles().length,
+      empresa: this.empresa(),
+      porDefecto: this.monedaPorDefecto(),
+      preciosEnOtraMoneda: this.monedasPrecio().size,
+    }),
   );
 
   readonly nuevaMoneda = computed<Moneda | null>(() => {

@@ -4,6 +4,7 @@ import { construirPrecioInput } from 'src/app/pages/producto/editar/precios.page
 import { Moneda } from './moneda.model';
 import {
   agruparPorOrigen,
+  debeMostrarSelectorMoneda,
   esErrorVersionMinima,
   monedaIdParaGuardar,
   monedasPorPrecio,
@@ -128,5 +129,30 @@ describe('agruparPorOrigen', () => {
       { monedaOrigenId: null, indices: [0], montos: [100] },
       { monedaOrigenId: 2, indices: [1, 2], montos: [4.5, 7] },
     ]);
+  });
+});
+
+describe('debeMostrarSelectorMoneda', () => {
+  const base = { soportado: true, cantidadElegibles: 4, empresa: guarani, porDefecto: guarani, preciosEnOtraMoneda: 0 };
+
+  it('todo en la moneda de la empresa (bodega): no se muestra', () => {
+    expect(debeMostrarSelectorMoneda(base)).toBe(false);
+  });
+
+  it('PRECIOS en otra moneda que la de la empresa: se muestra', () => {
+    expect(debeMostrarSelectorMoneda({ ...base, porDefecto: dolar })).toBe(true);
+  });
+
+  it('ya hay algún precio en otra moneda: se muestra', () => {
+    expect(debeMostrarSelectorMoneda({ ...base, preciosEnOtraMoneda: 1 })).toBe(true);
+  });
+
+  it('central viejo o una sola moneda: nunca', () => {
+    expect(debeMostrarSelectorMoneda({ ...base, porDefecto: dolar, soportado: false })).toBe(false);
+    expect(debeMostrarSelectorMoneda({ ...base, porDefecto: dolar, cantidadElegibles: 1 })).toBe(false);
+  });
+
+  it('sin default resuelto y sin precios en otra moneda: no se muestra', () => {
+    expect(debeMostrarSelectorMoneda({ ...base, porDefecto: null })).toBe(false);
   });
 });

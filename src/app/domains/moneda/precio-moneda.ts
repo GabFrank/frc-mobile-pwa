@@ -75,6 +75,30 @@ export function monedaIdParaGuardar(datos: {
 }
 
 /**
+ * ¿Se ofrece elegir la moneda de un precio nuevo?
+ *
+ * Solo si la empresa ya trabaja precios en otra moneda: el módulo PRECIOS
+ * está en una que no es la de la empresa, o ya hay algún precio en otra
+ * moneda. Si no, el selector no aparece y la pantalla es la de siempre
+ * (bodega).
+ */
+export function debeMostrarSelectorMoneda(datos: {
+  soportado: boolean;
+  /** Cuántas monedas activas hay para elegir. */
+  cantidadElegibles: number;
+  empresa: Moneda | null | undefined;
+  porDefecto: Moneda | null | undefined;
+  /** Cuántos precios están en otra moneda que la de la empresa. */
+  preciosEnOtraMoneda: number;
+}): boolean {
+  if (!datos.soportado || datos.cantidadElegibles <= 1) {
+    return false;
+  }
+  const defectoOtra = datos.porDefecto != null && !esMonedaEmpresa(datos.porDefecto, datos.empresa);
+  return defectoOtra || datos.preciosEnOtraMoneda > 0;
+}
+
+/**
  * Cómo se muestra el importe de un precio: la moneda y el símbolo.
  *
  * Sin moneda propia (o con la de la empresa si es guaraní) sale lo de

@@ -14,7 +14,7 @@ import { CampoFechaComponent } from 'src/app/shared/campos/campo-fecha.component
 import { EstadoVacioComponent } from 'src/app/shared/estados-ui/estado-vacio.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { aId, numeroFacturaCompleto } from './compras-reglas';
+import { aId, partirNumeroFactura, textoNumeroFactura } from './compras-reglas';
 import { ComprasService } from './compras.service';
 import { FacturaFotoEstado } from './factura-foto.estado';
 
@@ -113,37 +113,17 @@ const CONDICIONES = ['CONTADO', 'CREDITO'] as const;
             }
           </div>
 
-          <div class="numero">
-            <div class="campo" [class.dudoso]="esDudoso('establecimiento')">
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Establecimiento</mat-label>
-                <input matInput inputmode="numeric" maxlength="3" [value]="establecimiento()"
-                  (input)="establecimiento.set(valor($event))" />
-              </mat-form-field>
-              @if (esDudoso('establecimiento')) {
-                <p class="revisar">Revisá este dato</p>
-              }
-            </div>
-            <div class="campo" [class.dudoso]="esDudoso('puntoExpedicion')">
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Punto</mat-label>
-                <input matInput inputmode="numeric" maxlength="3" [value]="puntoExpedicion()"
-                  (input)="puntoExpedicion.set(valor($event))" />
-              </mat-form-field>
-              @if (esDudoso('puntoExpedicion')) {
-                <p class="revisar">Revisá este dato</p>
-              }
-            </div>
-            <div class="campo" [class.dudoso]="esDudoso('numero')">
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Número</mat-label>
-                <input matInput inputmode="numeric" maxlength="7" [value]="numero()"
-                  (input)="numero.set(valor($event))" />
-              </mat-form-field>
-              @if (esDudoso('numero')) {
-                <p class="revisar">Revisá este dato</p>
-              }
-            </div>
+          <div class="campo" [class.dudoso]="numeroDudoso()">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Número de factura</mat-label>
+              <input matInput inputmode="numeric" placeholder="001-001-0001234" [value]="numeroFactura()"
+                (input)="numeroFactura.set(valor($event))" (blur)="normalizarNumero()" />
+            </mat-form-field>
+            @if (numeroFactura().trim() !== '' && !tramosNumero()) {
+              <p class="revisar">Escribilo como está impreso: 001-001-0001234</p>
+            } @else if (numeroDudoso()) {
+              <p class="revisar">Revisá este dato</p>
+            }
           </div>
 
           <div class="campo" [class.dudoso]="esDudoso('fechaEmision')">
@@ -211,7 +191,6 @@ const CONDICIONES = ['CONTADO', 'CREDITO'] as const;
     .campo { display: flex; flex-direction: column; gap: var(--sp-1); }
     .campo.dudoso { border: 2px solid var(--warn); border-radius: var(--radius-md); padding: var(--sp-1); }
     .revisar { margin: 0; font-size: var(--fs-caption); color: var(--warn); }
-    .numero { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: var(--sp-2); }
     .condiciones { display: flex; gap: var(--sp-2); }
     .filtro { border: 1px solid var(--border); background: none; color: var(--text); border-radius: var(--radius-full); padding: var(--sp-1) var(--sp-3); font-size: var(--fs-caption); cursor: pointer; }
     .filtro.activo { background: var(--brand-fill); border-color: var(--brand-fill); color: var(--on-tono); }
@@ -245,9 +224,13 @@ export class FacturaFotoPage {
   readonly proveedores = signal<Proveedor[]>([]);
 
   readonly timbrado = signal('');
-  readonly establecimiento = signal('');
-  readonly puntoExpedicion = signal('');
-  readonly numero = signal('');
+  /** Número de factura como está impreso (001-001-0001234); se guarda partido en tres tramos. */
+  readonly numeroFactura = signal('');
+  readonly tramosNumero = computed(() => partirNumeroFactura(this.numeroFactura()));
+  readonly numeroDudoso = computed(() => {
+    const dudosos = this.cabecera()?.dudosos ?? [];
+    return ['establecimiento', 'puntoExpedicion', 'numero'].some((c) => dudosos.includes(c));
+  });
   readonly fecha = signal<string | null>(null);
   readonly condicion = signal<string | null>(null);
   readonly total = signal<number | null>(null);
@@ -261,7 +244,7 @@ export class FacturaFotoPage {
       this.cabecera() != null &&
       this.proveedorId() != null &&
       /^\d+$/.test(this.timbrado().trim()) &&
-      numeroFacturaCompleto(this.establecimiento(), this.puntoExpedicion(), this.numero()) != null &&
+      this.tramosNumero() != null &&
       !!this.fecha() &&
       (this.total() ?? 0) > 0 &&
       !this.enviando(),
@@ -284,9 +267,7 @@ export class FacturaFotoPage {
     this.proveedorId.set(c.proveedorId ?? null);
     this.proveedorNombre.set(c.proveedorNombre ?? null);
     this.timbrado.set(c.timbrado != null ? String(c.timbrado) : '');
-    this.establecimiento.set(c.establecimiento ?? '');
-    this.puntoExpedicion.set(c.puntoExpedicion ?? '');
-    this.numero.set(c.numero ?? '');
+    this.numeroFactura.set(textoNumeroFactura(c.establecimiento, c.puntoExpedicion, c.numero));
     this.fecha.set(c.fechaEmision ?? null);
     this.condicion.set(c.condicion ?? null);
     this.total.set(c.totalGeneral ?? null);
@@ -317,6 +298,12 @@ export class FacturaFotoPage {
       ') no da el total de la factura (' + formatearImporte(c.totalGeneral ?? null, moneda) +
       '): revisá cantidades y precios con el papel'
     );
+  }
+
+  /** Al salir del campo, deja el número con el formato completo (1-3-1234 -> 001-003-0001234). */
+  normalizarNumero(): void {
+    const t = this.tramosNumero();
+    if (t) this.numeroFactura.set(`${t.establecimiento}-${t.puntoExpedicion}-${t.numero}`);
   }
 
   esDudoso(campo: string): boolean {
@@ -360,16 +347,17 @@ export class FacturaFotoPage {
   continuar(): void {
     const c = this.cabecera();
     const proveedorId = this.proveedorId();
-    if (!c || proveedorId == null || !this.puedeContinuar()) return;
+    const tramos = this.tramosNumero();
+    if (!c || proveedorId == null || !tramos || !this.puedeContinuar()) return;
     this.enviando.set(true);
     this.servicio
       .confirmarCabeceraFoto({
         documentoId: c.documentoId,
         proveedorId,
         timbrado: Number(this.timbrado().trim()),
-        establecimiento: this.establecimiento().trim(),
-        puntoExpedicion: this.puntoExpedicion().trim(),
-        numero: this.numero().trim(),
+        establecimiento: tramos.establecimiento,
+        puntoExpedicion: tramos.puntoExpedicion,
+        numero: tramos.numero,
         fechaEmision: this.fecha()!,
         condicion: this.condicion(),
         totalGeneral: this.total()!,

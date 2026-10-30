@@ -1128,16 +1128,13 @@ siguiente acción.
 Registró «Entrada 27/08/2026 10:32», estado pasó a «En jornada» y la barra
 inferior ofreció «Salir a almorzar» / «Marcar salida».
 
-### 15.4 · Marcar lejos *(el caso a calibrar)* — sin probar
-1. Marcar desde lejos de la sucursal
+### 15.4 · Marcar lejos — sin probar
+1. Marcar desde más de 80 m de la sucursal
 
-**Esperado:** avisa la distancia y la precisión y **pide confirmación** — no
-bloquea. Al confirmar, queda registrado con esos datos.
-
-> Anotá qué distancia y qué precisión te dio: son los números con los que se
-> calibra el umbral del aviso. Hoy es de **110 m** (`DISTANCIA_AVISO_M`); fue
-> de 33 m hasta que las marcaciones de producción mostraron que le saltaba a
-> quien marcaba desde adentro con un iPhone. Ver el caso 59.14.
+**Esperado:** dice «Estás fuera de la sucursal» con la distancia y la
+precisión, y ofrece solo **Volver a ubicar**. No hay «Marcar igual»: no se
+marca nada. Desde el 29/10/2026 el límite es de **80 m**
+(`DISTANCIA_MAXIMA_M`) y lo valida también el central. Ver el bloque 95.
 
 No se pudo forzar una ubicación lejana desde el navegador de escritorio;
 necesita un dispositivo real o GPS simulado.
@@ -8253,6 +8250,53 @@ estaba vinculada a «…», que está inactivo. Elegí el producto.»
 
 ---
 
+## Bloque 95 — Marcación: prohibido marcar a más de 80 m *(sin probar: necesita el central con `feat/marcacion-maximo-80m`)*
+
+Desde el teléfono o el kiosco **no se marca a más de 80 m** de la sucursal
+detectada. Antes había un aviso a 110 m con «Marcar igual». El central valida
+lo mismo con la latitud y longitud que manda la app, así que no depende de la
+pantalla. El desktop no manda GPS y sigue marcando como siempre.
+
+Preparación: un teléfono real (o GPS simulado en Chrome: DevTools → Sensors →
+Location) y la coordenada de una sucursal a mano.
+
+### 95.1 · Adentro de la sucursal se marca normal
+1. Desde adentro, marcar entrada en «Mi trabajo → Marcación»
+
+**Esperado:** marca sin diálogos de distancia. La marcación guarda
+`distancia_sucursal` de 80 o menos.
+
+### 95.2 · Afuera no se marca
+1. Con GPS simulado a ~150 m de la sucursal, marcar
+
+**Esperado:** «Estás fuera de la sucursal», con los metros, la precisión y
+«Solo se puede marcar a 80 m o menos». El único botón es **Volver a ubicar**.
+Cancelar no marca nada.
+
+### 95.3 · Volver a ubicar y ya estar adentro
+1. Repetir 95.2, mover el GPS simulado a la sucursal y tocar **Volver a ubicar**
+
+**Esperado:** marca sin volver a pedir el rostro.
+
+### 95.4 · El central rechaza aunque la app no frene
+1. Mandar `saveMarcacion` a mano (GraphiQL o Postman) con un usuario sin
+   RRHH GESTIONAR, `metodoRegistro: MANUAL` y una latitud/longitud a ~500 m
+
+**Esperado:** error «Estás a 500 m de …. Solo se puede marcar a 80 m o
+menos.» y no se guarda nada. Mandándola sin latitud/longitud (con
+`metodoRegistro`) el error es «No se recibió la ubicación del teléfono».
+
+### 95.5 · El kiosco afuera no marca
+1. Kiosco con la tablet (o GPS simulado) a más de 80 m, identificar a alguien
+
+**Esperado:** «La tablet está a N m de … Solo se puede marcar a 80 m o
+menos. Tocá Recalcular.» No se marca nada.
+
+### 95.6 · El desktop sigue igual
+1. Marcar entrada y salida desde el desktop
+
+**Esperado:** marca como siempre; la marcación queda sin ubicación.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8351,7 +8395,8 @@ estaba vinculada a «…», que está inactivo. Elegí el producto.»
 | 92 · Compras: cargar la factura en papel con la foto | 7 | | | |
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
-| **Total** | **802** | | | |
+| 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
+| **Total** | **808** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

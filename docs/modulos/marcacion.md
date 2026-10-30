@@ -196,39 +196,45 @@ número a revisar es este.
 > ⚠️ **Es la pérdida técnica más concreta de la migración.** Sin fusionado
 > nativo la precisión empeora en interiores, que es justo donde se marca.
 
-**Por eso la distancia no bloquea: avisa.** (La precisión sí puede: es el
-tope de arriba, y es el único caso.) Si la marcación queda lejos, se
-pide confirmación y se guarda igual — con `precisionGps` y
-`distanciaSucursalMetros`. Bloquear con un umbral que todavía no está
-calibrado dejaría gente sin poder marcar; guardar la evidencia permite
-recalibrarlo con datos reales, que es lo que el módulo ya hacía.
+**Desde el 29/10/2026, más de 80 m no se marca.** (`DISTANCIA_MAXIMA_M`, en
+`deteccion-sucursal.util.ts`.) Antes era un aviso a 110 m con «Marcar igual»;
+se cambió a prohibición después de corregir la coordenada del depósito Aquario,
+que era lo que dejaba a gente de adentro a 80–117 m.
 
-**El aviso salta a más de 110 m** (`DISTANCIA_AVISO_M`, en
-`deteccion-sucursal.util.ts`), y **no es la precisión del GPS**: los ±33 m de
+- **La pantalla personal** ofrece solo «Volver a ubicar»; el rostro ya
+  verificado no se pierde.
+- **El kiosco** no manda la marcación y pide «Recalcular».
+- **El central valida lo mismo** (`DistanciaMarcacion`, en
+  `MarcacionGraphQL.saveMarcacion`): recalcula la distancia con la latitud y
+  longitud recibidas contra `sucursal.localizacion`, sin creerle al
+  `distanciaSucursalMetros` del cliente, y la guarda él. Compara la distancia
+  redondeada, igual que la app.
+- **Quién queda afuera de la regla:** el desktop, que no manda GPS ni
+  `metodoRegistro`, y la edición de una marcación existente (con `id`), que es
+  de RRHH. Una marcación con `metodoRegistro` —todas las de la PWA— sin
+  ubicación se rechaza: si no, alcanzaba con no mandarla.
+- **Los dos números van juntos**: si se cambia el de la app hay que cambiar el
+  del central.
+
+Con qué datos se eligió (producción, 15 al 29/10/2026, ya con Aquario
+corregido): de ~770 marcaciones, 10 pasaron los 80 m, casi todas a 160–400 m,
+hechas desde afuera.
+
+**`DISTANCIA_MAXIMA_M` no es la precisión del GPS**: los ±33 m de
 `PRECISION_MAXIMA_M` filtran qué lecturas son confiables, no qué tan lejos
-quedó la persona. Fueron el mismo número hasta el 05/10/2026, mientras la
-pantalla reutilizó aquella constante.
+quedó la persona.
 
-Lo recalibraron las marcaciones de producción de bodega del 02 al 05/10/2026
-(81, casi todas del depósito Aquario):
+Historia (02 al 05/10/2026, con la coordenada vieja de Aquario):
 
 - 18 de las 46 hechas con iPhone quedaron a más de 33 m; ninguna de las 29 de
   Android pasó de 25 m.
-- Las 18 declaraban buena precisión, de ±9,5 a ±21 m: filtrar más fuerte por
-  precisión no las descarta.
-- El mismo usuario caía entre días en la misma coordenada, al metro. Eso no es
-  GPS: adentro, el iPhone se ubica por las redes Wi-Fi que ve. Desde la oficina
-  del segundo piso ve otras que desde la planta baja y cae en otro punto.
+- El mismo usuario caía entre días en la misma coordenada, al metro: adentro,
+  el iPhone se ubica por las redes Wi-Fi que ve.
 - La más lejana quedó a 100 m.
 
-> ⚠️ **Está calibrado con un solo edificio.** Fuera de Aquario había 6
-> marcaciones, todas de Android. Cuando más sucursales marquen con iPhone hay
-> que volver a mirar `distancia_sucursal` y `precision_gps` en
-> `administrativo.marcacion`.
-
-> ⚠️ **El aviso no es un control antifraude.** No bloquea, el central guarda la
-> distancia sin validarla y el desktop la trae pero no la muestra en ninguna
-> pantalla. Achicar el umbral no frena a nadie y molesta a quien está adentro.
+> ⚠️ **Si vuelve a pasar que alguien de adentro da más de 80 m**, lo primero
+> es revisar la coordenada de esa sucursal (`empresarial.sucursal.localizacion`)
+> contra donde caen sus marcaciones, no subir el límite.
 
 `frc-mobile` no sirve de referencia para este número: tiene su propio radio de
 33 m en la pantalla de ubicación y manda `distanciaSucursalMetros: 0` fijo.

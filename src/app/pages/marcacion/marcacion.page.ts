@@ -31,7 +31,7 @@ import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { DeteccionSucursalService } from './deteccion-sucursal.service';
-import { estaLejos, SucursalDetectada } from './deteccion-sucursal.util';
+import { DISTANCIA_MAXIMA_M, estaLejos, SucursalDetectada } from './deteccion-sucursal.util';
 import { MarcacionService } from './marcacion.service';
 
 /** Qué texto lleva el botón según lo que el backend diga que falta. */
@@ -73,14 +73,12 @@ export const TITULO_CAMBIO_SUCURSAL = 'Cambió la sucursal detectada';
  * propósito— y quién elige es el funcionario, con `esSalidaAlmuerzo`. Ver
  * {@link puedeElegirSalida}.
  *
- * ⚠️ **La distancia no bloquea, se registra.** La ubicación de la web es
- * peor que la del plugin nativo que se reemplaza —sobre todo en interiores,
- * que es donde se marca—, así que marcar lejos avisa y pide confirmación en
- * vez de impedirlo. Lo que queda es la evidencia: `precisionGps` y
- * `distanciaSucursalMetros` viajan con la marcación y permiten recalibrar el
- * umbral del aviso con datos reales. Ver `DISTANCIA_AVISO_M`.
- * Lo único que sí impide marcar es una lectura peor que
- * `PRECISION_DESCARTE_M`: esa no dice dónde está nadie.
+ * ⚠️ **Más lejos de `DISTANCIA_MAXIMA_M` (80 m) no se marca.** No hay
+ * «Marcar igual»: se ofrece volver a tomar la ubicación y nada más. El central
+ * valida lo mismo, así que saltearse esta pantalla no sirve. `precisionGps` y
+ * `distanciaSucursalMetros` siguen viajando como evidencia.
+ * Tampoco se marca con una lectura peor que `PRECISION_DESCARTE_M`: esa no
+ * dice dónde está nadie.
  *
  * ⚠️ **La sucursal sale de la posición, no de una lista.** Mientras se elegía
  * de un desplegable, la distancia no medía nada: alcanzaba con seleccionar la
@@ -396,22 +394,24 @@ export class MarcacionPage {
 
       this.marcando.set(true);
 
-      const toma = await this.tomarPosicion(alAbrir);
+      // Lejos no se marca: solo se ofrece volver a ubicar, que es lo que
+      // arregla una lectura mala. El rostro ya verificado no se pierde.
+      let toma = await this.tomarPosicion(alAbrir);
+      while (toma && estaLejos(toma.detectada.metros)) {
+        const reintentar = await this.dialogo.confirmar({
+          titulo: 'Estás fuera de la sucursal',
+          mensaje: `La ubicación da ${Math.round(toma.detectada.metros)} m de ${this.nombreDe(toma.detectada.sucursal)} (±${Math.round(toma.posicion.precision)} m). Solo se puede marcar a ${DISTANCIA_MAXIMA_M} m o menos. No se marcó nada.`,
+          confirmar: 'Volver a ubicar',
+        });
+        if (!reintentar) {
+          return;
+        }
+        toma = await this.tomarPosicion(alAbrir);
+      }
       if (!toma) {
         return;
       }
       const { detectada, posicion } = toma;
-
-      if (estaLejos(detectada.metros)) {
-        const seguir = await this.dialogo.confirmar({
-          titulo: 'Estás lejos de la sucursal',
-          mensaje: `La ubicación da ${Math.round(detectada.metros)} m de distancia de ${this.nombreDe(detectada.sucursal)}, con una precisión de ±${Math.round(posicion.precision)} m. La marcación queda registrada con esos datos.`,
-          confirmar: 'Marcar igual',
-        });
-        if (!seguir) {
-          return;
-        }
-      }
 
       // Se mira al final, después de todos los diálogos: cualquiera de ellos
       // puede haber quedado abierto el tiempo que sea.

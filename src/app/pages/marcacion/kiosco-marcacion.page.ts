@@ -31,6 +31,7 @@ import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { CapturaFacialComponent } from './captura-facial.component';
 import { MarcacionService } from './marcacion.service';
 import { DeteccionSucursalService } from './deteccion-sucursal.service';
+import { DISTANCIA_MAXIMA_M, estaLejos } from './deteccion-sucursal.util';
 import { Identificacion, RespuestaIdentificacion, validarIdentificacion } from './identificacion.util';
 
 /** En qué punto está el kiosco. */
@@ -366,6 +367,15 @@ export class KioscoMarcacionPage {
     const posicion = this.det.posicion();
     if (!identificacion || !sucursal?.id || !posicion) {
       this.fallar('Se perdió la ubicación. Tocá Recalcular.');
+      return;
+    }
+    // La tablet fuera del radio no marca: el central rechazaría igual, y es
+    // mejor decirlo antes de mandar nada.
+    const metros = this.det.distancia();
+    if (metros != null && estaLejos(metros)) {
+      this.fallar(
+        `La tablet está a ${Math.round(metros)} m de ${sucursal.nombre ?? 'la sucursal'}. Solo se puede marcar a ${DISTANCIA_MAXIMA_M} m o menos. Tocá Recalcular.`,
+      );
       return;
     }
 

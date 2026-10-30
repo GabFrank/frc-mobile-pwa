@@ -17,28 +17,30 @@ export interface SucursalDetectada<T> {
 }
 
 /**
- * A partir de cuántos metros de la sucursal se avisa antes de marcar.
+ * Hasta cuántos metros de la sucursal se puede marcar. Más lejos, no se marca.
+ *
+ * ⚠️ **Es el mismo número que valida el central** (`DistanciaMarcacion` en
+ * `franco-system-backend-servidor`). Si se cambia acá hay que cambiarlo allá:
+ * el central rechaza igual, y la pantalla dejaría marcar para que después
+ * falle el guardado.
  *
  * ⚠️ **No es la precisión del GPS.** `PRECISION_MAXIMA_M` (±33 m) filtra qué
- * lecturas son confiables; esto mide qué tan lejos quedó la persona. Fueron el
- * mismo número mientras la pantalla reutilizó aquella constante, y con 33 m el
- * aviso le saltaba siempre a quien marcaba dentro del edificio: un iPhone en
- * un interior se ubica por las redes Wi-Fi que ve, declara ±15 m y cae a
- * decenas de metros de donde está —siempre en el mismo punto—.
+ * lecturas son confiables; esto mide qué tan lejos quedó la persona.
  *
- * Calibrado con las marcaciones de producción del 02 al 05/10/2026: la más
- * lejana hecha desde adentro de una sucursal quedó a 100 m.
+ * Elegido con las marcaciones de producción del 15 al 29/10/2026, ya con la
+ * coordenada de Aquario corregida: de ~770, solo 10 pasaron los 80 m, y casi
+ * todas a 160–400 m —marcadas desde afuera—.
  */
-export const DISTANCIA_AVISO_M = 110;
+export const DISTANCIA_MAXIMA_M = 80;
 
 /**
- * Si la marcación queda lo bastante lejos como para avisar.
+ * Si la marcación queda demasiado lejos para marcar.
  *
- * Compara la distancia **redondeada**, que es la que se muestra en el aviso y
- * la que se guarda: así a quién le saltó se puede reconstruir desde el dato.
+ * Compara la distancia **redondeada**, que es la que se muestra y la que se
+ * guarda, igual que el central: así un 80,4 m no se acepta acá y se rechaza allá.
  */
 export function estaLejos(metros: number): boolean {
-  return Math.round(metros) > DISTANCIA_AVISO_M;
+  return Math.round(metros) > DISTANCIA_MAXIMA_M;
 }
 
 /** El haversine, inyectado para que esta util no dependa de Angular. */
@@ -80,9 +82,8 @@ export function coordenadasDe(localizacion: string | null | undefined): Coordena
  * que no es lo mismo que estar lejos de todas.
  *
  * ⚠️ **No aplica ningún radio.** Devuelve la más cercana aunque queden
- * kilómetros: la pantalla avisa con {@link estaLejos} y deja marcar igual
- * con la distancia registrada. Recortar acá convertiría un GPS malo —que es
- * lo normal en un interior— en «no podés marcar».
+ * kilómetros, para que la pantalla pueda decir dónde estás y a cuánto. Quien
+ * decide si se puede marcar es {@link estaLejos}.
  * Lo que no dice dónde está nadie se descarta antes, en `GeoService`
  * (`PRECISION_DESCARTE_M`): acá ya llega una posición que vale la pena medir.
  *

@@ -234,6 +234,27 @@ describe('El mensaje y el nombre del archivo', () => {
     expect(texto).toContain('frc-1-INV--2335---');
   });
 
+  it('el detalle va en la segunda línea, debajo del número', () => {
+    const texto = textoParaCompartir(
+      'Transferencia #54061',
+      'frc-1-TRANS-54061----',
+      'https://x.test/transferencias/54061',
+      'DEPOSITO → SUC. ROTONDA · 3 productos',
+    );
+
+    expect(texto.split('\n').slice(0, 3)).toEqual([
+      'Transferencia #54061',
+      'DEPOSITO → SUC. ROTONDA · 3 productos',
+      'https://x.test/transferencias/54061',
+    ]);
+  });
+
+  it('sin detalle el mensaje queda como antes', () => {
+    expect(textoParaCompartir('Inventario #2335', 'A-B-C', 'https://x.test/inventario/2335', '  ')).toBe(
+      textoParaCompartir('Inventario #2335', 'A-B-C', 'https://x.test/inventario/2335'),
+    );
+  });
+
   it('sin enlace, el mensaje sigue sirviendo con el código solo', () => {
     const texto = textoParaCompartir('Inventario #2335', 'A-B-C');
 

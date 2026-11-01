@@ -248,3 +248,22 @@ export function excedeElStock(
   }
   return cantidad * (presentacion?.cantidad ?? 1) > stock;
 }
+
+/**
+ * La segunda línea del mensaje que se comparte: «ORIGEN → DESTINO · 3
+ * productos». Con el número que encabeza el mensaje, es lo que el bot del
+ * grupo coteja contra lo que lee en el central antes de tomarla.
+ *
+ * `items` en `null` cuando no se pudieron cargar: mejor no decir cuántos que
+ * decir cero.
+ */
+export function detalleParaCompartir(
+  t: Pick<Transferencia, 'sucursalOrigen' | 'sucursalDestino'> | null | undefined,
+  items: number | null,
+): string {
+  const ruta = (t?.sucursalOrigen?.nombre ?? '—') + ' → ' + (t?.sucursalDestino?.nombre ?? '—');
+  if (items == null) {
+    return ruta;
+  }
+  return ruta + ' · ' + items + (items === 1 ? ' producto' : ' productos');
+}

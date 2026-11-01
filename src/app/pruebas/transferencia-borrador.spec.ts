@@ -338,7 +338,10 @@ describe('Borrador de la transferencia', () => {
     await f.componentInstance.finalizar();
 
     expect(servicio.finalizar).toHaveBeenCalledWith(54_060, 41);
-    expect(navegar).toHaveBeenCalledWith(['/transferencias', 54_060], { replaceUrl: true });
+    expect(navegar).toHaveBeenCalledWith(['/transferencias', 54_060], {
+      replaceUrl: true,
+      queryParams: { recienFinalizada: 1 },
+    });
   });
 
   /**
@@ -607,5 +610,65 @@ describe('Entrada al alta desde la lista', () => {
     expect(montarConRoles(['VER TRANSFERENCIA']).nativeElement.textContent).not.toContain(
       'Nueva transferencia',
     );
+  });
+});
+
+describe('Recién finalizada: ofrecer compartirla al grupo', () => {
+  const PRE = {
+    id: 54_060,
+    etapa: EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN,
+    sucursalOrigen: { id: 5, nombre: 'DEPOSITO AQUARIO SDG' },
+    sucursalDestino: { id: 1, nombre: 'SUC. ROTONDA' },
+  };
+  const montarDetalle = (recien?: string) => {
+    TestBed.resetTestingModule();
+    const abrir = vi.fn(async () => undefined);
+    TestBed.configureTestingModule({
+      imports: [APOLLO_DE_PRUEBA],
+      providers: [
+        provideRouter([]),
+        {
+          provide: TransferenciaService,
+          useValue: { porId: vi.fn(() => of(PRE)), items: vi.fn(() => of([{ id: 1 }, { id: 2 }])) },
+        },
+        { provide: AuthService, useValue: sesion() },
+        { provide: DialogoService, useValue: { abrir, confirmar: vi.fn() } },
+      ],
+    });
+    const router = TestBed.inject(Router);
+    const navegar = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(TransferenciaDetallePage);
+    f.componentRef.setInput('id', '54060');
+    if (recien !== undefined) {
+      f.componentRef.setInput('recienFinalizada', recien);
+    }
+    return { f, abrir, navegar };
+  };
+
+  it('abre el QR una sola vez, con origen, destino y productos, y limpia el parámetro', async () => {
+    const { f, abrir, navegar } = montarDetalle('1');
+    f.detectChanges();
+    await f.whenStable();
+    f.componentInstance.cargar();
+    f.detectChanges();
+    await f.whenStable();
+
+    expect(abrir).toHaveBeenCalledTimes(1);
+    const datos = (abrir.mock.calls[0] as unknown as [unknown, { subtitulo: string; detalle: string }])[1];
+    expect(datos.subtitulo).toBe('Transferencia #54060');
+    expect(datos.detalle).toBe('DEPOSITO AQUARIO SDG → SUC. ROTONDA · 2 productos');
+    expect(navegar).toHaveBeenCalledWith([], {
+      queryParams: { recienFinalizada: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  });
+
+  it('entrando por la lista no abre nada', async () => {
+    const { f, abrir } = montarDetalle();
+    f.detectChanges();
+    await f.whenStable();
+
+    expect(abrir).not.toHaveBeenCalled();
   });
 });

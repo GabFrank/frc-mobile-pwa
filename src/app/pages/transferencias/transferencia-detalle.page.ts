@@ -7,6 +7,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -72,7 +73,7 @@ import {
   ModificarItemData,
   ModificarItemDialogComponent,
 } from './modificar-item-dialog.component';
-import { esBorrador } from './transferencia-alta';
+import { detalleParaCompartir, esBorrador } from './transferencia-alta';
 import {
   RechazarItemData,
   RechazarItemDialogComponent,
@@ -487,6 +488,17 @@ export class TransferenciaDetallePage {
    */
   readonly qr = input<string>();
 
+  /**
+   * `1` cuando se llega desde *Finalizar* del borrador: el detalle ofrece
+   * compartirla enseguida, que es como el grupo de la sucursal (y el bot que
+   * lo atiende) se entera de que hay una pre-transferencia nueva. Se ofrece
+   * una sola vez y el parámetro se limpia, para que un refresco no lo repita.
+   */
+  readonly recienFinalizada = input<string>();
+  private compartirOfrecido = false;
+  /** Los ítems ya llegaron al menos una vez: el mensaje lleva cuántos son. */
+  private readonly itemsListos = signal(false);
+
   readonly transferencia = signal<Transferencia | null>(null);
   readonly items = signal<TransferenciaItem[]>([]);
   /**
@@ -678,6 +690,21 @@ export class TransferenciaDetallePage {
         this.cargar();
       }
     });
+    effect(() => {
+      const t = this.transferencia();
+      if (this.recienFinalizada() !== '1' || this.compartirOfrecido || !t || esBorrador(t) || !this.itemsListos()) {
+        return;
+      }
+      this.compartirOfrecido = true;
+      untracked(() => {
+        void this.router.navigate([], {
+          queryParams: { recienFinalizada: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+        void this.compartir();
+      });
+    });
     inject(DestroyRef).onDestroy(() => this.cargaItems?.unsubscribe());
   }
 
@@ -724,6 +751,7 @@ export class TransferenciaDetallePage {
       next: (lista) => {
         this.items.set(lista);
         this.itemsSinCargar.set(false);
+        this.itemsListos.set(true);
       },
       // Los ítems son secundarios respecto de la cabecera: si fallan, el
       // detalle sigue mostrando en qué estado está la transferencia, pero no
@@ -1220,13 +1248,15 @@ export class TransferenciaDetallePage {
    * el campo equivocado da un QR que se escanea sin error y abre otra cosa.
    */
   async compartir(): Promise<void> {
-    const id = this.transferencia()?.id;
+    const t = this.transferencia();
+    const id = t?.id;
     if (id == null) {
       return;
     }
     await this.dialogo.abrir<QrDialogComponent, DatosQr>(QrDialogComponent, {
       titulo: 'Compartir transferencia',
       subtitulo: 'Transferencia #' + id,
+      detalle: detalleParaCompartir(t, this.itemsSinCargar() ? null : this.items().length),
       codigo: codificarQr({ tipoEntidad: TipoEntidad.TRANSFERENCIA, idOrigen: String(id), idCentral: String(id) }),
     });
   }

@@ -21,6 +21,11 @@ export interface DatosQr {
   titulo: string;
   /** Lo que identifica: «Recepción #431». Se muestra debajo del QR. */
   subtitulo?: string;
+  /**
+   * Una línea más para el mensaje, debajo del rótulo: «ORIGEN → DESTINO · 3
+   * productos». No va en la imagen.
+   */
+  detalle?: string;
 }
 
 /**
@@ -177,7 +182,7 @@ export class QrDialogComponent {
       // Sin `await` antes de esta línea: lo que se pierde es el gesto.
       const resultado = await this.compartidor.compartir({
         titulo: this.datos.titulo,
-        texto: textoParaCompartir(this.rotulo(), this.datos.codigo, enlaceAlRegistro(this.datos.codigo)),
+        texto: textoParaCompartir(this.rotulo(), this.datos.codigo, enlaceAlRegistro(this.datos.codigo), this.datos.detalle),
         archivo: this.archivo() ?? undefined,
       });
       if (resultado === 'compartido' || resultado === 'whatsapp') {

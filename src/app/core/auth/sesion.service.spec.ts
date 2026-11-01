@@ -9,6 +9,7 @@ import { DatosService, ErrorDatos } from '../graphql/datos.service';
 import { AuthService } from './auth.service';
 import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from './auth.tokens';
 import { SesionDispositivoService } from './sesion-dispositivo.service';
+import { MarcaEmpresaService } from '../marca/marca-empresa.service';
 import { SesionService } from './sesion.service';
 
 describe('SesionService', () => {
@@ -41,6 +42,7 @@ describe('SesionService', () => {
         // lo que se prueba acá. Se sustituye para que el spec no necesite
         // Apollo por la mutación de `saveInicioSesion`.
         { provide: SesionDispositivoService, useValue: { registrar: vi.fn(() => Promise.resolve()) } },
+        { provide: MarcaEmpresaService, useValue: { cargar: vi.fn(() => Promise.resolve()) } },
       ],
     });
 

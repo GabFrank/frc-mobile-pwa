@@ -6,6 +6,7 @@ import { SesionDispositivoService } from './sesion-dispositivo.service';
 import { Usuario } from 'src/app/domains/personas/usuario.model';
 import { DatosService, esFalloDeTransporte } from '../graphql/datos.service';
 import { AuthService } from './auth.service';
+import { MarcaEmpresaService } from '../marca/marca-empresa.service';
 
 /**
  * Carga el `Usuario` completo y lo publica en `AuthService`.
@@ -57,6 +58,7 @@ export class SesionService {
   private readonly auth = inject(AuthService);
   private readonly usuarioLoginGQL = inject(UsuarioLoginGQL);
   private readonly sesionDispositivo = inject(SesionDispositivoService);
+  private readonly marcaEmpresa = inject(MarcaEmpresaService);
 
   /**
    * Trae el usuario y lo publica. Devuelve `true` si lo logró.
@@ -84,6 +86,8 @@ export class SesionService {
       // Sin await: el registro del dispositivo no puede demorar la entrada, y
       // si falla no cambia nada de lo que la persona puede hacer.
       void this.sesionDispositivo.registrar(usuario);
+      // El logo de la empresa (farmacia o bodega). Tampoco demora la entrada.
+      void this.marcaEmpresa.cargar();
       return true;
     } catch (error) {
       this.ultimoFalloFueDeRed.set(esFalloDeTransporte(error));

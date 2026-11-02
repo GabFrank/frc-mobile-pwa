@@ -365,6 +365,9 @@ export class BuscadorProductoComponent {
     if (!consulta) {
       return;
     }
+    if (this.opciones().interceptar?.(consulta)) {
+      return;
+    }
     this.offset = 0;
     this.pesable.set(null);
     this.lanzarBusqueda(consulta, false);
@@ -542,6 +545,9 @@ export class BuscadorProductoComponent {
   resolverCodigo(codigo: string): void {
     this.texto.set(codigo);
 
+    if (this.opciones().interceptar?.(codigo.trim())) {
+      return;
+    }
     if (this.busqueda.esPesable(codigo)) {
       this.buscarPesable(codigo);
       return;

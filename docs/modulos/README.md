@@ -16,6 +16,7 @@ Un documento por módulo. Cada uno cubre: propósito y reglas de negocio, rutas,
 | ├ caja | `operaciones/caja/` | 1.483 | ✅ [operaciones-caja.md](operaciones-caja.md) |
 | ├ venta-tarjeta | `operaciones/venta-tarjeta/` | 1.265 | ✅ [operaciones-venta-tarjeta.md](operaciones-venta-tarjeta.md) |
 | ├ conteo | `operaciones/conteo/` | 1.018 | ✅ en [operaciones-caja.md](operaciones-caja.md) |
+| ├ compras (factura del proveedor por KuDE) | `operaciones/compras/` | nuevo | ✅ [compras.md](compras.md) |
 | ├ solicitud-pago | `operaciones/solicitud-pago/` | 934 | ✅ [operaciones-pagos-y-varios.md](operaciones-pagos-y-varios.md) |
 | ├ moneda | `operaciones/moneda/` | 481 | ✅ en [operaciones-caja.md](operaciones-caja.md) |
 | ├ pago | `operaciones/pago/` | 330 | ✅ en [operaciones-pagos-y-varios.md](operaciones-pagos-y-varios.md) |

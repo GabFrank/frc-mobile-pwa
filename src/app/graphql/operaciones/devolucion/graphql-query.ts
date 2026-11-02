@@ -170,3 +170,64 @@ export const etiquetasSeparadoPdfQuery = gql`
     data: etiquetasSeparadoPdf(devolucionId: $devolucionId)
   }
 `;
+
+/**
+ * Devoluciones listas para retirar de un proveedor (SEPARADO o COLECTADO),
+ * agrupadas por la sucursal donde están. Cada una trae sus productos: es lo
+ * que se muestra al escanear su etiqueta. `sucursalId` null = todas.
+ */
+export const retiroProveedorConsolidadoQuery = gql`
+  query retiroProveedorConsolidado($proveedorId: ID!, $sucursalId: ID) {
+    data: retiroProveedorConsolidado(proveedorId: $proveedorId, sucursalId: $sucursalId) {
+      proveedorId
+      proveedorNombre
+      grupos {
+        sucursalId
+        sucursalNombre
+        devolucionIds
+        devoluciones {
+          devolucionId
+          identificador
+          estado
+          productos {
+            productoId
+            descripcion
+            cantidad
+            presentacion
+            lote
+            vencimiento
+          }
+        }
+      }
+    }
+  }
+`;
+
+/** Pasa a RETIRADO las devoluciones; un resultado por cada una, sin frenar las demás. */
+export const retirarDevolucionesEnBloqueMutation = gql`
+  mutation retirarDevolucionesEnBloque($devolucionIds: [ID!]!, $usuarioId: ID) {
+    data: retirarDevolucionesEnBloque(devolucionIds: $devolucionIds, usuarioId: $usuarioId) {
+      resultados {
+        id
+        ok
+        mensaje
+      }
+    }
+  }
+`;
+
+/** Comprobante de retiro (PDF en base64) de las devoluciones indicadas. */
+export const remitoRetiroProveedorQuery = gql`
+  query remitoRetiroProveedor($devolucionIds: [ID!]!) {
+    data: remitoRetiroProveedor(devolucionIds: $devolucionIds)
+  }
+`;
+
+/** Lo que el retiro necesita de la configuración del módulo. */
+export const devolucionConfiguracionRetiroQuery = gql`
+  query devolucionConfiguracionRetiro {
+    data: devolucionConfiguracion {
+      retiroPermitirSeleccionManual
+    }
+  }
+`;

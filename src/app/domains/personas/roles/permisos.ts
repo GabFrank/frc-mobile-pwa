@@ -188,6 +188,36 @@ export const PERMISOS = {
     ROLES.TESORERIA_VER,
     ROLES.TESORERIA_GESTIONAR,
   ],
+
+  /**
+   * Compras: cargar la factura del proveedor al pedido escaneando el KuDE.
+   *
+   * Los mismos roles que muestran «Compras» en el menú del desktop
+   * (`side-mini-variant.component.ts`). No se inventó un rol para el
+   * celular: quien compra en el escritorio, compra acá. **El central también
+   * los exige** (`ComprasSecurityService`), así que esto no es solo interfaz.
+   */
+  compras: [
+    ROLES.ADMIN,
+    ROLES.ANALISIS_DE_CAJA,
+    ROLES.ANALISIS_FINANCIERO,
+    ROLES.ANALISIS_CONTABLE,
+    ROLES.VER_PRECIO_COSTO,
+    ROLES.RECIBIR_PEDIDOS,
+    ROLES.TESORERIA_VER,
+    ROLES.TESORERIA_GESTIONAR,
+  ],
+
+  /**
+   * Retiro de devoluciones por el proveedor: escanear la etiqueta de cada
+   * una y pasarlas a RETIRADO.
+   *
+   * A diferencia de la carga de devoluciones —que no lleva rol—, retirar sí:
+   * **el central lo exige** (`retirarDevolucionesEnBloque` pide
+   * `TransferenciaRoles.ROLES`), y estos son esos mismos roles. Mostrar la
+   * opción a quien no los tiene solo lo llevaría a un error al confirmar.
+   */
+  devolucionRetiro: [ROLES.ADMIN, ROLES.VER_TRANSFERENCIA, ROLES.CREAR_TRANSFERENCIA],
 } as const satisfies Record<string, readonly ROLES[]>;
 
 export type AreaProtegida = keyof typeof PERMISOS;

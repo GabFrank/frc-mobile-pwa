@@ -35,6 +35,11 @@ export const rutasOperaciones: Routes = [
       import('./devolucion/devolucion.routes').then((m) => m.rutasDevolucion),
   },
   {
+    path: 'compras',
+    canActivate: [rolGuard('compras')],
+    loadChildren: () => import('./compras/compras.routes').then((m) => m.rutasCompras),
+  },
+  {
     path: 'solicitud-pago',
     canActivate: [rolGuard('solicitudPago')],
     loadChildren: () =>

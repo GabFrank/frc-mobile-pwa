@@ -12,14 +12,23 @@ import {
 } from 'src/app/domains/devolucion/devolucion.model';
 import { EstadoDevolucion } from 'src/app/domains/devolucion/devolucion.enums';
 import type { PageInfo } from 'src/app/domains/page-info.model';
+import {
+  DevolucionConfiguracionRetiro,
+  RetiroBloqueResultado,
+  RetiroProveedorConsolidado,
+} from 'src/app/domains/devolucion/retiro.model';
 import { Proveedor } from 'src/app/domains/personas/proveedor.model';
 import { AvanzarEstadoDevolucionGQL } from 'src/app/graphql/operaciones/devolucion/avanzarEstadoDevolucion';
 import { DeleteDevolucionItemGQL } from 'src/app/graphql/operaciones/devolucion/deleteDevolucionItem';
 import { DevolucionByIdGQL } from 'src/app/graphql/operaciones/devolucion/devolucionById';
 import { DevolucionConFiltrosGQL } from 'src/app/graphql/operaciones/devolucion/devolucionConFiltros';
+import { DevolucionConfiguracionRetiroGQL } from 'src/app/graphql/operaciones/devolucion/devolucionConfiguracionRetiro';
 import { EtiquetasSeparadoPdfGQL } from 'src/app/graphql/operaciones/devolucion/etiquetasSeparadoPdf';
 import { MotivosAveriaActivosGQL } from 'src/app/graphql/operaciones/devolucion/motivosAveriaActivos';
 import { ProveedoresPorTextoGQL } from 'src/app/graphql/personas/proveedor/proveedoresPorTexto';
+import { RemitoRetiroProveedorGQL } from 'src/app/graphql/operaciones/devolucion/remitoRetiroProveedor';
+import { RetirarDevolucionesEnBloqueGQL } from 'src/app/graphql/operaciones/devolucion/retirarDevolucionesEnBloque';
+import { RetiroProveedorConsolidadoGQL } from 'src/app/graphql/operaciones/devolucion/retiroProveedorConsolidado';
 import { RevertirEstadoDevolucionGQL } from 'src/app/graphql/operaciones/devolucion/revertirEstadoDevolucion';
 import { SaveDevolucionGQL } from 'src/app/graphql/operaciones/devolucion/saveDevolucion';
 import { SaveDevolucionItemGQL } from 'src/app/graphql/operaciones/devolucion/saveDevolucionItem';
@@ -58,6 +67,10 @@ export class DevolucionService {
   private readonly revertirGQL = inject(RevertirEstadoDevolucionGQL);
   private readonly etiquetasGQL = inject(EtiquetasSeparadoPdfGQL);
   private readonly proveedoresGQL = inject(ProveedoresPorTextoGQL);
+  private readonly consolidadoGQL = inject(RetiroProveedorConsolidadoGQL);
+  private readonly retirarGQL = inject(RetirarDevolucionesEnBloqueGQL);
+  private readonly comprobanteGQL = inject(RemitoRetiroProveedorGQL);
+  private readonly configuracionGQL = inject(DevolucionConfiguracionRetiroGQL);
 
   /**
    * Alta o edición de la cabecera **con sus ítems**.
@@ -130,8 +143,51 @@ export class DevolucionService {
     return this.datos.mutar<Devolucion>(this.revertirGQL, { devolucionId, usuarioId });
   }
 
-  /** Etiquetas de separado en base64, para abrir con `PdfService`. */
-  etiquetas(devolucionId: number): Observable<string> {
+  /**
+   * Etiqueta de separado en base64, para abrir con `PdfService`. Es **una
+   * sola por devolución**: un QR y la lista de sus productos.
+   */
+  etiqueta(devolucionId: number): Observable<string> {
     return this.datos.consultar<string>(this.etiquetasGQL, { devolucionId });
+  }
+
+  // ───────────────────────────────────────────── Retiro a proveedor ──
+
+  /**
+   * Devoluciones listas para que el proveedor las retire, cada una con sus
+   * productos. Sin `sucursalId`, de todas las sucursales.
+   */
+  consolidadoRetiro(
+    proveedorId: number,
+    sucursalId?: number | null,
+  ): Observable<RetiroProveedorConsolidado> {
+    return this.datos.consultar<RetiroProveedorConsolidado>(this.consolidadoGQL, {
+      proveedorId,
+      sucursalId: sucursalId ?? null,
+    });
+  }
+
+  /**
+   * Pasa las devoluciones a RETIRADO.
+   *
+   * ⚠️ **Es parcialmente exitosa.** Que la mutation no falle no quiere decir
+   * que se retiraron todas: hay que recorrer `resultados` y avisar de las que
+   * vuelven con `ok: false`.
+   */
+  retirar(devolucionIds: number[], usuarioId: number): Observable<RetiroBloqueResultado> {
+    return this.datos.mutar<RetiroBloqueResultado>(this.retirarGQL, {
+      devolucionIds,
+      usuarioId,
+    });
+  }
+
+  /** Comprobante de retiro en base64, para abrir con `PdfService`. */
+  comprobanteRetiro(devolucionIds: number[]): Observable<string> {
+    return this.datos.consultar<string>(this.comprobanteGQL, { devolucionIds });
+  }
+
+  /** Si el retiro deja marcar una devolución sin escanear su etiqueta. */
+  configuracionRetiro(): Observable<DevolucionConfiguracionRetiro> {
+    return this.datos.consultar<DevolucionConfiguracionRetiro>(this.configuracionGQL);
   }
 }

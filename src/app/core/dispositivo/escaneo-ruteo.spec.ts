@@ -42,6 +42,24 @@ describe('transferenciaDelQr', () => {
 });
 
 describe('rutearEscaneo', () => {
+  describe('etiqueta de devolución', () => {
+    // Una etiqueta por devolución: su QR trae el identificador y abre la
+    // devolución con todos sus productos.
+    it('abre el detalle de la devolución', () => {
+      expect(rutearEscaneo('DEV-1-24')).toEqual({
+        clase: 'navegar',
+        ruta: ['/operaciones/devolucion/detalle', 24],
+      });
+    });
+
+    it('vale cargada a mano, en minúsculas', () => {
+      expect(rutearEscaneo(' dev-13-1088 ')).toEqual({
+        clase: 'navegar',
+        ruta: ['/operaciones/devolucion/detalle', 1088],
+      });
+    });
+  });
+
   describe('QR que abren un registro', () => {
     it('lleva una transferencia a su detalle, por idOrigen', () => {
       // El generador escribe el mismo id en idOrigen y en idCentral; se
@@ -148,6 +166,25 @@ describe('rutearEscaneo', () => {
       expect(rutearEscaneo('  7840001234567 ')).toEqual({
         clase: 'producto',
         codigo: '7840001234567',
+      });
+    });
+
+    it('el QR de un KuDE abre Compras, no el buscador de productos', () => {
+      const url =
+        'https://ekuatia.set.gov.py/consultas/qr?nVersion=150&Id=01800625072001001006749522026100813312781711&dRucRec=80099482';
+      expect(rutearEscaneo(url)).toEqual({
+        clase: 'navegar',
+        ruta: ['/operaciones/compras/factura'],
+        queryParams: { qr: url },
+      });
+    });
+
+    it('el CDC de una factura escrito a mano también abre Compras', () => {
+      const cdc = '0180 0625 0720 0100 1006 7495 2202 6100 8133 1278 1711';
+      expect(rutearEscaneo(cdc)).toEqual({
+        clase: 'navegar',
+        ruta: ['/operaciones/compras/factura'],
+        queryParams: { qr: cdc },
       });
     });
 

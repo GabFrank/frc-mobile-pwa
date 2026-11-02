@@ -25,10 +25,15 @@ const CALIDAD = 0.75;
  * verticales de varios Android llegan acostadas. Donde no exista, se cae a
  * un `<img>`, que en los navegadores actuales también respeta el EXIF.
  */
-export async function fotoADataUri(archivo: File): Promise<string> {
+export async function fotoADataUri(
+  archivo: File,
+  opciones?: { ladoMaximo?: number; calidad?: number },
+): Promise<string> {
+  const ladoMaximo = opciones?.ladoMaximo ?? LADO_MAXIMO;
+  const calidad = opciones?.calidad ?? CALIDAD;
   const bitmap = await decodificar(archivo);
 
-  const escala = Math.min(1, LADO_MAXIMO / Math.max(bitmap.width, bitmap.height));
+  const escala = Math.min(1, ladoMaximo / Math.max(bitmap.width, bitmap.height));
   const ancho = Math.round(bitmap.width * escala);
   const alto = Math.round(bitmap.height * escala);
 
@@ -42,7 +47,7 @@ export async function fotoADataUri(archivo: File): Promise<string> {
   }
   ctx.drawImage(bitmap as CanvasImageSource, 0, 0, ancho, alto);
 
-  return lienzo.toDataURL('image/jpeg', CALIDAD);
+  return lienzo.toDataURL('image/jpeg', calidad);
 }
 
 async function decodificar(archivo: File): Promise<ImageBitmap | HTMLImageElement> {

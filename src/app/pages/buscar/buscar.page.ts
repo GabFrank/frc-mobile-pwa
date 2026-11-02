@@ -8,6 +8,7 @@ import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
 import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { esSucursalOperable } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
+import { esKude } from 'src/app/pages/operaciones/compras/compras-reglas';
 import { BuscadorProductoComponent } from 'src/app/shared/producto/buscador-producto.component';
 import { OpcionesBuscador, SeleccionProducto } from 'src/app/shared/producto/buscador.types';
 
@@ -107,8 +108,24 @@ export class BuscarPage {
       devuelve: 'presentacion',
       mostrarPrecio: true,
       sucursalId: esSucursalOperable(sucursal) ? sucursal?.id : undefined,
+      interceptar: (texto) => this.abrirFactura(texto),
     };
   });
+
+  /**
+   * El CDC de una factura electrónica (o el QR del KuDE) no es un producto:
+   * se abre en Compras para iniciar la compra con esa factura, igual que
+   * desde el botón flotante. Sin el rol de compras, el guard de la ruta lo dice.
+   */
+  private abrirFactura(texto: string): boolean {
+    if (!esKude(texto)) {
+      return false;
+    }
+    void this.router.navigate(['/operaciones/compras/factura'], {
+      queryParams: { qr: texto.replace(/\s+/g, '') },
+    });
+    return true;
+  }
 
   alElegir(_seleccion: SeleccionProducto): void {
     // Consulta pura: no hay a dónde devolver. Lo elegido ya se ve en la card

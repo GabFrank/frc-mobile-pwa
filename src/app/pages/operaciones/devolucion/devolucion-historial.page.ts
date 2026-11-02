@@ -4,6 +4,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
+import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { esSucursalOperable } from 'src/app/domains/empresarial/sucursal/sucursal.util';
 import { EstadoDevolucion, TipoDevolucion } from 'src/app/domains/devolucion/devolucion.enums';
 import { Devolucion } from 'src/app/domains/devolucion/devolucion.model';
@@ -48,6 +50,9 @@ const FILTROS: readonly { etiqueta: string; estado: EstadoDevolucion | null }[] 
   template: `
     <frc-pagina titulo="Devoluciones" [conVolver]="true">
       <div acciones>
+        @if (puedeRetirar()) {
+          <button matButton (click)="retiro()">Retiro a proveedor</button>
+        }
         <button matButton="filled" (click)="nueva()">Nueva devolución</button>
       </div>
 
@@ -101,8 +106,13 @@ export class DevolucionHistorialPage {
   private readonly servicio = inject(DevolucionService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly roles = inject(RoleService);
 
   readonly filtros = FILTROS;
+  /** El retiro pide los roles que exige el central. Ver `PERMISOS.devolucionRetiro`. */
+  readonly puedeRetirar = computed(() =>
+    this.roles.tieneAlgunRol(this.auth.roles(), PERMISOS.devolucionRetiro),
+  );
   readonly indice = signal(0);
   readonly filas = signal<Devolucion[]>([]);
   readonly cargando = signal(true);
@@ -193,5 +203,9 @@ export class DevolucionHistorialPage {
 
   nueva(): void {
     void this.router.navigate(['/operaciones/devolucion/nueva']);
+  }
+
+  retiro(): void {
+    void this.router.navigate(['/operaciones/devolucion/retiro']);
   }
 }

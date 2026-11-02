@@ -29,6 +29,7 @@ import { OpcionesBuscador, SeleccionProducto } from './buscador.types';
       <frc-buscador-producto
         [opciones]="data.opciones ?? {}"
         [autoFoco]="true"
+        [codigoInicial]="data.textoInicial"
         (seleccion)="elegir($event)"
       />
     </mat-dialog-content>
@@ -50,7 +51,11 @@ import { OpcionesBuscador, SeleccionProducto } from './buscador.types';
   `,
 })
 export class BuscadorProductoDialogComponent {
-  readonly data = inject<{ titulo?: string; opciones?: OpcionesBuscador }>(MAT_DIALOG_DATA, {
+  /**
+   * `textoInicial` arranca la búsqueda con un texto ya escrito: Compras lo usa
+   * con la descripción que trae la factura del proveedor.
+   */
+  readonly data = inject<{ titulo?: string; opciones?: OpcionesBuscador; textoInicial?: string }>(MAT_DIALOG_DATA, {
     optional: true,
   }) ?? {};
   private readonly ref =

@@ -144,9 +144,18 @@ describe('Nueva transferencia', () => {
    * este corte se puede cargar el borrador entero y descubrir recién al
    * finalizar que no sale.
    */
+  it('el solicitante arranca en quien la crea', () => {
+    const f = montar();
+    f.componentInstance.cambiarDestino(3);
+
+    expect(f.componentInstance.solicitante()?.id).toBe(41);
+    expect(f.componentInstance.puedeCrear()).toBe(true);
+  });
+
   it('sin solicitante no crea nada, aunque origen y destino estén elegidos', async () => {
     const f = montar();
     f.componentInstance.cambiarDestino(3);
+    f.componentInstance.solicitante.set(null);
 
     expect(f.componentInstance.puedeCrear()).toBe(false);
 
@@ -198,16 +207,15 @@ describe('Nueva transferencia', () => {
    * ⚠️ Los candidatos salen de las cajas del destino: dejar al elegido antes
    * atribuiría el pedido a alguien de otra sucursal.
    */
-  it('cambiar el destino descarta el solicitante elegido', async () => {
+  it('cambiar el destino descarta el solicitante elegido y vuelve a quien la crea', async () => {
     const f = montar();
     f.componentInstance.cambiarDestino(3);
     await f.componentInstance.elegirSolicitante();
-    expect(f.componentInstance.solicitante()).not.toBeNull();
+    expect(f.componentInstance.solicitante()).toEqual(CAJERO);
 
     f.componentInstance.cambiarDestino(5);
 
-    expect(f.componentInstance.solicitante()).toBeNull();
-    expect(f.componentInstance.puedeCrear()).toBe(false);
+    expect(f.componentInstance.solicitante()?.id).toBe(41);
   });
 });
 
@@ -656,7 +664,8 @@ describe('Recién finalizada: ofrecer compartirla al grupo', () => {
     expect(abrir).toHaveBeenCalledTimes(1);
     const datos = (abrir.mock.calls[0] as unknown as [unknown, { subtitulo: string; detalle: string }])[1];
     expect(datos.subtitulo).toBe('Transferencia #54060');
-    expect(datos.detalle).toBe('DEPOSITO AQUARIO SDG → SUC. ROTONDA · 2 productos');
+    expect(datos.detalle).toContain('Origen: DEPOSITO AQUARIO SDG\nDestino: SUC. ROTONDA');
+    expect(datos.detalle).toContain('Productos: 2');
     expect(navegar).toHaveBeenCalledWith([], {
       queryParams: { recienFinalizada: null },
       queryParamsHandling: 'merge',

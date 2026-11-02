@@ -8,7 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -192,6 +192,7 @@ export class LoginPage {
   private readonly auth = inject(AuthService);
   private readonly sesion = inject(SesionService);
   private readonly router = inject(Router);
+  private readonly ruta = inject(ActivatedRoute);
   private readonly notificacion = inject(NotificacionService);
   readonly servidor = inject(ServerConfigService);
   private readonly dialogo = inject(DialogoService);
@@ -260,6 +261,14 @@ export class LoginPage {
       this.notificacion.warn('Estás usando la contraseña por defecto. Cambiala desde tu cuenta.');
     }
 
+    // Quien llegó por un enlace (una transferencia compartida por WhatsApp)
+    // vuelve ahí después de entrar. Solo rutas internas: un `volverA` con
+    // otro dominio se ignora.
+    const volverA = this.ruta.snapshot.queryParamMap.get('volverA');
+    if (volverA && volverA.startsWith('/') && !volverA.startsWith('//') && !volverA.startsWith('/login')) {
+      await this.router.navigateByUrl(volverA);
+      return;
+    }
     await this.router.navigate(['/inicio']);
   }
 

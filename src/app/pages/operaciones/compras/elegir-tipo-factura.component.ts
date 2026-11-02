@@ -26,8 +26,8 @@ interface Hoja {
 /**
  * Hoja para elegir cómo cargar la factura: electrónica (QR) o en papel (foto).
  *
- * Con «papel», el mismo diálogo junta las fotos (hasta {@link MAX_FOTOS_FACTURA}), llama a la
- * IA y navega a la revisión. La electrónica se resuelve afuera: el que abrió la hoja escanea.
+ * Con «papel», el mismo diálogo junta las fotos (hasta {@link MAX_FOTOS_FACTURA}), sacadas en el
+ * momento o elegidas de la galería, llama a la IA y navega a la revisión. La electrónica se resuelve afuera: el que abrió la hoja escanea.
  */
 @Component({
   selector: 'frc-elegir-tipo-factura',
@@ -53,7 +53,8 @@ interface Hoja {
       <h2 mat-dialog-title>Factura en papel</h2>
       <mat-dialog-content>
         <p class="ayuda">
-          Sacá una foto por hoja, con buena luz y la factura entera. Hasta {{ maximo }} fotos.
+          Una foto por hoja, con buena luz y la factura entera: sacala ahora o elegila de la
+          galería. Hasta {{ maximo }} fotos.
         </p>
         <div class="fotos">
           @for (f of fotos(); track f.clave) {
@@ -66,18 +67,31 @@ interface Hoja {
             </div>
           }
           @if (fotos().length < maximo) {
-            <button type="button" class="agregar" [disabled]="leyendo()" (click)="entrada.click()">
+            <button type="button" class="agregar" [disabled]="leyendo()" (click)="camara.click()">
               <frc-icono nombre="camara" [tamano]="24" />
-              <span>Agregar</span>
+              <span>Sacar foto</span>
+            </button>
+            <button type="button" class="agregar" [disabled]="leyendo()" (click)="galeria.click()">
+              <frc-icono nombre="galeria" [tamano]="24" />
+              <span>Galería</span>
             </button>
           }
         </div>
+        <!-- Con capture="environment" el teléfono abre la cámara y no ofrece la galería:
+             por eso son dos entradas, una con capture y otra sin. -->
         <input
-          #entrada
+          #camara
           class="oculto"
           type="file"
           accept="image/*"
           capture="environment"
+          (change)="agregar($event)"
+        />
+        <input
+          #galeria
+          class="oculto"
+          type="file"
+          accept="image/*"
           multiple
           (change)="agregar($event)"
         />
@@ -152,6 +166,7 @@ interface Hoja {
       cursor: pointer;
     }
     .agregar frc-icono { color: var(--brand-text); }
+    .agregar span { text-align: center; line-height: 1.2; }
   `,
 })
 export class ElegirTipoFacturaComponent {

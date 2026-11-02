@@ -32,6 +32,7 @@ const TRAZOS: Record<string, string> = {
 
   // Cámara y escaneo
   camara: 'M4 8h3l1.8-2h6.4L17 8h3v11H4z M12 10.4a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4z',
+  galeria: 'M4 5h16v14H4z M4 16l4.5-4.5 3.5 3.5 2.5-2.5L20 18 M15.5 7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
   escanear: 'M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8 M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8 M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16 M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16 M4 12h16',
   linterna: 'M13 3L6 13.5h5L10 21l7-10.5h-5z',
 

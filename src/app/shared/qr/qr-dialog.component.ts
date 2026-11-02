@@ -74,7 +74,7 @@ export interface DatosQr {
 
       <div class="acciones">
         <button matButton [disabled]="compartiendo()" (click)="compartir()">Compartir</button>
-        <button matButton (click)="copiar()">Copiar código</button>
+        <button matButton (click)="copiar()">Copiar mensaje</button>
         <button matButton (click)="ref.close()">Listo</button>
       </div>
     </div>
@@ -199,14 +199,17 @@ export class QrDialogComponent {
   }
 
   /**
-   * Copiar el texto sirve cuando no hay cómo escanear —dos personas por
-   * teléfono, o una pantalla rota—: el otro lo pega en la carga manual del
-   * escáner.
+   * Copia el mismo mensaje que sale al compartir (datos, enlace y código),
+   * para pegarlo en WhatsApp desde el escritorio, donde no hay hoja de
+   * compartir. El código va al final: el otro lo puede pegar en la carga
+   * manual del escáner.
    */
   async copiar(): Promise<void> {
     try {
-      await navigator.clipboard.writeText(this.datos.codigo);
-      this.notificacion.ok('Código copiado.');
+      await navigator.clipboard.writeText(
+        textoParaCompartir(this.rotulo(), this.datos.codigo, enlaceAlRegistro(this.datos.codigo), this.datos.detalle),
+      );
+      this.notificacion.ok('Mensaje copiado.');
     } catch (error) {
       console.warn('[qr] No se pudo copiar el código:', error);
       this.notificacion.warn('No se pudo copiar. Escaneá el código.');

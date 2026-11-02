@@ -245,7 +245,7 @@ describe('El mensaje y el nombre del archivo', () => {
     expect(texto.split('\n').slice(0, 3)).toEqual([
       'Transferencia #54061',
       'DEPOSITO → SUC. ROTONDA · 3 productos',
-      'https://x.test/transferencias/54061',
+      'Link: https://x.test/transferencias/54061',
     ]);
   });
 

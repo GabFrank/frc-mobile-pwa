@@ -116,8 +116,8 @@ export function textoParaCompartir(
     partes.push(detalle.trim());
   }
   if (enlace) {
-    partes.push(enlace, '');
-    partes.push(`Tocá el enlace para abrirlo en la app. Si no, pegá este código en la carga manual del escáner:\n${codigo}`);
+    partes.push('Link: ' + enlace, '');
+    partes.push(`Si el link no abre, pegá este código en la carga manual del escáner:\n${codigo}`);
   } else {
     partes.push('', `Escaneá el QR con el botón de la app, o pegá este código en la carga manual:\n${codigo}`);
   }

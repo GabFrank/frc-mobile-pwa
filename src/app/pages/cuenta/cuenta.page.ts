@@ -53,6 +53,12 @@ import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/sele
         </frc-seccion>
       }
 
+      <frc-seccion titulo="Seguridad" [panel]="true">
+        <frc-dato etiqueta="Contraseña">
+          <button matButton (click)="irAContrasena()">Cambiar contraseña</button>
+        </frc-dato>
+      </frc-seccion>
+
       <frc-seccion titulo="Preferencias" [panel]="true">
         <frc-dato etiqueta="Tema">
           <frc-selector
@@ -202,6 +208,10 @@ export class CuentaPage {
     if (await this.instalacion.instalar()) {
       this.notificacion.ok('App instalada.');
     }
+  }
+
+  irAContrasena(): void {
+    void this.router.navigate(['/cuenta/contrasena']);
   }
 
   irARostro(): void {

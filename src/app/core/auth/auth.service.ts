@@ -47,7 +47,7 @@ export interface ResultadoLogin {
 }
 
 /** Contraseña con la que se dan de alta los usuarios. */
-const CONTRASENA_POR_DEFECTO = '123';
+export const CONTRASENA_POR_DEFECTO = '123';
 
 /**
  * Autenticación.

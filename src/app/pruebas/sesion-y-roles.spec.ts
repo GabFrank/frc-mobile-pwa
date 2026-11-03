@@ -92,6 +92,31 @@ describe('Sesión y control de acceso por rol', () => {
       expect(etiquetas.length).toBeGreaterThan(0);
     });
 
+    it('ADMIN ve primero los seis de uso diario, en ese orden', () => {
+      TestBed.inject(AuthService).establecerUsuario(usuarioCon([ROLES.ADMIN]));
+      const fixture = TestBed.createComponent(InicioPage);
+      fixture.detectChanges();
+
+      const etiquetas = fixture.componentInstance.accesos().map((a) => a.etiqueta);
+      expect(etiquetas.slice(0, 6)).toEqual([
+        'Marcación',
+        'Transferencias',
+        'Inventario',
+        'Mis finanzas',
+        'Caja',
+        'Operaciones',
+      ]);
+    });
+
+    it('sin esos roles, los de autoservicio suben al principio', () => {
+      TestBed.inject(AuthService).establecerUsuario(usuarioCon(['OTRO_ROL']));
+      const fixture = TestBed.createComponent(InicioPage);
+      fixture.detectChanges();
+
+      const etiquetas = fixture.componentInstance.accesos().map((a) => a.etiqueta);
+      expect(etiquetas.slice(0, 3)).toEqual(['Marcación', 'Mis finanzas', 'Operaciones']);
+    });
+
     it('la card de Caja en Operaciones sigue la misma regla', () => {
       const auth = TestBed.inject(AuthService);
 

@@ -118,13 +118,17 @@ export class InicioPage {
    * Los accesos sin `roles` son deliberados: autoservicio y consulta. El
    * porqué de cada uno está en `permisos.ts`.
    */
+  // Los seis primeros son los de uso diario (orden pedido por Franco, 2026-11-03).
   private readonly TODOS: readonly AccesoRapido[] = [
+    { etiqueta: 'Marcación', ruta: '/marcacion', icono: 'reloj' },
+    { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: PERMISOS.transferencias },
+    { etiqueta: 'Inventario', ruta: '/inventario', icono: 'inventario', roles: PERMISOS.inventario },
+    { etiqueta: 'Mis finanzas', ruta: '/mis-finanzas', icono: 'dinero' },
     { etiqueta: 'Caja', ruta: '/operaciones/caja', icono: 'dinero', roles: PERMISOS.caja },
     { etiqueta: 'Operaciones', ruta: '/operaciones', icono: 'caja' },
     { etiqueta: 'Buscar producto', ruta: '/buscar', icono: 'buscar' },
     { etiqueta: 'Productos vencidos', ruta: '/producto/vencidos', icono: 'vencido' },
     { etiqueta: 'Consultar precio', ruta: '/kiosco', icono: 'etiqueta' },
-    { etiqueta: 'Inventario', ruta: '/inventario', icono: 'inventario', roles: PERMISOS.inventario },
     {
       etiqueta: 'Control inventario',
       ruta: '/inventario/control',
@@ -137,14 +141,12 @@ export class InicioPage {
       icono: 'inventario',
       roles: PERMISOS.lugares,
     },
-    { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: PERMISOS.transferencias },
     {
       etiqueta: 'Notificaciones',
       ruta: '/notificaciones',
       icono: 'bandeja',
       pendientes: () => this.notificaciones.noLeidas(),
     },
-    { etiqueta: 'Marcación', ruta: '/marcacion', icono: 'reloj' },
     {
       // El kiosco de la puerta. Lleva rol porque marca **por otros**, a
       // diferencia de la marcación propia, que es autoservicio.
@@ -154,7 +156,6 @@ export class InicioPage {
       roles: PERMISOS.kioscoMarcacion,
     },
     { etiqueta: 'Mi trabajo', ruta: '/mi-trabajo', icono: 'persona' },
-    { etiqueta: 'Mis finanzas', ruta: '/mis-finanzas', icono: 'dinero' },
     { etiqueta: 'Mi cuenta', ruta: '/cuenta', icono: 'cuenta' },
   ];
 

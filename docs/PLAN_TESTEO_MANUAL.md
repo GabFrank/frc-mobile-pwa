@@ -146,6 +146,15 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 > Ambos casos importan: si Caja no aparece nunca, los roles no llegan; si aparece siempre, no se filtran.
 
+### 1.2.1 · Orden de los accesos rápidos
+1. Con un usuario `ADMIN`, mirar los accesos de Inicio
+
+**Esperado:** los seis primeros son **Marcación, Transferencias, Inventario, Mis finanzas, Caja, Operaciones**, en ese orden. Después: Buscar producto, Productos vencidos, Consultar precio, Control inventario, Lugares del depósito, Notificaciones, Kiosco de marcación, Mi trabajo, Mi cuenta.
+
+2. Con un usuario sin roles de caja, inventario ni transferencias
+
+**Esperado:** arranca con **Marcación, Mis finanzas, Operaciones**. Los botones sin permiso no aparecen ni dejan hueco.
+
 ### 1.3 · Restauración de sesión al recargar
 1. Ya logueado, apretar F5 (o recargar en el teléfono)
 
@@ -8424,7 +8433,7 @@ muestra «El envío de correos no está configurado…».
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
 |---|---|---|---|---|
-| 1 · Arranque y sesión | 10 | | | |
+| 1 · Arranque y sesión | 11 | | | |
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
@@ -8521,7 +8530,7 @@ muestra «El envío de correos no está configurado…».
 | 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
 | 96 · Mi cuenta: cambiar contraseña | 7 | 7 | | |
 | 97 · Login: ¿Olvidaste tu contraseña? | 7 | 7 | | |
-| **Total** | **822** | | | |
+| **Total** | **823** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

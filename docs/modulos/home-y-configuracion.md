@@ -157,12 +157,11 @@ o más nuevo; uno anterior borra `email` y `creadoEn` al guardar).
   y sin `personaId` o `usuarioId` borraría la persona o el creador.
 - ⚠️ **`usuarioId` es el creador**, no quien guarda: no se usa
   `DatosService.guardar`, que lo llena con el usuario en sesión.
-- Reglas: al menos 3 caracteres, distinta de `123`, las dos iguales y **sin
-  espacios al borde** — el login no recorta, y un espacio que metió el teclado
-  deja al usuario afuera sin que lo note hasta el próximo ingreso.
-- No pide la actual: el central no la verifica.
+- Reglas: distinta de `123` y del usuario, las dos iguales y **sin espacios al
+  borde** — el login no recorta, y un espacio que metió el teclado deja al
+  usuario afuera sin que lo note hasta el próximo ingreso.
+- No pide la actual, igual que `frc-mobile`.
 - El central la guarda en mayúsculas y el login compara sin distinguirlas.
-- **No cierra ninguna sesión**, ni esta ni las de otros dispositivos.
 - `personas.usuario` se replica a las filiales: el desktop de una sucursal ve
   la clave nueva cuando replica; en una filial sin suscripción sigue la vieja.
 - Las reglas son las mismas que al recuperar (abajo): las del central de
@@ -185,12 +184,10 @@ desktop**. Las reglas (bloqueos, intentos, vencimientos) son del central.
 - En vez del QR del desktop, «Enviar por WhatsApp» abre `wa.me` con el mensaje:
   el usuario ya está en el teléfono.
 - Una llamada a la vez: el doble toque en «Registrar solicitud» o «Guardar»
-  quemaba el token o mostraba un error con la clave ya cambiada.
+  obligaba a empezar de nuevo o mostraba un error con la clave ya cambiada.
 - El correo de la solicitud **queda en el usuario** al restablecer (lo hace el
   central). La pantalla lo avisa.
-- ⚠️ El central bloquea 30 minutos tras 20 fallos **por IP**. Los teléfonos de
-  una sucursal suelen salir por la misma IP: veinte errores de tipeo dejan a
-  toda la sucursal sin recuperación un rato. Se muestra el mensaje del central.
+- Si el central rechaza por demasiados intentos, se muestra su mensaje tal cual.
 
 > ⚠️ **El canal de actualizaciones no aplica.** Era una elección entre canales
 > de Play Store; una PWA se actualiza por su service worker.

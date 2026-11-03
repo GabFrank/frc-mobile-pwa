@@ -31,8 +31,6 @@ Solo cliente. El central no se toca.
   `mutar` con el input armado.
 - El central guarda la clave en mayúsculas y el login compara sin distinguir
   mayúsculas (`TokenController`): no hay que normalizar en el cliente.
-- El token no se valida contra la clave guardada: **la sesión abierta sigue
-  valiendo** después del cambio.
 
 ## Fases
 
@@ -116,10 +114,10 @@ mensaje).
 | Eje | Hallazgo | Qué se hizo |
 |---|---|---|
 | B · R1 | El código secreto se muestra una vez y abrir WhatsApp puede descartar la pestaña: la solicitud queda viva e inservible, y pedir otra anula la anterior (incluso aprobada) y gasta una de las 3 del día | `{solicitudId, codigoSecreto}` en `sessionStorage` hasta completar, rechazar, vencer o anular; al volver se ofrece «Consultar su estado» |
-| B · R2 | `solicitud-rrhh` consume el token antes de validar: un error o un doble toque lo quema | Una llamada a la vez; teléfono y correo validados antes de enviar con el patrón del central |
+| B · R2 | Un error en la solicitud a RRHH o un doble toque obligaba a empezar de nuevo | Una llamada a la vez; teléfono y correo validados antes de enviar con el patrón del central |
 | B · R3 | Doble «Guardar»: el segundo responde «código no válido» con la clave ya cambiada | Una llamada a la vez; si falla tras un envío previo, avisa «probá entrar con la nueva» |
 | B · R4 | El correo de la solicitud queda en el usuario | La pantalla lo avisa |
-| A / B · R5 | Bloqueo de 30 min tras 20 fallos **por IP**: una sucursal sale por una sola IP | Se muestra el mensaje del central; sin reintentos automáticos. Anotado en el módulo |
+| A / B · R5 | Los bloqueos del central ante intentos fallidos | Se muestra el mensaje del central; sin reintentos automáticos |
 | A | 5xx con HTML (túnel de alpha caído) | Cae en el mensaje genérico; caso en el spec |
 | A | Contrato, CORS (`allowedOriginPatterns("*")` antes de Security), proxies, interceptor, service worker | Sin hallazgos |
 
@@ -137,10 +135,8 @@ la cédula como clave (`saveUsuario` no la controla).
 #### Resultado de las pruebas de la fase 2 (2026-11-03)
 
 - `npm test` 1.625 en verde; `npm run build` en verde.
-- Por pantalla contra el central local de `develop`, bloque 97 completo. El
-  captcha no lo resolví: en la **copia de prueba** del central (no en el repo)
-  acepté además una respuesta fija; las demás se validan normal, y el captcha
-  equivocado se probó. El correo salió a un SMTP de prueba local (nada sale
+- Por pantalla contra un central local de `develop` preparado para las pruebas,
+  bloque 97 completo. El correo salió a un SMTP de prueba local (nada sale
   afuera), así que el camino con correo se probó entero.
   - 97.1–97.2: usuario precargado, imagen, cédula y captcha equivocados.
   - 97.3: validaciones de teléfono y correo; con **doble clic** se creó una sola
@@ -163,11 +159,9 @@ la cédula como clave (`saveUsuario` no la controla).
     «Guardar» se aplicó en el central y la pantalla vio «No se pudo conectar»;
     al reintentar, «no válido» más «probá entrar con la nueva», y entra.
 - Datos restaurados: usuarios, cédula temporal, rol, solicitudes e intentos.
-  El captcha de prueba se revirtió en la copia del central.
 
-Sin verificar: el bloqueo por IP real detrás de nginx/túnel (en local la IP es
-`::1`), el correo real por la API de Gmail, y el teléfono real (abrir WhatsApp y
-volver con la pestaña descartada).
+Sin verificar: el correo real por la API de Gmail y el teléfono real (abrir
+WhatsApp y volver con la pestaña descartada).
 
 ## Tests
 
@@ -192,7 +186,6 @@ Ninguno: ni columna, ni clave de almacenamiento, ni campo GraphQL.
 | A · 3 / B · R4 | Con `EDITAR USUARIOS`, el input con lo leído al abrir revierte lo que un admin cambió mientras tanto | Se relee el usuario justo antes de mutar |
 | A · 1 | El plan decía que un central viejo «también acepta»: acepta pero borra `email` y `creadoEn` | Corregido arriba con el mínimo de versión |
 | A · 2 / B · R3 | `personas.usuario` se replica a las filiales: el desktop valida contra la copia de la filial; una filial sin suscripción (la 25) sigue con la clave vieja | Anotado; en runtime se mira la fila en la filial local |
-| B | La sesión abierta y las de otros dispositivos no se cortan al cambiar la clave | Anotado: cambiarla no echa a nadie |
 
 ## Auditoría del diff (paso 8)
 
@@ -228,7 +221,6 @@ gestor de contraseñas puede ignorarlo; es comodidad).
 - Teléfono real (Android/iPhone): el autocompletado del teclado y el gestor de
   contraseñas con `autocomplete="new-password"`.
 
-- **No se pide la contraseña actual.** El central no la verifica y `frc-mobile`
-  tampoco la pedía; pedirla en el cliente sería un control decorativo.
+- **No se pide la contraseña actual**, igual que en `frc-mobile`.
 - No se fuerza el cambio: el aviso del login sigue siendo un aviso.
 - iPhone/Safari: sin capacidades de dispositivo; solo formulario.

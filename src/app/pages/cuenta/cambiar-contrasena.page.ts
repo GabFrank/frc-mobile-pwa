@@ -28,8 +28,7 @@ import { inputCambioClave, validarNuevaContrasena } from './contrasena.util';
  * En `frc-mobile` era un diálogo que saltaba al entrar con «123». Acá es una
  * pantalla a la que se llega cuando uno quiere; el login solo avisa.
  *
- * No pide la actual: el central no la verifica, así que pedirla sería un
- * control de adorno.
+ * No pide la actual, igual que `frc-mobile`.
  */
 @Component({
   selector: 'frc-cambiar-contrasena',

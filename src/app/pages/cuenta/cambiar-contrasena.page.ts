@@ -20,7 +20,7 @@ import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component'
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
-import { inputCambioClave, LARGO_MINIMO, validarNuevaContrasena } from './contrasena.util';
+import { inputCambioClave, validarNuevaContrasena } from './contrasena.util';
 
 /**
  * Cambio de la propia contraseña, desde Mi cuenta.
@@ -78,7 +78,7 @@ import { inputCambioClave, LARGO_MINIMO, validarNuevaContrasena } from './contra
               >
                 <frc-icono [nombre]="ver() ? 'ocultar' : 'ver'" [tamano]="20" />
               </button>
-              <mat-hint>Al menos {{ largoMinimo }} caracteres, distinta de 123.</mat-hint>
+              <mat-hint>Distinta de 123 y de tu usuario.</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -123,7 +123,6 @@ export class CambiarContrasenaPage {
   private readonly notificacion = inject(NotificacionService);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly largoMinimo = LARGO_MINIMO;
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
@@ -134,7 +133,9 @@ export class CambiarContrasenaPage {
   private readonly usuario = signal<UsuarioParaCambioClave | null>(null);
   readonly nickname = computed(() => this.usuario()?.nickname ?? '');
 
-  readonly problema = computed(() => validarNuevaContrasena(this.nueva(), this.repetida()));
+  readonly problema = computed(() =>
+    validarNuevaContrasena(this.nueva(), this.repetida(), this.nickname()),
+  );
 
   /** No se reta a quien todavía no terminó de escribir la segunda. */
   readonly aviso = computed(() => {

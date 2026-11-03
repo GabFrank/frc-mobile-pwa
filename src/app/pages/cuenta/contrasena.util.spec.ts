@@ -11,8 +11,26 @@ describe('validarNuevaContrasena', () => {
     expect(validarNuevaContrasena('abcd ', 'abcd ')).toContain('espacios');
   });
 
-  it('exige el largo mínimo', () => {
-    expect(validarNuevaContrasena('ab', 'ab')).toContain('al menos 3');
+  it('acepta una corta: el central no pide mínimo', () => {
+    expect(validarNuevaContrasena('ab', 'ab')).toBeNull();
+  });
+
+  it('rechaza un mismo carácter repetido, como el central', () => {
+    expect(validarNuevaContrasena('aaaa', 'aaaa')).toContain('repetido');
+    expect(validarNuevaContrasena('x', 'x')).toContain('repetido');
+  });
+
+  it('rechaza más de 50 caracteres', () => {
+    const larga = 'ab'.repeat(26);
+    expect(validarNuevaContrasena(larga, larga)).toContain('50');
+  });
+
+  it('rechaza el propio usuario, sin importar mayúsculas', () => {
+    expect(validarNuevaContrasena('mayala', 'mayala', 'MAYALA')).toContain('usuario');
+  });
+
+  it('una de solo espacios cuenta como vacía', () => {
+    expect(validarNuevaContrasena('   ', '   ')).toContain('Escribí');
   });
 
   it('rechaza la clave de alta', () => {

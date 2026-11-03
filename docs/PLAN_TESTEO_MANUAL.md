@@ -8319,12 +8319,13 @@ lleva a la pantalla del mismo nombre, con flecha para volver.
 
 ### 96.3 · Las reglas frenan antes de guardar
 
-Probar: `ab`; `123` en los dos; dos distintas; una con espacio al final en
-los dos campos.
+Probar: `aaaa`; el propio usuario; `123` en los dos; dos distintas; una con
+espacio al final en los dos campos.
 
-**Esperado:** el botón queda deshabilitado y abajo sale el motivo («al menos
-3», «distinta de la de alta», «no coinciden» recién al escribir la segunda,
-«sin espacios»).
+**Esperado:** el botón queda deshabilitado y abajo sale el motivo («mismo
+carácter repetido», «igual a tu usuario», «distinta de la de alta», «no
+coinciden» recién al escribir la segunda, «sin espacios»). Una corta como `ab`
+**sí** se acepta: el central tampoco pide mínimo.
 
 ### 96.4 · Guardar sin `EDITAR USUARIOS` *(el que importa)*
 
@@ -8356,6 +8357,68 @@ de confirmar.
 
 **Esperado:** al abrir, el estado de error con «Reintentar»; al guardar, el
 aviso de error y el botón vuelve a habilitarse. La clave no cambió.
+
+## Bloque 97 — Login: ¿Olvidaste tu contraseña? *(7/7 en Chrome contra un central local, 2026-11-03; falta el teléfono real y el correo por Gmail)*
+
+Necesita el central con `/public/recuperacion-contrasena` (desde `v4.8.0-beta.11`
+y `v4.16.0`). Preparación: un usuario **sin correo** y con cédula cargada; otro
+**con correo** real al que tengas acceso; alguien con el rol `RRHH APROBAR` en
+el desktop.
+
+### 97.1 · El enlace lleva el usuario escrito
+
+Escribir un usuario en el login y tocar «¿Olvidaste tu contraseña?».
+
+**Esperado:** abre «Recuperar contraseña» con ese usuario ya cargado y la imagen
+del captcha. «Otra imagen» la cambia.
+
+### 97.2 · Datos o captcha equivocados
+
+Cédula equivocada; después captcha equivocado.
+
+**Esperado:** el mensaje del central («no coinciden» / captcha incorrecto), la
+imagen se renueva sola y no se avanza.
+
+### 97.3 · Sin correo: solicitud a RRHH *(el que importa)*
+
+Con el usuario sin correo: datos correctos → teléfono y correo → «Registrar
+solicitud».
+
+**Esperado:** número de solicitud y código secreto, con «Copiar» y «Enviar por
+WhatsApp» (abre WhatsApp con el mensaje escrito). Teléfono o correo mal
+escritos frenan antes de enviar.
+
+### 97.4 · El código no se pierde al ir a WhatsApp
+
+En el paso anterior, abrir WhatsApp y volver; o recargar la página.
+
+**Esperado:** al volver a «Recuperar contraseña» aparece «Tenés la solicitud N°
+… en curso» con «Consultar su estado», que carga el número y el código.
+
+### 97.5 · Pendiente, aprobada y clave nueva
+
+Consultar con la solicitud pendiente; aprobarla en el desktop (RRHH →
+solicitudes de recuperación); consultar otra vez y guardar una clave nueva.
+
+**Esperado:** pendiente lo dice y no avanza; aprobada pasa a «Nueva
+contraseña»; al guardar, «Contraseña restablecida» e «Ir al inicio de sesión».
+Se entra con la nueva. El correo de la solicitud quedó en el usuario.
+
+### 97.6 · Código secreto equivocado
+
+Consultar con un código secreto mal escrito.
+
+**Esperado:** «El código no es correcto. Le quedan N intentos.» Al quinto, la
+solicitud queda anulada.
+
+### 97.7 · Con correo
+
+Con el usuario con correo: datos correctos → llega el código de 6 dígitos →
+ingresarlo → clave nueva.
+
+**Esperado:** dice a qué correo (enmascarado) y cuántos minutos vale; con el
+código pasa a «Nueva contraseña». Si el servidor no tiene correo configurado,
+muestra «El envío de correos no está configurado…».
 
 ## Resumen para completar
 
@@ -8457,7 +8520,8 @@ aviso de error y el botón vuelve a habilitarse. La clave no cambió.
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
 | 96 · Mi cuenta: cambiar contraseña | 7 | 7 | | |
-| **Total** | **815** | | | |
+| 97 · Login: ¿Olvidaste tu contraseña? | 7 | 7 | | |
+| **Total** | **822** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

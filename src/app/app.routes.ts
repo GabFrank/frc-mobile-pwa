@@ -21,6 +21,12 @@ export const routes: Routes = [
     path: 'login',
     loadComponent: () => import('./pages/login/login.page').then((m) => m.LoginPage),
   },
+  // Pública como el login: la usa quien no puede entrar.
+  {
+    path: 'recuperar-contrasena',
+    loadComponent: () =>
+      import('./pages/login/recuperar-contrasena.page').then((m) => m.RecuperarContrasenaPage),
+  },
 
   /**
    * Kiosco: **fuera del shell a propósito**. Sin barra inferior ni FAB —es

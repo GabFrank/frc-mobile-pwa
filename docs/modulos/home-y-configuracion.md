@@ -165,6 +165,32 @@ o más nuevo; uno anterior borra `email` y `creadoEn` al guardar).
 - **No cierra ninguna sesión**, ni esta ni las de otros dispositivos.
 - `personas.usuario` se replica a las filiales: el desktop de una sucursal ve
   la clave nueva cuando replica; en una filial sin suscripción sigue la vieja.
+- Las reglas son las mismas que al recuperar (abajo): las del central de
+  recuperación más «distinta de 123». No hay largo mínimo, a propósito.
+
+### ¿Olvidaste tu contraseña?
+
+Desde el login, ruta pública `/recuperar-contrasena`. Porta el diálogo del
+desktop (`recuperar-contrasena-dialog`) contra el mismo REST sin sesión del
+central, `/public/recuperacion-contrasena/*` (desde `v4.7.0-alpha.192`,
+`v4.8.0-beta.11`, `v4.16.0`). Usuario + cédula + captcha; con correo llega un
+código de 6 dígitos, sin correo se arma una solicitud que aprueba RRHH **en el
+desktop**. Las reglas (bloqueos, intentos, vencimientos) son del central.
+
+- ⚠️ **El código secreto se guarda en `sessionStorage`** hasta completar o
+  descartar la solicitud. El central lo muestra una vez, y abrir WhatsApp
+  puede hacer que el teléfono descarte la pestaña: sin guardarlo, la solicitud
+  quedaba viva sin que nadie pudiera usarla, y pedir otra anula la anterior y
+  gasta una de las tres del día.
+- En vez del QR del desktop, «Enviar por WhatsApp» abre `wa.me` con el mensaje:
+  el usuario ya está en el teléfono.
+- Una llamada a la vez: el doble toque en «Registrar solicitud» o «Guardar»
+  quemaba el token o mostraba un error con la clave ya cambiada.
+- El correo de la solicitud **queda en el usuario** al restablecer (lo hace el
+  central). La pantalla lo avisa.
+- ⚠️ El central bloquea 30 minutos tras 20 fallos **por IP**. Los teléfonos de
+  una sucursal suelen salir por la misma IP: veinte errores de tipeo dejan a
+  toda la sucursal sin recuperación un rato. Se muestra el mensaje del central.
 
 > ⚠️ **El canal de actualizaciones no aplica.** Era una elección entre canales
 > de Play Store; una PWA se actualiza por su service worker.

@@ -360,3 +360,25 @@ export const galeriaFacialQuery = gql`
     }
   }
 `;
+
+/**
+ * Lo justo para armar el `UsuarioInput` de un cambio de clave.
+ *
+ * ⚠️ Con `EDITAR USUARIOS`, `saveUsuario` mapea el input entero: lo que no
+ * viaja se pierde (persona, creador) o hace fallar el guardado (nickname).
+ */
+export const usuarioParaCambioClaveQuery = gql`
+  query ($id: ID!) {
+    data: usuario(id: $id) {
+      id
+      nickname
+      activo
+      persona {
+        id
+      }
+      usuario {
+        id
+      }
+    }
+  }
+`;

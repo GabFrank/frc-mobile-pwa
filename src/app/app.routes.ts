@@ -106,6 +106,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/cuenta/cuenta.page').then((m) => m.CuentaPage),
       },
       {
+        path: 'cuenta/contrasena',
+        loadComponent: () =>
+          import('./pages/cuenta/cambiar-contrasena.page').then((m) => m.CambiarContrasenaPage),
+      },
+      {
         path: 'cuenta/rostro',
         loadComponent: () =>
           import('./pages/cuenta/enroll-facial.page').then((m) => m.EnrollFacialPage),

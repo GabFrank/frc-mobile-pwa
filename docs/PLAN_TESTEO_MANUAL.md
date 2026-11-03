@@ -8297,6 +8297,66 @@ menos. Tocá Recalcular.» No se marca nada.
 
 **Esperado:** marca como siempre; la marcación queda sin ubicación.
 
+## Bloque 96 — Mi cuenta: cambiar contraseña *(7/7 en Chrome contra un central local, 2026-11-03; falta el teléfono real)*
+
+Preparación: un usuario de prueba con la clave `123` y **sin** el rol `EDITAR
+USUARIOS`, y otro **con** ese rol. Anotar antes, por SQL, su `nickname`,
+`persona_id`, `usuario_id`, `email` y `activo`.
+
+### 96.1 · El aviso del login dice dónde
+
+Entrar con `123`.
+
+**Esperado:** el aviso dice «Cambiala en Mi cuenta → Seguridad». No salta
+ningún diálogo.
+
+### 96.2 · El apartado está en Mi cuenta
+
+Abrir **Mi cuenta**.
+
+**Esperado:** hay una sección **Seguridad** con «Cambiar contraseña», que
+lleva a la pantalla del mismo nombre, con flecha para volver.
+
+### 96.3 · Las reglas frenan antes de guardar
+
+Probar: `ab`; `123` en los dos; dos distintas; una con espacio al final en
+los dos campos.
+
+**Esperado:** el botón queda deshabilitado y abajo sale el motivo («al menos
+3», «distinta de la de alta», «no coinciden» recién al escribir la segunda,
+«sin espacios»).
+
+### 96.4 · Guardar sin `EDITAR USUARIOS` *(el que importa)*
+
+Poner una clave nueva válida y confirmar.
+
+**Esperado:** «Contraseña cambiada» y vuelve a Mi cuenta. La sesión sigue
+abierta. Por SQL, `nickname`, `persona_id`, `usuario_id`, `email` y `activo`
+quedaron iguales.
+
+### 96.5 · Entrar con la nueva y no con la vieja
+
+Cerrar sesión. Entrar con `123`; después con la nueva (probar en minúsculas
+aunque se haya escrito en mayúsculas).
+
+**Esperado:** con `123` no entra; con la nueva entra y **no** sale el aviso
+de la contraseña por defecto.
+
+### 96.6 · Guardar con `EDITAR USUARIOS`
+
+Repetir 96.4 con el usuario que tiene el rol.
+
+**Esperado:** igual que 96.4: nada de la fila cambia salvo la clave — en
+especial el **creador** (`usuario_id`) no pasa a ser el propio usuario.
+
+### 96.7 · Sin conexión
+
+Con el servidor caído, abrir la pantalla; y aparte, cortar la red justo antes
+de confirmar.
+
+**Esperado:** al abrir, el estado de error con «Reintentar»; al guardar, el
+aviso de error y el botón vuelve a habilitarse. La clave no cambió.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8396,7 +8456,8 @@ menos. Tocá Recalcular.» No se marca nada.
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
-| **Total** | **808** | | | |
+| 96 · Mi cuenta: cambiar contraseña | 7 | 7 | | |
+| **Total** | **815** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

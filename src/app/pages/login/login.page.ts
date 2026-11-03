@@ -257,7 +257,7 @@ export class LoginPage {
     this.enviando.set(false);
 
     if (resultado.requiereCambioContrasena) {
-      this.notificacion.warn('Estás usando la contraseña por defecto. Cambiala desde tu cuenta.');
+      this.notificacion.warn('Estás usando la contraseña por defecto. Cambiala en Mi cuenta → Seguridad.');
     }
 
     await this.router.navigate(['/inicio']);

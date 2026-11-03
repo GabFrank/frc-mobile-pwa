@@ -143,6 +143,28 @@ está toda en **Mi cuenta**:
 | Preferencias de notificación | Acceso a la pantalla que ya existía |
 | Datos de la persona | **De solo lectura.** `frc-mobile` mostraba campos editables cuyo botón «Actualizar» solo cambiaba la foto de perfil |
 | Versión y actualización | Ver [`../arquitectura/actualizaciones-app.md`](../arquitectura/actualizaciones-app.md) |
+| Cambiar contraseña | **Seguridad → Cambiar contraseña** (`/cuenta/contrasena`). `frc-mobile` lo hacía con un diálogo que saltaba al entrar con `123`; acá el login solo avisa y dice dónde está. Ver abajo |
+
+### Cambiar contraseña
+
+Usa `saveUsuario`, que deja a cualquiera cambiar **su propia** clave sin
+`EDITAR USUARIOS` (central `v4.7.0-alpha.225` / `v4.8.0-beta.12` / `v4.15.0`
+o más nuevo; uno anterior borra `email` y `creadoEn` al guardar).
+
+- ⚠️ **El input va completo** (`id`, `nickname`, `personaId`, `usuarioId`,
+  `activo`, `password`), leído del central **justo antes de guardar**. Con
+  `EDITAR USUARIOS` el resolver mapea el input entero: sin `nickname` revienta,
+  y sin `personaId` o `usuarioId` borraría la persona o el creador.
+- ⚠️ **`usuarioId` es el creador**, no quien guarda: no se usa
+  `DatosService.guardar`, que lo llena con el usuario en sesión.
+- Reglas: al menos 3 caracteres, distinta de `123`, las dos iguales y **sin
+  espacios al borde** — el login no recorta, y un espacio que metió el teclado
+  deja al usuario afuera sin que lo note hasta el próximo ingreso.
+- No pide la actual: el central no la verifica.
+- El central la guarda en mayúsculas y el login compara sin distinguirlas.
+- **No cierra ninguna sesión**, ni esta ni las de otros dispositivos.
+- `personas.usuario` se replica a las filiales: el desktop de una sucursal ve
+  la clave nueva cuando replica; en una filial sin suscripción sigue la vieja.
 
 > ⚠️ **El canal de actualizaciones no aplica.** Era una elección entre canales
 > de Play Store; una PWA se actualiza por su service worker.

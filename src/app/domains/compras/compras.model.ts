@@ -220,6 +220,59 @@ export interface ResumenFinalizarNotas {
   avisos: string[];
 }
 
+/**
+ * El emisor de una factura recibida, para darlo de alta como proveedor. Los
+ * datos salen de la factura de SIFEN o de lo que leyó la IA en el papel.
+ */
+export interface ProveedorDeFactura {
+  documentoId?: number | string | null;
+  /** SIFEN o FOTO. */
+  origen?: string | null;
+  /** RUC sin DV. */
+  ruc?: string | null;
+  dv?: string | null;
+  rucValido?: boolean | null;
+  nombre?: string | null;
+  nombreFantasia?: string | null;
+  direccion?: string | null;
+  ciudad?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  credito?: boolean | null;
+  /** Ya es proveedor. */
+  proveedorId?: number | string | null;
+  proveedorNombre?: string | null;
+  /** Ya existe una persona con ese documento (por ejemplo, un cliente): el alta la reutiliza. */
+  personaId?: number | string | null;
+  personaNombre?: string | null;
+  /** Con persona existente: los datos que ya tiene cargados (y el de la factura, si es otro). */
+  datosDePersona?: DatoDePersona[] | null;
+  puedeRegistrar: boolean;
+  motivo?: string | null;
+}
+
+export interface RegistrarProveedorFacturaInput {
+  documentoId: number | string;
+  nombre?: string | null;
+  nombreFantasia?: string | null;
+  direccion?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  credito?: boolean | null;
+  chequeDias?: number | null;
+  /** Con persona existente: los campos que se actualizan con lo enviado aunque ya los tenga. */
+  actualizarPersona?: CampoPersona[] | null;
+}
+
+export type CampoPersona = 'nombre' | 'nombreFantasia' | 'direccion' | 'telefono' | 'email';
+
+/** Un dato que la persona existente ya tiene; `factura` viene si la factura trae otro distinto. */
+export interface DatoDePersona {
+  campo: CampoPersona;
+  actual?: string | null;
+  factura?: string | null;
+}
+
 export interface PedidosParaFactura {
   cdc?: string | null;
   tipoDocumentoDescripcion?: string | null;

@@ -8377,7 +8377,7 @@ IA. El RUC no se edita. Si ya hay una persona con ese documento —por ejemplo,
 un cliente— se la usa como proveedor y no se duplica. Al registrar, la factura
 sigue sola.
 
-**Necesita el central con `feature/compras-registrar-proveedor-desde-factura`**
+**Necesita el central con el PR central #573**
 (issue central #570). Contra un central viejo el botón aparece pero el diálogo
 muestra el error al abrirse.
 

@@ -308,7 +308,7 @@ Verificación: **115 archivos de test, 1.476 tests**, cero errores de tipos, AOT
 
 ⚠️ **El retiro de devoluciones necesita un central con `feat/devolucion-etiqueta-unica`** (2026-10-26). Pide `devoluciones` y `presentacion` en `retiroProveedorConsolidado`, sin migración: contra un central viejo la pantalla de retiro falla al cargar y el resto del módulo sigue igual. La etiqueta de una sola hoja por devolución también sale del central. Se publica primero el central. Ver «El retiro a proveedor» en [`docs/modulos/operaciones-devolucion.md`](docs/modulos/operaciones-devolucion.md).
 
-⚠️ **«Registrar proveedor» desde la factura en Compras necesita un central con `feature/compras-registrar-proveedor-desde-factura`** (issue central #570, 2026-11-05). Son dos mutations nuevas, sin migración: contra un central viejo el botón aparece pero el diálogo muestra el error al abrirse, y el resto de Compras sigue igual. Se publica primero el central. Ver «Registrar el proveedor desde la factura» en [`docs/modulos/compras.md`](docs/modulos/compras.md).
+⚠️ **«Registrar proveedor» desde la factura en Compras necesita un central con el PR central #573** (issue central #570, 2026-11-05). Son dos mutations nuevas, sin migración: contra un central viejo el botón aparece pero el diálogo muestra el error al abrirse, y el resto de Compras sigue igual. Se publica primero el central. Ver «Registrar el proveedor desde la factura» en [`docs/modulos/compras.md`](docs/modulos/compras.md).
 
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 

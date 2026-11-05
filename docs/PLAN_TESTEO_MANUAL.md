@@ -8367,6 +8367,95 @@ selector ofrece «Fototeca» y «Tomar foto»: probar las dos.
 **Esperado:** la primera vez tarda más (baja ~9 MB del lector, de la propia app,
 no de un CDN). La segunda, ya sin red, lee igual.
 
+## Bloque 97 — Compras: registrar el proveedor con los datos de la factura *(sin probar contra el central real)*
+
+Cuando el RUC de la factura no es de ningún proveedor cargado, la PWA ofrece
+**«Registrar proveedor»** con lo que trae la factura: de la factura electrónica
+(QR o CDC), la razón social, el nombre de fantasía, la dirección, el teléfono y
+el email que el central saca de SIFEN; de la factura en papel, lo que leyó la
+IA. El RUC no se edita. Si ya hay una persona con ese documento —por ejemplo,
+un cliente— se la usa como proveedor y no se duplica. Al registrar, la factura
+sigue sola.
+
+**Necesita el central con `feature/compras-registrar-proveedor-desde-factura`**
+(issue central #570). Contra un central viejo el botón aparece pero el diálogo
+muestra el error al abrirse.
+
+Preparación: un KuDE (o su CDC) de un proveedor que **no** esté cargado; una
+factura en papel de otro proveedor no cargado; el RUC de un **cliente** que no
+sea proveedor, con su factura. Para el caso 97.6, dos teléfonos.
+
+### 97.1 · QR de un proveedor no cargado
+1. Compras → «Nueva compra con factura» → escanear el QR (o leer el CDC de una foto)
+
+**Esperado:** «Proveedor no encontrado», con el texto «Registralo con los
+datos de la factura» (ya no manda al escritorio) y el botón **«Registrar
+proveedor»**.
+
+### 97.2 · El formulario viene lleno
+1. Desde 97.1, tocar «Registrar proveedor»
+
+**Esperado:** primero «Leyendo los datos de la factura…». Después: RUC con DV
+y «De la factura electrónica»; razón social, nombre de fantasía, dirección (con
+la ciudad abajo), teléfono y email **iguales a los del KuDE**; «Compra a
+crédito» marcado si la factura es a crédito; días de cheque en 8.
+
+### 97.3 · Registrar y seguir con la factura
+1. Corregir el teléfono → «Registrar»
+
+**Esperado:** se cierra el diálogo, la pantalla vuelve a cargar y sigue sola:
+abre la compra nueva con esa factura (no hay pedidos que la esperen). En el
+desktop, Personas → Proveedores, el proveedor está con el teléfono corregido.
+
+### 97.4 · El mismo RUC otra vez
+1. Escanear de nuevo la misma factura o otra del mismo proveedor
+
+**Esperado:** ya no aparece «Proveedor no encontrado»: va directo a la compra.
+
+### 97.5 · Un RUC que ya es cliente
+1. Escanear la factura cuyo emisor ya es cliente → «Registrar proveedor»
+
+**Esperado:** el diálogo avisa «Ya hay una persona con ese documento
+(nombre)…» y la razón social no se edita. Al registrar no sale error de
+documento duplicado; en el desktop, la persona es la misma (mismo id) y ahora
+también es proveedor. Los datos que el cliente ya tenía (por ejemplo, su
+teléfono) **no cambiaron**.
+
+### 97.6 · Dos teléfonos a la vez
+1. En dos teléfonos, abrir el diálogo con la misma factura
+2. Tocar «Registrar» en los dos casi juntos
+
+**Esperado:** los dos terminan bien y en el desktop hay **un solo** proveedor
+con ese RUC.
+
+### 97.7 · Factura en papel: registrar y continuar
+1. Compras → «Nueva compra con factura» → «Factura en papel» → foto de un proveedor no cargado
+
+**Esperado:** en Proveedor, «No se encontró un proveedor con el RUC… Registralo
+con los datos de la factura o elegilo a mano» y el botón **«Registrar
+proveedor»**. El diálogo dice «Leído de la foto» y trae lo que la IA leyó
+(dirección, teléfono y email si estaban impresos en el membrete). Al
+registrar, el proveedor queda elegido y **«Continuar» se habilita**, sin
+recargar ni perder lo corregido en la cabecera.
+
+### 97.8 · Papel con el RUC mal leído
+1. Una foto donde la IA lee un RUC cuyo DV no cierra
+
+**Esperado:** no aparece «Registrar proveedor»: solo el aviso del RUC inválido
+y el buscador manual.
+
+### 97.9 · Ya era proveedor
+1. Abrir el diálogo con la factura de un proveedor que otro usuario acaba de registrar
+
+**Esperado:** «Ya es el proveedor (nombre)» y el botón «Usar este proveedor»;
+no se crea otro.
+
+### 97.10 · Sin conexión con SIFEN
+1. Con el central sin salida a SIFEN, «Registrar proveedor» desde un QR
+
+**Esperado:** el diálogo muestra el error y el botón «Reintentar»; no se cierra
+solo.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8467,7 +8556,8 @@ no de un CDN). La segunda, ya sin red, lee igual.
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
 | 96 · Compras: leer el CDC de una foto cuando el QR no se lee | 7 | | | |
-| **Total** | **815** | | | |
+| 97 · Compras: registrar el proveedor con los datos de la factura | 10 | | | |
+| **Total** | **825** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

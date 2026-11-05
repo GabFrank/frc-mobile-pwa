@@ -220,6 +220,46 @@ export interface ResumenFinalizarNotas {
   avisos: string[];
 }
 
+/**
+ * El emisor de una factura recibida, para darlo de alta como proveedor. Los
+ * datos salen de la factura de SIFEN o de lo que leyó la IA en el papel.
+ */
+export interface ProveedorDeFactura {
+  documentoId?: number | string | null;
+  /** SIFEN o FOTO. */
+  origen?: string | null;
+  /** RUC sin DV. */
+  ruc?: string | null;
+  dv?: string | null;
+  rucValido?: boolean | null;
+  nombre?: string | null;
+  nombreFantasia?: string | null;
+  direccion?: string | null;
+  ciudad?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  credito?: boolean | null;
+  /** Ya es proveedor. */
+  proveedorId?: number | string | null;
+  proveedorNombre?: string | null;
+  /** Ya existe una persona con ese documento (por ejemplo, un cliente): el alta la reutiliza. */
+  personaId?: number | string | null;
+  personaNombre?: string | null;
+  puedeRegistrar: boolean;
+  motivo?: string | null;
+}
+
+export interface RegistrarProveedorFacturaInput {
+  documentoId: number | string;
+  nombre?: string | null;
+  nombreFantasia?: string | null;
+  direccion?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  credito?: boolean | null;
+  chequeDias?: number | null;
+}
+
 export interface PedidosParaFactura {
   cdc?: string | null;
   tipoDocumentoDescripcion?: string | null;

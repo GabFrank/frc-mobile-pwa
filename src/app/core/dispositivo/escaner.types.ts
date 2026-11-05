@@ -74,11 +74,25 @@ export interface OpcionesEscaneo {
   formatos?: readonly FormatoCodigo[];
   /** Etiqueta del campo de carga manual. */
   etiquetaManual?: string;
+  /**
+   * Leer el código de una foto (sacada en el momento o de la galería) cuando
+   * la cámara en vivo no lo lee. Sin esto, el botón no aparece.
+   *
+   * `leer` devuelve el código encontrado, que el usuario revisa en la carga
+   * manual antes de confirmar, o `null` si no encontró nada.
+   */
+  leerFoto?: LecturaDeFoto;
+}
+
+export interface LecturaDeFoto {
+  /** Texto del botón. */
+  etiqueta: string;
+  leer(archivo: File): Promise<string | null>;
 }
 
 /** Mínimo de la API `BarcodeDetector` que se usa acá. */
 export interface DetectorDeCodigos {
-  detect(fuente: HTMLVideoElement): Promise<{ rawValue?: string }[]>;
+  detect(fuente: HTMLVideoElement | HTMLCanvasElement): Promise<{ rawValue?: string }[]>;
 }
 
 interface ConstructorDetector {

@@ -40,7 +40,8 @@ El comprador tiene el pedido planificado y la factura electrónica del
 proveedor en la mano:
 
 1. Abre el pedido (o escanea directo: el CDC dice de qué proveedor es).
-2. Escanea el **QR del KuDE** —o escribe los 44 dígitos del CDC—.
+2. Escanea el **QR del KuDE** —o escribe los 44 dígitos del CDC, o lo lee de
+   una foto (ver «Leer el CDC de una foto»)—.
 3. El central consulta la factura en SIFEN (`siConsDE`, código `0422`) y la
    guarda: un CDC se consulta una sola vez.
 4. El central cruza cada renglón con el pedido y devuelve:
@@ -52,6 +53,32 @@ proveedor en la mano:
 5. **Confirmar** crea la nota de recepción con sus ítems y el reparto por
    sucursal, en una sola transacción.
 6. **Finalizar** cierra la etapa y el pedido pasa a recepción de mercadería.
+
+## Leer el CDC de una foto
+
+Si el QR del KuDE no se deja leer —típicamente la foto mal sacada que se manda
+al grupo—, el escáner de factura ofrece **«Leer el CDC de una foto»**
+(`leer-cdc-foto.ts`). Todo corre en el teléfono, **sin IA**:
+
+1. **El QR, en la foto completa** (`core/dispositivo/qr-de-imagen.ts`):
+   `BarcodeDetector` y, si no, ZXing con `TRY_HARDER`. Una foto tiene más
+   resolución que la cámara en vivo.
+2. **El texto de la hoja** con Tesseract.js (`core/dispositivo/lector-texto.ts`):
+   se buscan 44 dígitos seguidos en cada renglón. Cada emisor imprime el CDC
+   distinto —en bloques de 4, todo junto, grande o en letra de matriz—.
+3. **El renglón del CDC releído solo con dígitos**, recortado y agrandado, para
+   cuando en el paso 2 un número salió como letra.
+
+Solo se acepta un CDC con el **dígito verificador módulo 11** y una estructura
+posible (tipo de documento, tipo de contribuyente y de emisión, fecha de
+emisión real): `cdc.ts`, con sus tests sobre CDC de facturas reales. Lo
+encontrado **no se confirma solo**: cae en la carga manual, en bloques de 4,
+para que el comprador lo compare con el papel.
+
+Los archivos de Tesseract (~17 MB, cada teléfono baja ~9) se copian de
+`node_modules` a `public/ocr/` en cada build (`scripts/ocr-assets.mjs`) y el
+service worker los guarda recién la primera vez que alguien usa la lectura:
+no dependen de un CDN y funcionan en una sucursal sin internet.
 
 ## Reglas que conviene saber
 

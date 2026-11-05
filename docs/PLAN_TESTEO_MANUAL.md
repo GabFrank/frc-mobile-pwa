@@ -8297,6 +8297,67 @@ menos. Tocá Recalcular.» No se marca nada.
 
 **Esperado:** marca como siempre; la marcación queda sin ubicación.
 
+## Bloque 96 — Compras: leer el CDC de una foto cuando el QR no se lee *(sin probar en un teléfono)*
+
+Cuando el QR del KuDE no se deja leer —la foto mal sacada que llegó al grupo,
+un QR chico o borroso—, el escáner de factura ofrece **«Leer el CDC de una
+foto»**: se saca o se elige una foto y la app busca el CDC **en el teléfono**,
+sin IA ni servidor. Primero prueba el QR sobre la foto entera (tiene más
+resolución que la cámara en vivo) y, si no, lee el texto con Tesseract. Solo
+acepta 44 dígitos con el dígito verificador y la estructura de un CDC, y lo deja
+en el campo de carga manual para compararlo con el papel. La carga a mano sigue
+igual.
+
+Preparación: un teléfono Android real y, si se puede, un iPhone. Fotos de
+KuDE de varios proveedores en la galería: una con el CDC en bloques de 4, una
+con el CDC todo junto en letra de matriz (Campos) y una con el CDC cortado pero
+el QR entero.
+
+### 96.1 · El botón aparece en el escáner de factura
+1. Compras → escanear factura (sin pedido y desde un pedido)
+
+**Esperado:** abajo, sobre «Ingresar a mano», está **«Leer el CDC de una
+foto»**. En la carga manual también está, debajo de Confirmar. En el escáner
+universal (el botón flotante) y en el de productos **no** aparece.
+
+### 96.2 · Desde la galería, CDC en bloques de 4
+1. «Leer el CDC de una foto» → elegir de la galería una foto con el CDC en
+   bloques de 4
+
+**Esperado:** se apaga la cámara, aparece «Leyendo la foto…» y en unos segundos
+pasa a la carga manual con el CDC en bloques de 4 y el aviso «Revisá que
+coincida con el de la factura y confirmá». **No confirma solo.** Confirmar abre
+la factura igual que con el QR.
+
+### 96.3 · CDC todo junto en letra de matriz
+1. Igual que 96.2 con la foto de Campos (los 44 dígitos pegados, letra chica)
+
+**Esperado:** encuentra el CDC. Si tarda más que 96.2 es normal.
+
+### 96.4 · CDC cortado pero QR entero en la foto
+1. Igual que 96.2 con una foto donde el CDC sale cortado y el QR se ve entero
+
+**Esperado:** encuentra el CDC (lo saca del QR de la foto).
+
+### 96.5 · Una foto sin factura
+1. Elegir una foto cualquiera (sin KuDE)
+
+**Esperado:** vuelve a la carga manual con «No se encontró el código en la
+foto…», el campo vacío y el botón para probar con otra. No se abre nada.
+
+### 96.6 · Sacar la foto en el momento
+1. «Leer el CDC de una foto» → elegir **Cámara** en el selector del teléfono
+
+**Esperado:** saca la foto y la lee igual que una de la galería. En iPhone el
+selector ofrece «Fototeca» y «Tomar foto»: probar las dos.
+
+### 96.7 · La primera vez descarga el lector; sin internet sigue andando
+1. Con la app instalada, usar la lectura una vez con datos
+2. Activar modo avión (o cortar la salida a internet) y volver a usarla
+
+**Esperado:** la primera vez tarda más (baja ~9 MB del lector, de la propia app,
+no de un CDN). La segunda, ya sin red, lee igual.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8396,7 +8457,8 @@ menos. Tocá Recalcular.» No se marca nada.
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
-| **Total** | **808** | | | |
+| 96 · Compras: leer el CDC de una foto cuando el QR no se lee | 7 | | | |
+| **Total** | **815** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

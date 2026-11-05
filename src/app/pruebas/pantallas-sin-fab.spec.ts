@@ -41,6 +41,8 @@ const SIN_FLOTANTE: readonly string[] = [
   'transferencias/transferencia-borrador.page.ts',
   'transferencias/transferencia-nueva.page.ts',
   // Formularios.
+  'cuenta/cambiar-contrasena.page.ts',
+  'login/recuperar-contrasena.page.ts',
   'operaciones/caja/caja-abrir.page.ts',
   'operaciones/caja/caja-cerrar.page.ts',
   'operaciones/devolucion/devolucion-nueva.page.ts',

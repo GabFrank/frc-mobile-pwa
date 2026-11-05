@@ -27,7 +27,7 @@ import { MarcacionService } from '../pages/marcacion/marcacion.service';
 import {
   coordenadasDe,
   detectarSucursal,
-  DISTANCIA_AVISO_M,
+  DISTANCIA_MAXIMA_M,
   estaLejos,
   SucursalUbicable,
 } from '../pages/marcacion/deteccion-sucursal.util';
@@ -158,29 +158,31 @@ describe('Detectar la sucursal por la posición', () => {
 });
 
 /**
- * Cuándo se avisa que la marcación quedó lejos.
+ * Hasta dónde se puede marcar.
  *
- * El umbral es propio del aviso y no la precisión del GPS (±33 m): con 33 m
- * le saltaba siempre a quien marcaba desde adentro con un iPhone.
+ * Más allá de 80 m no se marca. Es el mismo número que valida el central.
  */
-describe('Aviso de distancia: el umbral', () => {
-  it('justo en el umbral todavía no es lejos', () => {
-    expect(estaLejos(DISTANCIA_AVISO_M)).toBe(false);
+describe('Distancia máxima para marcar', () => {
+  it('es de 80 m', () => {
+    expect(DISTANCIA_MAXIMA_M).toBe(80);
   });
 
-  it('un metro más allá del umbral ya es lejos', () => {
-    expect(estaLejos(DISTANCIA_AVISO_M + 1)).toBe(true);
+  it('justo en el límite todavía se puede marcar', () => {
+    expect(estaLejos(DISTANCIA_MAXIMA_M)).toBe(false);
   });
 
-  it('decide con la distancia redondeada, que es la que se guarda', () => {
-    // 110,4 m se muestra y se guarda como 110: avisar ahí dejaría un aviso
-    // que no se puede reconstruir desde el dato.
-    expect(estaLejos(DISTANCIA_AVISO_M + 0.4)).toBe(false);
-    expect(estaLejos(DISTANCIA_AVISO_M + 0.6)).toBe(true);
+  it('un metro más allá del límite ya no', () => {
+    expect(estaLejos(DISTANCIA_MAXIMA_M + 1)).toBe(true);
   });
 
-  it('los 59 m de un iPhone ubicado por Wi-Fi dentro del edificio no son lejos', () => {
-    expect(estaLejos(59)).toBe(false);
+  it('decide con la distancia redondeada, que es la que se guarda y la que mide el central', () => {
+    expect(estaLejos(DISTANCIA_MAXIMA_M + 0.4)).toBe(false);
+    expect(estaLejos(DISTANCIA_MAXIMA_M + 0.6)).toBe(true);
+  });
+
+  it('las marcaciones desde afuera de producción (160 a 400 m) quedan bloqueadas', () => {
+    expect(estaLejos(163)).toBe(true);
+    expect(estaLejos(409)).toBe(true);
   });
 });
 
@@ -230,6 +232,7 @@ describe('Marcación: la sucursal sale del GPS', () => {
   /** Los títulos de cada confirmación que la pantalla pidió, en orden. */
   let confirmaciones: string[];
   /** Qué se responde al aviso de distancia. Al resto, siempre que sí. */
+  /** Si se toca «Volver a ubicar» en el diálogo de «fuera de la sucursal». */
   let aceptaMarcarLejos: boolean;
   /** Qué se responde a cada diálogo, por título. Lo que no figura, que sí. */
   let respuestas: Record<string, boolean>;
@@ -241,7 +244,7 @@ describe('Marcación: la sucursal sale del GPS', () => {
   let rostro: unknown;
   let verificacionesDeRostro: number;
 
-  const AVISO_LEJOS = 'Estás lejos de la sucursal';
+  const AVISO_LEJOS = 'Estás fuera de la sucursal';
 
   /** Una posición a `metros` al sur de la Rotonda, con buena precisión. */
   const aMetrosDeRotonda = (metros: number) => ({
@@ -297,7 +300,7 @@ describe('Marcación: la sucursal sale del GPS', () => {
     pedidosDePosicion = 0;
     sucursales = [KM7, ROTONDA];
     confirmaciones = [];
-    aceptaMarcarLejos = true;
+    aceptaMarcarLejos = false;
     respuestas = {};
     botonesOfrecidos = [];
     alPreguntar = () => undefined;
@@ -454,26 +457,44 @@ describe('Marcación: la sucursal sale del GPS', () => {
     expect(Math.round(guardado!.distanciaSucursalMetros!)).toBe(59);
   });
 
-  it('a 150 m avisa, y confirmando la marcación se registra con esa distancia', async () => {
+  it('a 80 m todavía marca', async () => {
     const f = await montar();
-    posicion = aMetrosDeRotonda(150);
+    posicion = aMetrosDeRotonda(80);
 
     await tocarPorTexto(f, 'Marcar entrada');
 
-    expect(confirmaciones).toContain(AVISO_LEJOS);
-    expect(Math.round(guardado!.distanciaSucursalMetros!)).toBe(150);
+    expect(confirmaciones).not.toContain(AVISO_LEJOS);
+    expect(servicio.guardar).toHaveBeenCalled();
   });
 
-  it('a 150 m, si no se confirma el aviso, no se marca nada', async () => {
+  it('a 150 m no marca, y el único camino es volver a ubicar: no hay «Marcar igual»', async () => {
     const f = await montar();
     posicion = aMetrosDeRotonda(150);
-    aceptaMarcarLejos = false;
 
     await tocarPorTexto(f, 'Marcar entrada');
 
     expect(confirmaciones).toContain(AVISO_LEJOS);
+    // El «Marcar igual» del rostro no verificado es otro diálogo: se mira solo el de la distancia.
+    expect(botonesOfrecidos[confirmaciones.indexOf(AVISO_LEJOS)]).toBe('Volver a ubicar');
     expect(servicio.guardar).not.toHaveBeenCalled();
     expect(f.componentInstance.marcando()).toBe(false);
+  });
+
+  it('a 150 m, volviendo a ubicar ya adentro, marca sin pedir el rostro de nuevo', async () => {
+    const f = await montar();
+    posicion = aMetrosDeRotonda(150);
+    aceptaMarcarLejos = true;
+    alPreguntar = (titulo) => {
+      if (titulo === AVISO_LEJOS) {
+        posicion = aMetrosDeRotonda(30);
+      }
+    };
+
+    await tocarPorTexto(f, 'Marcar entrada');
+
+    expect(confirmaciones.filter((t) => t === AVISO_LEJOS).length).toBe(1);
+    expect(Math.round(guardado!.distanciaSucursalMetros!)).toBe(30);
+    expect(verificacionesDeRostro).toBe(1);
   });
 
   it('marca contra la sucursal detectada, no contra la de la sesión', async () => {

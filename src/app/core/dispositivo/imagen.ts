@@ -16,9 +16,10 @@ const CALIDAD = 0.75;
  * ⚠️ **Se usa `<input type="file">`, no `getUserMedia`.** Con
  * `capture="environment"` el teléfono abre la cámara directamente, y es el
  * único camino que funciona igual en Safari de iOS —donde una captura por
- * `getUserMedia` obliga a montar el video y dibujarlo a mano—. Es también
- * el que deja elegir una foto ya sacada, que es lo que pasa cuando alguien
- * rinde al día siguiente.
+ * `getUserMedia` obliga a montar el video y dibujarlo a mano—. Para elegir
+ * una foto ya sacada (alguien que rinde al día siguiente) hace falta otro
+ * `<input>` **sin** `capture`: con él, Android abre solo la cámara y no
+ * ofrece la galería. Ver la hoja de factura en papel de Compras.
  *
  * ⚠️ **La orientación EXIF se resuelve sola.** `createImageBitmap` con
  * `imageOrientation: 'from-image'` rota según el EXIF; sin eso, las fotos

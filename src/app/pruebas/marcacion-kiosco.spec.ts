@@ -304,6 +304,18 @@ describe('Kiosco de marcación', () => {
     expect(guardado?.sucursalId).toBe(3);
   });
 
+  it('con la tablet a más de 80 m de la sucursal no marca, y dice cuánto', async () => {
+    // ~150 m al norte de donde está parado el resto de los casos.
+    posicion = { latitud: -25.5 + 150 / 111_195, longitud: -54.6, precision: 4, lecturas: 3 };
+    const f = await listo();
+
+    await tocar(f, 'Marcar');
+    await sacarFoto(f);
+
+    expect(servicio.guardar).not.toHaveBeenCalled();
+    expect(texto(f)).toContain('80 m o menos');
+  });
+
   it('si el central no reconoce a nadie, lo dice y no marca', async () => {
     identificado = null;
     const f = await listo();

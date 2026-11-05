@@ -80,6 +80,31 @@ Los archivos de Tesseract (~17 MB, cada teléfono baja ~9) se copian de
 service worker los guarda recién la primera vez que alguien usa la lectura:
 no dependen de un CDN y funcionan en una sucursal sin internet.
 
+## Registrar el proveedor desde la factura
+
+Si el RUC de la factura no es de ningún proveedor cargado, la PWA ofrece
+**«Registrar proveedor»** (`registrar-proveedor-dialog.component.ts`) en vez de
+mandar al desktop:
+
+- **QR / CDC** (`factura-desde-qr.page.ts`): en «Proveedor no encontrado». Los
+  datos salen del XML de SIFEN: razón social, nombre de fantasía, dirección,
+  ciudad, teléfono, email y condición. Al registrar, la factura se vuelve a
+  cargar y sigue sola.
+- **Papel** (`factura-foto.page.ts`): junto al buscador, solo si el DV del RUC
+  cierra. Los datos son los que leyó la IA (también dirección, teléfono y email
+  del membrete). Es un **diálogo**, no otra ruta: la cabecera vive en memoria y
+  se perdería al navegar.
+
+El central (`proveedorDeFacturaMobile` / `registrarProveedorDeFacturaMobile`):
+el RUC sale siempre del documento guardado, el alta es **idempotente por RUC** y
+crea persona + proveedor en una transacción. Si ya hay una persona con ese
+documento (un cliente), se la reutiliza —`persona.documento` es único— y se le
+completan los datos vacíos. Los que ya tiene vienen en `datosDePersona` y el
+diálogo los muestra bloqueados; si la factura trae otro distinto, ofrece
+«Actualizar con el de la factura» y el alta lo pisa solo si se marcó
+(`actualizarPersona`). La persona baja sola a las filiales; el
+proveedor es solo del central. Permiso: el mismo de Compras.
+
 ## Reglas que conviene saber
 
 - **Compra nueva y última compra:** sin pedido no hay precio contra el cual

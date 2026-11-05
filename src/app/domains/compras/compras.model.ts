@@ -245,6 +245,8 @@ export interface ProveedorDeFactura {
   /** Ya existe una persona con ese documento (por ejemplo, un cliente): el alta la reutiliza. */
   personaId?: number | string | null;
   personaNombre?: string | null;
+  /** Con persona existente: los campos que ya tiene cargados. Traen su dato y no se pisan. */
+  datosDePersona?: string[] | null;
   puedeRegistrar: boolean;
   motivo?: string | null;
 }

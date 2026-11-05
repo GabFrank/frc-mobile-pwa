@@ -61,8 +61,8 @@ const CHEQUE_DIAS = 8;
         } @else {
           @if (d.personaId) {
             <p class="aviso">
-              Ya hay una persona con ese documento ({{ d.personaNombre }}): se la usa como proveedor y se
-              completan solo los datos que le faltan.
+              Ya hay una persona con ese documento ({{ d.personaNombre }}): se la usa como proveedor. Sus datos
+              cargados no cambian; solo se completan los que le faltan.
             </p>
           }
 
@@ -72,22 +72,33 @@ const CHEQUE_DIAS = 8;
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Nombre de fantasía</mat-label>
-            <input matInput [value]="fantasia()" (input)="fantasia.set(valor($event))" />
+            <input matInput [value]="fantasia()" (input)="fantasia.set(valor($event))" [disabled]="dePersona('nombreFantasia')" />
+            @if (dePersona('nombreFantasia')) {
+              <mat-hint>Dato actual de la persona</mat-hint>
+            }
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Dirección</mat-label>
-            <input matInput [value]="direccion()" (input)="direccion.set(valor($event))" />
-            @if (d.ciudad) {
+            <input matInput [value]="direccion()" (input)="direccion.set(valor($event))" [disabled]="dePersona('direccion')" />
+            @if (dePersona('direccion')) {
+              <mat-hint>Dato actual de la persona</mat-hint>
+            } @else if (d.ciudad) {
               <mat-hint>{{ d.ciudad }}</mat-hint>
             }
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Teléfono</mat-label>
-            <input matInput type="tel" inputmode="tel" [value]="telefono()" (input)="telefono.set(valor($event))" />
+            <input matInput type="tel" inputmode="tel" [value]="telefono()" (input)="telefono.set(valor($event))" [disabled]="dePersona('telefono')" />
+            @if (dePersona('telefono')) {
+              <mat-hint>Dato actual de la persona</mat-hint>
+            }
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Email</mat-label>
-            <input matInput type="email" inputmode="email" [value]="email()" (input)="email.set(valor($event))" />
+            <input matInput type="email" inputmode="email" [value]="email()" (input)="email.set(valor($event))" [disabled]="dePersona('email')" />
+            @if (dePersona('email')) {
+              <mat-hint>Dato actual de la persona</mat-hint>
+            }
           </mat-form-field>
 
           <mat-checkbox [checked]="credito()" (change)="credito.set($event.checked)">Compra a crédito</mat-checkbox>
@@ -213,6 +224,11 @@ export class RegistrarProveedorDialogComponent {
   usarExistente(): void {
     const d = this.datos();
     if (d) this.cerrarCon(d);
+  }
+
+  /** El campo ya lo tiene la persona existente: se muestra su dato y no se edita, porque el alta no lo pisa. */
+  dePersona(campo: string): boolean {
+    return !!this.datos()?.datosDePersona?.includes(campo);
   }
 
   ruc(d: ProveedorDeFactura): string {

@@ -132,6 +132,25 @@ describe('Registrar proveedor desde la factura', () => {
     expect(f.componentInstance.nombre()).toBe('CLIENTE ACME');
   });
 
+  it('con persona existente muestra sus datos cargados sin dejar editarlos', () => {
+    const f = montar({
+      ...SUGERENCIA,
+      personaId: 33,
+      personaNombre: 'CLIENTE ACME',
+      telefono: '0991000000',
+      datosDePersona: ['telefono'],
+    });
+    const c = f.componentInstance;
+    const inputs = Array.from(f.nativeElement.querySelectorAll('input')) as HTMLInputElement[];
+    const tel = inputs.find((i) => i.type === 'tel')!;
+    const mail = inputs.find((i) => i.type === 'email')!;
+
+    expect(c.telefono()).toBe('0991000000');
+    expect(tel.disabled).toBe(true);
+    expect(mail.disabled).toBe(false);
+    expect(texto(f)).toContain('Dato actual de la persona');
+  });
+
   it('con el RUC inválido muestra el motivo y no ofrece registrar', () => {
     const f = montar(
       { ...SUGERENCIA, origen: 'FOTO', rucValido: false, puedeRegistrar: false, motivo: 'no cierra con su dígito verificador' },

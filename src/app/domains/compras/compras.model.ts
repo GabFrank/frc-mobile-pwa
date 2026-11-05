@@ -245,8 +245,8 @@ export interface ProveedorDeFactura {
   /** Ya existe una persona con ese documento (por ejemplo, un cliente): el alta la reutiliza. */
   personaId?: number | string | null;
   personaNombre?: string | null;
-  /** Con persona existente: los campos que ya tiene cargados. Traen su dato y no se pisan. */
-  datosDePersona?: string[] | null;
+  /** Con persona existente: los datos que ya tiene cargados (y el de la factura, si es otro). */
+  datosDePersona?: DatoDePersona[] | null;
   puedeRegistrar: boolean;
   motivo?: string | null;
 }
@@ -260,6 +260,17 @@ export interface RegistrarProveedorFacturaInput {
   email?: string | null;
   credito?: boolean | null;
   chequeDias?: number | null;
+  /** Con persona existente: los campos que se actualizan con lo enviado aunque ya los tenga. */
+  actualizarPersona?: CampoPersona[] | null;
+}
+
+export type CampoPersona = 'nombre' | 'nombreFantasia' | 'direccion' | 'telefono' | 'email';
+
+/** Un dato que la persona existente ya tiene; `factura` viene si la factura trae otro distinto. */
+export interface DatoDePersona {
+  campo: CampoPersona;
+  actual?: string | null;
+  factura?: string | null;
 }
 
 export interface PedidosParaFactura {

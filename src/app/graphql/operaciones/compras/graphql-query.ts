@@ -423,7 +423,11 @@ const CAMPOS_PROVEEDOR_DE_FACTURA = `
   proveedorNombre
   personaId
   personaNombre
-  datosDePersona
+  datosDePersona {
+    campo
+    actual
+    factura
+  }
   puedeRegistrar
   motivo
 `;

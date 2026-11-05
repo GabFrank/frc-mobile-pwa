@@ -8416,10 +8416,23 @@ desktop, Personas → Proveedores, el proveedor está con el teléfono corregido
 1. Escanear la factura cuyo emisor ya es cliente → «Registrar proveedor»
 
 **Esperado:** el diálogo avisa «Ya hay una persona con ese documento
-(nombre)…» y la razón social no se edita. Al registrar no sale error de
-documento duplicado; en el desktop, la persona es la misma (mismo id) y ahora
-también es proveedor. Los datos que el cliente ya tenía (por ejemplo, su
-teléfono) **no cambiaron**.
+(nombre)…». Los datos que el cliente ya tiene (razón social, teléfono…)
+aparecen **con su valor, no el de la factura**, bloqueados y con «Dato actual
+de la persona»; los que le faltan vienen de la factura y se editan. Al
+registrar no sale error de documento duplicado; en el desktop, la persona es la
+misma (mismo id) y ahora también es proveedor. Los datos que el cliente ya
+tenía **no cambiaron**.
+
+### 97.11 · Actualizar los datos del cliente con los de la factura
+1. Como en 97.5, con un cliente cuyo teléfono (o razón social) es distinto al
+   de la factura → «Registrar proveedor»
+2. Marcar «Actualizar con el de la factura: …» debajo del teléfono, desmarcar
+   y volver a marcar → «Registrar»
+
+**Esperado:** solo los datos distintos ofrecen la casilla (un teléfono igual
+escrito con espacios o +595 no). Al marcar, el campo se habilita con el dato
+de la factura; al desmarcar vuelve el del cliente. En el desktop, la persona
+tiene el teléfono de la factura y el resto de sus datos sigue igual.
 
 ### 97.6 · Dos teléfonos a la vez
 1. En dos teléfonos, abrir el diálogo con la misma factura
@@ -8556,8 +8569,8 @@ solo.
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
 | 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
 | 96 · Compras: leer el CDC de una foto cuando el QR no se lee | 7 | | | |
-| 97 · Compras: registrar el proveedor con los datos de la factura | 10 | | | |
-| **Total** | **825** | | | |
+| 97 · Compras: registrar el proveedor con los datos de la factura | 11 | | | |
+| **Total** | **826** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

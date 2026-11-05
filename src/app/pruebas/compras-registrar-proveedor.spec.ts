@@ -86,6 +86,7 @@ describe('Registrar proveedor desde la factura', () => {
       email: 'ventas@acme.com.py',
       credito: true,
       chequeDias: 8,
+      actualizarPersona: null,
     });
     expect(cerrar).toHaveBeenCalledWith({ proveedorId: 900, proveedorNombre: 'DISTRIBUIDORA ACME S.A.' });
   });
@@ -137,8 +138,12 @@ describe('Registrar proveedor desde la factura', () => {
       ...SUGERENCIA,
       personaId: 33,
       personaNombre: 'CLIENTE ACME',
+      nombre: 'CLIENTE ACME',
       telefono: '0991000000',
-      datosDePersona: ['telefono'],
+      datosDePersona: [
+        { campo: 'nombre', actual: 'CLIENTE ACME', factura: 'DISTRIBUIDORA ACME S.A.' },
+        { campo: 'telefono', actual: '0991000000', factura: null },
+      ],
     });
     const c = f.componentInstance;
     const inputs = Array.from(f.nativeElement.querySelectorAll('input')) as HTMLInputElement[];
@@ -149,6 +154,45 @@ describe('Registrar proveedor desde la factura', () => {
     expect(tel.disabled).toBe(true);
     expect(mail.disabled).toBe(false);
     expect(texto(f)).toContain('Dato actual de la persona');
+    // El teléfono es el mismo que el de la factura: no se ofrece; la razón social sí.
+    expect(texto(f)).toContain('Actualizar con el de la factura: DISTRIBUIDORA ACME S.A.');
+    expect(texto(f)).not.toContain('Actualizar con el de la factura: 0');
+  });
+
+  it('marcar «Actualizar con el de la factura» lo habilita, lo pone y lo manda a actualizar', () => {
+    const f = montar({
+      ...SUGERENCIA,
+      personaId: 33,
+      personaNombre: 'CLIENTE ACME',
+      nombre: 'CLIENTE ACME',
+      telefono: '0991000000',
+      datosDePersona: [
+        { campo: 'nombre', actual: 'CLIENTE ACME', factura: 'DISTRIBUIDORA ACME S.A.' },
+        { campo: 'telefono', actual: '0991000000', factura: '021555666' },
+      ],
+    });
+    const c = f.componentInstance;
+
+    c.actualizar('telefono', true);
+    f.detectChanges();
+    const tel = (Array.from(f.nativeElement.querySelectorAll('input')) as HTMLInputElement[]).find((i) => i.type === 'tel')!;
+    expect(c.telefono()).toBe('021555666');
+    expect(tel.disabled).toBe(false);
+
+    c.actualizar('nombre', true);
+    c.actualizar('nombre', false); // se arrepintió: vuelve el suyo
+    expect(c.nombre()).toBe('CLIENTE ACME');
+
+    c.guardar();
+    expect(compras['registrarProveedorDeFactura']).toHaveBeenCalledWith(
+      expect.objectContaining({ telefono: '021555666', actualizarPersona: ['telefono'] }),
+    );
+  });
+
+  it('sin persona existente no manda nada para actualizar', () => {
+    const f = montar(SUGERENCIA);
+    f.componentInstance.guardar();
+    expect(compras['registrarProveedorDeFactura']).toHaveBeenCalledWith(expect.objectContaining({ actualizarPersona: null }));
   });
 
   it('con el RUC inválido muestra el motivo y no ofrece registrar', () => {

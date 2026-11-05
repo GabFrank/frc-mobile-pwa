@@ -98,8 +98,11 @@ mandar al desktop:
 El central (`proveedorDeFacturaMobile` / `registrarProveedorDeFacturaMobile`):
 el RUC sale siempre del documento guardado, el alta es **idempotente por RUC** y
 crea persona + proveedor en una transacción. Si ya hay una persona con ese
-documento (un cliente), se la reutiliza —`persona.documento` es único— y solo
-se le completan los datos vacíos. La persona baja sola a las filiales; el
+documento (un cliente), se la reutiliza —`persona.documento` es único— y se le
+completan los datos vacíos. Los que ya tiene vienen en `datosDePersona` y el
+diálogo los muestra bloqueados; si la factura trae otro distinto, ofrece
+«Actualizar con el de la factura» y el alta lo pisa solo si se marcó
+(`actualizarPersona`). La persona baja sola a las filiales; el
 proveedor es solo del central. Permiso: el mismo de Compras.
 
 ## Reglas que conviene saber

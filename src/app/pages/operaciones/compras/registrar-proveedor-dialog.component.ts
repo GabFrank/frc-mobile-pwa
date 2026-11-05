@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, type WritableSignal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 
-import type { ProveedorDeFactura } from 'src/app/domains/compras/compras.model';
+import type { CampoPersona, ProveedorDeFactura } from 'src/app/domains/compras/compras.model';
 import { aId } from './compras-reglas';
 import { ComprasService } from './compras.service';
 
@@ -62,44 +62,33 @@ const CHEQUE_DIAS = 8;
           @if (d.personaId) {
             <p class="aviso">
               Ya hay una persona con ese documento ({{ d.personaNombre }}): se la usa como proveedor. Sus datos
-              cargados no cambian; solo se completan los que le faltan.
+              cargados no cambian salvo que marques «Actualizar con el de la factura»; los que le faltan se completan.
             </p>
           }
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Razón social</mat-label>
-            <input matInput [value]="nombre()" (input)="nombre.set(valor($event))" [disabled]="!!d.personaId" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Nombre de fantasía</mat-label>
-            <input matInput [value]="fantasia()" (input)="fantasia.set(valor($event))" [disabled]="dePersona('nombreFantasia')" />
-            @if (dePersona('nombreFantasia')) {
-              <mat-hint>Dato actual de la persona</mat-hint>
+          @for (c of campos; track c.campo) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>{{ c.etiqueta }}</mat-label>
+              <input
+                matInput
+                [type]="c.tipo"
+                [attr.inputmode]="c.tipo === 'text' ? null : c.tipo"
+                [value]="c.valor()"
+                (input)="c.valor.set(valor($event))"
+                [disabled]="bloqueado(c.campo)"
+              />
+              @if (bloqueado(c.campo)) {
+                <mat-hint>Dato actual de la persona</mat-hint>
+              } @else if (c.campo === 'direccion' && d.ciudad) {
+                <mat-hint>{{ d.ciudad }}</mat-hint>
+              }
+            </mat-form-field>
+            @if (deLaFactura(c.campo); as nuevo) {
+              <mat-checkbox class="actualizar" [checked]="actualizando(c.campo)" (change)="actualizar(c.campo, $event.checked)">
+                Actualizar con el de la factura: <strong>{{ nuevo }}</strong>
+              </mat-checkbox>
             }
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Dirección</mat-label>
-            <input matInput [value]="direccion()" (input)="direccion.set(valor($event))" [disabled]="dePersona('direccion')" />
-            @if (dePersona('direccion')) {
-              <mat-hint>Dato actual de la persona</mat-hint>
-            } @else if (d.ciudad) {
-              <mat-hint>{{ d.ciudad }}</mat-hint>
-            }
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Teléfono</mat-label>
-            <input matInput type="tel" inputmode="tel" [value]="telefono()" (input)="telefono.set(valor($event))" [disabled]="dePersona('telefono')" />
-            @if (dePersona('telefono')) {
-              <mat-hint>Dato actual de la persona</mat-hint>
-            }
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Email</mat-label>
-            <input matInput type="email" inputmode="email" [value]="email()" (input)="email.set(valor($event))" [disabled]="dePersona('email')" />
-            @if (dePersona('email')) {
-              <mat-hint>Dato actual de la persona</mat-hint>
-            }
-          </mat-form-field>
+          }
 
           <mat-checkbox [checked]="credito()" (change)="credito.set($event.checked)">Compra a crédito</mat-checkbox>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -139,6 +128,7 @@ const CHEQUE_DIAS = 8;
     .ayuda { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
     .aviso { margin: 0; font-size: var(--fs-label); }
     .error { margin: 0; font-size: var(--fs-label); color: var(--danger); }
+    .actualizar { margin-top: calc(-1 * var(--sp-2)); font-size: var(--fs-label); }
   `,
 })
 export class RegistrarProveedorDialogComponent {
@@ -159,12 +149,22 @@ export class RegistrarProveedorDialogComponent {
   readonly email = signal('');
   readonly credito = signal(false);
   readonly chequeDias = signal<number | null>(CHEQUE_DIAS);
+  /** Datos de la persona existente que se pisan con los de la factura (los marcó el comprador). */
+  readonly aActualizar = signal<ReadonlySet<CampoPersona>>(new Set());
+
+  readonly campos: { campo: CampoPersona; etiqueta: string; tipo: 'text' | 'tel' | 'email'; valor: WritableSignal<string> }[] = [
+    { campo: 'nombre', etiqueta: 'Razón social', tipo: 'text', valor: this.nombre },
+    { campo: 'nombreFantasia', etiqueta: 'Nombre de fantasía', tipo: 'text', valor: this.fantasia },
+    { campo: 'direccion', etiqueta: 'Dirección', tipo: 'text', valor: this.direccion },
+    { campo: 'telefono', etiqueta: 'Teléfono', tipo: 'tel', valor: this.telefono },
+    { campo: 'email', etiqueta: 'Email', tipo: 'email', valor: this.email },
+  ];
 
   readonly valido = computed(() => {
     const dias = this.chequeDias();
     return (
       !this.guardando() &&
-      (this.nombre().trim().length >= 2 || !!this.datos()?.personaId) &&
+      (this.nombre().trim().length >= 2 || (!!this.datos()?.personaId && !this.actualizando('nombre'))) &&
       dias != null &&
       dias >= 1 &&
       dias <= 365
@@ -187,6 +187,7 @@ export class RegistrarProveedorDialogComponent {
         this.telefono.set(d.telefono ?? '');
         this.email.set(d.email ?? '');
         this.credito.set(d.credito === true);
+        this.aActualizar.set(new Set());
         this.cargando.set(false);
       },
       error: (e: Error) => {
@@ -211,6 +212,7 @@ export class RegistrarProveedorDialogComponent {
         email: texto(this.email()),
         credito: this.credito(),
         chequeDias: this.chequeDias(),
+        actualizarPersona: d.personaId ? [...this.aActualizar()] : null,
       })
       .subscribe({
         next: (r) => this.cerrarCon(r),
@@ -226,9 +228,34 @@ export class RegistrarProveedorDialogComponent {
     if (d) this.cerrarCon(d);
   }
 
-  /** El campo ya lo tiene la persona existente: se muestra su dato y no se edita, porque el alta no lo pisa. */
-  dePersona(campo: string): boolean {
-    return !!this.datos()?.datosDePersona?.includes(campo);
+  /** El dato que la persona existente ya tiene y no se va a actualizar: se muestra y no se edita. */
+  bloqueado(campo: CampoPersona): boolean {
+    return !!this.dato(campo) && !this.actualizando(campo);
+  }
+
+  /** El dato distinto que trae la factura, para ofrecer actualizar el de la persona. */
+  deLaFactura(campo: CampoPersona): string | null {
+    return this.dato(campo)?.factura ?? null;
+  }
+
+  actualizando(campo: CampoPersona): boolean {
+    return this.aActualizar().has(campo);
+  }
+
+  /** Marcar pone el dato de la factura (editable); desmarcar vuelve al que tenía la persona. */
+  actualizar(campo: CampoPersona, si: boolean): void {
+    const dato = this.dato(campo);
+    const c = this.campos.find((x) => x.campo === campo);
+    if (!dato || !c) return;
+    const set = new Set(this.aActualizar());
+    if (si) set.add(campo);
+    else set.delete(campo);
+    this.aActualizar.set(set);
+    c.valor.set((si ? dato.factura : dato.actual) ?? '');
+  }
+
+  private dato(campo: CampoPersona) {
+    return this.datos()?.datosDePersona?.find((x) => x.campo === campo) ?? null;
   }
 
   ruc(d: ProveedorDeFactura): string {

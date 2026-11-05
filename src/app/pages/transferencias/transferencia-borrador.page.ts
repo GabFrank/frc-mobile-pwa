@@ -497,7 +497,12 @@ export class TransferenciaBorradorPage {
           return;
         }
         this.notificacion.ok('Transferencia pendiente en origen.');
-        void this.router.navigate(['/transferencias', t.id], { replaceUrl: true });
+        // Al detalle, que ofrece compartirla enseguida: así llega al grupo de
+        // la sucursal y la toma el bot que lo atiende.
+        void this.router.navigate(['/transferencias', t.id], {
+          replaceUrl: true,
+          queryParams: { recienFinalizada: 1 },
+        });
       },
       error: () => this.finalizando.set(false),
     });

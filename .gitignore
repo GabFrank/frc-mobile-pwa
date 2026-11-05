@@ -47,3 +47,4 @@ Thumbs.db
 /src/app/core/sello-version.ts
 /.sello-version.json
 public/face-models/
+public/ocr/

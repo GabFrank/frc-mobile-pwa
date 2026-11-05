@@ -33,7 +33,7 @@ import {
  */
 const INTERVALO_MS = 80;
 
-type Estado = 'iniciando' | 'escaneando' | 'manual';
+type Estado = 'iniciando' | 'escaneando' | 'manual' | 'leyendoFoto';
 
 /**
  * Escáner de códigos con la cámara.
@@ -49,6 +49,10 @@ type Estado = 'iniciando' | 'escaneando' | 'manual';
  * 3. **Carga manual** — siempre disponible, no solo cuando algo falla. Un
  *    código térmico gastado no se lee ni con el mejor motor, y el cajero
  *    necesita poder seguir.
+ *
+ * Con `leerFoto` aparece además un cuarto camino: **leer el código de una foto**
+ * (sacada en el momento o de la galería). Lo encontrado cae en la carga
+ * manual para revisarlo antes de confirmar; nunca se confirma solo.
  *
  * ⚠️ **iOS no es un caso futuro: es uno de los motivos de la migración.**
  * Soportar iPhone es lo que la APK no podía dar. Cualquier capacidad nueva
@@ -111,7 +115,33 @@ type Estado = 'iniciando' | 'escaneando' | 'manual';
           >
             Confirmar
           </button>
+
+          @if (leerFoto) {
+            <button matButton="outlined" (click)="elegirFoto()">
+              <frc-icono nombre="galeria" [tamano]="20" />
+              {{ leerFoto.etiqueta }}
+            </button>
+          }
         </div>
+      }
+
+      @if (estado() === 'leyendoFoto') {
+        <div class="centro manual" role="status">
+          <frc-icono nombre="galeria" [tamano]="48" />
+          <p>Leyendo la foto…</p>
+          <p class="motivo">Puede tardar unos segundos.</p>
+        </div>
+      }
+
+      @if (leerFoto) {
+        <!-- Sin capture: el teléfono ofrece sacar la foto o elegirla de la galería. -->
+        <input
+          #entradaFoto
+          class="oculto-total"
+          type="file"
+          accept="image/*"
+          (change)="alElegirFoto($event)"
+        />
       }
 
       <header class="barra">
@@ -135,6 +165,11 @@ type Estado = 'iniciando' | 'escaneando' | 'manual';
 
       @if (estado() === 'escaneando') {
         <footer class="pie">
+          @if (leerFoto) {
+            <button matButton class="claro" (click)="elegirFoto()">
+              {{ leerFoto.etiqueta }}
+            </button>
+          }
           <button matButton class="claro" (click)="pasarAManual()">Ingresar a mano</button>
         </footer>
       }
@@ -241,10 +276,12 @@ type Estado = 'iniciando' | 'escaneando' | 'manual';
       left: 0;
       right: 0;
       display: grid;
+      gap: var(--sp-2);
       padding: var(--sp-4);
       padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
     }
     .claro { --mat-button-text-label-text-color: #fff; }
+    .oculto-total { display: none; }
   `,
 })
 export class EscanerDialogComponent {
@@ -253,10 +290,12 @@ export class EscanerDialogComponent {
     MatDialogRef,
   );
   private readonly videoRef = viewChild.required<ElementRef<HTMLVideoElement>>('video');
+  private readonly entradaFoto = viewChild<ElementRef<HTMLInputElement>>('entradaFoto');
 
   readonly titulo = this.datos.titulo ?? 'Escanear';
   readonly ayuda = this.datos.ayuda ?? 'Apuntá al código';
   readonly etiquetaManual = this.datos.etiquetaManual ?? 'Código';
+  readonly leerFoto = this.datos.leerFoto ?? null;
 
   readonly estado = signal<Estado>('iniciando');
   readonly motivo = signal('');
@@ -483,6 +522,46 @@ export class EscanerDialogComponent {
     this.detener();
     this.motivo.set(motivo);
     this.estado.set('manual');
+  }
+
+  /** Abre el selector del teléfono: sacar la foto o elegirla de la galería. */
+  elegirFoto(): void {
+    this.entradaFoto()?.nativeElement.click();
+  }
+
+  /**
+   * Lee el código de la foto elegida y lo deja en la carga manual para que el
+   * usuario lo compare con el papel y confirme. La cámara se apaga antes: la
+   * lectura usa mucha memoria y el led prendido confunde.
+   */
+  async alElegirFoto(evento: Event): Promise<void> {
+    const entrada = evento.target as HTMLInputElement;
+    const archivo = entrada.files?.[0];
+    // Se limpia siempre: sin esto, elegir la misma foto dos veces no dispara `change`.
+    entrada.value = '';
+    if (!archivo || !this.leerFoto || this.cerrado) {
+      return;
+    }
+    this.detener();
+    this.estado.set('leyendoFoto');
+    let codigo: string | null = null;
+    try {
+      codigo = await this.leerFoto.leer(archivo);
+    } catch {
+      codigo = null;
+    }
+    if (this.cerrado) {
+      return;
+    }
+    if (codigo) {
+      this.codigoManual.set(codigo);
+      this.pasarAManual('Revisá que coincida con el de la factura y confirmá.');
+    } else {
+      this.codigoManual.set('');
+      this.pasarAManual(
+        'No se encontró el código en la foto. Probá con otra más cerca y con buena luz, o escribilo.',
+      );
+    }
   }
 
   alEscribir(evento: Event): void {

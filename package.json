@@ -4,14 +4,15 @@
   "scripts": {
     "ng": "ng",
     "sello": "node scripts/sello-version.mjs",
-    "prestart": "npm run sello && npm run face-models",
+    "prestart": "npm run sello && npm run face-models && npm run ocr-assets",
     "start": "ng serve",
-    "prebuild": "npm run sello && npm run face-models",
+    "prebuild": "npm run sello && npm run face-models && npm run ocr-assets",
     "build": "ng build && node scripts/sello-version.mjs --dist",
     "watch": "ng build --watch --configuration development",
-    "pretest": "npm run sello && npm run face-models",
+    "pretest": "npm run sello && npm run face-models && npm run ocr-assets",
     "test": "ng test",
-    "face-models": "node scripts/face-models.mjs"
+    "face-models": "node scripts/face-models.mjs",
+    "ocr-assets": "node scripts/ocr-assets.mjs"
   },
   "private": true,
   "packageManager": "npm@10.8.2",
@@ -26,6 +27,7 @@
     "@angular/router": "^21.2.0",
     "@angular/service-worker": "^21.2.0",
     "@apollo/client": "^4.0.1",
+    "@tesseract.js-data/eng": "1.0.0",
     "@vladmandic/human": "^3.3.6",
     "@zxing/browser": "^0.2.1",
     "@zxing/library": "^0.23.0",
@@ -34,6 +36,7 @@
     "graphql": "^16",
     "qrcode": "^1.5.4",
     "rxjs": "~7.8.0",
+    "tesseract.js": "7.0.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {

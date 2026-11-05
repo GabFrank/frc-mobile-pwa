@@ -5,6 +5,7 @@ import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
 import { FORMATOS_QR } from 'src/app/core/dispositivo/escaner.types';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
 import { esKude } from './compras-reglas';
+import { LEER_CDC_DE_FOTO } from './leer-cdc-foto';
 import { ComprasService } from './compras.service';
 
 const OPCIONES_ESCANEO = {
@@ -14,6 +15,8 @@ const OPCIONES_ESCANEO = {
   // cámara no tiene que leer de refilón un código de barras.
   formatos: FORMATOS_QR,
   etiquetaManual: 'CDC de la factura (44 dígitos)',
+  // Si el QR no se deja leer: el CDC de una foto del KuDE (las que llegan por el grupo).
+  leerFoto: LEER_CDC_DE_FOTO,
 };
 
 /**

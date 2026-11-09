@@ -146,6 +146,15 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 > Ambos casos importan: si Caja no aparece nunca, los roles no llegan; si aparece siempre, no se filtran.
 
+### 1.2.1 · Orden de los accesos rápidos
+1. Con un usuario `ADMIN`, mirar los accesos de Inicio
+
+**Esperado:** los seis primeros son **Marcación, Transferencias, Inventario, Mis finanzas, Caja, Operaciones**, en ese orden. Después: Buscar producto, Productos vencidos, Consultar precio, Control inventario, Lugares del depósito, Notificaciones, Kiosco de marcación, Mi trabajo, Mi cuenta.
+
+2. Con un usuario sin roles de caja, inventario ni transferencias
+
+**Esperado:** arranca con **Marcación, Mis finanzas, Operaciones**. Los botones sin permiso no aparecen ni dejan hueco.
+
 ### 1.3 · Restauración de sesión al recargar
 1. Ya logueado, apretar F5 (o recargar en el teléfono)
 
@@ -1128,16 +1137,13 @@ siguiente acción.
 Registró «Entrada 27/08/2026 10:32», estado pasó a «En jornada» y la barra
 inferior ofreció «Salir a almorzar» / «Marcar salida».
 
-### 15.4 · Marcar lejos *(el caso a calibrar)* — sin probar
-1. Marcar desde lejos de la sucursal
+### 15.4 · Marcar lejos — sin probar
+1. Marcar desde más de 80 m de la sucursal
 
-**Esperado:** avisa la distancia y la precisión y **pide confirmación** — no
-bloquea. Al confirmar, queda registrado con esos datos.
-
-> Anotá qué distancia y qué precisión te dio: son los números con los que se
-> calibra el umbral del aviso. Hoy es de **110 m** (`DISTANCIA_AVISO_M`); fue
-> de 33 m hasta que las marcaciones de producción mostraron que le saltaba a
-> quien marcaba desde adentro con un iPhone. Ver el caso 59.14.
+**Esperado:** dice «Estás fuera de la sucursal» con la distancia y la
+precisión, y ofrece solo **Volver a ubicar**. No hay «Marcar igual»: no se
+marca nada. Desde el 29/10/2026 el límite es de **80 m**
+(`DISTANCIA_MAXIMA_M`) y lo valida también el central. Ver el bloque 95.
 
 No se pudo forzar una ubicación lejana desde el navegador de escritorio;
 necesita un dispositivo real o GPS simulado.
@@ -8253,11 +8259,181 @@ estaba vinculada a «…», que está inactivo. Elegí el producto.»
 
 ---
 
+## Bloque 95 — Marcación: prohibido marcar a más de 80 m *(sin probar: necesita el central con `feat/marcacion-maximo-80m`)*
+
+Desde el teléfono o el kiosco **no se marca a más de 80 m** de la sucursal
+detectada. Antes había un aviso a 110 m con «Marcar igual». El central valida
+lo mismo con la latitud y longitud que manda la app, así que no depende de la
+pantalla. El desktop no manda GPS y sigue marcando como siempre.
+
+Preparación: un teléfono real (o GPS simulado en Chrome: DevTools → Sensors →
+Location) y la coordenada de una sucursal a mano.
+
+### 95.1 · Adentro de la sucursal se marca normal
+1. Desde adentro, marcar entrada en «Mi trabajo → Marcación»
+
+**Esperado:** marca sin diálogos de distancia. La marcación guarda
+`distancia_sucursal` de 80 o menos.
+
+### 95.2 · Afuera no se marca
+1. Con GPS simulado a ~150 m de la sucursal, marcar
+
+**Esperado:** «Estás fuera de la sucursal», con los metros, la precisión y
+«Solo se puede marcar a 80 m o menos». El único botón es **Volver a ubicar**.
+Cancelar no marca nada.
+
+### 95.3 · Volver a ubicar y ya estar adentro
+1. Repetir 95.2, mover el GPS simulado a la sucursal y tocar **Volver a ubicar**
+
+**Esperado:** marca sin volver a pedir el rostro.
+
+### 95.4 · El central rechaza aunque la app no frene
+1. Mandar `saveMarcacion` a mano (GraphiQL o Postman) con un usuario sin
+   RRHH GESTIONAR, `metodoRegistro: MANUAL` y una latitud/longitud a ~500 m
+
+**Esperado:** error «Estás a 500 m de …. Solo se puede marcar a 80 m o
+menos.» y no se guarda nada. Mandándola sin latitud/longitud (con
+`metodoRegistro`) el error es «No se recibió la ubicación del teléfono».
+
+### 95.5 · El kiosco afuera no marca
+1. Kiosco con la tablet (o GPS simulado) a más de 80 m, identificar a alguien
+
+**Esperado:** «La tablet está a N m de … Solo se puede marcar a 80 m o
+menos. Tocá Recalcular.» No se marca nada.
+
+### 95.6 · El desktop sigue igual
+1. Marcar entrada y salida desde el desktop
+
+**Esperado:** marca como siempre; la marcación queda sin ubicación.
+
+## Bloque 96 — Mi cuenta: cambiar contraseña *(7/7 en Chrome contra un central local, 2026-11-03; falta el teléfono real)*
+
+Preparación: un usuario de prueba con la clave `123` y **sin** el rol `EDITAR
+USUARIOS`, y otro **con** ese rol. Anotar antes, por SQL, su `nickname`,
+`persona_id`, `usuario_id`, `email` y `activo`.
+
+### 96.1 · El aviso del login dice dónde
+
+Entrar con `123`.
+
+**Esperado:** el aviso dice «Cambiala en Mi cuenta → Seguridad». No salta
+ningún diálogo.
+
+### 96.2 · El apartado está en Mi cuenta
+
+Abrir **Mi cuenta**.
+
+**Esperado:** hay una sección **Seguridad** con «Cambiar contraseña», que
+lleva a la pantalla del mismo nombre, con flecha para volver.
+
+### 96.3 · Las reglas frenan antes de guardar
+
+Probar: `aaaa`; el propio usuario; `123` en los dos; dos distintas; una con
+espacio al final en los dos campos.
+
+**Esperado:** el botón queda deshabilitado y abajo sale el motivo («mismo
+carácter repetido», «igual a tu usuario», «distinta de la de alta», «no
+coinciden» recién al escribir la segunda, «sin espacios»). Una corta como `ab`
+**sí** se acepta: el central tampoco pide mínimo.
+
+### 96.4 · Guardar sin `EDITAR USUARIOS` *(el que importa)*
+
+Poner una clave nueva válida y confirmar.
+
+**Esperado:** «Contraseña cambiada» y vuelve a Mi cuenta. La sesión sigue
+abierta. Por SQL, `nickname`, `persona_id`, `usuario_id`, `email` y `activo`
+quedaron iguales.
+
+### 96.5 · Entrar con la nueva y no con la vieja
+
+Cerrar sesión. Entrar con `123`; después con la nueva (probar en minúsculas
+aunque se haya escrito en mayúsculas).
+
+**Esperado:** con `123` no entra; con la nueva entra y **no** sale el aviso
+de la contraseña por defecto.
+
+### 96.6 · Guardar con `EDITAR USUARIOS`
+
+Repetir 96.4 con el usuario que tiene el rol.
+
+**Esperado:** igual que 96.4: nada de la fila cambia salvo la clave — en
+especial el **creador** (`usuario_id`) no pasa a ser el propio usuario.
+
+### 96.7 · Sin conexión
+
+Con el servidor caído, abrir la pantalla; y aparte, cortar la red justo antes
+de confirmar.
+
+**Esperado:** al abrir, el estado de error con «Reintentar»; al guardar, el
+aviso de error y el botón vuelve a habilitarse. La clave no cambió.
+
+## Bloque 97 — Login: ¿Olvidaste tu contraseña? *(7/7 en Chrome contra un central local, 2026-11-03; falta el teléfono real y el correo por Gmail)*
+
+Necesita el central con `/public/recuperacion-contrasena` (desde `v4.8.0-beta.11`
+y `v4.16.0`). Preparación: un usuario **sin correo** y con cédula cargada; otro
+**con correo** real al que tengas acceso; alguien con el rol `RRHH APROBAR` en
+el desktop.
+
+### 97.1 · El enlace lleva el usuario escrito
+
+Escribir un usuario en el login y tocar «¿Olvidaste tu contraseña?».
+
+**Esperado:** abre «Recuperar contraseña» con ese usuario ya cargado y la imagen
+del captcha. «Otra imagen» la cambia.
+
+### 97.2 · Datos o captcha equivocados
+
+Cédula equivocada; después captcha equivocado.
+
+**Esperado:** el mensaje del central («no coinciden» / captcha incorrecto), la
+imagen se renueva sola y no se avanza.
+
+### 97.3 · Sin correo: solicitud a RRHH *(el que importa)*
+
+Con el usuario sin correo: datos correctos → teléfono y correo → «Registrar
+solicitud».
+
+**Esperado:** número de solicitud y código secreto, con «Copiar» y «Enviar por
+WhatsApp» (abre WhatsApp con el mensaje escrito). Teléfono o correo mal
+escritos frenan antes de enviar.
+
+### 97.4 · El código no se pierde al ir a WhatsApp
+
+En el paso anterior, abrir WhatsApp y volver; o recargar la página.
+
+**Esperado:** al volver a «Recuperar contraseña» aparece «Tenés la solicitud N°
+… en curso» con «Consultar su estado», que carga el número y el código.
+
+### 97.5 · Pendiente, aprobada y clave nueva
+
+Consultar con la solicitud pendiente; aprobarla en el desktop (RRHH →
+solicitudes de recuperación); consultar otra vez y guardar una clave nueva.
+
+**Esperado:** pendiente lo dice y no avanza; aprobada pasa a «Nueva
+contraseña»; al guardar, «Contraseña restablecida» e «Ir al inicio de sesión».
+Se entra con la nueva. El correo de la solicitud quedó en el usuario.
+
+### 97.6 · Código secreto equivocado
+
+Consultar con un código secreto mal escrito.
+
+**Esperado:** «El código no es correcto. Le quedan N intentos.» Al quinto, la
+solicitud queda anulada.
+
+### 97.7 · Con correo
+
+Con el usuario con correo: datos correctos → llega el código de 6 dígitos →
+ingresarlo → clave nueva.
+
+**Esperado:** dice a qué correo (enmascarado) y cuántos minutos vale; con el
+código pasa a «Nueva contraseña». Si el servidor no tiene correo configurado,
+muestra «El envío de correos no está configurado…».
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
 |---|---|---|---|---|
-| 1 · Arranque y sesión | 10 | | | |
+| 1 · Arranque y sesión | 11 | | | |
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
@@ -8351,7 +8527,10 @@ estaba vinculada a «…», que está inactivo. Elegí el producto.»
 | 92 · Compras: cargar la factura en papel con la foto | 7 | | | |
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
-| **Total** | **802** | | | |
+| 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
+| 96 · Mi cuenta: cambiar contraseña | 7 | 7 | | |
+| 97 · Login: ¿Olvidaste tu contraseña? | 7 | 7 | | |
+| **Total** | **823** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

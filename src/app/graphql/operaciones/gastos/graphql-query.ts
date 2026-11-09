@@ -13,7 +13,6 @@ const preGastoCampos = `
   montoRetirado
   montoGastado
   saldoDevolver
-  qrToken
   retiroConfirmadoEn
   cajaId
   creadoEn

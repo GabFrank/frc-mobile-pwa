@@ -82,8 +82,6 @@ export interface PreGasto {
   montoGastado?: number;
   /** Vuelto todavía sin devolver. */
   saldoDevolver?: number;
-  /** Ata el retiro a **esta** solicitud puntual. */
-  qrToken?: string;
   retiroConfirmadoEn?: string;
   cajaId?: number;
   creadoEn?: string;

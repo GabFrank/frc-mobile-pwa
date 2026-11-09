@@ -3,7 +3,7 @@ import { firstValueFrom, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { Query } from 'src/app/core/graphql/gql-base';
-import { DatosService } from 'src/app/core/graphql/datos.service';
+import { DatosService, OpcionesOperacion } from 'src/app/core/graphql/datos.service';
 import { tipoEnteDesdeModuloPadre } from 'src/app/domains/gastos/tipo-gasto.reglas';
 import { Ente, Equipo, Inmueble, Mueble, Vehiculo } from 'src/app/domains/gastos/ente.model';
 import {
@@ -89,8 +89,8 @@ export class GastosService {
    * ⚠️ **Se resuelve por id y sucursal.** Un `PreGasto` sin `sucId` no se
    * encuentra: el id no es único entre filiales.
    */
-  porId(id: number, sucId: number): Observable<PreGasto> {
-    return this.datos.consultar<PreGasto>(this.porIdGQL, { id, sucId });
+  porId(id: number, sucId: number, opciones?: OpcionesOperacion): Observable<PreGasto> {
+    return this.datos.consultar<PreGasto>(this.porIdGQL, { id, sucId }, opciones);
   }
 
   filtrar(filtros: FiltrosPreGasto = {}): Observable<PageInfo<PreGasto>> {

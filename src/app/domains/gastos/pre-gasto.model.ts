@@ -82,8 +82,8 @@ export interface PreGasto {
   montoGastado?: number;
   /** Vuelto todavía sin devolver. */
   saldoDevolver?: number;
-  /** Ata el retiro a **esta** solicitud puntual. */
-  qrToken?: string;
+  /** Vuelto que se devolvió en la caja. Con valor, manda sobre lo rendido por teléfono. */
+  montoVuelto?: number | null;
   retiroConfirmadoEn?: string;
   cajaId?: number;
   creadoEn?: string;

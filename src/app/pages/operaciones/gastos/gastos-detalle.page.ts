@@ -125,7 +125,7 @@ import { GastosService } from './gastos.service';
           <!-- El vuelto que recibió la caja: desde ahí, el rendido es retirado − vuelto. -->
           @if (g.montoVuelto != null) {
             <frc-dato etiqueta="Devuelto en caja">
-              <frc-importe [valor]="g.montoVuelto ?? 0" [moneda]="moneda()" [simbolo]="simbolo()" />
+              <frc-importe [valor]="g.montoVuelto" [moneda]="moneda()" [simbolo]="simbolo()" />
             </frc-dato>
           }
         </frc-seccion>

@@ -13,6 +13,7 @@ const preGastoCampos = `
   montoRetirado
   montoGastado
   saldoDevolver
+  montoVuelto
   retiroConfirmadoEn
   cajaId
   creadoEn

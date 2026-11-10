@@ -145,7 +145,8 @@ export class CapturaFacialComponent {
    * menos de medio segundo.
    *
    * Los frames sin rostro **no se rellenan ni se repiten**: se devuelven
-   * menos, y quien llama decide si alcanzan.
+   * menos, y quien llama decide si alcanzan. Si un frame no se pudo analizar
+   * (`DeteccionFallidaError`), la tanda entera vuelve vacía.
    */
   async capturarTanda(cantidad: number, msEntre: number): Promise<CapturaFacial[]> {
     const el = this.video()?.nativeElement;
@@ -158,9 +159,20 @@ export class CapturaFacialComponent {
       if (i > 0) {
         await new Promise((r) => setTimeout(r, msEntre));
       }
-      const captura = await this.facial.detectar(el);
-      if (captura) {
-        capturas.push(captura);
+      if (!this.stream) {
+        // Se cerró la pantalla en medio de la foto.
+        return [];
+      }
+      try {
+        const captura = await this.facial.detectar(el);
+        if (captura) {
+          capturas.push(captura);
+        }
+      } catch {
+        // Tanda vacía, no a medias: con uno o dos frames el llamador diría
+        // «no es un rostro real» por un cuelgue de la GPU. Vacía dice «no se
+        // detectó» y cuenta el intento.
+        return [];
       }
     }
     return capturas;

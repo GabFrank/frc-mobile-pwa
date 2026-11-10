@@ -8497,6 +8497,54 @@ no se crea otro.
 **Esperado:** el diálogo muestra el error y el botón «Reintentar»; no se cierra
 solo.
 
+## Bloque 98 — Marcación: el estado no queda viejo *(probado en Chromium y en el iPhone 11)*
+
+> El 28/10 la entrada se guardó a las 08:04 pero la pantalla no se enteró: a
+> las 08:06 seguía ofreciendo *Marcar entrada* y el central la rechazó («Ya
+> registró entrada…»). Hubo que cerrar la app para ver la entrada.
+>
+> **Verificado el 2026-11-10** con el build de producción contra el central
+> alpha local, cortando el guardado a propósito: 98.1 a 98.4 salen como dice
+> «Esperado» (98.5 lo cubre un test de la pantalla). El mismo día Franco lo
+> probó en el **iPhone 11** con el build de la rama por túnel: bien.
+
+### 98.1 · Volver a la app actualiza la pantalla
+1. Abrir Marcación y dejarla abierta.
+2. Ir a otra app (o marcar desde el kiosco), y volver a la PWA.
+
+**Esperado:** el bloque «Hoy» y el botón se actualizan solos (estado del
+central), y «Dónde estás» vuelve a ubicar. Mientras ubica, el botón queda
+deshabilitado unos segundos. Sin cerrar la app.
+
+### 98.2 · Volver sin red no rompe nada
+1. Con Marcación abierta, activar modo avión, ir a otra app y volver.
+
+**Esperado:** la pantalla sigue como estaba: **sin** aviso rojo y **sin**
+pantalla de error. Al volver la red, otra vuelta a la app la actualiza.
+
+### 98.3 · Alternar apps rápido
+1. Con Marcación abierta, alternar con otra app 5 veces seguidas.
+
+**Esperado:** sin avisos, sin «Buscando ubicación…» colgado, y el estado
+final correcto.
+
+### 98.4 · Un error al marcar no deja ofrecer lo mismo
+1. Marcar con la red floja (o cortarla justo al tocar).
+
+**Esperado:** si sale un error, la pantalla igual se actualiza con lo que dice
+el central. Si la marcación había entrado, pasa a «En jornada · falta…» y no
+vuelve a ofrecer la entrada. El aviso del error sigue visible.
+
+### 98.5 · Volver con una marcación a medias
+1. Tocar *Marcar*, y con el diálogo del rostro abierto ir a otra app y volver.
+
+**Esperado:** el diálogo sigue ahí y la marcación sigue normal; volver a la
+app no la interrumpe ni le cambia la ubicación.
+
+> ⚠️ **iOS con la ubicación en «Preguntar» o «Permitir una vez»:** ver si el
+> permiso se pide en cada vuelta a la app. Si pasa, anotarlo: es del sistema,
+> pero cambia la experiencia.
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8598,7 +8646,8 @@ solo.
 | 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
 | 96 · Compras: leer el CDC de una foto cuando el QR no se lee | 7 | | | |
 | 97 · Compras: registrar el proveedor con los datos de la factura | 11 | | | |
-| **Total** | **827** | | | |
+| 98 · Marcación: el estado no queda viejo | 5 | | | |
+| **Total** | **832** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

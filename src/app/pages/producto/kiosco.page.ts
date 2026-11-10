@@ -10,7 +10,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
@@ -19,11 +20,16 @@ import { ProductoBusquedaService, sinImagenes } from 'src/app/domains/productos/
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
 import { codigosParaBuscar, normalizarCodigo } from 'src/app/generic/utils/barcodeUtils';
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
+import { Moneda } from 'src/app/domains/moneda/moneda.model';
+import { agruparPorOrigen, mismaMoneda, referenciaDePrecio } from 'src/app/domains/moneda/precio-moneda';
+import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
+import { esMonedaEmpresa } from 'src/app/pages/operaciones/recepcion/recepcion-moneda';
 import { esGuarani, formatearCantidad, formatearImporte } from 'src/app/generic/utils/moneda.util';
 import { ConversionPrecioService } from 'src/app/domains/moneda/conversion-precio.service';
 import type { PreciosEnMoneda } from 'src/app/graphql/operaciones/moneda/convertirPrecios';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
-import { etiquetaPresentacion, precioDe, resolverPresentacionPorCodigo } from 'src/app/shared/producto/presentacion.util';
+import { etiquetaPresentacion, precioDe, precioEscogido, resolverPresentacionPorCodigo } from 'src/app/shared/producto/presentacion.util';
 import { KioscoConfigDialogComponent } from './kiosco-config-dialog.component';
 import { KioscoMonedasComponent } from './kiosco-monedas.component';
 import { KioscoTiraComponent } from './kiosco-tira.component';
@@ -435,6 +441,11 @@ export class KioscoPage implements AfterViewInit {
   });
 
   private readonly conversion = inject(ConversionPrecioService);
+  private readonly precioMoneda = inject(PrecioMonedaService);
+  private readonly monedasSesion = inject(MonedasSesion);
+  private readonly empresa = this.monedasSesion.empresa;
+  /** Cuenta los escaneos: uno que esperaba la lista de monedas no pisa a uno más nuevo. */
+  private escaneo = 0;
 
   /** Las monedas que el central sabe convertir. Vacía = sin selector. */
   readonly monedas = signal<PreciosEnMoneda[]>([]);
@@ -455,6 +466,7 @@ export class KioscoPage implements AfterViewInit {
     const id = this.monedaId();
     return (
       lista.find((m) => id != null && Number(m.moneda.id) === id) ??
+      this.filaPropia(this.seleccionada()) ??
       lista.find((m) => this.esMonedaBase(m)) ??
       null
     );
@@ -475,9 +487,9 @@ export class KioscoPage implements AfterViewInit {
       etiqueta: etiquetaPresentacion(p),
       precio: c
         ? `${c.fila.moneda.simbolo ?? ''} ${formatearCantidad(c.monto, c.fila.decimales)}`.trim()
-        : this.precioGs(p),
-      // En otra moneda, el guaraní queda abajo como referencia.
-      referencia: c ? this.precioGs(p) : null,
+        : this.precioPropio(p),
+      // En otra moneda, el precio original queda abajo como referencia.
+      referencia: c ? this.precioPropio(p) : null,
     };
   });
 
@@ -618,37 +630,22 @@ export class KioscoPage implements AfterViewInit {
     this.buscando.set(true);
     this.error.set(null);
 
+    const escaneo = ++this.escaneo;
     this.busqueda.porEscaneo(codigo).subscribe({
       next: (producto) => {
-        this.buscando.set(false);
-        // El campo se vacía siempre: el próximo producto llega solo, sin que
-        // nadie borre lo anterior.
-        this.texto.set('');
-        this.enfocar();
-
-        if (!producto) {
-          this.producto.set(null);
-          this.escaneadaId.set(null);
-          this.olvidarImagenes();
-          this.error.set('Producto no encontrado');
-          this.programarLimpieza();
-          return;
+        // Ya se sabe qué precios están en otra moneda casi siempre (se pide
+        // al entrar). Si todavía no llegó, se espera antes de mostrar un
+        // precio: mejor un instante de demora que un importe en la moneda
+        // equivocada ante un cliente.
+        if (this.monedasSesion.preciosMonedaListos()) {
+          this.mostrar(producto, codigo);
+        } else {
+          void this.precioMoneda.listo().then(() => {
+            if (escaneo === this.escaneo && !this.saliendo) {
+              this.mostrar(producto, codigo);
+            }
+          });
         }
-
-        this.producto.set(producto);
-        this.elegidaId.set(null);
-        this.cargarImagenes(producto);
-        this.cargarConversion();
-        // Cuál de las presentaciones corresponde al código que se pasó: un
-        // producto con unidad y caja tiene dos precios correctos a la vez.
-        const referencias = codigosParaBuscar(codigo);
-        const normalizado = normalizarCodigo(codigo);
-        if (!referencias.includes(normalizado)) {
-          referencias.push(normalizado);
-        }
-        const escaneada = resolverPresentacionPorCodigo(producto, ...referencias);
-        this.escaneadaId.set(escaneada?.id ?? null);
-        this.programarLimpieza();
       },
       error: (err: Error) => {
         this.buscando.set(false);
@@ -658,6 +655,38 @@ export class KioscoPage implements AfterViewInit {
         this.programarLimpieza();
       },
     });
+  }
+
+  private mostrar(producto: Producto | null, codigo: string): void {
+    this.buscando.set(false);
+    // El campo se vacía siempre: el próximo producto llega solo, sin que
+    // nadie borre lo anterior.
+    this.texto.set('');
+    this.enfocar();
+
+    if (!producto) {
+      this.producto.set(null);
+      this.escaneadaId.set(null);
+      this.olvidarImagenes();
+      this.error.set('Producto no encontrado');
+      this.programarLimpieza();
+      return;
+    }
+
+    this.producto.set(producto);
+    this.elegidaId.set(null);
+    this.cargarImagenes(producto);
+    this.cargarConversion();
+    // Cuál de las presentaciones corresponde al código que se pasó: un
+    // producto con unidad y caja tiene dos precios correctos a la vez.
+    const referencias = codigosParaBuscar(codigo);
+    const normalizado = normalizarCodigo(codigo);
+    if (!referencias.includes(normalizado)) {
+      referencias.push(normalizado);
+    }
+    const escaneada = resolverPresentacionPorCodigo(producto, ...referencias);
+    this.escaneadaId.set(escaneada?.id ?? null);
+    this.programarLimpieza();
   }
 
   /**
@@ -717,33 +746,69 @@ export class KioscoPage implements AfterViewInit {
     if (lista.length === 0 || this.monedas().length <= 1) {
       return;
     }
-    this.conversionSub = this.conversion
-      .convertir(lista.map((p) => precioDe(p)))
-      .subscribe((filas) => {
+    this.conversionSub?.unsubscribe();
+    // La moneda de cada precio sale de la lista de la sesión, sin consulta.
+    // Los importes en la moneda de la empresa van juntos a la consulta de
+    // siempre; los que tienen moneda propia, por grupo.
+    const grupos = agruparPorOrigen(
+      lista.map((p) => ({ monto: precioDe(p), moneda: this.monedaPropiaDe(p) })),
+      this.empresa(),
+    );
+    this.conversionSub = forkJoin(
+      grupos.map((g) =>
+        this.conversion.convertirDesde(g.montos, g.monedaOrigenId).pipe(map((filas) => ({ g, filas }))),
+      ),
+    )
+      .subscribe((resultados) => {
         const porMoneda = new Map<number, Map<number, number>>();
-        for (const fila of filas) {
-          const porPresentacion = new Map<number, number>();
-          fila.montos.forEach((monto, i) => {
-            const id = lista[i]?.id;
-            if (monto != null && id != null) {
-              porPresentacion.set(Number(id), monto);
-            }
-          });
-          porMoneda.set(Number(fila.moneda.id), porPresentacion);
+        for (const { g, filas } of resultados) {
+          for (const fila of filas) {
+            const monedaId = Number(fila.moneda.id);
+            const porPresentacion = porMoneda.get(monedaId) ?? new Map<number, number>();
+            fila.montos.forEach((monto, j) => {
+              const id = lista[g.indices[j]]?.id;
+              if (monto != null && id != null) {
+                porPresentacion.set(Number(id), monto);
+              }
+            });
+            porMoneda.set(monedaId, porPresentacion);
+          }
         }
         this.convertidos.set(porMoneda);
       });
   }
 
+  /** La moneda propia del precio de la presentación; `null` = la de la empresa. */
+  private monedaPropiaDe(p: Presentacion | null): Moneda | null {
+    const precioId = precioEscogido(p)?.id;
+    return this.precioMoneda.monedaDe(precioId);
+  }
+
+  /** La fila del selector que corresponde a la moneda en que está el precio. */
+  private filaPropia(p: Presentacion | null): PreciosEnMoneda | null {
+    const propia = this.monedaPropiaDe(p);
+    if (!propia) {
+      return null;
+    }
+    return this.monedas().find((m) => mismaMoneda(m.moneda as Moneda, propia)) ?? null;
+  }
+
   elegirMoneda(m: PreciosEnMoneda): void {
-    this.monedaId.set(this.esMonedaBase(m) ? null : Number(m.moneda.id));
+    this.monedaId.set(Number(m.moneda.id));
     // Igual que tocar una presentación: quien está mirando no pierde la ficha.
     if (this.producto()) {
       this.programarLimpieza();
     }
   }
 
+  /**
+   * La fila de la moneda de la empresa, que es en la que están los precios
+   * sin moneda propia. Sin la empresa resuelta, el guaraní por nombre.
+   */
   private esMonedaBase(m: PreciosEnMoneda): boolean {
+    if (this.empresa() != null) {
+      return esMonedaEmpresa(m.moneda as Moneda, this.empresa());
+    }
     return esGuarani(m.moneda.denominacion) || esGuarani(m.moneda.simbolo);
   }
 
@@ -753,7 +818,12 @@ export class KioscoPage implements AfterViewInit {
    */
   private convertido(p: Presentacion): { monto: number; fila: PreciosEnMoneda } | null {
     const fila = this.monedaActual();
-    if (!fila || this.esMonedaBase(fila) || p.id == null) {
+    if (!fila || p.id == null) {
+      return null;
+    }
+    // La moneda en que ya está el precio se muestra tal cual, sin convertir.
+    const propia = this.monedaPropiaDe(p);
+    if (propia ? mismaMoneda(fila.moneda as Moneda, propia) : this.esMonedaBase(fila)) {
       return null;
     }
     const monto = this.convertidos().get(Number(fila.moneda.id))?.get(Number(p.id));
@@ -779,8 +849,10 @@ export class KioscoPage implements AfterViewInit {
     return medianas.get(Number(p.id)) ?? miniaturas.get(Number(p.id)) ?? null;
   }
 
-  private precioGs(p: Presentacion): string {
-    return formatearImporte(precioDe(p), 'Guaraní', '₲');
+  /** El precio en la moneda en que está cargado. Sin moneda propia, guaraníes como siempre. */
+  private precioPropio(p: Presentacion): string {
+    const ref = referenciaDePrecio(this.monedaPropiaDe(p), this.empresa());
+    return formatearImporte(precioDe(p), ref.moneda, ref.simbolo);
   }
 
   salir(): void {

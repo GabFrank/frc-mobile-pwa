@@ -1,3 +1,4 @@
+import { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
 import { normalizarCodigo } from 'src/app/generic/utils/barcodeUtils';
@@ -67,17 +68,25 @@ export function presentacionesContables(presentaciones: Presentacion[]): Present
   return unitarias.length > 0 ? unitarias : activas;
 }
 
-/** Precio de la presentación: el principal, y si no el primero activo. */
-export function precioDe(presentacion: Presentacion | null | undefined): number | null {
+/**
+ * El precio que se usa de la presentación: el principal, y si no el primero
+ * activo con importe. `precioDe()` es su importe; el kiosco necesita el
+ * precio mismo para saber en qué moneda está.
+ */
+export function precioEscogido(presentacion: Presentacion | null | undefined): PrecioPorSucursal | null {
   if (!presentacion) {
     return null;
   }
-  const principal = presentacion.precioPrincipal?.precio;
-  if (principal != null) {
+  const principal = presentacion.precioPrincipal;
+  if (principal?.precio != null) {
     return principal;
   }
-  const activo = presentacion.precios?.find((p) => p.activo !== false && p.precio != null);
-  return activo?.precio ?? null;
+  return presentacion.precios?.find((p) => p.activo !== false && p.precio != null) ?? null;
+}
+
+/** Precio de la presentación: el principal, y si no el primero activo. */
+export function precioDe(presentacion: Presentacion | null | undefined): number | null {
+  return precioEscogido(presentacion)?.precio ?? null;
 }
 
 /**

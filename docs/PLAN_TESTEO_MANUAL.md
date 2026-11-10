@@ -8285,8 +8285,6 @@ estaba vinculada a «…», que está inactivo. Elegí el producto.»
 **Esperado:** los vínculos de esa factura tienen código **y**
 `descripcion_normalizada` (mayúsculas, sin tildes ni signos).
 
----
-
 ## Bloque 95 — Marcación: prohibido marcar a más de 80 m *(sin probar: necesita el central con `feat/marcacion-maximo-80m`)*
 
 Desde el teléfono o el kiosco **no se marca a más de 80 m** de la sucursal
@@ -8544,6 +8542,253 @@ app no la interrumpe ni le cambia la ubicación.
 > ⚠️ **iOS con la ubicación en «Preguntar» o «Permitir una vez»:** ver si el
 > permiso se pide en cada vuelta a la app. Si pasa, anotarlo: es del sistema,
 > pero cambia la experiencia.
+## Bloque 99 — Moneda por módulo: base común *(nuevo, sin probar)*
+
+La app aprende **qué moneda usa la empresa** al entrar, y los importes que no
+dicen su moneda se formatean con ella en vez de con dos decimales fijos. Sin
+configuración en el central todo resuelve a la moneda de la empresa —hoy el
+guaraní en las dos empresas—, así que **la app tiene que verse igual que
+antes**, salvo el «,00» que sobraba en guaraníes.
+
+Qué cambia por dentro: al cargar la sesión se pregunta `monedaEmpresa` (nueva,
+solo en un central con la configuración de moneda por módulo) y la lista de
+`monedas` (que ahora pide además `principal` y `decimales`, presentes desde
+`v4.8.0-beta.5` / `v4.12.0`). Contra un central viejo `monedaEmpresa` falla y
+se usa la principal de la lista o, si no hay, el guaraní. `frc-importe`, el pipe
+`importe` y `frc-campo-importe` usan esa moneda cuando no reciben una. Ninguna
+pantalla consulta todavía `monedaDeModulo`: eso llega en las entregas
+siguientes.
+
+Preparación: el DevTools abierto en **Network** (filtro `graphql`) y
+**Console**. Probá contra el central de hoy (alpha, farmacia o bodega) y, si lo
+tenés, contra un central local con la rama de moneda por módulo.
+
+### 99.1 · Compras: el total del pedido sin «,00» *(el que importa)*
+1. Entrar y abrir **Compras**
+2. Mirar el total de cada pedido de la lista
+
+**Esperado:** los pedidos en guaraníes muestran el total **sin decimales**
+(`Gs. 8.812.800`, no `Gs. 8.812.800,00`). Los pedidos en dólares, si hay,
+siguen con dos decimales.
+
+### 99.2 · El resto de compras
+1. Abrir un pedido (compra-pedido): totales y valor de cada nota
+2. Abrir una factura escaneando un KuDE (factura-proveedor) y su PDF
+3. Si podés, «Factura desde QR»
+
+**Esperado:** todo importe en guaraníes sin «,00». Una factura en **dólares**
+conserva los centavos (el símbolo `US$` la identifica en el catálogo de
+monedas): no se redondea a la moneda de la empresa.
+
+### 99.3 · Las pantallas que ya pasaban «Guaraní» no cambian
+1. Detalle de una caja, Mis finanzas, edición de precios, rendición de caja
+   chica y kiosco
+
+**Esperado:** exactamente igual que antes: guaraníes sin decimales, otras
+monedas con dos.
+
+### 99.4 · Contra el central de hoy (sin moneda por módulo)
+1. Cerrar sesión y volver a entrar contra alpha, farmacia o bodega
+2. Mirar Network y Console
+
+**Esperado:** salen consultas más al entrar: `monedaEmpresa` (responde con
+error de validación: campo desconocido) y `monedas` con `principal` y
+`decimales`. En Console queda **un** aviso `[moneda] El central no resolvió la
+moneda de la empresa; se usa la lista`. Contra un central anterior a
+`v4.8.0-beta.5` / `v4.12.0` también falla esa `monedas` y sale una tercera, la
+`monedas` de siempre, con un segundo aviso `No se pudo consultar la lista de
+monedas`. **No aparece ningún aviso rojo en pantalla, el login no se demora**,
+recepción y caja chica siguen listando sus monedas y el 99.1 se cumple igual.
+
+### 99.5 · Contra un central con moneda por módulo
+1. Central local con la rama de moneda por módulo, sin configurar nada
+2. Entrar y mirar Network
+
+**Esperado:** `monedaEmpresa` responde el guaraní con `principal: true` y
+`decimales: 0`. `codigoIso` llega **`null`**: `V258.5` agrega la columna vacía y
+el relleno (PYG/USD/BRL/ARS) es `V259.6`, de la entrega 2; trae un valor solo si
+alguien lo cargó a mano en el ABM. Sin avisos en Console. Las pantallas se ven
+igual que en el 99.4.
+
+### 99.6 · Recargar en una pantalla con importes
+1. En la lista de Compras, recargar la página (F5)
+
+**Esperado:** los importes terminan sin «,00». Si el central tarda, puede verse
+el «,00» un instante y corregirse solo cuando llega la moneda, **sin tocar
+nada**. Anotá si queda pegado con «,00».
+
+### 99.7 · Cambiar de servidor
+1. Mi cuenta → Servidor → elegir otro y volver a entrar
+
+**Esperado:** se vuelven a pedir `monedaEmpresa` y `monedas` al nuevo servidor;
+los importes salen con la moneda de ese central.
+
+### 99.8 · Un campo de importe sin moneda no pierde los centavos
+1. Caja chica → Nueva solicitud
+2. En un renglón del detalle financiero, **sin elegir moneda todavía**, escribir
+   `1234,56` en Monto y salir del campo
+3. Elegir **dólar** en ese renglón
+
+**Esperado:** después del paso 2 queda `1.234,56`, igual que antes de este
+cambio: un campo de carga sin moneda **no** cae a la de la empresa, porque el
+monto puede escribirse antes de elegirla. Después del paso 3 sigue `1.234,56`.
+
+### 99.9 · Caja chica en dólares sigue con centavos
+1. En el mismo formulario, elegir **dólar** y escribir `10,50`
+
+**Esperado:** queda `10,50` al salir del campo.
+
+**Probado el 2026-10-28** en Chrome contra dos centrales locales sobre una copia
+de bodega: uno con la rama de moneda por módulo y otro en `develop` (sin ella).
+Pasaron **99.1** (Gs. sin decimales, R$ y US$ con dos, en los dos centrales),
+**99.4** (contra `develop`: `monedaEmpresa` falla con `FieldUndefined`, sale
+**un** aviso `[moneda]` en Console, nada en pantalla), **99.5**, **99.7** (al
+cambiar de servidor se vuelven a pedir las dos consultas al nuevo) y **99.8**
+(`1.234,56` antes y después de elegir dólar).
+
+**Qué quedó sin verificar:** 99.2, 99.3, 99.6 y 99.9; un central anterior a
+`v4.8.0-beta.5` / `v4.12.0` (la tercera consulta de 99.4: `develop` ya tiene
+`principal` y `decimales`), y el teléfono real.
+
+---
+
+## Bloque 100 — Moneda por módulo: recepción y factura de compras *(nuevo, sin probar)*
+
+La recepción nueva y la factura del proveedor dejan de suponer que la moneda de
+la casa es el guaraní: comparan con **la moneda de la empresa** (por id, no por
+nombre) y la recepción arranca en la **moneda de COMPRAS** (`monedaDeModulo`,
+que cae a la de la empresa si no hay configuración o el central es viejo).
+Ninguna consulta compartida pidió campos nuevos.
+
+Preparación: DevTools en **Network** (filtro `graphql`) y **Console**. Los casos
+100.1 a 100.4 se prueban con la empresa en guaraníes y **sin configurar nada**:
+tienen que dar lo mismo que antes. 100.5 y 100.6 piden un central con la rama de
+moneda por módulo.
+
+### 100.1 · Recepción nueva: arranca en guaraníes, sin cotización *(el que importa)*
+1. Operaciones → Recepción → Nueva recepción, elegir sucursal y proveedor
+2. Mirar la sección «4 · Moneda»
+
+**Esperado:** la moneda elegida es **Guaraní** y **no** aparece el campo
+Cotización. Igual que antes del cambio. Estado: ✅ (2026-10-29, contra el central de la rama con la copia de bodega).
+
+### 100.2 · Recepción nueva: otra moneda pide cotización
+1. En «Moneda de las notas» elegir **Dólar**
+
+**Esperado:** aparece Cotización con la ayuda «Cuánto vale una unidad de esa
+moneda en guaraníes…»; «Iniciar» queda deshabilitado hasta cargar una
+cotización mayor que 0. Volver a Guaraní la oculta. Estado: ✅ (2026-10-29; probado que aparece y que «Iniciar» queda deshabilitado; la vuelta a Guaraní no se probó).
+
+### 100.3 · Iniciar una recepción en guaraníes
+1. Con Guaraní, agregar una nota e iniciar
+
+**Esperado:** la recepción se crea; en Network la mutation sale con la moneda
+guaraní y `cotizacion: 1`. Estado: ✅ (2026-10-29: recepción 68 con la nota 1 en guaraníes, cotización 1).
+
+### 100.4 · Factura del proveedor en guaraníes
+1. Compras → cargar una factura (KuDE) en guaraníes y abrir su revisión
+
+**Esperado:** «Moneda» dice solo «GUARANI» (sin «· cotización»); los totales
+salen sin decimales; el aviso de confirmar muestra el valor de la nota sin
+decimales. Igual que antes. Estado: ✅ (2026-10-29, factura de prueba en PYG: «PYG» sin cotización, totales «Gs 290.400»; el aviso de confirmar no se miró en PYG).
+
+### 100.5 · Con COMPRAS = dólar *(central con la rama de moneda por módulo)*
+1. Configurar COMPRAS = USD y entrar de nuevo
+2. Abrir una recepción nueva
+
+**Esperado:** arranca en **Dólar** y pide cotización (la empresa sigue en
+guaraníes). Elegir una nota con moneda propia la adopta, como antes. Estado: ✅ (2026-10-29, contra el central de la rama con la copia de bodega).
+
+### 100.6 · Factura en dólares y empresa en guaraníes
+1. Abrir la revisión de una factura en dólares
+
+**Esperado:** «Moneda» dice «DOLAR · cotización N»; los totales llevan dos
+decimales y el aviso de confirmar también. Estado: ✅ (2026-10-29: «USD · cotización 5.980», totales «US$ 48,56», aviso «por 48,56 US$»).
+
+### 100.7 · Contra el central de hoy
+1. Contra un central sin `monedaDeModulo`, repetir 100.1 y 100.2
+
+**Esperado:** igual que 100.1 y 100.2; en Console, a lo sumo el aviso `[moneda]`
+ya conocido del 99.4. Estado: ✅ (2026-10-29, contra `develop` en :8091: arranca en Guaraní y Dólar pide cotización; `monedaEmpresa`/`monedaDeModulo` rechazadas sin efecto visible).
+
+---
+
+## Bloque 101 — Moneda por módulo: precios y kiosco *(nuevo, sin probar)*
+
+Los precios pasan a poder estar en otra moneda que la de la empresa. La moneda
+de los precios que no están en la de la empresa se lee con una consulta **aparte**
+(`preciosEnOtraMoneda`, una vez al entrar y otra tras guardar un precio) y el kiosco usa `convertirPreciosDesdeMobile` para los precios que
+la tienen. Ninguna consulta compartida pidió campos nuevos: contra un central
+viejo la lectura falla y todo queda como antes. Sin precios en otra moneda
+(bodega) no cambia nada.
+
+Preparación: DevTools en **Network** (filtro `graphql`) y **Console**. Los casos
+101.1 a 101.3 y 101.8 se prueban con la empresa en guaraníes y **sin configurar
+nada**: tienen que dar lo mismo que antes. 101.4 a 101.7 piden un central con la
+rama de precios en moneda y PRECIOS = USD configurado.
+
+### 101.1 · Precios en guaraníes: la pantalla igual que antes *(el que importa)*
+1. Producto → Editar → una presentación → Precios
+
+**Esperado:** los importes salen «₲ 12.000», sin decimales. **No aparece** el
+selector «Moneda» al agregar un precio, ni contra un central nuevo: solo se muestra
+si PRECIOS está en una moneda que no es la de la empresa o ya hay algún precio
+en otra moneda. Estado: pendiente.
+
+### 101.2 · Guardar un precio en guaraníes no manda moneda
+1. Editar un precio, cambiar el importe y Guardar; mirar la mutation en Network
+
+**Esperado:** `savePrecioPorSucursal` sale **sin** la clave `monedaId` y responde
+bien. Lo mismo con «Desactivar» y «Marcar principal». Estado: pendiente.
+
+### 101.3 · Kiosco en guaraníes
+1. Entrar al kiosco de precios y escanear un producto
+2. Tocar otra bandera y volver a la del guaraní
+
+**Esperado:** el precio sale en guaraníes y, en otra moneda, el convertido con el
+guaraní abajo, igual que antes. En Network, la conversión usa
+`convertirPreciosMobile` (no `convertirPreciosDesdeMobile`). Estado: pendiente.
+
+### 101.4 · Precio nuevo en dólares *(central con precios en moneda)*
+1. Con PRECIOS = USD (o con algún precio ya en dólares), en Precios, «Agregar precio»: elegir tipo, **Moneda = Dólar**, cargar 4,39
+
+**Esperado:** el campo toma el símbolo «US$» y acepta dos decimales; tras Agregar,
+la fila dice «US$ 4,39» y la mutation lleva `monedaId` del dólar. Estado: pendiente.
+
+### 101.5 · La moneda por defecto es la del módulo PRECIOS
+1. Con PRECIOS = USD, abrir «Agregar precio» sin tocar el selector
+
+**Esperado:** «Moneda» arranca en Dólar. Con PRECIOS = guaraní arranca en
+Guaraní. Elegir Guaraní con PRECIOS = USD y agregar: la mutation manda el
+`monedaId` del guaraní (si no, quedaría en dólares). Estado: pendiente.
+
+### 101.6 · Editar un precio en dólares conserva la moneda
+1. Editar el precio del 101.4 (4,39 → 4,50) y Guardar; luego Desactivar y Activar
+
+**Esperado:** sigue en «US$», con dos decimales, y cada mutation lleva el mismo
+`monedaId`. Estado: pendiente.
+
+### 101.7 · Kiosco con un precio en dólares
+1. Escanear el producto del 101.4 en el kiosco
+
+**Esperado:** arranca en «US$ 4,50» (la bandera del dólar activa), **sin pasar antes por un importe en guaraníes**; en Network no hay consulta de moneda por producto. Tocar la bandera
+del guaraní: sale el convertido en guaraníes con el dólar abajo como referencia;
+en Network, `convertirPreciosDesdeMobile` con `monedaOrigenId` del dólar. Estado: pendiente.
+
+### 101.8 · Contra el central de hoy
+1. Contra un central sin precios en moneda, repetir 101.1 a 101.3
+
+**Esperado:** igual que antes; en Console, a lo sumo el rechazo de `preciosEnOtraMoneda`
+(una sola vez, al entrar), sin efecto visible. Estado: pendiente.
+
+### 101.9 · Guardar en otra moneda con un escritorio viejo configurado
+1. Con `cliente.desktop.version_minima` sin configurar, guardar un precio nuevo en dólares
+
+**Esperado:** aparece un aviso claro («No se puede guardar el precio en esa moneda
+todavía…») sin el texto técnico `VERSION_MINIMA:`, y el precio no se crea.
+Estado: pendiente.
+
+---
 
 ## Resumen para completar
 
@@ -8647,7 +8892,10 @@ app no la interrumpe ni le cambia la ubicación.
 | 96 · Compras: leer el CDC de una foto cuando el QR no se lee | 7 | | | |
 | 97 · Compras: registrar el proveedor con los datos de la factura | 11 | | | |
 | 98 · Marcación: el estado no queda viejo | 5 | | | |
-| **Total** | **832** | | | |
+| 99 · Moneda por módulo: base común | 9 | 5 | | |
+| 100 · Moneda por módulo: recepción y factura de compras | 7 | 7 | | |
+| 101 · Moneda por módulo: precios y kiosco | 9 | | | |
+| **Total** | **858** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

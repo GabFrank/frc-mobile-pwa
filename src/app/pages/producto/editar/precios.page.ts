@@ -16,8 +16,19 @@ import { concatMap, toArray } from 'rxjs/operators';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
+import { MonedaModuloService } from 'src/app/core/moneda/moneda-modulo.service';
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
+import { Moneda } from 'src/app/domains/moneda/moneda.model';
+import {
+  debeMostrarSelectorMoneda,
+  esErrorVersionMinima,
+  monedaIdParaGuardar,
+  referenciaDePrecio,
+  textoVersionMinima,
+} from 'src/app/domains/moneda/precio-moneda';
+import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
 import { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
 import { TipoPrecio } from 'src/app/domains/productos/tipo-precio.model';
 import { DeletePrecioPorSucursalGQL } from 'src/app/graphql/productos/deletePrecioPorSucursal';
@@ -53,6 +64,7 @@ export function construirPrecioInput(
   },
   presentacionId: number,
   sucursalId: number,
+  monedaId?: number | null,
 ) {
   return {
     id: precio.id,
@@ -62,6 +74,9 @@ export function construirPrecioInput(
     activo: precio.activo,
     presentacionId,
     sucursalId,
+    // ⚠️ La clave se omite, no se manda en null: un central sin precios en
+    // otra moneda rechaza el input entero por un campo desconocido.
+    ...(monedaId != null ? { monedaId } : {}),
   };
 }
 
@@ -167,10 +182,23 @@ export function esPrecioEditable(
                   }
                 </mat-select>
               </mat-form-field>
+              @if (mostrarSelectorMoneda()) {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
+                  <mat-label>Moneda</mat-label>
+                  <mat-select
+                    [ngModel]="nuevaMoneda()?.id"
+                    (ngModelChange)="elegirMonedaNueva($event)"
+                  >
+                    @for (m of monedasElegibles(); track m.id) {
+                      <mat-option [value]="m.id">{{ m.denominacion }} ({{ m.simbolo }})</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
               <frc-campo-importe
                 etiqueta="Precio"
-                moneda="Guaraní"
-                simbolo="₲"
+                [moneda]="nuevaReferencia().moneda"
+                [simbolo]="nuevaReferencia().simbolo"
                 [ngModel]="nuevoMonto()"
                 (ngModelChange)="nuevoMonto.set($event)"
               />
@@ -219,13 +247,13 @@ export function esPrecioEditable(
                     @if (mismoId(edicionId(), p.id)) {
                       <frc-campo-importe
                         etiqueta="Precio"
-                        moneda="Guaraní"
-                        simbolo="₲"
+                        [moneda]="referencia(p).moneda"
+                        [simbolo]="referencia(p).simbolo"
                         [ngModel]="edicionValor()"
                         (ngModelChange)="edicionValor.set($event)"
                       />
                     } @else {
-                      <frc-importe [valor]="p.precio ?? 0" moneda="Guaraní" simbolo="₲" />
+                      <frc-importe [valor]="p.precio ?? 0" [moneda]="referencia(p).moneda" [simbolo]="referencia(p).simbolo" />
                     }
                   </div>
                   <div class="acciones-precio">
@@ -292,7 +320,7 @@ export function esPrecioEditable(
                       <span class="badge-inactivo">Inactivo</span>
                     }
                   </span>
-                  <frc-importe [valor]="p.precio ?? 0" moneda="Guaraní" simbolo="₲" />
+                  <frc-importe [valor]="p.precio ?? 0" [moneda]="referencia(p).moneda" [simbolo]="referencia(p).simbolo" />
                 </div>
               </div>
             }
@@ -380,12 +408,52 @@ export class PreciosPage {
   private readonly savePrecioPorSucursal = inject(SavePrecioPorSucursalGQL);
   private readonly deletePrecioPorSucursal = inject(DeletePrecioPorSucursalGQL);
   private readonly tipoPreciosGQL = inject(TipoPreciosGQL);
+  private readonly monedaModulo = inject(MonedaModuloService);
+  private readonly monedasSesion = inject(MonedasSesion);
+  private readonly precioMoneda = inject(PrecioMonedaService);
 
   readonly guardando = signal(false);
   readonly nuevoTipoPrecioId = signal<number | null>(null);
   readonly nuevoMonto = signal<number | null>(null);
   readonly edicionId = signal<number | null>(null);
   readonly edicionValor = signal<number | null>(null);
+
+  /**
+   * Monedas propias de los precios, por id de precio. Vacío = todos en la
+   * moneda de la empresa (lo de siempre, también contra un central viejo).
+   */
+  private readonly monedasPrecio = this.monedasSesion.preciosOtraMoneda;
+  /** `false` si el central no contestó la lista de precios en otra moneda: sin eso no se ofrece ni se manda moneda. */
+  private readonly soportaMonedaPrecio = this.monedasSesion.preciosMonedaSoportado;
+  /** La moneda del módulo PRECIOS: la de un precio nuevo si no se elige otra. */
+  private readonly monedaPorDefecto = signal<Moneda | null>(null);
+  /** La elegida para un precio nuevo; `null` = la del módulo. */
+  private readonly nuevaMonedaId = signal<number | null>(null);
+
+  private readonly empresa = this.monedasSesion.empresa;
+
+  readonly monedasElegibles = computed<Moneda[]>(() =>
+    this.monedasSesion.catalogo().filter((m) => m.activo !== false && m.id != null),
+  );
+
+  readonly mostrarSelectorMoneda = computed(() =>
+    debeMostrarSelectorMoneda({
+      soportado: this.soportaMonedaPrecio(),
+      cantidadElegibles: this.monedasElegibles().length,
+      empresa: this.empresa(),
+      porDefecto: this.monedaPorDefecto(),
+      preciosEnOtraMoneda: this.monedasPrecio().size,
+    }),
+  );
+
+  readonly nuevaMoneda = computed<Moneda | null>(() => {
+    const id = this.nuevaMonedaId();
+    const elegida = id != null ? this.monedasElegibles().find((m) => String(m.id) === String(id)) : undefined;
+    return elegida ?? this.monedaPorDefecto();
+  });
+
+  /** Máscara y símbolo del precio nuevo: según la moneda elegida. */
+  readonly nuevaReferencia = computed(() => referenciaDePrecio(this.nuevaMoneda(), this.empresa()));
 
   private readonly tiposPrecio = signal<TipoPrecio[]>([]);
   readonly cargandoTipos = signal(false);
@@ -448,7 +516,52 @@ export class PreciosPage {
       }
     });
 
+    void this.monedaModulo
+      .monedaDe('PRECIOS', this.sucursalSesionId())
+      .then((m) => this.monedaPorDefecto.set(m))
+      .catch(() => undefined);
+
     this.cargarTipos();
+  }
+
+  /** Tras guardar, la lista de precios en otra moneda se vuelve a pedir. */
+  private recargarTrasGuardar(): void {
+    void this.precioMoneda.cargar();
+    this.estado.recargar();
+  }
+
+  /** Moneda y símbolo con que se muestra un precio. Sin moneda propia, lo de siempre. */
+  referencia(p: PrecioPorSucursal) {
+    return referenciaDePrecio(this.monedasPrecio().get(String(p.id)), this.empresa());
+  }
+
+  elegirMonedaNueva(id: number | null): void {
+    this.nuevaMonedaId.set(id);
+  }
+
+  /** Qué `monedaId` lleva el guardado de un precio que ya existe. `undefined` = no se manda. */
+  private monedaIdDe(p: PrecioPorSucursal): number | undefined {
+    return monedaIdParaGuardar({
+      soportado: this.soportaMonedaPrecio(),
+      empresa: this.empresa(),
+      guardada: this.monedasPrecio().get(String(p.id)),
+    });
+  }
+
+  /**
+   * Un guardado con moneda no avisa solo: el rechazo `VERSION_MINIMA:` se
+   * explica en vez de mostrarse tal cual. Sin moneda, el aviso de siempre.
+   */
+  private opcionesGuardado(monedaId: number | undefined) {
+    return monedaId != null ? { notificarError: false } : undefined;
+  }
+
+  private avisarFalloConMoneda(error: unknown, monedaId: number | undefined): void {
+    if (monedaId == null) {
+      return;
+    }
+    const mensaje = error instanceof Error ? error.message : 'No se pudo guardar el precio.';
+    this.notificacion.danger(esErrorVersionMinima(mensaje) ? textoVersionMinima(mensaje) : mensaje);
   }
 
   recargar(): void {
@@ -505,6 +618,7 @@ export class PreciosPage {
     }
     if (presentacionId == null || sucursalId == null || p.id == null || monto == null) return;
 
+    const monedaId = this.monedaIdDe(p);
     const input = construirPrecioInput(
       {
         id: p.id,
@@ -515,16 +629,22 @@ export class PreciosPage {
       },
       presentacionId,
       sucursalId,
+      monedaId,
     );
     this.guardando.set(true);
-    this.datos.guardar<PrecioPorSucursal>(this.savePrecioPorSucursal, input).subscribe({
-      next: () => {
-        this.cancelarEdicion();
-        this.estado.recargar();
-        this.guardando.set(false);
-      },
-      error: () => this.guardando.set(false),
-    });
+    this.datos
+      .guardar<PrecioPorSucursal>(this.savePrecioPorSucursal, input, undefined, this.opcionesGuardado(monedaId))
+      .subscribe({
+        next: () => {
+          this.cancelarEdicion();
+          this.recargarTrasGuardar();
+          this.guardando.set(false);
+        },
+        error: (e) => {
+          this.avisarFalloConMoneda(e, monedaId);
+          this.guardando.set(false);
+        },
+      });
   }
 
   agregarPrecio(): void {
@@ -534,21 +654,34 @@ export class PreciosPage {
     const monto = this.nuevoMonto();
     if (presentacionId == null || sucursalId == null || tipoPrecioId == null || monto == null) return;
 
+    const monedaId = monedaIdParaGuardar({
+      soportado: this.soportaMonedaPrecio(),
+      empresa: this.empresa(),
+      elegida: this.nuevaMoneda(),
+      porDefecto: this.monedaPorDefecto(),
+    });
     const input = construirPrecioInput(
       { id: null, precio: monto, tipoPrecioId, principal: false, activo: true },
       presentacionId,
       sucursalId,
+      monedaId,
     );
     this.guardando.set(true);
-    this.datos.guardar<PrecioPorSucursal>(this.savePrecioPorSucursal, input).subscribe({
-      next: () => {
-        this.nuevoTipoPrecioId.set(null);
-        this.nuevoMonto.set(null);
-        this.estado.recargar();
-        this.guardando.set(false);
-      },
-      error: () => this.guardando.set(false),
-    });
+    this.datos
+      .guardar<PrecioPorSucursal>(this.savePrecioPorSucursal, input, undefined, this.opcionesGuardado(monedaId))
+      .subscribe({
+        next: () => {
+          this.nuevoTipoPrecioId.set(null);
+          this.nuevoMonto.set(null);
+          this.nuevaMonedaId.set(null);
+          this.recargarTrasGuardar();
+          this.guardando.set(false);
+        },
+        error: (e) => {
+          this.avisarFalloConMoneda(e, monedaId);
+          this.guardando.set(false);
+        },
+      });
   }
 
   toggleActivo(p: PrecioPorSucursal): void {
@@ -564,6 +697,7 @@ export class PreciosPage {
     if (presentacionId == null || sucursalId == null || p.id == null) return;
 
     const estaActivo = p.activo !== false;
+    const monedaId = this.monedaIdDe(p);
     const input = construirPrecioInput(
       {
         id: p.id,
@@ -574,15 +708,21 @@ export class PreciosPage {
       },
       presentacionId,
       sucursalId,
+      monedaId,
     );
     this.guardando.set(true);
-    this.datos.guardar<PrecioPorSucursal>(this.savePrecioPorSucursal, input).subscribe({
-      next: () => {
-        this.estado.recargar();
-        this.guardando.set(false);
-      },
-      error: () => this.guardando.set(false),
-    });
+    this.datos
+      .guardar<PrecioPorSucursal>(this.savePrecioPorSucursal, input, undefined, this.opcionesGuardado(monedaId))
+      .subscribe({
+        next: () => {
+          this.recargarTrasGuardar();
+          this.guardando.set(false);
+        },
+        error: (e) => {
+          this.avisarFalloConMoneda(e, monedaId);
+          this.guardando.set(false);
+        },
+      });
   }
 
   /**
@@ -612,6 +752,7 @@ export class PreciosPage {
       return;
     }
 
+    const monedaIdPrincipal = this.monedaIdDe(p);
     this.guardando.set(true);
     from(aDegradar)
       .pipe(
@@ -628,6 +769,7 @@ export class PreciosPage {
               },
               presentacionId,
               sucursalId,
+              this.monedaIdDe(viejo),
             ),
             undefined,
             // Sin toast individual por degradación: si hay varias, no
@@ -651,22 +793,29 @@ export class PreciosPage {
               },
               presentacionId,
               sucursalId,
+              monedaIdPrincipal,
             ),
+            undefined,
+            this.opcionesGuardado(monedaIdPrincipal),
           ),
         ),
       )
       .subscribe({
         next: () => {
-          this.estado.recargar();
+          this.recargarTrasGuardar();
           this.guardando.set(false);
         },
-        error: () => {
+        error: (e) => {
           // Con `notificarError: false` en las degradaciones, este es el
           // ÚNICO lugar que avisa si la cadena falla. Sin este toast, un
           // guardado que corta a mitad de camino queda mudo: el botón
           // parpadea, nada cambia, y no hay ningún mensaje en ningún lado —
           // justo la falla que `preciosADegradar()` existe para evitar.
-          this.notificacion.danger('No se pudo marcar el precio como principal.');
+          if (esErrorVersionMinima((e as Error | undefined)?.message)) {
+            this.notificacion.danger(textoVersionMinima((e as Error).message));
+          } else {
+            this.notificacion.danger('No se pudo marcar el precio como principal.');
+          }
           this.guardando.set(false);
         },
       });
@@ -683,7 +832,7 @@ export class PreciosPage {
     this.guardando.set(true);
     this.datos.eliminar(this.deletePrecioPorSucursal, p.id).subscribe({
       next: () => {
-        this.estado.recargar();
+        this.recargarTrasGuardar();
         this.guardando.set(false);
       },
       error: () => this.guardando.set(false),

@@ -1,7 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
+import { Moneda } from 'src/app/domains/moneda/moneda.model';
 import { ImporteComponent } from './importe.component';
+import { ImportePipe } from './importe.pipe';
 
 @Component({
   standalone: true,
@@ -69,5 +72,88 @@ describe('ImporteComponent', () => {
     fixture.componentInstance.valor.set(null);
     fixture.detectChanges();
     expect(texto()).toBe('');
+  });
+
+  describe('sin moneda', () => {
+    const guarani = Object.assign(new Moneda(), {
+      id: 1, denominacion: 'GUARANI', simbolo: 'Gs.', decimales: 0, principal: true,
+    });
+    const dolar = Object.assign(new Moneda(), { id: 2, denominacion: 'DOLAR', simbolo: 'US$', decimales: 2 });
+
+    beforeEach(() => {
+      fixture.componentInstance.moneda.set(null);
+    });
+
+    it('antes de conocer la moneda de la empresa, dos decimales como siempre', () => {
+      fixture.componentInstance.valor.set(1500000);
+      fixture.detectChanges();
+      expect(texto()).toBe('1.500.000,00');
+    });
+
+    it('usa la moneda de la empresa: guaraníes sin «,00»', () => {
+      TestBed.inject(MonedasSesion).empresa.set(guarani);
+      fixture.componentInstance.valor.set(1500000);
+      fixture.detectChanges();
+      expect(texto()).toBe('1.500.000');
+    });
+
+    it('se corrige solo cuando la sesión termina de cargar la moneda', async () => {
+      fixture.componentInstance.valor.set(1500000);
+      fixture.detectChanges();
+      expect(texto()).toBe('1.500.000,00');
+      TestBed.inject(MonedasSesion).empresa.set(guarani);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(texto()).toBe('1.500.000');
+    });
+
+    it('con el símbolo de otra moneda del catálogo, sus decimales', () => {
+      const sesion = TestBed.inject(MonedasSesion);
+      sesion.empresa.set(guarani);
+      sesion.catalogo.set([guarani, dolar]);
+      fixture.componentInstance.valor.set(10.5);
+      fixture.componentInstance.simbolo.set('US$');
+      fixture.detectChanges();
+      expect(texto()).toBe('US$ 10,50');
+    });
+  });
+});
+
+@Component({
+  standalone: true,
+  imports: [ImportePipe],
+  template: `<span class="p">{{ valor() | importe: moneda() : simbolo() }}</span>`,
+})
+class AnfitrionPipe {
+  readonly valor = signal<number | null>(1500000);
+  readonly moneda = signal<string | null>(null);
+  readonly simbolo = signal<string | null>(null);
+}
+
+describe('ImportePipe', () => {
+  let fixture: ReturnType<typeof TestBed.createComponent<AnfitrionPipe>>;
+  const texto = () => (fixture.nativeElement as HTMLElement).querySelector('.p')!.textContent!.trim();
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ imports: [AnfitrionPipe] });
+    fixture = TestBed.createComponent(AnfitrionPipe);
+  });
+
+  it('con moneda explícita, igual que siempre', () => {
+    fixture.componentInstance.moneda.set('Guaraní');
+    fixture.componentInstance.simbolo.set('₲');
+    fixture.detectChanges();
+    expect(texto()).toBe('₲ 1.500.000');
+  });
+
+  it('sin moneda, se actualiza cuando llega la de la empresa aunque el valor no cambie', async () => {
+    fixture.detectChanges();
+    expect(texto()).toBe('1.500.000,00');
+    TestBed.inject(MonedasSesion).empresa.set(
+      Object.assign(new Moneda(), { denominacion: 'GUARANI', decimales: 0 }),
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(texto()).toBe('1.500.000');
   });
 });

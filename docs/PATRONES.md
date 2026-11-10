@@ -288,6 +288,17 @@ Lo mismo con `Number(null)` → `0` y `Number(' ')` → `0`.
 
 - **Mostrar** con `<frc-importe [valor]="…" moneda="Guaraní" simbolo="₲" />`,
   que sabe que el guaraní no lleva decimales y pinta los negativos en rojo.
+  `moneda` acepta también la moneda misma (`{decimales, denominacion,
+  codigoIso}`): con `decimales` numérico manda ese dato. **Sin `moneda`** se
+  usa la del catálogo con ese `simbolo` y, si no, la de la empresa
+  (`MonedasSesion`, que carga `MonedaModuloService` al entrar); antes de que
+  cargue, dos decimales como siempre. El pipe `importe` es impuro por eso.
+  **El campo de carga `frc-campo-importe` no cae a la de la empresa** cuando
+  no tiene ni `moneda` ni `simbolo`: ahí suele querer decir «todavía no se
+  eligió», y redondear al guaraní al salir borraría los centavos de un monto
+  que después resulta en dólares. Sigue con los dos decimales de siempre.
+  La moneda de un módulo se pide con `MonedaModuloService.monedaDe(modulo,
+  sucursalId?)`, que contra un central viejo cae a la de la empresa.
 - **Restar dos totales que el backend ya emitió** para poder mostrarlos
   juntos. `resumirCredito()` hace `limite − utilizado`, y eso no es calcular
   dinero: es presentar dos números que ya existen.

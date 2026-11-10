@@ -15,6 +15,7 @@ import { OperacionesPage } from '../pages/operaciones/operaciones.page';
 import { Usuario } from '../domains/personas/usuario.model';
 import type { Persona } from '../domains/personas/persona.model';
 import { ROLES } from '../domains/personas/roles/roles.enum';
+import { DESTINOS } from '../shell/nav';
 
 /**
  * Casos 1.1, 1.2 y 2.4 del plan de testeo manual, automatizados.
@@ -92,20 +93,28 @@ describe('Sesión y control de acceso por rol', () => {
       expect(etiquetas.length).toBeGreaterThan(0);
     });
 
-    it('ADMIN ve primero los seis de uso diario, en ese orden', () => {
+    it('ADMIN ve primero los cinco de uso diario, en ese orden', () => {
       TestBed.inject(AuthService).establecerUsuario(usuarioCon([ROLES.ADMIN]));
       const fixture = TestBed.createComponent(InicioPage);
       fixture.detectChanges();
 
       const etiquetas = fixture.componentInstance.accesos().map((a) => a.etiqueta);
-      expect(etiquetas.slice(0, 6)).toEqual([
+      expect(etiquetas.slice(0, 5)).toEqual([
         'Marcación',
         'Transferencias',
         'Inventario',
         'Mis finanzas',
         'Caja',
-        'Operaciones',
       ]);
+    });
+
+    it('ningún acceso repite un destino de la barra de abajo', () => {
+      TestBed.inject(AuthService).establecerUsuario(usuarioCon([ROLES.ADMIN]));
+      const fixture = TestBed.createComponent(InicioPage);
+      fixture.detectChanges();
+
+      const rutas = fixture.componentInstance.accesos().map((a) => a.ruta);
+      for (const d of DESTINOS) expect(rutas).not.toContain(d.ruta);
     });
 
     it('sin esos roles, los de autoservicio suben al principio', () => {
@@ -114,7 +123,7 @@ describe('Sesión y control de acceso por rol', () => {
       fixture.detectChanges();
 
       const etiquetas = fixture.componentInstance.accesos().map((a) => a.etiqueta);
-      expect(etiquetas.slice(0, 3)).toEqual(['Marcación', 'Mis finanzas', 'Operaciones']);
+      expect(etiquetas.slice(0, 2)).toEqual(['Marcación', 'Mis finanzas']);
     });
 
     it('la card de Caja en Operaciones sigue la misma regla', () => {

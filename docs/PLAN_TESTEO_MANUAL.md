@@ -2646,8 +2646,13 @@ habilitado).
 
 > El cuelgue de la GPU no se puede provocar a mano en un teléfono. Verificado
 > el 2026-11-10 en Chromium con cámara simulada y la detección colgada a
-> propósito: diálogo, kiosco y registro del rostro salen solos. Falta ver en el
-> **iPhone 11** donde se reportó que la cuenta ya no se clava.
+> propósito: diálogo, kiosco y registro del rostro salen solos. Verificado el
+> mismo día en el **iPhone 11** donde se reportó: la cuenta corre y pasa a
+> «Verificando…» sin clavarse.
+>
+> 🐛 **Aparte, sin resolver:** en ese iPhone la cámara arranca dibujándose chica
+> y al segundo llena el marco. No es la caja (mide bien desde el inicio) ni la
+> orientación del stream; no es de esta corrección.
 
 ---
 

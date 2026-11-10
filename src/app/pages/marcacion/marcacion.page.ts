@@ -304,13 +304,15 @@ export class MarcacionPage {
    *   aviso de la recarga taparía el del central (se ve uno solo a la vez).
    */
   cargar(silenciosa = false): void {
+    const pedido = ++this.pedidoEstado;
     const usuarioId = this.auth.usuario()?.id;
     if (usuarioId == null) {
-      this.error.set('La sesión no tiene usuario.');
-      this.cargando.set(false);
+      if (!silenciosa) {
+        this.error.set('La sesión no tiene usuario.');
+        this.cargando.set(false);
+      }
       return;
     }
-    const pedido = ++this.pedidoEstado;
     if (!silenciosa) {
       this.cargando.set(true);
       this.error.set(null);
@@ -345,13 +347,16 @@ export class MarcacionPage {
    * ⚠️ **No con una marcación en curso.** `detectar()` borra la posición al
    * empezar, y `marcar()` lee la suya después de su propio `detectar()`: una
    * detección cruzada la dejaría sin posición. Tampoco se apila sobre una
-   * detección que ya está buscando.
+   * detección que ya está buscando, ni pisa una carga normal en vuelo: una
+   * recarga silenciosa que fallara después la dejaría sin aplicar.
    */
   private alVolverAlFrente(): void {
     if (this.enCurso() != null || this.marcando()) {
       return;
     }
-    this.cargar(true);
+    if (!this.cargando()) {
+      this.cargar(true);
+    }
     if (this.det.estado() !== 'buscando') {
       void this.det.detectar();
     }

@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
@@ -350,6 +350,8 @@ describe('Elegir el tipo de salida', () => {
       puedeMarcarEntradaAlmuerzo: false,
     };
 
+    const SILENCIOSA = { notificarError: false, mostrarCarga: false };
+
     const volverAlFrente = async (f: { detectChanges: () => void }) => {
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
       document.dispatchEvent(new Event('visibilitychange'));
@@ -371,6 +373,8 @@ describe('Elegir el tipo de salida', () => {
       await tocar(f, 'Marcar entrada');
 
       expect(servicio.estado).toHaveBeenCalledTimes(2);
+      // Silenciosa: su aviso no puede tapar el del central.
+      expect(servicio.estado).toHaveBeenLastCalledWith(42, SILENCIOSA);
       expect(botones(f)).toEqual(['Marcar salida']);
     });
 
@@ -400,9 +404,42 @@ describe('Elegir el tipo de salida', () => {
       await volverAlFrente(f);
 
       expect(servicio.estado).toHaveBeenCalledTimes(2);
+      expect(servicio.estado).toHaveBeenLastCalledWith(42, SILENCIOSA);
       expect(botones(f)).toEqual(['Marcar salida']);
       expect(f.nativeElement.querySelector('frc-estado-error')).toBeNull();
       expect(danger).not.toHaveBeenCalled();
+    });
+
+    it('una respuesta vieja no pisa a una nueva', async () => {
+      const vieja = new Subject<EstadoMarcacionUsuario>();
+      servicio.estado
+        .mockReturnValueOnce(of(fuera))
+        .mockReturnValueOnce(vieja)
+        .mockReturnValue(of(enJornada));
+      const f = TestBed.createComponent(MarcacionPage);
+      f.detectChanges();
+      await detectada(f);
+
+      await volverAlFrente(f);
+      await volverAlFrente(f);
+      vieja.next(fuera);
+      await detectada(f);
+
+      expect(botones(f)).toEqual(['Marcar salida']);
+    });
+
+    it('volver a la app no pisa una carga que todavía no respondió', async () => {
+      const enVuelo = new Subject<EstadoMarcacionUsuario>();
+      servicio.estado.mockReturnValueOnce(enVuelo).mockReturnValue(throwError(() => new Error('Load failed')));
+      const f = TestBed.createComponent(MarcacionPage);
+      f.detectChanges();
+
+      await volverAlFrente(f);
+      enVuelo.next(enJornada);
+      await detectada(f);
+
+      expect(servicio.estado).toHaveBeenCalledTimes(1);
+      expect(botones(f)).toEqual(['Marcar salida']);
     });
 
     it('con una marcación en curso, volver a la app no recarga nada', async () => {

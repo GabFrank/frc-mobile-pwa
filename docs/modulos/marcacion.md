@@ -333,6 +333,25 @@ El backend dice qué corresponde (`accionPendiente`) y la pantalla ofrece
 `esSalidaAlmuerzo` viaja aparte del `tipo`: una salida de almuerzo es
 `SALIDA` pero **no cierra la jornada**.
 
+### El estado se vuelve a pedir: tras un error y al volver a la app
+
+⚠️ **Un error al guardar no quiere decir que no se guardó.** El 28/10 una
+entrada entró al central a las 08:04 y la respuesta no llegó: la pantalla
+siguió ofreciendo *Marcar entrada* y el central rechazó la segunda («Ya
+registró entrada…»). Por eso, tras un error de `enviar()`, la pantalla vuelve a
+pedir el estado.
+
+⚠️ **iOS deja la pantalla viva en segundo plano, a veces por días.** Al volver
+(`visibilitychange` → `visible`) se vuelven a pedir el estado y la ubicación.
+No con una marcación en curso (`detectar()` borra la posición que `marcar()`
+va a leer), ni sobre una detección que ya está buscando, ni sobre una carga
+normal que todavía no respondió.
+
+Estas recargas son **silenciosas** (`cargar(true)`): sin aviso ni carga global,
+y si fallan queda lo que había. Volver con la red todavía caída es lo normal en
+iOS, y un aviso de la recarga taparía el del central (se ve uno solo a la vez).
+Solo se aplica la respuesta del último pedido.
+
 ## La sucursal persistida se retiró
 
 `MarcacionService` guardaba la última sucursal elegida en

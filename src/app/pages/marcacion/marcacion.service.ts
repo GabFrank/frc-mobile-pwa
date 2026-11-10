@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { DatosService } from 'src/app/core/graphql/datos.service';
+import { DatosService, OpcionesOperacion } from 'src/app/core/graphql/datos.service';
 import {
   EstadoMarcacionUsuario,
   Marcacion,
@@ -28,8 +28,8 @@ export class MarcacionService {
   private readonly guardarGQL = inject(SaveMarcacionGQL);
   private readonly estadoGQL = inject(EstadoMarcacionUsuarioGQL);
 
-  estado(usuarioId: number): Observable<EstadoMarcacionUsuario> {
-    return this.datos.consultar<EstadoMarcacionUsuario>(this.estadoGQL, { usuarioId });
+  estado(usuarioId: number, opciones?: OpcionesOperacion): Observable<EstadoMarcacionUsuario> {
+    return this.datos.consultar<EstadoMarcacionUsuario>(this.estadoGQL, { usuarioId }, opciones);
   }
 
   guardar(input: MarcacionInput): Observable<Marcacion> {

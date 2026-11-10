@@ -2,13 +2,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { of, throwError } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
 import { GeoService } from '../core/dispositivo/geo.service';
 import { DatosService } from '../core/graphql/datos.service';
 import { DialogoService } from '../core/ui/dialogo.service';
+import { NotificacionService } from '../core/ui/notificacion.service';
 import { SucursalService } from '../domains/empresarial/sucursal/sucursal.service';
 import {
   AccionMarcacionPendiente,
@@ -326,6 +327,110 @@ describe('Elegir el tipo de salida', () => {
     });
 
     expect(botones(f)).toEqual(['Marcar salida']);
+  });
+
+  // Anidado acá por el `montar` y los proveedores de arriba: el 28/10 la
+  // pantalla mostró el estado de antes de una entrada que ya estaba guardada.
+  describe('el estado no queda viejo', () => {
+    const fuera: EstadoMarcacionUsuario = {
+      accionPendiente: AccionMarcacionPendiente.ENTRADA,
+      estaEnJornada: false,
+      puedeMarcarEntrada: true,
+      puedeMarcarSalida: false,
+      puedeMarcarSalidaAlmuerzo: false,
+      puedeMarcarEntradaAlmuerzo: false,
+    };
+    /** Con la entrada ya hecha: solo falta la salida. */
+    const enJornada: EstadoMarcacionUsuario = {
+      accionPendiente: AccionMarcacionPendiente.SALIDA_DEFINITIVA,
+      estaEnJornada: true,
+      puedeMarcarEntrada: false,
+      puedeMarcarSalida: true,
+      puedeMarcarSalidaAlmuerzo: false,
+      puedeMarcarEntradaAlmuerzo: false,
+    };
+
+    const volverAlFrente = async (f: { detectChanges: () => void }) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      await detectada(f);
+    };
+
+    afterEach(() => {
+      delete (document as unknown as Record<string, unknown>)['visibilityState'];
+    });
+
+    it('si el guardado vuelve con error, vuelve a pedir el estado y muestra el del central', async () => {
+      // La respuesta se perdió, pero la entrada quedó guardada.
+      servicio.guardar.mockReturnValue(throwError(() => new Error('Load failed')));
+      servicio.estado.mockReturnValueOnce(of(fuera)).mockReturnValue(of(enJornada));
+      const f = TestBed.createComponent(MarcacionPage);
+      f.detectChanges();
+      await detectada(f);
+
+      await tocar(f, 'Marcar entrada');
+
+      expect(servicio.estado).toHaveBeenCalledTimes(2);
+      expect(botones(f)).toEqual(['Marcar salida']);
+    });
+
+    it('al volver a la app pide el estado y la ubicación otra vez', async () => {
+      const geo = TestBed.inject(GeoService);
+      const posicion = vi.spyOn(geo, 'posicionActual');
+      servicio.estado.mockReturnValueOnce(of(fuera)).mockReturnValue(of(enJornada));
+      const f = TestBed.createComponent(MarcacionPage);
+      f.detectChanges();
+      await detectada(f);
+      const ubicaciones = posicion.mock.calls.length;
+
+      await volverAlFrente(f);
+
+      expect(servicio.estado).toHaveBeenCalledTimes(2);
+      expect(posicion.mock.calls.length).toBe(ubicaciones + 1);
+      expect(botones(f)).toEqual(['Marcar salida']);
+    });
+
+    it('si la recarga al volver falla, queda lo que había, sin aviso ni pantalla de error', async () => {
+      const danger = vi.spyOn(TestBed.inject(NotificacionService), 'danger');
+      servicio.estado.mockReturnValueOnce(of(enJornada)).mockReturnValue(throwError(() => new Error('Load failed')));
+      const f = TestBed.createComponent(MarcacionPage);
+      f.detectChanges();
+      await detectada(f);
+
+      await volverAlFrente(f);
+
+      expect(servicio.estado).toHaveBeenCalledTimes(2);
+      expect(botones(f)).toEqual(['Marcar salida']);
+      expect(f.nativeElement.querySelector('frc-estado-error')).toBeNull();
+      expect(danger).not.toHaveBeenCalled();
+    });
+
+    it('con una marcación en curso, volver a la app no recarga nada', async () => {
+      // El diálogo del rostro queda abierto: la marcación sigue en curso.
+      (TestBed.inject(DialogoService) as unknown as { abrir: () => Promise<never> }).abrir = () =>
+        new Promise<never>(() => undefined);
+      servicio.estado.mockReturnValue(of(fuera));
+      const f = TestBed.createComponent(MarcacionPage);
+      f.detectChanges();
+      await detectada(f);
+      await tocar(f, 'Marcar entrada');
+
+      await volverAlFrente(f);
+
+      expect(servicio.estado).toHaveBeenCalledTimes(1);
+    });
+
+    it('con la pantalla cerrada, volver a la app no hace nada', async () => {
+      servicio.estado.mockReturnValue(of(fuera));
+      const f = TestBed.createComponent(MarcacionPage);
+      f.detectChanges();
+      await detectada(f);
+      f.destroy();
+
+      await volverAlFrente(f);
+
+      expect(servicio.estado).toHaveBeenCalledTimes(1);
+    });
   });
 
   // Anidado acá por el `montar` y los proveedores de arriba, no porque tenga

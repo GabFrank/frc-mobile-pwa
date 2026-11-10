@@ -2626,6 +2626,29 @@ usuario: la marcación ya quedó registrada y esto es una mejora, no un paso.
 > Es lo que evita que el reconocimiento se quede con las cinco fotos del día
 > del enrolamiento mientras la persona cambia de peinado, anteojos o luz.
 
+### 31.12 · La cuenta regresiva no se traba en el «1»
+1. Con un usuario con rostro registrado, *Marcar entrada* varias veces
+   seguidas (cancelando al final), en un teléfono de gama baja o en un iPhone.
+2. Mirar la cuenta 3-2-1.
+
+**Esperado:** «Preparando el reconocimiento…» puede tardar unos segundos más
+que antes —ahí se prepara la GPU—, pero la cuenta corre pareja y al llegar a 0
+pasa enseguida a «Verificando…». Nunca queda clavada en el «1».
+
+3. Si la foto no sale (la GPU del teléfono no responde).
+
+**Esperado:** a los 5 s como mucho (15 s si el teléfono no llegó a prepararse)
+dice «No se detectó tu rostro…» y ofrece **Tomar otra foto**. Al tercer intento
+fallido cierra y ofrece *Marcar igual*. **Nunca** queda solo *Cancelar* como
+salida. Lo mismo en el kiosco («No te reconocimos…» con *Intentar de nuevo*) y
+en *Registrar mi rostro* («No se pudo analizar la imagen», con *Capturar*
+habilitado).
+
+> El cuelgue de la GPU no se puede provocar a mano en un teléfono. Verificado
+> el 2026-11-10 en Chromium con cámara simulada y la detección colgada a
+> propósito: diálogo, kiosco y registro del rostro salen solos. Falta ver en el
+> **iPhone 11** donde se reportó que la cuenta ya no se clava.
+
 ---
 
 ### 31.6 · Funciona sin internet
@@ -8503,7 +8526,7 @@ solo.
 | 28 · Rendición de caja chica | 9 | | | |
 | 29 · Carga del conteo | 6 | | | |
 | 30 · Permisos por rol | 6 | | | |
-| 31 · Rostro: registro y marcación | 11 | | | |
+| 31 · Rostro: registro y marcación | 12 | | | |
 | 32 · Compartir por QR | 4 | 2 | | |
 | 33 · Instalar y filtros por URL | 5 | 2 | | |
 | 34 · Control de inventario | 5 | 1 | | |
@@ -8570,7 +8593,7 @@ solo.
 | 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
 | 96 · Compras: leer el CDC de una foto cuando el QR no se lee | 7 | | | |
 | 97 · Compras: registrar el proveedor con los datos de la factura | 11 | | | |
-| **Total** | **826** | | | |
+| **Total** | **827** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

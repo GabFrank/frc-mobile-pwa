@@ -15,7 +15,7 @@ export interface CapturaFacial {
 }
 
 /**
- * La detección no terminó a tiempo o Human devolvió un error.
+ * La detección no terminó a tiempo.
  *
  * No es «no hay cara» (`null`): es «no se pudo analizar», y la pantalla lo
  * trata como un intento fallido en vez de quedarse esperando.
@@ -157,7 +157,8 @@ export class ReconocimientoFacialService {
       human.warmup({ warmup: 'face' }),
       MS_LIMITE_PRECALENTAMIENTO,
     ).then(
-      () => true,
+      // Human resuelve con `error` en vez de rechazar: eso tampoco precalentó.
+      (r) => !(r as { error?: unknown } | undefined)?.error,
       () => false,
     );
     this.human = human;
@@ -176,17 +177,13 @@ export class ReconocimientoFacialService {
     if (!this.human) {
       await this.cargar();
     }
-    const human = this.human as {
-      detect(f: unknown): Promise<{ face?: unknown[]; error?: string | null }>;
-    };
+    const human = this.human as { detect(f: unknown): Promise<{ face?: unknown[] }> };
     const resultado = await conLimite(
       human.detect(fuente),
       this.precalentado ? MS_LIMITE_DETECCION : MS_LIMITE_DETECCION_EN_FRIO,
     );
-    if (resultado?.error) {
-      // Human no rechaza ante un error: resuelve con `error`.
-      throw new DeteccionFallidaError(resultado.error);
-    }
+    // Un `error` de Human (p. ej. el video todavía no tiene frame) llega sin
+    // caras y vuelve `null`, como siempre: se pierde ese frame, no la tanda.
     const caras = (resultado?.face ?? []) as Record<string, unknown>[];
     if (!caras.length) {
       return null;

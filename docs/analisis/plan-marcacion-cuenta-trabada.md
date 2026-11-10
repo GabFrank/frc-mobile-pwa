@@ -40,11 +40,13 @@ A veces, al marcar, la cuenta 3-2-1 se queda en el «1» y no pasa nada. La
 - `detectar()`: **solo** `human.detect` acotado (no el `cargar()` que hace antes).
   Límite de 5 s con el modelo precalentado, 15 s si el precalentamiento no
   terminó: el primer detect frío puede tardar legítimamente. El timer se limpia
-  al ganar la detección. Si se pasa, o si Human resuelve con `resultado.error`,
-  **lanza** `DeteccionFallidaError`: «no hay cara» (`null`) y «no se pudo
+  al ganar la detección. Si se pasa, **lanza** `DeteccionFallidaError`: «no hay cara» (`null`) y «no se pudo
   analizar» son cosas distintas (PATRONES §6).
-- Carrera con `liberar()`: un contador de generación evita que una carga que
-  termina después de cerrar la pantalla deje Human vivo.
+- Un `error` con el que Human resuelve (video sin frame todavía,
+  `readyState <= 2`) sigue volviendo `null`: se pierde ese frame, no la tanda.
+  El kiosco arranca la cuenta sin esperar la cámara, y lanzar ahí le haría
+  perder la tanda entera a una cámara lenta. El precalentamiento que resuelve
+  con `error` no cuenta como precalentado.
 
 `pages/marcacion/captura-facial.component.ts`
 - `capturarTanda`: si un frame lanza, **devuelve `[]`** (no lo que tenga): una
@@ -52,8 +54,8 @@ A veces, al marcar, la cuenta 3-2-1 se queda en el «1» y no pasa nada. La
   foto», y acusaría de suplantación por un cuelgue de la GPU. Con `[]` los dos
   llamadores dicen «No se detectó tu rostro…» / «No te reconocimos…» y cuentan
   el intento.
-- La tanda se corta si el componente se destruyó (cancelar en medio de la foto
-  no debe seguir pidiendo frames ni recargar Human).
+- La tanda se corta si el componente se destruyó (bandera en `detener()`, no la
+  ausencia de `stream`: en el kiosco la cuenta no espera a la cámara).
 
 `pages/cuenta/enroll-facial.page.ts`
 - `capturar()`: `catch` que avisa «No se pudo analizar la imagen. Probá de nuevo.».
@@ -72,7 +74,8 @@ configuración del modelo.
   - `cargar()` llama a `warmup` con `'face'` y resuelve aunque `warmup` no
     resuelva nunca.
   - `detectar()` lanza `DeteccionFallidaError` (`toBeInstanceOf`) si `detect` no
-    resuelve en el límite, y si resuelve con `error`.
+    resuelve en el límite; 15 s de margen si no hubo precalentamiento (o salió
+    con error); `null` si Human resuelve con `error`.
   - Revertir el fix y comprobar que fallan (y que el mock de un `import()`
     dinámico aplica de verdad).
 
@@ -82,8 +85,8 @@ configuración del modelo.
 |---|---|---|---|
 | 1 | A y B | Tanda cortada acusa de foto falsa | `capturarTanda` devuelve `[]` |
 | 2 | B | **El timeout no rescata un bloqueo sincrónico** del hilo: el «1» congelado lo arregla el precalentamiento; el timeout cubre el detect pendiente para siempre (que se ve como «Verificando…» sin fin) | Documentado; límite mayor para el primer detect frío |
-| 3 | A | Human resuelve con `error` en vez de rechazar | Se trata como fallo |
-| 4 | A y B | Carrera `liberar()` / carga, y tanda que sigue tras cancelar | Contador de generación y corte por destrucción |
+| 3 | A | Human resuelve con `error` en vez de rechazar | Se intentó tratarlo como fallo; la revisión del diff mostró que ese `error` es el «video sin frame» y que en el kiosco hacía perder la tanda entera. Vuelve `null`, como antes |
+| 4 | A y B | Carrera `liberar()` / carga, y tanda que sigue tras cancelar | Corte por destrucción. **Contador de generación descartado**: Human guarda modelos y backend a nivel de módulo, así que soltar la instancia no libera GPU, y el contador abría otra carrera (dos diálogos seguidos compartiendo la promesa de carga) |
 | 5 | A | Límite ambiguo y timer sin limpiar | Solo `human.detect`, `clearTimeout` |
 | 6 | B | Contexto WebGL perdido: falla hasta recargar la app (kiosco encendido todo el día) | **No se hace**: el diálogo cede a «sin verificación» al tercer intento; el kiosco reintenta. Queda anotado |
 | 7 | B | El detect colgado sigue en la GPU tras el timeout (~4 MB por cuelgue, sin lock en Human) | Aceptado: acotado |

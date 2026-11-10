@@ -103,6 +103,8 @@ export class CapturaFacialComponent {
   readonly mensaje = signal<string>('Encendiendo la cámara…');
 
   private stream: MediaStream | null = null;
+  /** La pantalla se cerró: una tanda en curso no sigue pidiendo frames. */
+  private destruido = false;
 
   constructor() {
     void this.iniciar();
@@ -159,8 +161,7 @@ export class CapturaFacialComponent {
       if (i > 0) {
         await new Promise((r) => setTimeout(r, msEntre));
       }
-      if (!this.stream) {
-        // Se cerró la pantalla en medio de la foto.
+      if (this.destruido) {
         return [];
       }
       try {
@@ -179,6 +180,7 @@ export class CapturaFacialComponent {
   }
 
   private detener(): void {
+    this.destruido = true;
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     this.facial.liberar();

@@ -93,11 +93,26 @@ describe('Reconocimiento facial: topes de tiempo', () => {
     expect(lista).toBe(true);
   });
 
-  it('si Human resuelve con un error, no lo presenta como «no hay cara»', async () => {
+  it('un error de Human (video sin frame todavía) pierde ese frame, no la tanda', async () => {
     await servicio.cargar();
-    human.detect.mockResolvedValue({ face: [], error: 'could not convert input to tensor' });
+    // Human resuelve así cuando el video tiene readyState <= 2. Lanzar acá
+    // haría que una cámara lenta del kiosco perdiera la tanda entera.
+    human.detect.mockResolvedValue({ error: 'could not convert input to tensor' });
 
-    await expect(servicio.detectar(video)).rejects.toBeInstanceOf(DeteccionFallidaError);
+    await expect(servicio.detectar(video)).resolves.toBeNull();
+  });
+
+  it('si el precalentamiento resuelve con error, la primera detección conserva el margen en frío', async () => {
+    human.warmup.mockResolvedValue({ error: 'could not convert input to tensor' });
+    await servicio.cargar();
+    human.detect.mockImplementation(
+      () => new Promise((r) => setTimeout(() => r({ face: [] }), 10_000)),
+    );
+
+    const deteccion = servicio.detectar(video);
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await expect(deteccion).resolves.toBeNull();
   });
 
   it('sin cara en el frame devuelve null, no un error', async () => {

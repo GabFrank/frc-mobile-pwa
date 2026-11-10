@@ -275,6 +275,7 @@ describe('Verificación facial con cuenta regresiva', () => {
 
     await sacarFoto(f);
 
+    expect(detectar).toHaveBeenCalledTimes(2);
     expect(f.componentInstance.fase()).toBe('fallo');
     // Un cuelgue no es una foto de una foto: no se acusa de suplantación.
     expect(f.componentInstance.motivo()).toContain('No se detectó tu rostro');

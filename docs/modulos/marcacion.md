@@ -446,6 +446,36 @@ sigue por el camino de «sin verificación facial», que pregunta si se quiere
 marcar igual y lo deja registrado. Insistir para siempre dejaría a alguien sin
 poder marcar por una cámara mala, que es un problema distinto.
 
+### La GPU se prepara antes de la cuenta, y la foto tiene tope
+
+⚠️ **Con `warmup: 'none'` la GPU se preparaba en la primera foto.** En Human
+3.3.6, `warmup()` con `'none'` vuelve sin hacer nada, así que la compilación de
+shaders caía justo al terminar la cuenta y la pantalla se quedaba congelada en
+el «1» (reportado en un iPhone 11, 2026-11-10). Ahora `ReconocimientoFacialService`
+llama `warmup({ warmup: 'face' })` después de cargar, mientras se ve
+«Preparando el reconocimiento…». Solo usa la imagen embebida de Human y no toca
+el embedding.
+
+⚠️ **El `detect` y el `warmup` de Human pueden no resolver nunca**: son
+executors async sin `try`, así que si algo tira adentro —contexto WebGL
+perdido— la promesa queda pendiente. Por eso los dos tienen tope:
+
+| Qué | Tope | Si se pasa |
+|---|---|---|
+| Precalentamiento | 15 s | Se sigue sin él |
+| Detección, precalentado | 5 s | `DeteccionFallidaError` |
+| Detección, sin precalentar | 15 s | `DeteccionFallidaError` |
+
+`capturarTanda` convierte ese error en una **tanda vacía**, no en una a medias:
+con uno o dos frames el llamador diría «no es un rostro real» por un cuelgue.
+Vacía dice «no se detectó» y cuenta el intento. Un `error` con el que Human
+**resuelve** (video sin frame todavía) no es eso: sigue volviendo `null` y se
+pierde ese frame solo — el kiosco arranca la cuenta sin esperar a la cámara.
+
+El tope no rescata un bloqueo sincrónico del hilo (el timer no puede
+dispararse mientras tanto): eso lo evita el precalentamiento. El tope cubre la
+promesa colgada, que se ve como «Verificando…» sin fin.
+
 ## `captura-facial.component.ts`, la cámara sin criterio
 
 Enciende la cámara, carga los modelos y saca tandas de frames. **No decide

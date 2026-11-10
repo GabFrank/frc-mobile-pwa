@@ -15,6 +15,43 @@ export interface CapturaFacial {
 }
 
 /**
+ * La detección no terminó a tiempo.
+ *
+ * No es «no hay cara» (`null`): es «no se pudo analizar», y la pantalla lo
+ * trata como un intento fallido en vez de quedarse esperando.
+ */
+export class DeteccionFallidaError extends Error {
+  constructor(motivo: string) {
+    super(motivo);
+    this.name = 'DeteccionFallidaError';
+  }
+}
+
+/** Tope del precalentamiento. Si se pasa, se sigue sin él. */
+const MS_LIMITE_PRECALENTAMIENTO = 15_000;
+/** Tope de una detección con el modelo ya precalentado. */
+const MS_LIMITE_DETECCION = 5_000;
+/** Tope si el precalentamiento no terminó: el primer detect compila la GPU. */
+const MS_LIMITE_DETECCION_EN_FRIO = 15_000;
+
+/**
+ * La promesa, o un `DeteccionFallidaError` si pasa `ms`.
+ *
+ * ⚠️ **No cancela nada**: Human no se puede cortar y sigue en la GPU. Sirve
+ * para que la pantalla no espere para siempre una promesa que no va a
+ * resolver —el `detect` y el `warmup` de Human son executors async sin `try`:
+ * si algo tira adentro, quedan pendientes—. No rescata un bloqueo sincrónico
+ * del hilo: eso lo evita el precalentamiento.
+ */
+function conLimite<T>(promesa: Promise<T>, ms: number): Promise<T> {
+  let reloj: ReturnType<typeof setTimeout> | undefined;
+  const vencido = new Promise<never>((_, rechazar) => {
+    reloj = setTimeout(() => rechazar(new DeteccionFallidaError('La detección no respondió a tiempo.')), ms);
+  });
+  return Promise.race([promesa, vencido]).finally(() => clearTimeout(reloj));
+}
+
+/**
  * Reconocimiento facial en el dispositivo, con `@vladmandic/human`.
  *
  * Solo produce **embeddings** y señales de vida a partir de un `<video>`. El
@@ -47,6 +84,8 @@ export class ReconocimientoFacialService {
   private rutaModelos = '/face-models';
 
   private human: unknown = null;
+  /** Si el último `warmup` terminó: decide el tope de la primera detección. */
+  private precalentado = false;
   private cargando: Promise<void> | null = null;
 
   /** Para que la pantalla pueda mostrar «preparando el reconocimiento…». */
@@ -88,6 +127,7 @@ export class ReconocimientoFacialService {
       modelBasePath: this.rutaModelos,
       backend: 'webgl',
       async: true,
+      // El precalentamiento se pide abajo, con tope: ver `hacerCarga`.
       warmup: 'none',
       cacheSensitivity: 0,
       filter: { enabled: true, equalization: false },
@@ -105,10 +145,22 @@ export class ReconocimientoFacialService {
       hand: { enabled: false },
       object: { enabled: false },
       gesture: { enabled: false },
-    }) as { load(): Promise<void>; warmup(): Promise<void> };
+    }) as { load(): Promise<void>; warmup(config?: unknown): Promise<unknown> };
 
     await human.load();
-    await human.warmup();
+    // ⚠️ **Sin esto la GPU se prepara en la primera foto**: con `'none'`,
+    // `warmup()` vuelve sin hacer nada y la compilación de shaders cae justo
+    // al terminar la cuenta regresiva, que se queda congelada en el «1». Acá
+    // corre mientras la pantalla dice «Preparando el reconocimiento…». Solo
+    // usa una imagen embebida en Human y no toca el embedding.
+    this.precalentado = await conLimite(
+      human.warmup({ warmup: 'face' }),
+      MS_LIMITE_PRECALENTAMIENTO,
+    ).then(
+      // Human resuelve con `error` en vez de rechazar: eso tampoco precalentó.
+      (r) => !(r as { error?: unknown } | undefined)?.error,
+      () => false,
+    );
     this.human = human;
     this.listo.set(true);
   }
@@ -126,7 +178,12 @@ export class ReconocimientoFacialService {
       await this.cargar();
     }
     const human = this.human as { detect(f: unknown): Promise<{ face?: unknown[] }> };
-    const resultado = await human.detect(fuente);
+    const resultado = await conLimite(
+      human.detect(fuente),
+      this.precalentado ? MS_LIMITE_DETECCION : MS_LIMITE_DETECCION_EN_FRIO,
+    );
+    // Un `error` de Human (p. ej. el video todavía no tiene frame) llega sin
+    // caras y vuelve `null`, como siempre: se pierde ese frame, no la tanda.
     const caras = (resultado?.face ?? []) as Record<string, unknown>[];
     if (!caras.length) {
       return null;
@@ -161,6 +218,7 @@ export class ReconocimientoFacialService {
    */
   liberar(): void {
     this.human = null;
+    this.precalentado = false;
     this.listo.set(false);
   }
 }

@@ -8497,7 +8497,7 @@ no se crea otro.
 **Esperado:** el diálogo muestra el error y el botón «Reintentar»; no se cierra
 solo.
 
-## Bloque 98 — Marcación: el estado no queda viejo *(probado en Chromium; falta el iPhone)*
+## Bloque 98 — Marcación: el estado no queda viejo *(probado en Chromium y en el iPhone 11)*
 
 > El 28/10 la entrada se guardó a las 08:04 pero la pantalla no se enteró: a
 > las 08:06 seguía ofreciendo *Marcar entrada* y el central la rechazó («Ya
@@ -8505,7 +8505,8 @@ solo.
 >
 > **Verificado el 2026-11-10** con el build de producción contra el central
 > alpha local, cortando el guardado a propósito: 98.1 a 98.4 salen como dice
-> «Esperado» (98.5 lo cubre un test de la pantalla). Lo que falta es el iPhone.
+> «Esperado» (98.5 lo cubre un test de la pantalla). El mismo día Franco lo
+> probó en el **iPhone 11** con el build de la rama por túnel: bien.
 
 ### 98.1 · Volver a la app actualiza la pantalla
 1. Abrir Marcación y dejarla abierta.

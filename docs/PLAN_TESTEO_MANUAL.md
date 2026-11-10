@@ -146,6 +146,15 @@ Lo más importante de esta ronda: la revisión encontró que la sesión no carga
 
 > Ambos casos importan: si Caja no aparece nunca, los roles no llegan; si aparece siempre, no se filtran.
 
+### 1.2.1 · Orden de los accesos rápidos
+1. Con un usuario `ADMIN`, mirar los accesos de Inicio
+
+**Esperado:** los seis primeros son **Marcación, Transferencias, Inventario, Mis finanzas, Caja, Operaciones**, en ese orden. Después: Buscar producto, Productos vencidos, Consultar precio, Control inventario, Lugares del depósito, Notificaciones, Kiosco de marcación, Mi trabajo, Mi cuenta.
+
+2. Con un usuario sin roles de caja, inventario ni transferencias
+
+**Esperado:** arranca con **Marcación, Mis finanzas, Operaciones**. Los botones sin permiso no aparecen ni dejan hueco.
+
 ### 1.3 · Restauración de sesión al recargar
 1. Ya logueado, apretar F5 (o recargar en el teléfono)
 
@@ -1128,16 +1137,13 @@ siguiente acción.
 Registró «Entrada 27/08/2026 10:32», estado pasó a «En jornada» y la barra
 inferior ofreció «Salir a almorzar» / «Marcar salida».
 
-### 15.4 · Marcar lejos *(el caso a calibrar)* — sin probar
-1. Marcar desde lejos de la sucursal
+### 15.4 · Marcar lejos — sin probar
+1. Marcar desde más de 80 m de la sucursal
 
-**Esperado:** avisa la distancia y la precisión y **pide confirmación** — no
-bloquea. Al confirmar, queda registrado con esos datos.
-
-> Anotá qué distancia y qué precisión te dio: son los números con los que se
-> calibra el umbral del aviso. Hoy es de **110 m** (`DISTANCIA_AVISO_M`); fue
-> de 33 m hasta que las marcaciones de producción mostraron que le saltaba a
-> quien marcaba desde adentro con un iPhone. Ver el caso 59.14.
+**Esperado:** dice «Estás fuera de la sucursal» con la distancia y la
+precisión, y ofrece solo **Volver a ubicar**. No hay «Marcar igual»: no se
+marca nada. Desde el 29/10/2026 el límite es de **80 m**
+(`DISTANCIA_MAXIMA_M`) y lo valida también el central. Ver el bloque 95.
 
 No se pudo forzar una ubicación lejana desde el navegador de escritorio;
 necesita un dispositivo real o GPS simulado.
@@ -2619,6 +2625,34 @@ usuario: la marcación ya quedó registrada y esto es una mejora, no un paso.
 
 > Es lo que evita que el reconocimiento se quede con las cinco fotos del día
 > del enrolamiento mientras la persona cambia de peinado, anteojos o luz.
+
+### 31.12 · La cuenta regresiva no se traba en el «1»
+1. Con un usuario con rostro registrado, *Marcar entrada* varias veces
+   seguidas (cancelando al final), en un teléfono de gama baja o en un iPhone.
+2. Mirar la cuenta 3-2-1.
+
+**Esperado:** «Preparando el reconocimiento…» puede tardar unos segundos más
+que antes —ahí se prepara la GPU—, pero la cuenta corre pareja y al llegar a 0
+pasa enseguida a «Verificando…». Nunca queda clavada en el «1».
+
+3. Si la foto no sale (la GPU del teléfono no responde).
+
+**Esperado:** a los 5 s como mucho (15 s si el teléfono no llegó a prepararse)
+dice «No se detectó tu rostro…» y ofrece **Tomar otra foto**. Al tercer intento
+fallido cierra y ofrece *Marcar igual*. **Nunca** queda solo *Cancelar* como
+salida. Lo mismo en el kiosco («No te reconocimos…» con *Intentar de nuevo*) y
+en *Registrar mi rostro* («No se pudo analizar la imagen», con *Capturar*
+habilitado).
+
+> El cuelgue de la GPU no se puede provocar a mano en un teléfono. Verificado
+> el 2026-11-10 en Chromium con cámara simulada y la detección colgada a
+> propósito: diálogo, kiosco y registro del rostro salen solos. Verificado el
+> mismo día en el **iPhone 11** donde se reportó: la cuenta corre y pasa a
+> «Verificando…» sin clavarse.
+>
+> 🐛 **Aparte, sin resolver:** en ese iPhone la cámara arranca dibujándose chica
+> y al segundo llena el marco. No es la caja (mide bien desde el inicio) ni la
+> orientación del stream; no es de esta corrección.
 
 ---
 
@@ -8251,7 +8285,217 @@ estaba vinculada a «…», que está inactivo. Elegí el producto.»
 **Esperado:** los vínculos de esa factura tienen código **y**
 `descripcion_normalizada` (mayúsculas, sin tildes ni signos).
 
-## Bloque 95 — Moneda por módulo: base común *(nuevo, sin probar)*
+## Bloque 95 — Marcación: prohibido marcar a más de 80 m *(sin probar: necesita el central con `feat/marcacion-maximo-80m`)*
+
+Desde el teléfono o el kiosco **no se marca a más de 80 m** de la sucursal
+detectada. Antes había un aviso a 110 m con «Marcar igual». El central valida
+lo mismo con la latitud y longitud que manda la app, así que no depende de la
+pantalla. El desktop no manda GPS y sigue marcando como siempre.
+
+Preparación: un teléfono real (o GPS simulado en Chrome: DevTools → Sensors →
+Location) y la coordenada de una sucursal a mano.
+
+### 95.1 · Adentro de la sucursal se marca normal
+1. Desde adentro, marcar entrada en «Mi trabajo → Marcación»
+
+**Esperado:** marca sin diálogos de distancia. La marcación guarda
+`distancia_sucursal` de 80 o menos.
+
+### 95.2 · Afuera no se marca
+1. Con GPS simulado a ~150 m de la sucursal, marcar
+
+**Esperado:** «Estás fuera de la sucursal», con los metros, la precisión y
+«Solo se puede marcar a 80 m o menos». El único botón es **Volver a ubicar**.
+Cancelar no marca nada.
+
+### 95.3 · Volver a ubicar y ya estar adentro
+1. Repetir 95.2, mover el GPS simulado a la sucursal y tocar **Volver a ubicar**
+
+**Esperado:** marca sin volver a pedir el rostro.
+
+### 95.4 · El central rechaza aunque la app no frene
+1. Mandar `saveMarcacion` a mano (GraphiQL o Postman) con un usuario sin
+   RRHH GESTIONAR, `metodoRegistro: MANUAL` y una latitud/longitud a ~500 m
+
+**Esperado:** error «Estás a 500 m de …. Solo se puede marcar a 80 m o
+menos.» y no se guarda nada. Mandándola sin latitud/longitud (con
+`metodoRegistro`) el error es «No se recibió la ubicación del teléfono».
+
+### 95.5 · El kiosco afuera no marca
+1. Kiosco con la tablet (o GPS simulado) a más de 80 m, identificar a alguien
+
+**Esperado:** «La tablet está a N m de … Solo se puede marcar a 80 m o
+menos. Tocá Recalcular.» No se marca nada.
+
+### 95.6 · El desktop sigue igual
+1. Marcar entrada y salida desde el desktop
+
+**Esperado:** marca como siempre; la marcación queda sin ubicación.
+
+## Bloque 96 — Compras: leer el CDC de una foto cuando el QR no se lee *(sin probar en un teléfono)*
+
+Cuando el QR del KuDE no se deja leer —la foto mal sacada que llegó al grupo,
+un QR chico o borroso—, el escáner de factura ofrece **«Leer el CDC de una
+foto»**: se saca o se elige una foto y la app busca el CDC **en el teléfono**,
+sin IA ni servidor. Primero prueba el QR sobre la foto entera (tiene más
+resolución que la cámara en vivo) y, si no, lee el texto con Tesseract. Solo
+acepta 44 dígitos con el dígito verificador y la estructura de un CDC, y lo deja
+en el campo de carga manual para compararlo con el papel. La carga a mano sigue
+igual.
+
+Preparación: un teléfono Android real y, si se puede, un iPhone. Fotos de
+KuDE de varios proveedores en la galería: una con el CDC en bloques de 4, una
+con el CDC todo junto en letra de matriz (Campos) y una con el CDC cortado pero
+el QR entero.
+
+### 96.1 · El botón aparece en el escáner de factura
+1. Compras → escanear factura (sin pedido y desde un pedido)
+
+**Esperado:** abajo, sobre «Ingresar a mano», está **«Leer el CDC de una
+foto»**. En la carga manual también está, debajo de Confirmar. En el escáner
+universal (el botón flotante) y en el de productos **no** aparece.
+
+### 96.2 · Desde la galería, CDC en bloques de 4
+1. «Leer el CDC de una foto» → elegir de la galería una foto con el CDC en
+   bloques de 4
+
+**Esperado:** se apaga la cámara, aparece «Leyendo la foto…» y en unos segundos
+pasa a la carga manual con el CDC en bloques de 4 y el aviso «Revisá que
+coincida con el de la factura y confirmá». **No confirma solo.** Confirmar abre
+la factura igual que con el QR.
+
+### 96.3 · CDC todo junto en letra de matriz
+1. Igual que 96.2 con la foto de Campos (los 44 dígitos pegados, letra chica)
+
+**Esperado:** encuentra el CDC. Si tarda más que 96.2 es normal.
+
+### 96.4 · CDC cortado pero QR entero en la foto
+1. Igual que 96.2 con una foto donde el CDC sale cortado y el QR se ve entero
+
+**Esperado:** encuentra el CDC (lo saca del QR de la foto).
+
+### 96.5 · Una foto sin factura
+1. Elegir una foto cualquiera (sin KuDE)
+
+**Esperado:** vuelve a la carga manual con «No se encontró el código en la
+foto…», el campo vacío y el botón para probar con otra. No se abre nada.
+
+### 96.6 · Sacar la foto en el momento
+1. «Leer el CDC de una foto» → elegir **Cámara** en el selector del teléfono
+
+**Esperado:** saca la foto y la lee igual que una de la galería. En iPhone el
+selector ofrece «Fototeca» y «Tomar foto»: probar las dos.
+
+### 96.7 · La primera vez descarga el lector; sin internet sigue andando
+1. Con la app instalada, usar la lectura una vez con datos
+2. Activar modo avión (o cortar la salida a internet) y volver a usarla
+
+**Esperado:** la primera vez tarda más (baja ~9 MB del lector, de la propia app,
+no de un CDN). La segunda, ya sin red, lee igual.
+
+## Bloque 97 — Compras: registrar el proveedor con los datos de la factura *(sin probar contra el central real)*
+
+Cuando el RUC de la factura no es de ningún proveedor cargado, la PWA ofrece
+**«Registrar proveedor»** con lo que trae la factura: de la factura electrónica
+(QR o CDC), la razón social, el nombre de fantasía, la dirección, el teléfono y
+el email que el central saca de SIFEN; de la factura en papel, lo que leyó la
+IA. El RUC no se edita. Si ya hay una persona con ese documento —por ejemplo,
+un cliente— se la usa como proveedor y no se duplica. Al registrar, la factura
+sigue sola.
+
+**Necesita el central con el PR central #573**
+(issue central #570). Contra un central viejo el botón aparece pero el diálogo
+muestra el error al abrirse.
+
+Preparación: un KuDE (o su CDC) de un proveedor que **no** esté cargado; una
+factura en papel de otro proveedor no cargado; el RUC de un **cliente** que no
+sea proveedor, con su factura. Para el caso 97.6, dos teléfonos.
+
+### 97.1 · QR de un proveedor no cargado
+1. Compras → «Nueva compra con factura» → escanear el QR (o leer el CDC de una foto)
+
+**Esperado:** «Proveedor no encontrado», con el texto «Registralo con los
+datos de la factura» (ya no manda al escritorio) y el botón **«Registrar
+proveedor»**.
+
+### 97.2 · El formulario viene lleno
+1. Desde 97.1, tocar «Registrar proveedor»
+
+**Esperado:** primero «Leyendo los datos de la factura…». Después: RUC con DV
+y «De la factura electrónica»; razón social, nombre de fantasía, dirección (con
+la ciudad abajo), teléfono y email **iguales a los del KuDE**; «Compra a
+crédito» marcado si la factura es a crédito; días de cheque en 8.
+
+### 97.3 · Registrar y seguir con la factura
+1. Corregir el teléfono → «Registrar»
+
+**Esperado:** se cierra el diálogo, la pantalla vuelve a cargar y sigue sola:
+abre la compra nueva con esa factura (no hay pedidos que la esperen). En el
+desktop, Personas → Proveedores, el proveedor está con el teléfono corregido.
+
+### 97.4 · El mismo RUC otra vez
+1. Escanear de nuevo la misma factura o otra del mismo proveedor
+
+**Esperado:** ya no aparece «Proveedor no encontrado»: va directo a la compra.
+
+### 97.5 · Un RUC que ya es cliente
+1. Escanear la factura cuyo emisor ya es cliente → «Registrar proveedor»
+
+**Esperado:** el diálogo avisa «Ya hay una persona con ese documento
+(nombre)…». Los datos que el cliente ya tiene (razón social, teléfono…)
+aparecen **con su valor, no el de la factura**, bloqueados y con «Dato actual
+de la persona»; los que le faltan vienen de la factura y se editan. Al
+registrar no sale error de documento duplicado; en el desktop, la persona es la
+misma (mismo id) y ahora también es proveedor. Los datos que el cliente ya
+tenía **no cambiaron**.
+
+### 97.11 · Actualizar los datos del cliente con los de la factura
+1. Como en 97.5, con un cliente cuyo teléfono (o razón social) es distinto al
+   de la factura → «Registrar proveedor»
+2. Marcar «Actualizar con el de la factura: …» debajo del teléfono, desmarcar
+   y volver a marcar → «Registrar»
+
+**Esperado:** solo los datos distintos ofrecen la casilla (un teléfono igual
+escrito con espacios o +595 no). Al marcar, el campo se habilita con el dato
+de la factura; al desmarcar vuelve el del cliente. En el desktop, la persona
+tiene el teléfono de la factura y el resto de sus datos sigue igual.
+
+### 97.6 · Dos teléfonos a la vez
+1. En dos teléfonos, abrir el diálogo con la misma factura
+2. Tocar «Registrar» en los dos casi juntos
+
+**Esperado:** los dos terminan bien y en el desktop hay **un solo** proveedor
+con ese RUC.
+
+### 97.7 · Factura en papel: registrar y continuar
+1. Compras → «Nueva compra con factura» → «Factura en papel» → foto de un proveedor no cargado
+
+**Esperado:** en Proveedor, «No se encontró un proveedor con el RUC… Registralo
+con los datos de la factura o elegilo a mano» y el botón **«Registrar
+proveedor»**. El diálogo dice «Leído de la foto» y trae lo que la IA leyó
+(dirección, teléfono y email si estaban impresos en el membrete). Al
+registrar, el proveedor queda elegido y **«Continuar» se habilita**, sin
+recargar ni perder lo corregido en la cabecera.
+
+### 97.8 · Papel con el RUC mal leído
+1. Una foto donde la IA lee un RUC cuyo DV no cierra
+
+**Esperado:** no aparece «Registrar proveedor»: solo el aviso del RUC inválido
+y el buscador manual.
+
+### 97.9 · Ya era proveedor
+1. Abrir el diálogo con la factura de un proveedor que otro usuario acaba de registrar
+
+**Esperado:** «Ya es el proveedor (nombre)» y el botón «Usar este proveedor»;
+no se crea otro.
+
+### 97.10 · Sin conexión con SIFEN
+1. Con el central sin salida a SIFEN, «Registrar proveedor» desde un QR
+
+**Esperado:** el diálogo muestra el error y el botón «Reintentar»; no se cierra
+solo.
+
+## Bloque 98 — Moneda por módulo: base común *(nuevo, sin probar)*
 
 La app aprende **qué moneda usa la empresa** al entrar, y los importes que no
 dicen su moneda se formatean con ella en vez de con dos decimales fijos. Sin
@@ -8272,7 +8516,7 @@ Preparación: el DevTools abierto en **Network** (filtro `graphql`) y
 **Console**. Probá contra el central de hoy (alpha, farmacia o bodega) y, si lo
 tenés, contra un central local con la rama de moneda por módulo.
 
-### 95.1 · Compras: el total del pedido sin «,00» *(el que importa)*
+### 98.1 · Compras: el total del pedido sin «,00» *(el que importa)*
 1. Entrar y abrir **Compras**
 2. Mirar el total de cada pedido de la lista
 
@@ -8280,7 +8524,7 @@ tenés, contra un central local con la rama de moneda por módulo.
 (`Gs. 8.812.800`, no `Gs. 8.812.800,00`). Los pedidos en dólares, si hay,
 siguen con dos decimales.
 
-### 95.2 · El resto de compras
+### 98.2 · El resto de compras
 1. Abrir un pedido (compra-pedido): totales y valor de cada nota
 2. Abrir una factura escaneando un KuDE (factura-proveedor) y su PDF
 3. Si podés, «Factura desde QR»
@@ -8289,14 +8533,14 @@ siguen con dos decimales.
 conserva los centavos (el símbolo `US$` la identifica en el catálogo de
 monedas): no se redondea a la moneda de la empresa.
 
-### 95.3 · Las pantallas que ya pasaban «Guaraní» no cambian
+### 98.3 · Las pantallas que ya pasaban «Guaraní» no cambian
 1. Detalle de una caja, Mis finanzas, edición de precios, rendición de caja
    chica y kiosco
 
 **Esperado:** exactamente igual que antes: guaraníes sin decimales, otras
 monedas con dos.
 
-### 95.4 · Contra el central de hoy (sin moneda por módulo)
+### 98.4 · Contra el central de hoy (sin moneda por módulo)
 1. Cerrar sesión y volver a entrar contra alpha, farmacia o bodega
 2. Mirar Network y Console
 
@@ -8307,9 +8551,9 @@ moneda de la empresa; se usa la lista`. Contra un central anterior a
 `v4.8.0-beta.5` / `v4.12.0` también falla esa `monedas` y sale una tercera, la
 `monedas` de siempre, con un segundo aviso `No se pudo consultar la lista de
 monedas`. **No aparece ningún aviso rojo en pantalla, el login no se demora**,
-recepción y caja chica siguen listando sus monedas y el 95.1 se cumple igual.
+recepción y caja chica siguen listando sus monedas y el 98.1 se cumple igual.
 
-### 95.5 · Contra un central con moneda por módulo
+### 98.5 · Contra un central con moneda por módulo
 1. Central local con la rama de moneda por módulo, sin configurar nada
 2. Entrar y mirar Network
 
@@ -8317,22 +8561,22 @@ recepción y caja chica siguen listando sus monedas y el 95.1 se cumple igual.
 `decimales: 0`. `codigoIso` llega **`null`**: `V258.5` agrega la columna vacía y
 el relleno (PYG/USD/BRL/ARS) es `V259.6`, de la entrega 2; trae un valor solo si
 alguien lo cargó a mano en el ABM. Sin avisos en Console. Las pantallas se ven
-igual que en el 95.4.
+igual que en el 98.4.
 
-### 95.6 · Recargar en una pantalla con importes
+### 98.6 · Recargar en una pantalla con importes
 1. En la lista de Compras, recargar la página (F5)
 
 **Esperado:** los importes terminan sin «,00». Si el central tarda, puede verse
 el «,00» un instante y corregirse solo cuando llega la moneda, **sin tocar
 nada**. Anotá si queda pegado con «,00».
 
-### 95.7 · Cambiar de servidor
+### 98.7 · Cambiar de servidor
 1. Mi cuenta → Servidor → elegir otro y volver a entrar
 
 **Esperado:** se vuelven a pedir `monedaEmpresa` y `monedas` al nuevo servidor;
 los importes salen con la moneda de ese central.
 
-### 95.8 · Un campo de importe sin moneda no pierde los centavos
+### 98.8 · Un campo de importe sin moneda no pierde los centavos
 1. Caja chica → Nueva solicitud
 2. En un renglón del detalle financiero, **sin elegir moneda todavía**, escribir
    `1234,56` en Monto y salir del campo
@@ -8342,26 +8586,26 @@ los importes salen con la moneda de ese central.
 cambio: un campo de carga sin moneda **no** cae a la de la empresa, porque el
 monto puede escribirse antes de elegirla. Después del paso 3 sigue `1.234,56`.
 
-### 95.9 · Caja chica en dólares sigue con centavos
+### 98.9 · Caja chica en dólares sigue con centavos
 1. En el mismo formulario, elegir **dólar** y escribir `10,50`
 
 **Esperado:** queda `10,50` al salir del campo.
 
 **Probado el 2026-10-28** en Chrome contra dos centrales locales sobre una copia
 de bodega: uno con la rama de moneda por módulo y otro en `develop` (sin ella).
-Pasaron **95.1** (Gs. sin decimales, R$ y US$ con dos, en los dos centrales),
-**95.4** (contra `develop`: `monedaEmpresa` falla con `FieldUndefined`, sale
-**un** aviso `[moneda]` en Console, nada en pantalla), **95.5**, **95.7** (al
-cambiar de servidor se vuelven a pedir las dos consultas al nuevo) y **95.8**
+Pasaron **98.1** (Gs. sin decimales, R$ y US$ con dos, en los dos centrales),
+**98.4** (contra `develop`: `monedaEmpresa` falla con `FieldUndefined`, sale
+**un** aviso `[moneda]` en Console, nada en pantalla), **98.5**, **98.7** (al
+cambiar de servidor se vuelven a pedir las dos consultas al nuevo) y **98.8**
 (`1.234,56` antes y después de elegir dólar).
 
-**Qué quedó sin verificar:** 95.2, 95.3, 95.6 y 95.9; un central anterior a
-`v4.8.0-beta.5` / `v4.12.0` (la tercera consulta de 95.4: `develop` ya tiene
+**Qué quedó sin verificar:** 98.2, 98.3, 98.6 y 98.9; un central anterior a
+`v4.8.0-beta.5` / `v4.12.0` (la tercera consulta de 98.4: `develop` ya tiene
 `principal` y `decimales`), y el teléfono real.
 
 ---
 
-## Bloque 96 — Moneda por módulo: recepción y factura de compras *(nuevo, sin probar)*
+## Bloque 99 — Moneda por módulo: recepción y factura de compras *(nuevo, sin probar)*
 
 La recepción nueva y la factura del proveedor dejan de suponer que la moneda de
 la casa es el guaraní: comparan con **la moneda de la empresa** (por id, no por
@@ -8370,59 +8614,59 @@ que cae a la de la empresa si no hay configuración o el central es viejo).
 Ninguna consulta compartida pidió campos nuevos.
 
 Preparación: DevTools en **Network** (filtro `graphql`) y **Console**. Los casos
-96.1 a 96.4 se prueban con la empresa en guaraníes y **sin configurar nada**:
-tienen que dar lo mismo que antes. 96.5 y 96.6 piden un central con la rama de
+99.1 a 99.4 se prueban con la empresa en guaraníes y **sin configurar nada**:
+tienen que dar lo mismo que antes. 99.5 y 99.6 piden un central con la rama de
 moneda por módulo.
 
-### 96.1 · Recepción nueva: arranca en guaraníes, sin cotización *(el que importa)*
+### 99.1 · Recepción nueva: arranca en guaraníes, sin cotización *(el que importa)*
 1. Operaciones → Recepción → Nueva recepción, elegir sucursal y proveedor
 2. Mirar la sección «4 · Moneda»
 
 **Esperado:** la moneda elegida es **Guaraní** y **no** aparece el campo
 Cotización. Igual que antes del cambio. Estado: ✅ (2026-10-29, contra el central de la rama con la copia de bodega).
 
-### 96.2 · Recepción nueva: otra moneda pide cotización
+### 99.2 · Recepción nueva: otra moneda pide cotización
 1. En «Moneda de las notas» elegir **Dólar**
 
 **Esperado:** aparece Cotización con la ayuda «Cuánto vale una unidad de esa
 moneda en guaraníes…»; «Iniciar» queda deshabilitado hasta cargar una
 cotización mayor que 0. Volver a Guaraní la oculta. Estado: ✅ (2026-10-29; probado que aparece y que «Iniciar» queda deshabilitado; la vuelta a Guaraní no se probó).
 
-### 96.3 · Iniciar una recepción en guaraníes
+### 99.3 · Iniciar una recepción en guaraníes
 1. Con Guaraní, agregar una nota e iniciar
 
 **Esperado:** la recepción se crea; en Network la mutation sale con la moneda
 guaraní y `cotizacion: 1`. Estado: ✅ (2026-10-29: recepción 68 con la nota 1 en guaraníes, cotización 1).
 
-### 96.4 · Factura del proveedor en guaraníes
+### 99.4 · Factura del proveedor en guaraníes
 1. Compras → cargar una factura (KuDE) en guaraníes y abrir su revisión
 
 **Esperado:** «Moneda» dice solo «GUARANI» (sin «· cotización»); los totales
 salen sin decimales; el aviso de confirmar muestra el valor de la nota sin
 decimales. Igual que antes. Estado: ✅ (2026-10-29, factura de prueba en PYG: «PYG» sin cotización, totales «Gs 290.400»; el aviso de confirmar no se miró en PYG).
 
-### 96.5 · Con COMPRAS = dólar *(central con la rama de moneda por módulo)*
+### 99.5 · Con COMPRAS = dólar *(central con la rama de moneda por módulo)*
 1. Configurar COMPRAS = USD y entrar de nuevo
 2. Abrir una recepción nueva
 
 **Esperado:** arranca en **Dólar** y pide cotización (la empresa sigue en
 guaraníes). Elegir una nota con moneda propia la adopta, como antes. Estado: ✅ (2026-10-29, contra el central de la rama con la copia de bodega).
 
-### 96.6 · Factura en dólares y empresa en guaraníes
+### 99.6 · Factura en dólares y empresa en guaraníes
 1. Abrir la revisión de una factura en dólares
 
 **Esperado:** «Moneda» dice «DOLAR · cotización N»; los totales llevan dos
 decimales y el aviso de confirmar también. Estado: ✅ (2026-10-29: «USD · cotización 5.980», totales «US$ 48,56», aviso «por 48,56 US$»).
 
-### 96.7 · Contra el central de hoy
-1. Contra un central sin `monedaDeModulo`, repetir 96.1 y 96.2
+### 99.7 · Contra el central de hoy
+1. Contra un central sin `monedaDeModulo`, repetir 99.1 y 99.2
 
-**Esperado:** igual que 96.1 y 96.2; en Console, a lo sumo el aviso `[moneda]`
-ya conocido del 95.4. Estado: ✅ (2026-10-29, contra `develop` en :8091: arranca en Guaraní y Dólar pide cotización; `monedaEmpresa`/`monedaDeModulo` rechazadas sin efecto visible).
+**Esperado:** igual que 99.1 y 99.2; en Console, a lo sumo el aviso `[moneda]`
+ya conocido del 98.4. Estado: ✅ (2026-10-29, contra `develop` en :8091: arranca en Guaraní y Dólar pide cotización; `monedaEmpresa`/`monedaDeModulo` rechazadas sin efecto visible).
 
 ---
 
-## Bloque 97 — Moneda por módulo: precios y kiosco *(nuevo, sin probar)*
+## Bloque 100 — Moneda por módulo: precios y kiosco *(nuevo, sin probar)*
 
 Los precios pasan a poder estar en otra moneda que la de la empresa. La moneda
 de los precios que no están en la de la empresa se lee con una consulta **aparte**
@@ -8432,11 +8676,11 @@ viejo la lectura falla y todo queda como antes. Sin precios en otra moneda
 (bodega) no cambia nada.
 
 Preparación: DevTools en **Network** (filtro `graphql`) y **Console**. Los casos
-97.1 a 97.3 y 97.8 se prueban con la empresa en guaraníes y **sin configurar
-nada**: tienen que dar lo mismo que antes. 97.4 a 97.7 piden un central con la
+100.1 a 100.3 y 100.8 se prueban con la empresa en guaraníes y **sin configurar
+nada**: tienen que dar lo mismo que antes. 100.4 a 100.7 piden un central con la
 rama de precios en moneda y PRECIOS = USD configurado.
 
-### 97.1 · Precios en guaraníes: la pantalla igual que antes *(el que importa)*
+### 100.1 · Precios en guaraníes: la pantalla igual que antes *(el que importa)*
 1. Producto → Editar → una presentación → Precios
 
 **Esperado:** los importes salen «₲ 12.000», sin decimales. **No aparece** el
@@ -8444,13 +8688,13 @@ selector «Moneda» al agregar un precio, ni contra un central nuevo: solo se mu
 si PRECIOS está en una moneda que no es la de la empresa o ya hay algún precio
 en otra moneda. Estado: pendiente.
 
-### 97.2 · Guardar un precio en guaraníes no manda moneda
+### 100.2 · Guardar un precio en guaraníes no manda moneda
 1. Editar un precio, cambiar el importe y Guardar; mirar la mutation en Network
 
 **Esperado:** `savePrecioPorSucursal` sale **sin** la clave `monedaId` y responde
 bien. Lo mismo con «Desactivar» y «Marcar principal». Estado: pendiente.
 
-### 97.3 · Kiosco en guaraníes
+### 100.3 · Kiosco en guaraníes
 1. Entrar al kiosco de precios y escanear un producto
 2. Tocar otra bandera y volver a la del guaraní
 
@@ -8458,39 +8702,39 @@ bien. Lo mismo con «Desactivar» y «Marcar principal». Estado: pendiente.
 guaraní abajo, igual que antes. En Network, la conversión usa
 `convertirPreciosMobile` (no `convertirPreciosDesdeMobile`). Estado: pendiente.
 
-### 97.4 · Precio nuevo en dólares *(central con precios en moneda)*
+### 100.4 · Precio nuevo en dólares *(central con precios en moneda)*
 1. Con PRECIOS = USD (o con algún precio ya en dólares), en Precios, «Agregar precio»: elegir tipo, **Moneda = Dólar**, cargar 4,39
 
 **Esperado:** el campo toma el símbolo «US$» y acepta dos decimales; tras Agregar,
 la fila dice «US$ 4,39» y la mutation lleva `monedaId` del dólar. Estado: pendiente.
 
-### 97.5 · La moneda por defecto es la del módulo PRECIOS
+### 100.5 · La moneda por defecto es la del módulo PRECIOS
 1. Con PRECIOS = USD, abrir «Agregar precio» sin tocar el selector
 
 **Esperado:** «Moneda» arranca en Dólar. Con PRECIOS = guaraní arranca en
 Guaraní. Elegir Guaraní con PRECIOS = USD y agregar: la mutation manda el
 `monedaId` del guaraní (si no, quedaría en dólares). Estado: pendiente.
 
-### 97.6 · Editar un precio en dólares conserva la moneda
-1. Editar el precio del 97.4 (4,39 → 4,50) y Guardar; luego Desactivar y Activar
+### 100.6 · Editar un precio en dólares conserva la moneda
+1. Editar el precio del 100.4 (4,39 → 4,50) y Guardar; luego Desactivar y Activar
 
 **Esperado:** sigue en «US$», con dos decimales, y cada mutation lleva el mismo
 `monedaId`. Estado: pendiente.
 
-### 97.7 · Kiosco con un precio en dólares
-1. Escanear el producto del 97.4 en el kiosco
+### 100.7 · Kiosco con un precio en dólares
+1. Escanear el producto del 100.4 en el kiosco
 
 **Esperado:** arranca en «US$ 4,50» (la bandera del dólar activa), **sin pasar antes por un importe en guaraníes**; en Network no hay consulta de moneda por producto. Tocar la bandera
 del guaraní: sale el convertido en guaraníes con el dólar abajo como referencia;
 en Network, `convertirPreciosDesdeMobile` con `monedaOrigenId` del dólar. Estado: pendiente.
 
-### 97.8 · Contra el central de hoy
-1. Contra un central sin precios en moneda, repetir 97.1 a 97.3
+### 100.8 · Contra el central de hoy
+1. Contra un central sin precios en moneda, repetir 100.1 a 100.3
 
 **Esperado:** igual que antes; en Console, a lo sumo el rechazo de `preciosEnOtraMoneda`
 (una sola vez, al entrar), sin efecto visible. Estado: pendiente.
 
-### 97.9 · Guardar en otra moneda con un escritorio viejo configurado
+### 100.9 · Guardar en otra moneda con un escritorio viejo configurado
 1. Con `cliente.desktop.version_minima` sin configurar, guardar un precio nuevo en dólares
 
 **Esperado:** aparece un aviso claro («No se puede guardar el precio en esa moneda
@@ -8503,7 +8747,7 @@ Estado: pendiente.
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
 |---|---|---|---|---|
-| 1 · Arranque y sesión | 10 | | | |
+| 1 · Arranque y sesión | 11 | | | |
 | 2 · Navegación y shell | 5 | | | |
 | 3 · Caja | 8 | | | |
 | 4 · Sistema de diseño | 10 | | | |
@@ -8533,7 +8777,7 @@ Estado: pendiente.
 | 28 · Rendición de caja chica | 9 | | | |
 | 29 · Carga del conteo | 6 | | | |
 | 30 · Permisos por rol | 6 | | | |
-| 31 · Rostro: registro y marcación | 11 | | | |
+| 31 · Rostro: registro y marcación | 12 | | | |
 | 32 · Compartir por QR | 4 | 2 | | |
 | 33 · Instalar y filtros por URL | 5 | 2 | | |
 | 34 · Control de inventario | 5 | 1 | | |
@@ -8597,10 +8841,13 @@ Estado: pendiente.
 | 92 · Compras: cargar la factura en papel con la foto | 7 | | | |
 | 93 · Devoluciones: una etiqueta por devolución y el retiro escaneando | 8 | | | |
 | 94 · Compras: lo aprendido por la descripción, como sugerencia preseleccionada | 6 | | | |
-| 95 · Moneda por módulo: base común | 9 | 5 | | |
-| 96 · Moneda por módulo: recepción y factura de compras | 7 | 7 | | |
-| 97 · Moneda por módulo: precios y kiosco | 9 | | | |
-| **Total** | **827** | | | |
+| 95 · Marcación: prohibido marcar a más de 80 m | 6 | | | |
+| 96 · Compras: leer el CDC de una foto cuando el QR no se lee | 7 | | | |
+| 97 · Compras: registrar el proveedor con los datos de la factura | 11 | | | |
+| 98 · Moneda por módulo: base común | 9 | 5 | | |
+| 99 · Moneda por módulo: recepción y factura de compras | 7 | 7 | | |
+| 100 · Moneda por módulo: precios y kiosco | 9 | | | |
+| **Total** | **853** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

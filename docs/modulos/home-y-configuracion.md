@@ -143,6 +143,51 @@ está toda en **Mi cuenta**:
 | Preferencias de notificación | Acceso a la pantalla que ya existía |
 | Datos de la persona | **De solo lectura.** `frc-mobile` mostraba campos editables cuyo botón «Actualizar» solo cambiaba la foto de perfil |
 | Versión y actualización | Ver [`../arquitectura/actualizaciones-app.md`](../arquitectura/actualizaciones-app.md) |
+| Cambiar contraseña | **Seguridad → Cambiar contraseña** (`/cuenta/contrasena`). `frc-mobile` lo hacía con un diálogo que saltaba al entrar con `123`; acá el login solo avisa y dice dónde está. Ver abajo |
+
+### Cambiar contraseña
+
+Usa `saveUsuario`, que deja a cualquiera cambiar **su propia** clave sin
+`EDITAR USUARIOS` (central `v4.7.0-alpha.225` / `v4.8.0-beta.12` / `v4.15.0`
+o más nuevo; uno anterior borra `email` y `creadoEn` al guardar).
+
+- ⚠️ **El input va completo** (`id`, `nickname`, `personaId`, `usuarioId`,
+  `activo`, `password`), leído del central **justo antes de guardar**. Con
+  `EDITAR USUARIOS` el resolver mapea el input entero: sin `nickname` revienta,
+  y sin `personaId` o `usuarioId` borraría la persona o el creador.
+- ⚠️ **`usuarioId` es el creador**, no quien guarda: no se usa
+  `DatosService.guardar`, que lo llena con el usuario en sesión.
+- Reglas: distinta de `123` y del usuario, las dos iguales y **sin espacios al
+  borde** — el login no recorta, y un espacio que metió el teclado deja al
+  usuario afuera sin que lo note hasta el próximo ingreso.
+- No pide la actual, igual que `frc-mobile`.
+- El central la guarda en mayúsculas y el login compara sin distinguirlas.
+- `personas.usuario` se replica a las filiales: el desktop de una sucursal ve
+  la clave nueva cuando replica; en una filial sin suscripción sigue la vieja.
+- Las reglas son las mismas que al recuperar (abajo): las del central de
+  recuperación más «distinta de 123». No hay largo mínimo, a propósito.
+
+### ¿Olvidaste tu contraseña?
+
+Desde el login, ruta pública `/recuperar-contrasena`. Porta el diálogo del
+desktop (`recuperar-contrasena-dialog`) contra el mismo REST sin sesión del
+central, `/public/recuperacion-contrasena/*` (desde `v4.7.0-alpha.192`,
+`v4.8.0-beta.11`, `v4.16.0`). Usuario + cédula + captcha; con correo llega un
+código de 6 dígitos, sin correo se arma una solicitud que aprueba RRHH **en el
+desktop**. Las reglas (bloqueos, intentos, vencimientos) son del central.
+
+- ⚠️ **El código secreto se guarda en `sessionStorage`** hasta completar o
+  descartar la solicitud. El central lo muestra una vez, y abrir WhatsApp
+  puede hacer que el teléfono descarte la pestaña: sin guardarlo, la solicitud
+  quedaba viva sin que nadie pudiera usarla, y pedir otra anula la anterior y
+  gasta una de las tres del día.
+- En vez del QR del desktop, «Enviar por WhatsApp» abre `wa.me` con el mensaje:
+  el usuario ya está en el teléfono.
+- Una llamada a la vez: el doble toque en «Registrar solicitud» o «Guardar»
+  obligaba a empezar de nuevo o mostraba un error con la clave ya cambiada.
+- El correo de la solicitud **queda en el usuario** al restablecer (lo hace el
+  central). La pantalla lo avisa.
+- Si el central rechaza por demasiados intentos, se muestra su mensaje tal cual.
 
 > ⚠️ **El canal de actualizaciones no aplica.** Era una elección entre canales
 > de Play Store; una PWA se actualiza por su service worker.

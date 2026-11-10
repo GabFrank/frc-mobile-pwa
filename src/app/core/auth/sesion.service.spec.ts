@@ -9,6 +9,7 @@ import { DatosService, ErrorDatos } from '../graphql/datos.service';
 import { AuthService } from './auth.service';
 import { AUTH_TOKEN_KEY, AUTH_USER_ID_KEY } from './auth.tokens';
 import { SesionDispositivoService } from './sesion-dispositivo.service';
+import { MarcaEmpresaService } from '../marca/marca-empresa.service';
 import { SesionService } from './sesion.service';
 import { MonedaModuloService } from '../moneda/moneda-modulo.service';
 import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
@@ -46,6 +47,7 @@ describe('SesionService', () => {
         // Lo mismo la moneda de la empresa: tiene sus propios tests.
         { provide: MonedaModuloService, useValue: { cargar: vi.fn(() => Promise.resolve()) } },
         { provide: PrecioMonedaService, useValue: { cargar: vi.fn(() => Promise.resolve()) } },
+        { provide: MarcaEmpresaService, useValue: { cargar: vi.fn(() => Promise.resolve()) } },
       ],
     });
 

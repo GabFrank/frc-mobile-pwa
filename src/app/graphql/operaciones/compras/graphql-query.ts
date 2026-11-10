@@ -405,3 +405,42 @@ export const confirmarCabeceraFacturaFotoMutation = gql`
     data: confirmarCabeceraFacturaFotoMobile(input: $input) { ${CAMPOS_FACTURA} }
   }
 `;
+
+const CAMPOS_PROVEEDOR_DE_FACTURA = `
+  documentoId
+  origen
+  ruc
+  dv
+  rucValido
+  nombre
+  nombreFantasia
+  direccion
+  ciudad
+  telefono
+  email
+  credito
+  proveedorId
+  proveedorNombre
+  personaId
+  personaNombre
+  datosDePersona {
+    campo
+    actual
+    factura
+  }
+  puedeRegistrar
+  motivo
+`;
+
+/** Es mutation porque con `qr` el central puede consultar SIFEN y guardar la factura. */
+export const proveedorDeFacturaMutation = gql`
+  mutation ($qr: String, $documentoId: ID) {
+    data: proveedorDeFacturaMobile(qr: $qr, documentoId: $documentoId) { ${CAMPOS_PROVEEDOR_DE_FACTURA} }
+  }
+`;
+
+export const registrarProveedorDeFacturaMutation = gql`
+  mutation ($input: RegistrarProveedorFacturaInput!) {
+    data: registrarProveedorDeFacturaMobile(input: $input) { ${CAMPOS_PROVEEDOR_DE_FACTURA} }
+  }
+`;

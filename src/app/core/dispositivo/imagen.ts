@@ -16,9 +16,10 @@ const CALIDAD = 0.75;
  * ⚠️ **Se usa `<input type="file">`, no `getUserMedia`.** Con
  * `capture="environment"` el teléfono abre la cámara directamente, y es el
  * único camino que funciona igual en Safari de iOS —donde una captura por
- * `getUserMedia` obliga a montar el video y dibujarlo a mano—. Es también
- * el que deja elegir una foto ya sacada, que es lo que pasa cuando alguien
- * rinde al día siguiente.
+ * `getUserMedia` obliga a montar el video y dibujarlo a mano—. Para elegir
+ * una foto ya sacada (alguien que rinde al día siguiente) hace falta otro
+ * `<input>` **sin** `capture`: con él, Android abre solo la cámara y no
+ * ofrece la galería. Ver la hoja de factura en papel de Compras.
  *
  * ⚠️ **La orientación EXIF se resuelve sola.** `createImageBitmap` con
  * `imageOrientation: 'from-image'` rota según el EXIF; sin eso, las fotos
@@ -37,6 +38,24 @@ export async function fotoADataUri(
   const ancho = Math.round(bitmap.width * escala);
   const alto = Math.round(bitmap.height * escala);
 
+  return dibujar(bitmap, ancho, alto).toDataURL('image/jpeg', calidad);
+}
+
+/**
+ * La foto en un `<canvas>`, reducida a `ladoMaximo` y con la orientación EXIF
+ * resuelta. Para leer algo de la imagen (un QR, texto) en vez de mandarla.
+ */
+export async function fotoALienzo(archivo: File, ladoMaximo: number): Promise<HTMLCanvasElement> {
+  const bitmap = await decodificar(archivo);
+  const escala = Math.min(1, ladoMaximo / Math.max(bitmap.width, bitmap.height));
+  return dibujar(bitmap, Math.round(bitmap.width * escala), Math.round(bitmap.height * escala));
+}
+
+function dibujar(
+  bitmap: ImageBitmap | HTMLImageElement,
+  ancho: number,
+  alto: number,
+): HTMLCanvasElement {
   const lienzo = document.createElement('canvas');
   lienzo.width = ancho;
   lienzo.height = alto;
@@ -46,8 +65,7 @@ export async function fotoADataUri(
     throw new Error('Este navegador no puede procesar la imagen.');
   }
   ctx.drawImage(bitmap as CanvasImageSource, 0, 0, ancho, alto);
-
-  return lienzo.toDataURL('image/jpeg', calidad);
+  return lienzo;
 }
 
 async function decodificar(archivo: File): Promise<ImageBitmap | HTMLImageElement> {

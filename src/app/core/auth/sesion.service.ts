@@ -8,6 +8,7 @@ import { DatosService, esFalloDeTransporte } from '../graphql/datos.service';
 import { AuthService } from './auth.service';
 import { MonedaModuloService } from '../moneda/moneda-modulo.service';
 import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
+import { MarcaEmpresaService } from '../marca/marca-empresa.service';
 
 /**
  * Carga el `Usuario` completo y lo publica en `AuthService`.
@@ -61,6 +62,7 @@ export class SesionService {
   private readonly sesionDispositivo = inject(SesionDispositivoService);
   private readonly monedas = inject(MonedaModuloService);
   private readonly preciosMoneda = inject(PrecioMonedaService);
+  private readonly marcaEmpresa = inject(MarcaEmpresaService);
 
   /**
    * Trae el usuario y lo publica. Devuelve `true` si lo logró.
@@ -93,6 +95,8 @@ export class SesionService {
       void this.monedas.cargar();
       // Y qué precios están en otra moneda: el kiosco lo necesita al instante.
       void this.preciosMoneda.cargar();
+      // El logo de la empresa (farmacia o bodega). Tampoco demora la entrada.
+      void this.marcaEmpresa.cargar();
       return true;
     } catch (error) {
       this.ultimoFalloFueDeRed.set(esFalloDeTransporte(error));

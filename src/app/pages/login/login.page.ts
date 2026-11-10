@@ -106,6 +106,9 @@ import { mensajeSesionNoCargada } from './mensaje-sesion-no-cargada';
         </button>
       </form>
 
+      <button matButton class="config" type="button" (click)="olvideContrasena()">
+        ¿Olvidaste tu contraseña?
+      </button>
       <button matButton class="config" type="button" (click)="cambiarServidor()">
         Configuración del servidor
       </button>
@@ -257,10 +260,17 @@ export class LoginPage {
     this.enviando.set(false);
 
     if (resultado.requiereCambioContrasena) {
-      this.notificacion.warn('Estás usando la contraseña por defecto. Cambiala desde tu cuenta.');
+      this.notificacion.warn('Estás usando la contraseña por defecto. Cambiala en Mi cuenta → Seguridad.');
     }
 
     await this.router.navigate(['/inicio']);
+  }
+
+  olvideContrasena(): void {
+    const usuario = this.form.getRawValue().nickname?.trim();
+    void this.router.navigate(['/recuperar-contrasena'], {
+      queryParams: usuario ? { usuario } : {},
+    });
   }
 
   async cambiarServidor(): Promise<void> {

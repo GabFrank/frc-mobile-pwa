@@ -16,6 +16,7 @@ import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { esKude } from './compras-reglas';
 import { ComprasService } from './compras.service';
+import { LEER_CDC_DE_FOTO } from './leer-cdc-foto';
 
 /**
  * «Factura del proveedor (PDF)»: escanear el QR del KuDE y ver la factura en
@@ -106,6 +107,7 @@ export class FacturaProveedorPdfPage {
       ayuda: 'Apuntá al QR del KuDE (la factura electrónica impresa del proveedor)',
       formatos: FORMATOS_QR,
       etiquetaManual: 'CDC de la factura (44 dígitos)',
+      leerFoto: LEER_CDC_DE_FOTO,
     });
     if (!texto) return;
     if (!esKude(texto)) {

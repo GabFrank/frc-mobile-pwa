@@ -330,14 +330,26 @@ Cuatro cosas cuestan caro no saberlas:
    `presentacion-editar.page.ts`, no desde el hub — el hub solo **cuenta**
    cuántos hay en total, sumando todas las presentaciones.
 
-3. **El precio se escribe solo en la sucursal de la sesión**, igual que el
-   escritorio (`adicionar-precio-dialog.component.ts:265`, sin alternativa).
-   Los precios de las demás sucursales se muestran de solo lectura, con su
-   sucursal identificada. Al marcar un precio como principal, la pantalla
-   degrada primero —en orden, nunca en paralelo— a los demás principales
-   **de la propia sucursal** en esa presentación
-   (`preciosADegradar()`/`codigosADegradar()` en `producto-editar.reglas.ts`);
-   nunca toca precios de otra sucursal.
+3. **Solo se editan los precios generales, los de la sucursal del central**
+   (#135). El central guarda todo precio en **su** sucursal: pisa el
+   `sucursalId` del input con su property `sucursalId`
+   (`PrecioPorSucursalGraphQL.savePrecioPorSucursal`), que vale 0 = SERVIDOR.
+   Esos precios son los de toda la red: el PDV de cada sucursal los lee por
+   presentación, sin filtrar sucursal. La pantalla le pregunta al central cuál
+   es su sucursal con `sucursalActual` (lee la misma property), sin un `0`
+   fijo; mientras no responde o si falla, **nada es editable** y «Agregar»
+   está bloqueado.
+   - Un precio de **una sucursal concreta** se muestra de solo lectura, aunque
+     sea la de la sesión: guardarlo desde acá lo mudaría a la sucursal del
+     central, es decir a todas.
+   - Al **editar** se manda el `sucursalId` del propio precio; al **agregar**,
+     el de la sesión, como el escritorio. Hoy da lo mismo porque el central lo
+     pisa; si un día lo respeta, editar no muda el precio.
+   - Al marcar un precio como principal, la pantalla degrada primero —en
+     orden, nunca en paralelo— a los demás principales **entre los
+     editables** en esa presentación (`preciosADegradar()`/`codigosADegradar()`
+     en `producto-editar.reglas.ts`); nunca toca precios de una sucursal
+     concreta.
 
    El escritorio tiene acá un defecto destructivo que esta app **decide no
    replicar**: al degradar el principal de OTRA sucursal, reescribe el

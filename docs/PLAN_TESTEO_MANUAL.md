@@ -8736,6 +8736,7 @@ si PRECIOS está en una moneda que no es la de la empresa o ya hay algún precio
 en otra moneda. Estado: pendiente.
 
 ### 101.2 · Guardar un precio en guaraníes no manda moneda
+> Bloqueado hasta #135 (ningún precio era editable): ver el bloque 102.
 1. Editar un precio, cambiar el importe y Guardar; mirar la mutation en Network
 
 **Esperado:** `savePrecioPorSucursal` sale **sin** la clave `monedaId` y responde
@@ -8763,6 +8764,7 @@ Guaraní. Elegir Guaraní con PRECIOS = USD y agregar: la mutation manda el
 `monedaId` del guaraní (si no, quedaría en dólares). Estado: pendiente.
 
 ### 101.6 · Editar un precio en dólares conserva la moneda
+> Bloqueado hasta #135: ver el bloque 102.
 1. Editar el precio del 101.4 (4,39 → 4,50) y Guardar; luego Desactivar y Activar
 
 **Esperado:** sigue en «US$», con dos decimales, y cada mutation lleva el mismo
@@ -8786,6 +8788,61 @@ en Network, `convertirPreciosDesdeMobile` con `monedaOrigenId` del dólar. Estad
 
 **Esperado:** aparece un aviso claro («No se puede guardar el precio en esa moneda
 todavía…») sin el texto técnico `VERSION_MINIMA:`, y el precio no se crea.
+Estado: pendiente.
+
+---
+
+## Bloque 102 — Precios: se editan los generales del central *(nuevo, #135)*
+
+El central guarda todo precio en su propia sucursal (0 = SERVIDOR). Hasta #135 la
+pantalla solo dejaba editar los de la sucursal de la sesión, así que no se podía
+editar ninguno. Ahora se editan los **generales** (los de la sucursal del
+central) y los de una sucursal concreta quedan de solo lectura. Con un usuario
+con `EDITAR PRODUCTOS` y `EDITAR PRECIOS`, en Producto › Editar › Presentación ›
+Precios.
+
+### 102.1 · Los precios generales se pueden editar *(el que importa)*
+1. Abrir los precios de una presentación cualquiera
+
+**Esperado:** los precios aparecen en «Precios de todas las sucursales» con sus
+botones (editar, desactivar, marcar principal). No aparecen en «Precios de una
+sucursal». Estado: pendiente.
+
+### 102.2 · Editar un precio
+1. Editar el importe de un precio y Guardar; mirar la mutation en Network
+
+**Esperado:** se guarda, la lista lo muestra con el importe nuevo y la mutation
+lleva `sucursalId: 0` (la del precio). Estado: pendiente.
+
+### 102.3 · Agregar un precio
+1. En «Agregar precio» elegir un tipo que no tenga precio y cargar un importe
+
+**Esperado:** el precio nuevo aparece enseguida en «Precios de todas las
+sucursales», editable. El combo ya no ofrece ese tipo. La mutation lleva la
+sucursal de la sesión (el central la guarda en la suya). Estado: pendiente.
+
+### 102.4 · Marcar principal
+1. En una presentación con dos precios, marcar como principal el que no lo es
+
+**Esperado:** el anterior deja de ser principal y el elegido pasa a serlo; ningún
+aviso de error. Estado: pendiente.
+
+### 102.5 · Si el central no dice su sucursal
+1. En DevTools › Network, bloquear las requests a `/graphql` que contengan
+   `sucursalActual` (o cortar la red justo al abrir la pantalla) y abrir los precios
+2. Desbloquear y tocar «Reintentar»
+
+**Esperado:** en el paso 1, el aviso «No se pudo saber qué precios son
+generales», sin «Agregar precio» y con los precios de solo lectura; no aparece un
+aviso flotante aparte. En el paso 2 se habilita todo. Estado: pendiente.
+
+### 102.6 · Un precio de una sucursal concreta
+1. Si alguna presentación tiene un precio cargado en una sucursal (no en
+   SERVIDOR), abrirla
+
+**Esperado:** aparece en «Precios de una sucursal», con el nombre de la
+sucursal y la ayuda «Solo de lectura: al guardarlo desde acá pasaría a valer
+para todas las sucursales», sin botones. Si no hay ninguno, marcar «sin datos».
 Estado: pendiente.
 
 ---
@@ -8895,7 +8952,8 @@ Estado: pendiente.
 | 99 · Moneda por módulo: base común | 9 | 5 | | |
 | 100 · Moneda por módulo: recepción y factura de compras | 7 | 7 | | |
 | 101 · Moneda por módulo: precios y kiosco | 9 | | | |
-| **Total** | **858** | | | |
+| 102 · Precios: se editan los generales del central | 6 | | | |
+| **Total** | **864** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

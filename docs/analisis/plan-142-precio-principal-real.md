@@ -51,6 +51,25 @@ del central desde acá (#605 es de Gabriel); comparar también la moneda (no via
 PWA local contra alpha (MR), kiosco: BANES FORTE con el precio 10 en 4,55 US$ → «US$ 4,55»; en Gs → «₲ 20.735»;
 ficha de producto y buscador con el mismo importe que antes. Al terminar, precio 10 en 20.735 Gs.
 
+## Resultado de las pruebas de runtime (alpha, 11/11/2026)
+
+PWA de la rama contra el central alpha, usuario MR.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 105.1 | Kiosco, BANES FORTE con el precio 10 en 4,55 US$ (lista de la sesión releída) | **«US$ 4,55»** con la bandera de EE.UU. Con el código anterior y la misma lista: «₲ 5» (visto en la prueba de #139) |
+| 105.2 | Kiosco, el mismo precio en 20.735 Gs | «₲ 20.735», igual que antes |
+| 105.3 | Presentación 4 (BANES PLUS), **dos principales**: 25.600 y 21.800 | El central elige 25.600 (`precioPrincipal` con id 4, el de la presentación); el kiosco muestra «₲ 25.600» con el precio real **id 8**; el buscador «₲ 25.600»; la ficha lista los dos principales, como antes |
+
+Verificado contra el central: `presentacion(id: 4/9/154) { precioPrincipal { id } }` devuelve 4/9/154, el id de la
+presentación (#605). Alpha quedó como estaba (precio 10 en 20.735 Gs).
+
+## Auditoría del diff (paso 8)
+
+Fijo 1: sin cambios de permisos. Fijo 2: N/A. Fijo 3: sin operaciones nuevas; las consultas no cambian. El importe que
+se muestra no cambia en ningún caso (se elige el principal con el mismo importe que el central). Condicionales: no se
+disparan.
+
 ## Auditoría (paso 5, 11/11/2026)
 
 | # | Hallazgo | Qué se hizo |

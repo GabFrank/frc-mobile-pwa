@@ -637,13 +637,19 @@ export class KioscoPage implements AfterViewInit {
         // al entrar). Si todavía no llegó, se espera antes de mostrar un
         // precio: mejor un instante de demora que un importe en la moneda
         // equivocada ante un cliente.
-        if (this.monedasSesion.preciosMonedaListos()) {
+        // Si la lista quedó sin respuesta (#139), `listo()` la vuelve a pedir.
+        if (this.monedasSesion.preciosMonedaListos() && !this.monedasSesion.preciosMonedaSinRespuesta()) {
           this.mostrar(producto, codigo);
         } else {
           void this.precioMoneda.listo().then(() => {
-            if (escaneo === this.escaneo && !this.saliendo) {
-              this.mostrar(producto, codigo);
+            if (escaneo !== this.escaneo || this.saliendo) return;
+            if (this.monedasSesion.preciosMonedaSinRespuesta()) {
+              // Sigue sin saberse: ningún importe ante un cliente en una
+              // moneda que nadie confirmó.
+              this.sinMonedaConfirmada();
+              return;
             }
+            this.mostrar(producto, codigo);
           });
         }
       },
@@ -655,6 +661,18 @@ export class KioscoPage implements AfterViewInit {
         this.programarLimpieza();
       },
     });
+  }
+
+  /** No se pudo saber en qué moneda están los precios: el aviso, sin importe (#139). */
+  private sinMonedaConfirmada(): void {
+    this.buscando.set(false);
+    this.texto.set('');
+    this.enfocar();
+    this.producto.set(null);
+    this.escaneadaId.set(null);
+    this.olvidarImagenes();
+    this.error.set('No se pudo confirmar el precio. Probá de nuevo.');
+    this.programarLimpieza();
   }
 
   private mostrar(producto: Producto | null, codigo: string): void {

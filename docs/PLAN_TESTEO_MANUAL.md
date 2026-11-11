@@ -8885,6 +8885,47 @@ se edita en guaraníes. Estado: pendiente.
 
 ---
 
+## Bloque 104 — Precios y kiosco: la lista de monedas sin respuesta *(nuevo, #139)*
+
+Al entrar, la app lee qué precios están en otra moneda. Hasta #139, si esa
+lectura fallaba por la red, la app la tomaba como «central viejo» y mostraba
+todos los precios en dólares como guaraníes. Ahora distingue «el central no la
+tiene» de «no respondió». Necesita un central con precios en moneda (alpha) y
+cortar la red con DevTools.
+
+### 104.1 · Precios con la lista cortada *(el que importa)*
+1. En DevTools › Network, bloquear las requests a `/graphql` que pidan
+   `preciosEnOtraMoneda` y volver a entrar (o recargar)
+2. Abrir los precios de un producto con un precio en dólares
+
+**Esperado:** los precios se ven en su moneda (los lee la consulta del producto),
+pero «Agregar precio» dice «No se pudo saber en qué moneda se cargan los
+precios» con «Reintentar». Estado: pendiente.
+
+### 104.2 · Precios con todo cortado
+1. Además del 104.1, bloquear la consulta del producto con `moneda`
+
+**Esperado:** aviso «No se pudo saber en qué moneda están los precios» con
+«Reintentar»; todos los precios dicen «Moneda sin confirmar» y su «Editar» está
+deshabilitado; «Activar/Desactivar» siguen andando. Al desbloquear y tocar
+«Reintentar», todo vuelve a la normalidad. Estado: pendiente.
+
+### 104.3 · Kiosco con la lista cortada
+1. Con el bloqueo del 104.1, entrar al kiosco y escanear un producto en dólares
+2. Desbloquear y volver a escanear
+
+**Esperado:** en el paso 1 no se muestra ningún importe: aparece «No se pudo
+confirmar el precio. Probá de nuevo.». En el paso 2 se muestra en US$.
+Estado: pendiente.
+
+### 104.4 · Contra un central sin precios en moneda
+1. Repetir 102.1 y el kiosco contra bodega o farmacia
+
+**Esperado:** igual que antes: todo en guaraníes, sin avisos nuevos.
+Estado: pendiente.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8992,7 +9033,8 @@ se edita en guaraníes. Estado: pendiente.
 | 101 · Moneda por módulo: precios y kiosco | 9 | | | |
 | 102 · Precios: se editan los generales del central | 6 | | | |
 | 103 · Precios: la moneda de un precio inactivo | 4 | | | |
-| **Total** | **868** | | | |
+| 104 · Precios y kiosco: la lista de monedas sin respuesta | 4 | | | |
+| **Total** | **872** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

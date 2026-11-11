@@ -354,6 +354,14 @@ Cuatro cosas cuestan caro no saberlas:
      y no se edita su importe (activar, desactivar, marcar principal y
      eliminar sí, sin mandar `monedaId`, y el central conserva la guardada).
      Nunca se manda la moneda de la empresa por descarte: la borraría.
+   - **Si la lista de la sesión no tuvo respuesta** (#139: red, timeout de 8 s,
+     5xx; `MonedasSesion.preciosMonedaSinRespuesta`), no se confía en ella:
+     la moneda sale solo de la consulta por producto; si tampoco responde,
+     ningún importe se edita. «Agregar» queda bloqueado mientras tanto (un
+     precio nuevo sin `monedaId` cae en la moneda del módulo PRECIOS). Un
+     central viejo (error de GraphQL, `esFalloDeTransporte` en falso) sigue
+     todo en la moneda de la empresa. El kiosco reintenta y, si no, no
+     muestra el importe.
    - Al marcar un precio como principal, la pantalla degrada primero —en
      orden, nunca en paralelo— a los demás principales **entre los
      editables** en esa presentación (`preciosADegradar()`/`codigosADegradar()`

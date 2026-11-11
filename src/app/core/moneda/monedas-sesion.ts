@@ -29,6 +29,13 @@ export class MonedasSesion {
   readonly preciosOtraMoneda = signal<ReadonlyMap<string, Moneda>>(new Map());
   /** `false` si el central no contestó la lista: uno viejo, y nada se ofrece ni se manda en otra moneda. */
   readonly preciosMonedaSoportado = signal(false);
+  /**
+   * `true` si la última lectura de la lista **no tuvo respuesta** (red,
+   * timeout, servidor caído), a diferencia de un central viejo que no la
+   * tiene (#139). Mientras tanto la lista no se sabe: nadie debe leerla como
+   * «todo en la moneda de la empresa».
+   */
+  readonly preciosMonedaSinRespuesta = signal(false);
   /** `true` cuando la lista ya se resolvió, bien o mal. */
   readonly preciosMonedaListos = signal(false);
 
@@ -47,6 +54,7 @@ export class MonedasSesion {
     this.catalogo.set([]);
     this.preciosOtraMoneda.set(new Map());
     this.preciosMonedaSoportado.set(false);
+    this.preciosMonedaSinRespuesta.set(false);
     this.preciosMonedaListos.set(false);
   }
 }

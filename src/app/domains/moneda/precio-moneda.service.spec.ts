@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { NEVER, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DatosService } from 'src/app/core/graphql/datos.service';
 import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
 import { PreciosEnOtraMonedaGQL } from 'src/app/graphql/operaciones/moneda/convertirPrecios';
-import { PrecioMonedaService } from './precio-moneda.service';
+import { PrecioMonedaService, TOPE_LISTA_MS } from './precio-moneda.service';
 
 describe('PrecioMonedaService', () => {
   const gql = { document: 'precios' };
@@ -82,5 +82,67 @@ describe('PrecioMonedaService', () => {
     liberar([{ precioId: '10', moneda: { id: '2' } }]);
     await vieja;
     expect(sesion.preciosOtraMoneda().size).toBe(0);
+  });
+
+  // #139: «no hubo respuesta» no es «central viejo».
+
+  const sinRed = () => throwError(() => Object.assign(new Error('Http failure response'), { statusCode: 504 }));
+
+  it('un fallo de transporte deja la lista sin respuesta y conserva lo que había', async () => {
+    await servicio.cargar();
+    respuesta = sinRed;
+    await servicio.cargar();
+
+    expect(sesion.preciosMonedaSinRespuesta()).toBe(true);
+    expect(sesion.preciosMonedaSoportado()).toBe(true);
+    expect(sesion.preciosOtraMoneda().size).toBe(1);
+    expect(sesion.preciosMonedaListos()).toBe(true);
+  });
+
+  it('un error de GraphQL sigue siendo central viejo, no «sin respuesta»', async () => {
+    respuesta = () => throwError(() => new Error("Validation error of type FieldUndefined: Field 'preciosEnOtraMoneda'"));
+    await servicio.cargar();
+
+    expect(sesion.preciosMonedaSinRespuesta()).toBe(false);
+    expect(sesion.preciosMonedaSoportado()).toBe(false);
+  });
+
+  it('listo() vuelve a pedir tras un fallo de transporte, y no tras un central viejo', async () => {
+    respuesta = sinRed;
+    await servicio.cargar();
+    respuesta = () => of([]);
+    await servicio.listo();
+    expect(consultar).toHaveBeenCalledTimes(2);
+    expect(sesion.preciosMonedaSinRespuesta()).toBe(false);
+    expect(sesion.preciosMonedaSoportado()).toBe(true);
+
+    respuesta = () => throwError(() => new Error('Field undefined'));
+    await servicio.cargar();
+    await servicio.listo();
+    expect(consultar).toHaveBeenCalledTimes(3);
+  });
+
+  it('dos listo() mientras reintenta hacen un solo pedido', async () => {
+    respuesta = sinRed;
+    await servicio.cargar();
+    respuesta = () => of([]);
+    await Promise.all([servicio.listo(), servicio.listo()]);
+
+    expect(consultar).toHaveBeenCalledTimes(2);
+  });
+
+  it('una red colgada vence a los 8 s y queda sin respuesta', async () => {
+    vi.useFakeTimers();
+    try {
+      respuesta = () => NEVER;
+      const carga = servicio.cargar();
+      await vi.advanceTimersByTimeAsync(TOPE_LISTA_MS);
+      await carga;
+
+      expect(sesion.preciosMonedaSinRespuesta()).toBe(true);
+      expect(sesion.preciosMonedaListos()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -7,6 +7,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -17,7 +18,7 @@ import { from } from 'rxjs';
 import { concatMap, toArray } from 'rxjs/operators';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
-import { DatosService } from 'src/app/core/graphql/datos.service';
+import { DatosService, esFalloDeTransporte } from 'src/app/core/graphql/datos.service';
 import { MonedaModuloService } from 'src/app/core/moneda/moneda-modulo.service';
 import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
@@ -27,12 +28,15 @@ import {
   debeMostrarSelectorMoneda,
   esErrorVersionMinima,
   monedaIdParaGuardar,
+  monedasDePreciosDeProducto,
   referenciaDePrecio,
   textoVersionMinima,
 } from 'src/app/domains/moneda/precio-moneda';
 import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
+import { MonedaDePreciosDeProductoGQL, ProductoConMonedaDePrecios } from 'src/app/graphql/operaciones/moneda/convertirPrecios';
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
+import { esEntero, formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { TipoPrecio } from 'src/app/domains/productos/tipo-precio.model';
 import { DeletePrecioPorSucursalGQL } from 'src/app/graphql/productos/deletePrecioPorSucursal';
 import { SavePrecioPorSucursalGQL } from 'src/app/graphql/productos/savePrecioPorSucursal';
@@ -194,7 +198,17 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
           />
         } @else {
           <frc-seccion titulo="Agregar precio" [panel]="true">
-            @if (cargandoTipos()) {
+            @if (sesionSinRespuesta()) {
+              <!--
+                Sin la lista de la sesión no se sabe si el central maneja
+                monedas, y un precio nuevo sin monedaId cae en la moneda del
+                módulo PRECIOS, que puede ser el dólar (#139).
+              -->
+              <p class="ayuda error">
+                No se pudo saber en qué moneda se cargan los precios: no se puede agregar uno hasta saberlo.
+                <button matButton type="button" (click)="reintentarMonedas()">Reintentar</button>
+              </p>
+            } @else if (cargandoTipos()) {
               <p class="ayuda">Cargando tipos de precio…</p>
             } @else if (errorTipos()) {
               <p class="ayuda error">
@@ -247,6 +261,17 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
           </frc-seccion>
 
           <frc-seccion titulo="Precios de todas las sucursales" [panel]="true">
+            @if (sesionSinRespuesta() && monedasDelProducto() == null) {
+              <p class="ayuda error">
+                No se pudo saber en qué moneda están los precios: no se puede editar ningún importe hasta saberla.
+                <button matButton type="button" (click)="reintentarMonedas()">Reintentar</button>
+              </p>
+            } @else if (errorMonedasDelProducto()) {
+              <p class="ayuda error">
+                No se pudo leer la moneda de los precios: los inactivos no se pueden editar hasta saberla.
+                <button matButton type="button" (click)="reintentarMonedas()">Reintentar</button>
+              </p>
+            }
             @if (preciosEditables().length === 0) {
               <frc-estado-vacio
                 titulo="No hay precios cargados"
@@ -285,6 +310,15 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
                         [ngModel]="edicionValor()"
                         (ngModelChange)="edicionValor.set($event)"
                       />
+                    } @else if (monedaDesconocida(p)) {
+                      <span class="importe-sin-moneda">
+                        {{ importeSinMoneda(p) }}
+                        <span class="badge-inactivo">Moneda sin confirmar</span>
+                      </span>
+                      <p class="ayuda" [id]="'ayuda-moneda-' + p.id">
+                        No se pudo confirmar la moneda de este precio: el importe no se puede editar hasta saberla.
+                        Activarlo o desactivarlo sí, porque conserva la moneda guardada.
+                      </p>
                     } @else {
                       <frc-importe [valor]="p.precio ?? 0" [moneda]="referencia(p).moneda" [simbolo]="referencia(p).simbolo" />
                     }
@@ -304,7 +338,8 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
                       <button
                         matButton
                         type="button"
-                        [disabled]="guardando() || p.tipoPrecio?.id == null"
+                        [disabled]="guardando() || p.tipoPrecio?.id == null || monedaDesconocida(p)"
+                        [attr.aria-describedby]="monedaDesconocida(p) ? 'ayuda-moneda-' + p.id : null"
                         (click)="iniciarEdicion(p)"
                       >
                         Editar
@@ -358,7 +393,14 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
                       <span class="badge-inactivo">Inactivo</span>
                     }
                   </span>
-                  <frc-importe [valor]="p.precio ?? 0" [moneda]="referencia(p).moneda" [simbolo]="referencia(p).simbolo" />
+                  @if (monedaDesconocida(p)) {
+                    <span class="importe-sin-moneda">
+                      {{ importeSinMoneda(p) }}
+                      <span class="badge-inactivo">Moneda sin confirmar</span>
+                    </span>
+                  } @else {
+                    <frc-importe [valor]="p.precio ?? 0" [moneda]="referencia(p).moneda" [simbolo]="referencia(p).simbolo" />
+                  }
                 </div>
               </div>
             }
@@ -417,6 +459,12 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
       border-radius: var(--radius-sm);
       padding: 2px var(--sp-2);
     }
+    .importe-sin-moneda {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-variant-numeric: tabular-nums;
+    }
     .badge-sucursal {
       font-size: var(--fs-caption);
       font-weight: var(--fw-medium);
@@ -450,6 +498,7 @@ export class PreciosPage {
   private readonly monedasSesion = inject(MonedasSesion);
   private readonly precioMoneda = inject(PrecioMonedaService);
   private readonly sucursales = inject(SucursalService);
+  private readonly monedaDePreciosGQL = inject(MonedaDePreciosDeProductoGQL);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly guardando = signal(false);
@@ -465,6 +514,23 @@ export class PreciosPage {
   private readonly monedasPrecio = this.monedasSesion.preciosOtraMoneda;
   /** `false` si el central no contestó la lista de precios en otra moneda: sin eso no se ofrece ni se manda moneda. */
   private readonly soportaMonedaPrecio = this.monedasSesion.preciosMonedaSoportado;
+  /** La lista de la sesión no tuvo respuesta (#139): no se sabe nada de ella. */
+  readonly sesionSinRespuesta = this.monedasSesion.preciosMonedaSinRespuesta;
+  /** Se pide la lectura por producto si el central maneja monedas o si no se sabe. */
+  private readonly puedeLeerMonedas = computed(() => this.soportaMonedaPrecio() || this.sesionSinRespuesta());
+  /** La lectura por producto falló con un error de GraphQL: el central no tiene `PrecioPorSucursal.moneda`. */
+  private readonly productoSinConsulta = signal(false);
+  /**
+   * La moneda de cada precio del producto, activos e inactivos, leída aparte
+   * (#137). `null` = todavía no se leyó (o el central no maneja monedas): se
+   * usa la lista de la sesión, que solo trae los activos.
+   */
+  readonly monedasDelProducto = signal<ReadonlyMap<string, Moneda | null> | null>(null);
+  readonly errorMonedasDelProducto = signal(false);
+  /** Descarta respuestas viejas: otro producto, o una lectura más nueva en camino. */
+  private lecturaMonedas = 0;
+  private productoDeLasMonedas: string | undefined;
+
   /** La moneda del módulo PRECIOS: la de un precio nuevo si no se elige otra. */
   private readonly monedaPorDefecto = signal<Moneda | null>(null);
   /** La elegida para un precio nuevo; `null` = la del módulo. */
@@ -482,7 +548,10 @@ export class PreciosPage {
       cantidadElegibles: this.monedasElegibles().length,
       empresa: this.empresa(),
       porDefecto: this.monedaPorDefecto(),
-      preciosEnOtraMoneda: this.monedasPrecio().size,
+      preciosEnOtraMoneda: Math.max(
+        this.monedasPrecio().size,
+        [...(this.monedasDelProducto()?.values() ?? [])].filter((m) => m != null).length,
+      ),
     }),
   );
 
@@ -570,6 +639,105 @@ export class PreciosPage {
 
     this.cargarTipos();
     this.cargarSucursalCentral();
+
+    // La lectura por producto, cuando hay producto y el central maneja monedas
+    // (que se sabe después de cargar la sesión).
+    effect(() => {
+      const id = this.id();
+      const puede = this.puedeLeerMonedas();
+      untracked(() => {
+        if (id !== this.productoDeLasMonedas) {
+          this.productoDeLasMonedas = id;
+          this.monedasDelProducto.set(null);
+          this.errorMonedasDelProducto.set(false);
+          this.productoSinConsulta.set(false);
+        }
+        if (puede) this.cargarMonedasDelProducto();
+      });
+    });
+  }
+
+  /**
+   * Pide la moneda de todos los precios del producto, sin caché. Mientras
+   * relee se usa el último mapa bueno; si falla, se conserva y se avisa.
+   */
+  cargarMonedasDelProducto(): void {
+    const id = idDeRutaNum(this.id());
+    if (id == null || !this.puedeLeerMonedas()) return;
+    const lectura = ++this.lecturaMonedas;
+    const producto = this.id();
+    this.errorMonedasDelProducto.set(false);
+    this.datos
+      .consultar<ProductoConMonedaDePrecios>(this.monedaDePreciosGQL, { id }, {
+        mostrarCarga: false,
+        notificarError: false,
+        gql: { fetchPolicy: 'network-only' },
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (p) => {
+          if (lectura !== this.lecturaMonedas || producto !== this.id()) return;
+          this.monedasDelProducto.set(monedasDePreciosDeProducto(p));
+          this.productoSinConsulta.set(false);
+        },
+        error: (err: unknown) => {
+          if (lectura !== this.lecturaMonedas || producto !== this.id()) return;
+          // Error de GraphQL: el central no tiene la moneda de los precios (uno
+          // viejo). Transporte: no respondió, no se sabe.
+          if (esFalloDeTransporte(err)) {
+            this.errorMonedasDelProducto.set(true);
+          } else {
+            this.productoSinConsulta.set(true);
+          }
+        },
+      });
+  }
+
+  /**
+   * La moneda guardada de un precio: `null` = la de la empresa, `undefined` =
+   * **no se sabe**. La lectura por producto gana si respondió (la lista de la
+   * sesión puede estar vieja); si no la trae o no respondió, la sesión, que
+   * solo conoce los activos: un inactivo queda sin saber, nunca en guaraníes
+   * por descarte.
+   */
+  monedaGuardada(p: PrecioPorSucursal): Moneda | null | undefined {
+    const clave = String(p.id);
+    const delProducto = this.monedasDelProducto();
+    if (delProducto?.has(clave)) return delProducto.get(clave) ?? null;
+    if (this.soportaMonedaPrecio() && !this.sesionSinRespuesta()) {
+      const deLaSesion = this.monedasPrecio().get(clave);
+      if (deLaSesion) return deLaSesion;
+      return p.activo === false ? undefined : null;
+    }
+    // El central no tiene la moneda de los precios: todo en la de la empresa.
+    if (this.productoSinConsulta()) return null;
+    // La lista de la sesión no respondió (#139): lo que había puede no tener lo
+    // último guardado. No se sabe, activo o inactivo.
+    if (this.sesionSinRespuesta()) return undefined;
+    // Un central viejo: todo en la moneda de la empresa, como siempre.
+    return null;
+  }
+
+  /**
+   * Vuelve a pedir la lista de la sesión y la del producto. Para el aviso de
+   * «no se pudo saber la moneda».
+   */
+  reintentarMonedas(): void {
+    void this.precioMoneda.cargar().then(() => this.cargarMonedasDelProducto());
+  }
+
+  /**
+   * El importe de un precio sin moneda conocida: el número solo, en es-PY (no
+   * el pipe `number`, que formatea en en-US), con centavos solo si los tiene.
+   */
+  importeSinMoneda(p: PrecioPorSucursal): string {
+    const v = p.precio ?? 0;
+    return formatearCantidad(v, esEntero(v) ? 0 : 2);
+  }
+
+  /** Un precio cuya moneda no se sabe: no se edita su importe. */
+  monedaDesconocida(p: PrecioPorSucursal): boolean {
+    return this.monedaGuardada(p) === undefined;
   }
 
   /** La sucursal del central. Sin ella no se habilita nada: ver `esPrecioEditable`. */
@@ -597,12 +765,13 @@ export class PreciosPage {
   /** Tras guardar, la lista de precios en otra moneda se vuelve a pedir. */
   private recargarTrasGuardar(): void {
     void this.precioMoneda.cargar();
+    this.cargarMonedasDelProducto();
     this.estado.recargar();
   }
 
   /** Moneda y símbolo con que se muestra un precio. Sin moneda propia, lo de siempre. */
   referencia(p: PrecioPorSucursal) {
-    return referenciaDePrecio(this.monedasPrecio().get(String(p.id)), this.empresa());
+    return referenciaDePrecio(this.monedaGuardada(p) ?? null, this.empresa());
   }
 
   elegirMonedaNueva(id: number | null): void {
@@ -614,7 +783,8 @@ export class PreciosPage {
     return monedaIdParaGuardar({
       soportado: this.soportaMonedaPrecio(),
       empresa: this.empresa(),
-      guardada: this.monedasPrecio().get(String(p.id)),
+      // Sin moneda conocida no se manda: el central conserva la guardada.
+      guardada: this.monedaGuardada(p) ?? undefined,
     });
   }
 
@@ -661,6 +831,8 @@ export class PreciosPage {
   }
 
   iniciarEdicion(p: PrecioPorSucursal): void {
+    // El botón ya está deshabilitado; esto cubre cualquier otro camino.
+    if (this.monedaDesconocida(p)) return;
     this.edicionId.set(p.id ?? null);
     this.edicionValor.set(p.precio ?? 0);
   }
@@ -675,6 +847,12 @@ export class PreciosPage {
     // La del propio precio, nunca la de la sesión: ver `esPrecioEditable`.
     const sucursalId = sucursalIdDePrecio(p);
     const monto = this.edicionValor();
+    if (this.monedaDesconocida(p)) {
+      // El importe se cargó sin saber en qué moneda está: no se guarda (#137).
+      this.cancelarEdicion();
+      this.notificacion.danger('No se pudo confirmar la moneda de este precio: no se guardó el importe.');
+      return;
+    }
     const tipoPrecioId = p.tipoPrecio?.id;
     if (tipoPrecioId == null) {
       // Precio sin tipo: `savePrecioPorSucursal` reemplaza la fila entera, y
@@ -724,6 +902,8 @@ export class PreciosPage {
     const tipoPrecioId = this.nuevoTipoPrecioId();
     const monto = this.nuevoMonto();
     if (presentacionId == null || sucursalId == null || tipoPrecioId == null || monto == null) return;
+    // El formulario no se muestra; esto cubre cualquier otro camino (#139).
+    if (this.sesionSinRespuesta()) return;
 
     const monedaId = monedaIdParaGuardar({
       soportado: this.soportaMonedaPrecio(),

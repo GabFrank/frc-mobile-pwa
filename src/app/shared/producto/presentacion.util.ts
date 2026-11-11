@@ -72,16 +72,30 @@ export function presentacionesContables(presentaciones: Presentacion[]): Present
  * El precio que se usa de la presentación: el principal, y si no el primero
  * activo con importe. `precioDe()` es su importe; el kiosco necesita el
  * precio mismo para saber en qué moneda está.
+ *
+ * ⚠️ **`precioPrincipal` llega con el id de la presentación** (#142,
+ * central #605): el central lo arma con un `select *` sobre presentación
+ * join precio, y las columnas que se llaman igual (`id`, `activo`,
+ * `principal`...) traen las de la presentación. El **importe** sí es el del
+ * precio. Por eso se busca en `precios` (ids reales) el principal **con ese
+ * mismo importe**: el mismo que eligió el central. No el primer principal de
+ * la lista: hay presentaciones con dos principales de importes distintos, y
+ * se mostraría otro precio. Sin coincidencia, `precioPrincipal` como siempre.
  */
 export function precioEscogido(presentacion: Presentacion | null | undefined): PrecioPorSucursal | null {
   if (!presentacion) {
     return null;
   }
-  const principal = presentacion.precioPrincipal;
-  if (principal?.precio != null) {
-    return principal;
+  const lista = presentacion.precios ?? [];
+  const principales = lista.filter((p) => p.principal === true && p.precio != null);
+  const delCentral = presentacion.precioPrincipal;
+  if (delCentral?.precio != null) {
+    return principales.find((p) => p.precio === delCentral.precio) ?? delCentral;
   }
-  return presentacion.precios?.find((p) => p.activo !== false && p.precio != null) ?? null;
+  if (principales.length > 0) {
+    return principales[0];
+  }
+  return lista.find((p) => p.activo !== false && p.precio != null) ?? null;
 }
 
 /** Precio de la presentación: el principal, y si no el primero activo. */

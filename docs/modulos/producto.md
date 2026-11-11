@@ -514,3 +514,9 @@ invisible en vez de algo roto que alguien intenta vender.
 > ofrece solo `EXPO` y `EXPO-DEPOSITO`, y un producto nuevo no puede recibir su
 > precio normal desde el teléfono. **No es una falla de la pantalla: es el
 > dato.** El escritorio no filtra, así que no lo nota.
+
+> ⚠️ **`precioPrincipal` llega con el id de la presentación** (#142, central #605): el central lo arma con un
+> `select *` sobre presentación join precio. El importe está bien; el id no. `precioEscogido`
+> (`shared/producto/presentacion.util.ts`) busca en `precios` el principal **con el mismo importe** para tener el id
+> real (el kiosco lo usa para saber la moneda). No el primer principal: hay presentaciones con dos principales de
+> importes distintos.

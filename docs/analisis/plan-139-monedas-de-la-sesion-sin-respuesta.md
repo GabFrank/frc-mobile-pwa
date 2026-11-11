@@ -101,6 +101,33 @@ PWA local contra alpha, MR, con un precio en USD activo y uno inactivo:
    importe.
 4. Regresión: sin cortes, igual que #137.
 
+## Resultado de las pruebas de runtime (alpha, 11/11/2026)
+
+PWA de la rama (`npm start`, 4300) contra el central alpha, usuario MR. Cortes por XHR instalados en la pestaña
+**antes del login** (la lista se lee al entrar): `preciosEnOtraMoneda` y, aparte, la consulta por producto. Precio 10
+de BANES FORTE en 4,50 US$ activo.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 104.1 | Entrar con la lista cortada y abrir los precios | UNITARIO en «US$ 4,50» (lo dice la consulta por producto); «Agregar» bloqueado con «Reintentar». Con el código anterior, todo en guaraníes |
+| 104.1 bis | Editar UNITARIO 4,50 → 4,55 con la lista cortada | Máscara en US$, mutation **sin** `monedaId`; la base queda 4,55 USD |
+| 104.2 | Cortar también la consulta por producto | Los tres precios «Moneda sin confirmar», «Editar» deshabilitado, dos avisos con «Reintentar»; Activar/Desactivar/Marcar principal disponibles. «Reintentar» con red: todo vuelve |
+| 104.3 (1) | Kiosco con la lista cortada (sesión «sin respuesta» por un refresco fallido tras guardar) | Reintenta la lista; como sigue cortada, «No se pudo confirmar el precio. Probá de nuevo.» y **ningún importe** |
+| 104.3 (2) | Kiosco sin cortes | Muestra «₲ 5» en vez de «US$ 4,55» — **bug anterior del central**, ver abajo; la lista de la sesión sí tiene el precio en USD |
+
+**Hallazgo, anterior a #139 (no lo cambia este PR):** `PrecioPorSucursalRepository.findPrincipalByPresentacionId` del
+central hace `select *` sobre `presentacion` join `precio_por_sucursal`, y el `id` que se mapea es el de la
+**presentación**. El `precioPrincipal` de BANES FORTE llega con id 5 (la presentación) en vez de 10. La PWA
+(`precioEscogido`, `shared/producto/presentacion.util.ts`) usa ese principal, así que el kiosco busca la moneda del
+precio 5, no la encuentra y **muestra en guaraníes todo precio principal en otra moneda**, con o sin red.
+
+Alpha quedó como estaba: precio 10 en 20.735 Gs, activo y principal.
+
+## Auditoría del diff (paso 8)
+
+Fijo 1: sin cambios de permisos. Fijo 2: N/A. Fijo 3: sin operaciones nuevas; un central viejo (error de GraphQL)
+sigue igual, verificado que responde 200 con `FieldUndefined`. Condicionales: no se disparan.
+
 ## Auditoría (paso 5, 11/11/2026)
 
 | # | Hallazgo | Qué se hizo |

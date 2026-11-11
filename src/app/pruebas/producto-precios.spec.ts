@@ -424,7 +424,7 @@ describe('Moneda de los precios inactivos (#137)', () => {
     const f = montar({
       precios: [precio(10, false, true), precio(11, true, false, 2)],
       sesion: new Map([['11', usd]]),
-      lectura: () => (falla ? throwError(() => new Error('red')) : of(producto({ 10: usd, 11: usd }))),
+      lectura: () => (falla ? throwError(() => Object.assign(new Error('Http failure response'), { statusCode: 504 })) : of(producto({ 10: usd, 11: usd }))),
     });
     f.detectChanges();
     const c = f.componentInstance;
@@ -465,7 +465,7 @@ describe('Moneda de los precios inactivos (#137)', () => {
   it('un inactivo de una sucursal concreta sigue la misma regla en la lista de solo lectura', () => {
     const f = montar({
       precios: [precio(20, false, false, 1, '3')],
-      lectura: () => throwError(() => new Error('red')),
+      lectura: () => throwError(() => Object.assign(new Error('Http failure response'), { statusCode: 504 })),
     });
     f.detectChanges();
 
@@ -497,6 +497,142 @@ describe('Moneda de los precios inactivos (#137)', () => {
 
     expect(datos.consultar).not.toHaveBeenCalled();
     expect(c.monedaDesconocida(c.preciosEditables()[0])).toBe(false);
+  });
+});
+
+/**
+ * #139: si la lista de la sesión no tuvo respuesta, no se sabe en qué moneda
+ * están los precios: no se edita un importe ni se agrega un precio hasta saberlo.
+ */
+describe('Monedas de la sesión sin respuesta (#139)', () => {
+  const usd = Object.assign(new Moneda(), { id: 3, denominacion: 'DOLAR', simbolo: 'US$', decimales: 2 });
+  const gs = Object.assign(new Moneda(), { id: 1, denominacion: 'GUARANI', simbolo: '₲', decimales: 0 });
+  const sinRed = () => throwError(() => Object.assign(new Error('Http failure response'), { statusCode: 504 }));
+  const centralViejo = () => throwError(() => new Error("Validation error of type FieldUndefined: Field 'moneda'"));
+
+  const precio = (id: number, activo = true, principal = false, tipo = 1) => ({
+    id,
+    precio: 4.5,
+    principal,
+    activo,
+    tipoPrecio: { id: tipo, descripcion: 'T' + tipo },
+    sucursal: { id: '0', nombre: 'SERVIDOR' },
+  });
+
+  let datos: { guardar: ReturnType<typeof vi.fn>; paginado: ReturnType<typeof vi.fn>; consultar: ReturnType<typeof vi.fn> };
+  let precioMoneda: { cargar: ReturnType<typeof vi.fn> };
+
+  const montar = (opts: { lectura: () => Observable<unknown>; soportado?: boolean; sesion?: Map<string, Moneda> }) => {
+    datos = {
+      guardar: vi.fn().mockReturnValue(of({})),
+      paginado: vi.fn().mockReturnValue(of([{ id: 2, descripcion: 'T2', activo: true }])),
+      consultar: vi.fn(() => opts.lectura()),
+    };
+    precioMoneda = { cargar: vi.fn(() => Promise.resolve()) };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        {
+          provide: ProductoEditarService,
+          useValue: {
+            cargando: () => false,
+            error: () => null,
+            producto: () => ({ id: 5 }),
+            presentaciones: () => [{ id: 2, precios: [precio(10, true, true), precio(11, false)] }],
+            cargar: vi.fn(),
+            recargar: vi.fn(),
+          },
+        },
+        { provide: DialogoService, useValue: { confirmarEliminacion: vi.fn(async () => true) } },
+        { provide: NotificacionService, useValue: { danger: vi.fn() } },
+        { provide: AuthService, useValue: { sucursal: () => ({ id: 2 }), roles: () => [] } },
+        { provide: SavePrecioPorSucursalGQL, useValue: {} },
+        { provide: DeletePrecioPorSucursalGQL, useValue: {} },
+        { provide: TipoPreciosGQL, useValue: {} },
+        { provide: MonedaDePreciosDeProductoGQL, useValue: {} },
+        { provide: DatosService, useFactory: () => datos },
+        { provide: MonedaModuloService, useValue: { monedaDe: vi.fn(async () => null) } },
+        { provide: PrecioMonedaService, useFactory: () => precioMoneda },
+        { provide: SucursalService, useValue: { actual: () => of({ id: '0' }) } },
+      ],
+    });
+    const sesion = TestBed.inject(MonedasSesion);
+    sesion.empresa.set(gs);
+    sesion.catalogo.set([gs, usd]);
+    sesion.preciosMonedaSoportado.set(opts.soportado ?? false);
+    sesion.preciosOtraMoneda.set(opts.sesion ?? new Map());
+    sesion.preciosMonedaSinRespuesta.set(true);
+    sesion.preciosMonedaListos.set(true);
+    const f = TestBed.createComponent(PreciosPage);
+    f.componentRef.setInput('id', '5');
+    f.componentRef.setInput('presentacionId', '2');
+    f.detectChanges();
+    return f;
+  };
+
+  const monedasGuardadas = () => datos.guardar.mock.calls.map((c) => (c[1] as { monedaId?: number }).monedaId);
+
+  it('sin respuesta y sin lectura por producto: ningún importe se edita y no se agrega', () => {
+    const f = montar({ lectura: sinRed });
+    f.detectChanges();
+    const c = f.componentInstance;
+    const [activo, inactivo] = c.preciosEditables();
+
+    expect(c.monedaDesconocida(activo)).toBe(true);
+    expect(c.monedaDesconocida(inactivo)).toBe(true);
+    expect(f.nativeElement.textContent).toContain('No se pudo saber en qué moneda se cargan los precios');
+
+    // Ni por código.
+    c.nuevoTipoPrecioId.set(2);
+    c.nuevoMonto.set(30000);
+    c.agregarPrecio();
+    c.edicionId.set(10);
+    c.edicionValor.set(30000);
+    c.guardarEdicion(activo);
+    expect(datos.guardar).not.toHaveBeenCalled();
+
+    // Activar no toca el importe: sin monedaId, el central conserva la guardada.
+    c.toggleActivo(inactivo);
+    expect(monedasGuardadas()).toEqual([undefined]);
+  });
+
+  it('no confía en la lectura previa: un precio que no estaba no pasa por guaraníes', () => {
+    const c = montar({ lectura: sinRed, soportado: true, sesion: new Map([['10', usd]]) }).componentInstance;
+
+    expect(c.monedaDesconocida(c.preciosEditables()[0])).toBe(true);
+  });
+
+  it('con la lectura por producto respondiendo, se edita con su moneda y sin monedaId', () => {
+    const c = montar({
+      lectura: () => of({ presentaciones: [{ precios: [{ id: '10', moneda: usd }, { id: '11', moneda: null }] }] }),
+    }).componentInstance;
+    const activo = c.preciosEditables()[0];
+
+    expect(c.referencia(activo).simbolo).toBe('US$');
+    c.iniciarEdicion(activo);
+    c.edicionValor.set(4.6);
+    c.guardarEdicion(activo);
+    // Sin la sesión no se manda moneda: el central conserva la guardada (USD).
+    expect(monedasGuardadas()).toEqual([undefined]);
+  });
+
+  it('si la lectura por producto dice que el central no tiene la consulta: todo en la moneda de la empresa', () => {
+    const c = montar({ lectura: centralViejo }).componentInstance;
+
+    expect(c.monedaGuardada(c.preciosEditables()[0])).toBeNull();
+    expect(c.monedaDesconocida(c.preciosEditables()[1])).toBe(false);
+  });
+
+  it('Reintentar vuelve a pedir la lista de la sesión y la del producto', async () => {
+    const c = montar({ lectura: sinRed }).componentInstance;
+    const pedidos = datos.consultar.mock.calls.length;
+
+    c.reintentarMonedas();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(precioMoneda.cargar).toHaveBeenCalled();
+    expect(datos.consultar.mock.calls.length).toBeGreaterThan(pedidos);
   });
 });
 

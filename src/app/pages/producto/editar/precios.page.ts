@@ -2,11 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   input,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -29,6 +31,7 @@ import {
   textoVersionMinima,
 } from 'src/app/domains/moneda/precio-moneda';
 import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
+import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
 import { TipoPrecio } from 'src/app/domains/productos/tipo-precio.model';
 import { DeletePrecioPorSucursalGQL } from 'src/app/graphql/productos/deletePrecioPorSucursal';
@@ -48,8 +51,11 @@ import { ProductoEditarService } from './producto-editar.service';
 /**
  * El input de `savePrecioPorSucursal`.
  *
- * ⚠️ **`sucursalId` sale siempre de la sesión.** El escritorio hace lo mismo
- * y no ofrece alternativa (`adicionar-precio-dialog.component.ts:265`).
+ * ⚠️ **`sucursalId`: el del propio precio al editar, el de la sesión al
+ * agregar** (#135). El escritorio manda siempre el de la sesión
+ * (`adicionar-precio-dialog.component.ts`), y el central igual lo pisa con su
+ * propia sucursal; mandar el del precio al editar evita mudarlo si un día el
+ * central respeta el input.
  * Escribir en todas las sucursales serían ~18 mutations sueltas sin
  * transacción: si la novena falla, quedan nueve locales con el precio nuevo y
  * nueve con el viejo, y nada lo revierte.
@@ -81,16 +87,34 @@ export function construirPrecioInput(
 }
 
 /**
- * Si este precio se puede editar desde acá.
+ * Si este precio se puede editar desde acá: solo los de la sucursal del
+ * central, los **generales** (#135).
  *
- * Un precio sin sucursal identificada **no** es editable: no saber de qué
- * sucursal es no equivale a que sea de la propia.
+ * ⚠️ El central guarda todo precio en su propia sucursal: pisa el
+ * `sucursalId` del input con su property (`PrecioPorSucursalGraphQL`). Un
+ * precio de una sucursal concreta, guardado desde acá, se mudaría a todas las
+ * sucursales sin que nadie lo note; por eso no es editable, aunque sea la de
+ * la sesión. Sin la sucursal del central (no respondió), nada es editable:
+ * no saber cuál es no equivale a que sea esta. Un precio sin sucursal
+ * identificada tampoco.
  */
 export function esPrecioEditable(
   precio: { sucursal?: { id?: number | string } },
-  sucursalSesionId: number,
+  sucursalCentralId: number | null | undefined,
 ): boolean {
-  return mismoId(precio.sucursal?.id, sucursalSesionId);
+  return sucursalCentralId != null && mismoId(precio.sucursal?.id, sucursalCentralId);
+}
+
+/**
+ * El id de la sucursal de un precio, como número, o `null` si no es un id.
+ * Acepta el 0 (la sucursal del central); `Number('')` también es 0, así que
+ * el vacío se descarta antes.
+ */
+export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string | null } | null }): number | null {
+  const raw = precio.sucursal?.id;
+  if (raw == null || String(raw).trim() === '') return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : null;
 }
 
 /**
@@ -99,12 +123,13 @@ export function esPrecioEditable(
  * ⚠️ **Sin costo ni margen a la vista** — decisión del 2026-09-04, registrada
  * en la spec: esta pantalla solo muestra y edita el precio de venta.
  *
- * Solo el precio de la sucursal de la sesión es editable acá: el resto se
- * muestra de solo lectura, con su sucursal identificada. Ver el aviso de
- * `construirPrecioInput`.
+ * Solo los precios generales —los de la sucursal del central— son editables
+ * acá: el resto se muestra de solo lectura, con su sucursal identificada.
+ * Ver `esPrecioEditable` y el aviso de `construirPrecioInput`.
  *
  * Al marcar un precio como principal se degrada primero, con `concatMap`, a
- * los que devuelve `preciosADegradar()` **entre los de la propia sucursal**
+ * los que devuelve `preciosADegradar()` **entre los editables** (todos de la
+ * sucursal del central)
  * — nunca en paralelo, y nunca tocando precios de otra sucursal, que es
  * justo lo que esta pantalla no puede hacer. Un fallo en la degradación
  * avisa siempre: silenciarlo es lo que vuelve invisible justo este bug.
@@ -159,6 +184,14 @@ export function esPrecioEditable(
             detalle="No se puede identificar qué precio es editable sin una sucursal en la sesión."
             (reintentar)="recargar()"
           />
+        } @else if (cargandoSucursalCentral()) {
+          <frc-skeleton [cantidad]="3" />
+        } @else if (errorSucursalCentral()) {
+          <frc-estado-error
+            titulo="No se pudo saber qué precios son generales"
+            detalle="Sin eso no se puede editar ni agregar ningún precio: se muestran de solo lectura."
+            (reintentar)="cargarSucursalCentral()"
+          />
         } @else {
           <frc-seccion titulo="Agregar precio" [panel]="true">
             @if (cargandoTipos()) {
@@ -169,7 +202,7 @@ export function esPrecioEditable(
                 <button matButton type="button" (click)="cargarTipos()">Reintentar</button>
               </p>
             } @else if (tiposPrecioDisponibles().length === 0) {
-              <p class="ayuda">Ya hay un precio cargado para todos los tipos, en esta sucursal.</p>
+              <p class="ayuda">Ya hay un precio cargado para todos los tipos.</p>
             } @else {
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo">
                 <mat-label>Tipo de precio</mat-label>
@@ -213,14 +246,14 @@ export function esPrecioEditable(
             }
           </frc-seccion>
 
-          <frc-seccion titulo="Precios de esta sucursal" [panel]="true">
-            @if (preciosPropios().length === 0) {
+          <frc-seccion titulo="Precios de todas las sucursales" [panel]="true">
+            @if (preciosEditables().length === 0) {
               <frc-estado-vacio
-                titulo="No hay precios en esta sucursal"
+                titulo="No hay precios cargados"
                 detalle="Agregá uno con el formulario de arriba."
               />
             } @else {
-              @for (p of preciosPropios(); track p.id) {
+              @for (p of preciosEditables(); track p.id) {
                 <div class="fila-precio" [class.inactivo]="p.activo === false">
                   <div class="info-precio">
                     <span class="tipo-precio">
@@ -305,8 +338,13 @@ export function esPrecioEditable(
           </frc-seccion>
         }
 
-        @if (preciosAjenos().length > 0) {
-          <frc-seccion titulo="Precios de otras sucursales" [panel]="true">
+        @if (!cargandoSucursalCentral() && preciosAjenos().length > 0) {
+          <frc-seccion titulo="Precios de una sucursal" [panel]="true">
+            @if (!errorSucursalCentral()) {
+              <p class="ayuda">
+                Solo de lectura: al guardarlo desde acá pasaría a valer para todas las sucursales.
+              </p>
+            }
             @for (p of preciosAjenos(); track p.id) {
               <div class="fila-precio solo-lectura" [class.inactivo]="p.activo === false">
                 <div class="info-precio">
@@ -411,6 +449,8 @@ export class PreciosPage {
   private readonly monedaModulo = inject(MonedaModuloService);
   private readonly monedasSesion = inject(MonedasSesion);
   private readonly precioMoneda = inject(PrecioMonedaService);
+  private readonly sucursales = inject(SucursalService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly guardando = signal(false);
   readonly nuevoTipoPrecioId = signal<number | null>(null);
@@ -461,8 +501,16 @@ export class PreciosPage {
 
   readonly rutaInvalida = computed(() => esIdDeRutaInvalido(this.presentacionId()));
 
-  /** La sucursal de la sesión: la única en la que esta pantalla escribe. */
+  /** La sucursal de la sesión: la que lleva un precio nuevo, como en el escritorio. */
   readonly sucursalSesionId = computed<number | null>(() => this.auth.sucursal()?.id ?? null);
+
+  /**
+   * La sucursal del central (`sucursalActual`): la de los precios generales,
+   * los únicos editables. `null` mientras no se sabe.
+   */
+  readonly sucursalCentralId = signal<number | null>(null);
+  readonly cargandoSucursalCentral = signal(true);
+  readonly errorSucursalCentral = signal(false);
 
   private readonly presentacionIdNum = computed<number | null>(() =>
     idDeRutaNum(this.presentacionId()),
@@ -476,17 +524,16 @@ export class PreciosPage {
 
   readonly precios = computed<PrecioPorSucursal[]>(() => this.presentacion()?.precios ?? []);
 
-  /** El único subconjunto editable: los de la sucursal de la sesión. */
-  readonly preciosPropios = computed<PrecioPorSucursal[]>(() => {
-    const sucId = this.sucursalSesionId();
-    if (sucId == null) return [];
-    return this.precios().filter((p) => esPrecioEditable(p, sucId));
+  /** El único subconjunto editable: los generales, de la sucursal del central. */
+  readonly preciosEditables = computed<PrecioPorSucursal[]>(() => {
+    const central = this.sucursalCentralId();
+    return this.precios().filter((p) => esPrecioEditable(p, central));
   });
 
   /** Todo lo que no sea editable acá, sucursal desconocida incluida. */
   readonly preciosAjenos = computed<PrecioPorSucursal[]>(() => {
-    const sucId = this.sucursalSesionId();
-    return this.precios().filter((p) => sucId == null || !esPrecioEditable(p, sucId));
+    const central = this.sucursalCentralId();
+    return this.precios().filter((p) => !esPrecioEditable(p, central));
   });
 
   /**
@@ -503,7 +550,7 @@ export class PreciosPage {
    * se ejerce sobre esos tres tipos.
    */
   readonly tiposPrecioDisponibles = computed<TipoPrecio[]>(() => {
-    const usados = new Set(this.preciosPropios().map((p) => p.tipoPrecio?.id));
+    const usados = new Set(this.preciosEditables().map((p) => p.tipoPrecio?.id));
     return this.tiposPrecio().filter((t) => t.id != null && !usados.has(t.id) && t.activo !== false);
   });
 
@@ -522,6 +569,29 @@ export class PreciosPage {
       .catch(() => undefined);
 
     this.cargarTipos();
+    this.cargarSucursalCentral();
+  }
+
+  /** La sucursal del central. Sin ella no se habilita nada: ver `esPrecioEditable`. */
+  cargarSucursalCentral(): void {
+    this.cargandoSucursalCentral.set(true);
+    this.errorSucursalCentral.set(false);
+    this.sucursales
+      .actual()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (s) => {
+          const id = sucursalIdDePrecio({ sucursal: s });
+          this.sucursalCentralId.set(id);
+          this.errorSucursalCentral.set(id == null);
+          this.cargandoSucursalCentral.set(false);
+        },
+        error: () => {
+          this.sucursalCentralId.set(null);
+          this.errorSucursalCentral.set(true);
+          this.cargandoSucursalCentral.set(false);
+        },
+      });
   }
 
   /** Tras guardar, la lista de precios en otra moneda se vuelve a pedir. */
@@ -602,7 +672,8 @@ export class PreciosPage {
 
   guardarEdicion(p: PrecioPorSucursal): void {
     const presentacionId = this.presentacionIdNum();
-    const sucursalId = this.sucursalSesionId();
+    // La del propio precio, nunca la de la sesión: ver `esPrecioEditable`.
+    const sucursalId = sucursalIdDePrecio(p);
     const monto = this.edicionValor();
     const tipoPrecioId = p.tipoPrecio?.id;
     if (tipoPrecioId == null) {
@@ -686,7 +757,7 @@ export class PreciosPage {
 
   toggleActivo(p: PrecioPorSucursal): void {
     const presentacionId = this.presentacionIdNum();
-    const sucursalId = this.sucursalSesionId();
+    const sucursalId = sucursalIdDePrecio(p);
     const tipoPrecioId = p.tipoPrecio?.id;
     if (tipoPrecioId == null) {
       this.notificacion.danger(
@@ -726,13 +797,13 @@ export class PreciosPage {
   }
 
   /**
-   * Degrada, en orden y solo entre los de la propia sucursal, a los que
+   * Degrada, en orden y solo entre los editables, a los que
    * devuelve `preciosADegradar()` y recién después guarda el nuevo
    * principal. Ver el aviso de la clase.
    */
   marcarPrincipal(p: PrecioPorSucursal): void {
     const presentacionId = this.presentacionIdNum();
-    const sucursalId = this.sucursalSesionId();
+    const sucursalId = sucursalIdDePrecio(p);
     const tipoPrecioId = p.tipoPrecio?.id;
     if (tipoPrecioId == null) {
       this.notificacion.danger(
@@ -742,12 +813,12 @@ export class PreciosPage {
     }
     if (presentacionId == null || sucursalId == null || p.id == null) return;
 
-    const aDegradar = preciosADegradar(this.preciosPropios(), p.id);
+    const aDegradar = preciosADegradar(this.preciosEditables(), p.id);
 
     // `savePrecioPorSucursal` REEMPLAZA la fila: un `tipoPrecioId` inventado
     // (por ejemplo, un `0` de relleno) no falla, persiste una clave ajena.
     // Antes que eso, se corta la cadena entera y se avisa.
-    if (aDegradar.some((viejo) => viejo.tipoPrecio?.id == null)) {
+    if (aDegradar.some((viejo) => viejo.tipoPrecio?.id == null || sucursalIdDePrecio(viejo) == null)) {
       this.notificacion.danger('No se pudo marcar el precio como principal.');
       return;
     }
@@ -768,7 +839,7 @@ export class PreciosPage {
                 activo: viejo.activo !== false,
               },
               presentacionId,
-              sucursalId,
+              sucursalIdDePrecio(viejo)!,
               this.monedaIdDe(viejo),
             ),
             undefined,

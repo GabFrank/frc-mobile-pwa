@@ -59,12 +59,8 @@ export function faltaParaGuardar(datos: DatosSolicitud): string | null {
   if (requiereEnteActivo(datos.moduloPadre) && datos.errorResumen) {
     return `No se pudo confirmar ${etiquetaModuloPadre(datos.moduloPadre).toLowerCase()}, intente de nuevo`;
   }
-  if (datos.beneficiarioTipo === 'PERSONA' && !datos.beneficiarioPersonaId) {
-    return 'Seleccione la persona beneficiaria';
-  }
-  if (datos.beneficiarioTipo === 'PROVEEDOR' && !datos.beneficiarioProveedorId) {
-    return 'Seleccione el proveedor beneficiario';
-  }
+  // El beneficiario es opcional: un gasto puede no tener proveedor ni persona
+  // (el central lo acepta nulo en toda la cadena hasta tesorería).
 
   for (const [indice, detalle] of datos.detalles.entries()) {
     if (detalle.monedaId == null || !detalle.formaPago) {

@@ -127,7 +127,7 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
           <p class="ayuda">El retiro se imputa a la persona de la sesión, no se elige acá.</p>
         </frc-seccion>
 
-        <frc-seccion titulo="Beneficiario" [panel]="true">
+        <frc-seccion titulo="Beneficiario (opcional)" [panel]="true">
           <frc-selector
             etiqueta="Tipo de beneficiario"
             [opciones]="opcionesBeneficiarioTipo"
@@ -142,6 +142,11 @@ const OPCIONES_URGENCIA: OpcionSeleccion[] = [
           <button matButton="tonal" type="button" (click)="abrirBuscadorBeneficiario()">
             Elegir beneficiario
           </button>
+          @if (hayBeneficiario()) {
+            <button matButton type="button" (click)="quitarBeneficiario()">
+              Quitar beneficiario
+            </button>
+          }
         </frc-seccion>
 
         <frc-seccion titulo="Tipo de gasto" [panel]="true">
@@ -414,7 +419,14 @@ export class GastosSolicitudNuevaPage {
   readonly personaBeneficiaria = signal<Persona | null>(null);
   readonly beneficiarioProveedorId = computed(() => this.proveedor()?.id ?? null);
   readonly beneficiarioPersonaId = computed(() => this.personaBeneficiaria()?.id ?? null);
-  readonly nombreProveedorElegido = computed(() => nombreProveedor(this.proveedor()));
+  readonly hayBeneficiario = computed(() =>
+    this.beneficiarioTipo() === 'PROVEEDOR'
+      ? this.beneficiarioProveedorId() != null
+      : this.beneficiarioPersonaId() != null,
+  );
+  readonly nombreProveedorElegido = computed(() =>
+    this.proveedor() ? nombreProveedor(this.proveedor()) : 'Sin elegir',
+  );
   readonly nombrePersonaElegida = computed(
     () => this.personaBeneficiaria()?.nombre ?? 'Sin elegir',
   );
@@ -725,6 +737,11 @@ export class GastosSolicitudNuevaPage {
 
   cambiarBeneficiarioTipo(valor: unknown): void {
     this.beneficiarioTipo.set(valor === 'PERSONA' ? 'PERSONA' : 'PROVEEDOR');
+  }
+
+  quitarBeneficiario(): void {
+    this.proveedor.set(null);
+    this.personaBeneficiaria.set(null);
   }
 
   elegirProveedor(proveedor: Proveedor): void {

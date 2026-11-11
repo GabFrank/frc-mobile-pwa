@@ -86,3 +86,31 @@ export const preciosEnOtraMonedaQuery = gql`
     }
   }
 `;
+
+/**
+ * La moneda de **todos** los precios de un producto, activos o no (#137).
+ * `preciosEnOtraMoneda` trae solo los activos, así que un precio inactivo en
+ * otra moneda quedaba como de la moneda de la empresa. Va **aparte** de la
+ * query del producto: contra un central sin `PrecioPorSucursal.moneda`
+ * (anterior a V260.5) falla solo esta lectura, no la pantalla.
+ */
+export const monedaDePreciosDeProductoQuery = gql`
+  query ($id: ID!) {
+    data: producto(id: $id) {
+      id
+      presentaciones {
+        id
+        precios {
+          id
+          moneda {
+            id
+            denominacion
+            simbolo
+            decimales
+          }
+        }
+      }
+    }
+  }
+`;
+

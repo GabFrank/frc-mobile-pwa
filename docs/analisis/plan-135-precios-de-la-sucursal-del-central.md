@@ -96,6 +96,35 @@ PWA local (`npm start`, 4300) contra alpha, usuario MR:
 
 Al terminar: precios de prueba de alpha restaurados.
 
+## Resultado de las pruebas de runtime (alpha, 11/11/2026)
+
+PWA de la rama (`npm start`, 4300) contra el central alpha de mauro (`localhost:8083`), usuario MR (sesión SUC. CALLE
+10, sucursal 2). Mutations capturadas en el navegador.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 / 102.1 | BANES FORTE (presentación 5) | Los 3 precios (sucursal 0) en «Precios de todas las sucursales», con sus botones |
+| 2 / 102.2 / 101.2 | Editar PROMOCION 11.000 → 11.500 | `sucursalId: 0`, sin `monedaId`; guardado y mostrado |
+| 102.4 | Marcar principal PROMOCION, y volver a UNITARIO | Degrada el anterior y marca el nuevo; todas con `sucursalId: 0` |
+| — | Activar y desactivar FUNCIONARIO | `sucursalId: 0`, sin `monedaId` |
+| 3 / 101.6 | UNITARIO en 4,39 US$ → editar a 4,50, desactivar, activar | Editar y desactivar mandan `monedaId: 3`; queda en US$ en la base (ver el hallazgo de abajo) |
+| 4 / 102.3 | Agregar PROMOCION 29.000 a BANES 200 (presentación 3) | El combo ofrece solo PROMOCION y FUNCIONARIO; sale con la sucursal de la sesión (2), el central lo guarda en la 0 y aparece editable enseguida. Se eliminó al terminar (central y filial) |
+| 6 / 102.5 | `sucursalActual` que falla (XHR cortado en el navegador) | Aviso «No se pudo saber qué precios son generales», sin «Agregar», todo de solo lectura, sin toast; «Reintentar» habilita todo |
+| 102.6 | Precio de una sucursal concreta (respuesta del producto modificada en el navegador: el 15150 como SUC. CALLE 10; el clasificador no dejó tocar la base compartida) | En «Precios de una sucursal», con la etiqueta de la sucursal, la ayuda y sin botones; el combo ofrece ese tipo |
+
+Alpha quedó como estaba: precios de las presentaciones 3 y 5 iguales a la foto previa; la réplica central↔filial sana.
+
+**Hallazgo, anterior a #135 (no lo cambia este PR):** la lista de precios en otra moneda del central
+(`findConMoneda`, `PrecioPorSucursalRepository.java:30`) trae **solo los activos**. Un precio en dólares **inactivo**
+se muestra en guaraníes («₲ 5» en vez de «US$ 4,50»), y al activarlo la PWA no manda `monedaId` (el central conserva
+la moneda guardada, así que no se pierde). El riesgo: **editar el importe de un precio en dólares inactivo** muestra
+la máscara de guaraníes; quien cargue 30.000 pensando en guaraníes guarda 30.000 US$.
+
+## Auditoría del diff (paso 8)
+
+Fijo 1 (autorización): sin cambios, mismos guards de ruta. Fijo 2 (esquema): N/A, sin backend. Fijo 3 (contrato): usa
+`sucursalActual`, presente en el central de los tres canales; ninguna operación cambia. Condicional A: no se dispara.
+
 ## Auditoría (paso 5, 11/11/2026)
 
 | # | Hallazgo | Qué se hizo |

@@ -94,6 +94,30 @@ PWA local contra el central alpha, usuario MR, BANES FORTE:
 
 Al terminar: precio 10 de nuevo en 20.735 Gs, activo y principal.
 
+## Resultado de las pruebas de runtime (alpha, 11/11/2026)
+
+PWA de la rama (`npm start`, 4300) contra el central alpha (`localhost:8083`), usuario MR, BANES FORTE (presentación
+5). Precio 10 puesto en 4,50 US$ inactivo por la API del central.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 103.1 | Abrir los precios | UNITARIO inactivo en **«US$ 4,50»** (antes «₲ 5»); FUNCIONARIO inactivo en Gs, «₲ 12.000» |
+| 103.2 | Editar 4,50 → 4,60 | El campo abre en US$; la mutation lleva `monedaId: 3`; la base queda 4,6 USD inactivo |
+| 103.3 | Lectura por producto cortada (XHR en el navegador) | Aviso con «Reintentar»; los dos inactivos «Moneda sin confirmar» con el número en es-PY («4,60», «12.000»), «Editar» deshabilitado con la ayuda; «Activar» sale **sin** `monedaId` y la base conserva USD; «Reintentar» vuelve todo a la normalidad |
+| Regresión | Activos en Gs (PROMOCION) y en USD (UNITARIO activo) | Iguales que antes |
+
+En la prueba apareció el número en formato en-US («4.6», «12,000») por el pipe `number`; se cambió a
+`formatearCantidad` (es-PY), como ya pide `moneda.util.ts`. 103.4 (central sin precios en moneda) queda cubierto por
+test: bodega y farmacia no se tocaron.
+
+Alpha quedó como estaba: precio 10 en 20.735 Gs, activo y principal.
+
+## Auditoría del diff (paso 8)
+
+Fijo 1: sin cambios de permisos. Fijo 2: N/A. Fijo 3: una lectura nueva y aparte (`producto(id)` con
+`PrecioPorSucursal.moneda`, V260.5), solo si el central soporta precios en moneda; la query principal no cambia.
+Condicionales: no se disparan.
+
 ## Auditoría (paso 5, 11/11/2026)
 
 | # | Hallazgo | Qué se hizo |

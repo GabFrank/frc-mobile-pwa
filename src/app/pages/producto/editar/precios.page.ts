@@ -9,7 +9,6 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -37,6 +36,7 @@ import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.servic
 import { MonedaDePreciosDeProductoGQL, ProductoConMonedaDePrecios } from 'src/app/graphql/operaciones/moneda/convertirPrecios';
 import { SucursalService } from 'src/app/domains/empresarial/sucursal/sucursal.service';
 import { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
+import { esEntero, formatearCantidad } from 'src/app/generic/utils/moneda.util';
 import { TipoPrecio } from 'src/app/domains/productos/tipo-precio.model';
 import { DeletePrecioPorSucursalGQL } from 'src/app/graphql/productos/deletePrecioPorSucursal';
 import { SavePrecioPorSucursalGQL } from 'src/app/graphql/productos/savePrecioPorSucursal';
@@ -153,7 +153,6 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
     MatFormFieldModule,
     MatSelectModule,
     FormsModule,
-    DecimalPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -298,7 +297,7 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
                       />
                     } @else if (monedaDesconocida(p)) {
                       <span class="importe-sin-moneda">
-                        {{ p.precio ?? 0 | number: '1.0-2' }}
+                        {{ importeSinMoneda(p) }}
                         <span class="badge-inactivo">Moneda sin confirmar</span>
                       </span>
                       <p class="ayuda" [id]="'ayuda-moneda-' + p.id">
@@ -381,7 +380,7 @@ export function sucursalIdDePrecio(precio: { sucursal?: { id?: number | string |
                   </span>
                   @if (monedaDesconocida(p)) {
                     <span class="importe-sin-moneda">
-                      {{ p.precio ?? 0 | number: '1.0-2' }}
+                      {{ importeSinMoneda(p) }}
                       <span class="badge-inactivo">Moneda sin confirmar</span>
                     </span>
                   } @else {
@@ -680,6 +679,15 @@ export class PreciosPage {
     const deLaSesion = this.monedasPrecio().get(clave);
     if (deLaSesion) return deLaSesion;
     return p.activo === false ? undefined : null;
+  }
+
+  /**
+   * El importe de un precio sin moneda conocida: el número solo, en es-PY (no
+   * el pipe `number`, que formatea en en-US), con centavos solo si los tiene.
+   */
+  importeSinMoneda(p: PrecioPorSucursal): string {
+    const v = p.precio ?? 0;
+    return formatearCantidad(v, esEntero(v) ? 0 : 2);
   }
 
   /** Un precio cuya moneda no se sabe: no se edita su importe. */

@@ -8847,6 +8847,32 @@ Estado: pendiente.
 
 ---
 
+## Bloque 105 — Kiosco: un precio principal en otra moneda *(nuevo, #142)*
+
+El central entrega el precio principal con el id de la presentación (central
+#605), así que el kiosco no encontraba su moneda y mostraba en guaraníes un
+precio en dólares. Necesita un central con precios en moneda (alpha) y un
+producto con el precio principal en dólares.
+
+### 105.1 · Kiosco con el precio principal en dólares *(el que importa)*
+1. Entrar al kiosco y escanear el producto
+
+**Esperado:** el precio se muestra en «US$» con dos decimales, no en «₲».
+Estado: pendiente.
+
+### 105.2 · Kiosco con el precio en guaraníes
+1. Escanear un producto con el precio principal en guaraníes
+
+**Esperado:** igual que antes, en «₲». Estado: pendiente.
+
+### 105.3 · El mismo importe en la ficha y el buscador
+1. Abrir la ficha del producto y buscarlo por texto
+
+**Esperado:** el mismo importe que antes del cambio (este arreglo no cambia
+qué precio se muestra, solo de cuál se toma la moneda). Estado: pendiente.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8953,7 +8979,8 @@ Estado: pendiente.
 | 100 · Moneda por módulo: recepción y factura de compras | 7 | 7 | | |
 | 101 · Moneda por módulo: precios y kiosco | 9 | | | |
 | 102 · Precios: se editan los generales del central | 6 | | | |
-| **Total** | **864** | | | |
+| 105 · Kiosco: un precio principal en otra moneda | 3 | | | |
+| **Total** | **867** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

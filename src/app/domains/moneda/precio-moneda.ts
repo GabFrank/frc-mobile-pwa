@@ -115,6 +115,38 @@ export function referenciaDePrecio(
   return { moneda: efectiva, simbolo: efectiva.simbolo ?? '' };
 }
 
+/**
+ * La moneda de cada precio de un producto, activos e inactivos (#137): por id
+ * de precio (texto). Valor `null` = la moneda de la empresa (el precio no
+ * tiene moneda propia). Un id que **no está** en el mapa no se sabe: no es lo
+ * mismo que `null`.
+ */
+export function monedasDePreciosDeProducto(
+  producto:
+    | {
+        presentaciones?:
+          | { precios?: { id?: number | string; moneda?: unknown }[] | null }[]
+          | null;
+      }
+    | null
+    | undefined,
+): Map<string, Moneda | null> {
+  const mapa = new Map<string, Moneda | null>();
+  for (const presentacion of producto?.presentaciones ?? []) {
+    for (const precio of presentacion?.precios ?? []) {
+      if (precio?.id == null) continue;
+      const m = precio.moneda as (Omit<Partial<Moneda>, 'id'> & { id?: number | string }) | null | undefined;
+      if (m?.id == null) {
+        mapa.set(String(precio.id), null);
+      } else {
+        const id = Number(m.id);
+        mapa.set(String(precio.id), Object.assign(new Moneda(), m, { id: Number.isFinite(id) ? id : undefined }));
+      }
+    }
+  }
+  return mapa;
+}
+
 /** `true` si el central rechazó guardar porque el escritorio mínimo no soporta precios en moneda. */
 export function esErrorVersionMinima(mensaje: string | null | undefined): boolean {
   return (mensaje ?? '').trim().startsWith(PREFIJO_VERSION_MINIMA);

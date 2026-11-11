@@ -1,7 +1,12 @@
 import { Injectable } from '@angular/core';
 import { Query } from 'src/app/core/graphql/gql-base';
 import type { Moneda } from 'src/app/domains/moneda/moneda.model';
-import { convertirPreciosDesdeQuery, convertirPreciosQuery, preciosEnOtraMonedaQuery } from './graphql-query';
+import {
+  convertirPreciosDesdeQuery,
+  convertirPreciosQuery,
+  monedaDePreciosDeProductoQuery,
+  preciosEnOtraMonedaQuery,
+} from './graphql-query';
 
 /** Una fila por moneda: los importes pedidos, ya convertidos por el central. */
 export interface PreciosEnMoneda {
@@ -36,3 +41,15 @@ export interface PrecioEnOtraMoneda {
 export class PreciosEnOtraMonedaGQL extends Query<{ data?: PrecioEnOtraMoneda[] }> {
   document = preciosEnOtraMonedaQuery;
 }
+
+/** Producto con la moneda de cada precio, activo o no (#137). */
+export interface ProductoConMonedaDePrecios {
+  id?: number | string;
+  presentaciones?: { id?: number | string; precios?: { id?: number | string; moneda?: unknown }[] | null }[] | null;
+}
+
+@Injectable({ providedIn: 'root' })
+export class MonedaDePreciosDeProductoGQL extends Query<{ data?: ProductoConMonedaDePrecios }> {
+  document = monedaDePreciosDeProductoQuery;
+}
+

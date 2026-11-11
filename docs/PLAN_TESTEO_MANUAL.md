@@ -8847,6 +8847,44 @@ Estado: pendiente.
 
 ---
 
+## Bloque 103 — Precios: la moneda de un precio inactivo *(nuevo, #137)*
+
+La lista de precios en otra moneda del central trae solo los activos. Hasta #137
+un precio en dólares inactivo se mostraba en guaraníes y, al editar su importe,
+cargar 30.000 «guaraníes» los guardaba como 30.000 US$. Necesita un central con
+precios en moneda (alpha) y un precio en dólares inactivo.
+
+### 103.1 · Un precio en dólares inactivo se ve en dólares *(el que importa)*
+1. Desactivar un precio en dólares y volver a abrir los precios de esa presentación
+
+**Esperado:** el precio inactivo sigue mostrándose en «US$», con dos decimales.
+Estado: pendiente.
+
+### 103.2 · Editar el importe de un precio en dólares inactivo
+1. En el precio del 103.1, «Editar»: el campo muestra «US$»
+2. Cambiar el importe y Guardar; mirar la mutation en Network
+
+**Esperado:** la mutation lleva `monedaId` del dólar y el precio sigue en US$ con
+el importe nuevo. Estado: pendiente.
+
+### 103.3 · Si no se pudo leer la moneda
+1. En DevTools › Network, bloquear las requests a `/graphql` que pidan
+   `presentaciones` con `moneda` (o cortar la red al abrir la pantalla)
+
+**Esperado:** el precio inactivo muestra el número sin símbolo y «Moneda sin
+confirmar», su «Editar» está deshabilitado con la explicación debajo, y arriba
+aparece «No se pudo leer la moneda de los precios» con «Reintentar». «Activar»
+sigue andando y el precio queda en dólares. Al reintentar con la red, todo vuelve
+a la normalidad. Estado: pendiente.
+
+### 103.4 · Contra un central sin precios en moneda
+1. Repetir 102.1 contra bodega o farmacia
+
+**Esperado:** igual que antes: ningún precio dice «Moneda sin confirmar» y todo
+se edita en guaraníes. Estado: pendiente.
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -8953,7 +8991,8 @@ Estado: pendiente.
 | 100 · Moneda por módulo: recepción y factura de compras | 7 | 7 | | |
 | 101 · Moneda por módulo: precios y kiosco | 9 | | | |
 | 102 · Precios: se editan los generales del central | 6 | | | |
-| **Total** | **864** | | | |
+| 103 · Precios: la moneda de un precio inactivo | 4 | | | |
+| **Total** | **868** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

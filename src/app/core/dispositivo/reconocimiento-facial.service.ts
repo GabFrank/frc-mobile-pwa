@@ -58,11 +58,17 @@ function conLimite<T>(promesa: Promise<T>, ms: number): Promise<T> {
  * matching 1:N contra la galería lo hace el central (`usuarioPorEmbedding`),
  * nunca esta clase: acá no hay forma de saber quiénes son los otros.
  *
- * Portado de `frc-gourmet`, que ya lo tiene en producción sobre web. La
- * configuración de Human es la misma que usa `frc-mobile`, y eso **no es
- * cosmético**: define el modelo `faceres` de 1024 dimensiones con el que ya
- * está construida la galería del central. Cambiarla invalida todos los
- * rostros enrolados hasta hoy.
+ * Portado de `frc-gourmet`, que ya lo tiene en producción sobre web. El modelo
+ * es el `faceres` de 1024 dimensiones con el que está construida la galería
+ * del central: cambiarlo invalida todos los rostros enrolados.
+ *
+ * ⚠️ **Corre en wasm, como el desktop y `frc-mobile`, no en WebGL** (issue
+ * #144). En WebGL, la GPU de algunos celulares calcula con precisión reducida
+ * y `faceres` devuelve casi el mismo vector para cualquier cara: 26 personas
+ * enroladas así quedaron con galerías que se parecen entre sí al 95 %, y el
+ * 1:N no las distingue. Wasm calcula en la CPU con float32 exacto, da el mismo
+ * embedding que el desktop y es lo que hacía `frc-mobile`. WebGL queda solo
+ * como respaldo si wasm no arranca.
  *
  * ⚠️ **Los modelos se sirven desde `/face-models`, no desde un CDN.**
  * `frc-mobile` los baja de `cdn.jsdelivr.net`, así que en una sucursal sin
@@ -115,17 +121,20 @@ export class ReconocimientoFacialService {
     }
   }
 
-  private async hacerCarga(): Promise<void> {
-    const mod = (await import('@vladmandic/human')) as unknown as Record<string, unknown>;
-    const Human = (mod['Human'] ??
-      (mod['default'] as Record<string, unknown> | undefined)?.['Human'] ??
-      mod['default']) as new (config: unknown) => unknown;
+  /** `wasm` o `webgl`, el que quedó andando. Para diagnosticar desde la consola. */
+  backendActivo: 'wasm' | 'webgl' | null = null;
 
-    // Esta configuración es la misma de `frc-mobile`. Ver el aviso de arriba
-    // sobre por qué no se toca: `description` es el que produce el embedding.
-    const human = new Human({
+  /**
+   * La configuración de Human. Igual a la del desktop en lo que define el
+   * embedding: detector con `rotation` (endereza la cara antes de describirla),
+   * malla y `faceres`. Antispoof y liveness no tocan el embedding.
+   */
+  private configuracion(backend: 'wasm' | 'webgl'): Record<string, unknown> {
+    return {
       modelBasePath: this.rutaModelos,
-      backend: 'webgl',
+      backend,
+      // Absoluta, como en el desktop: tfjs arma la URL de cada `.wasm` pegándole el nombre.
+      wasmPath: new URL(`${this.rutaModelos}/tfjs-wasm/`, globalThis.location?.origin ?? 'http://localhost').href,
       async: true,
       // El precalentamiento se pide abajo, con tope: ver `hacerCarga`.
       warmup: 'none',
@@ -133,7 +142,7 @@ export class ReconocimientoFacialService {
       filter: { enabled: true, equalization: false },
       face: {
         enabled: true,
-        detector: { rotation: false, maxDetected: 1, minConfidence: 0.4, return: false },
+        detector: { rotation: true, maxDetected: 1, minConfidence: 0.4, return: false },
         mesh: { enabled: true },
         iris: { enabled: false },
         description: { enabled: true },
@@ -145,9 +154,43 @@ export class ReconocimientoFacialService {
       hand: { enabled: false },
       object: { enabled: false },
       gesture: { enabled: false },
-    }) as { load(): Promise<void>; warmup(config?: unknown): Promise<unknown> };
+    };
+  }
 
-    await human.load();
+  private async hacerCarga(): Promise<void> {
+    const mod = (await import('@vladmandic/human')) as unknown as Record<string, unknown>;
+    const Human = (mod['Human'] ??
+      (mod['default'] as Record<string, unknown> | undefined)?.['Human'] ??
+      mod['default']) as new (config: unknown) => unknown;
+
+    type HumanCargado = {
+      load(): Promise<void>;
+      warmup(config?: unknown): Promise<unknown>;
+      tf?: { getBackend?(): string };
+    };
+    let human: HumanCargado | null = null;
+    for (const backend of ['wasm', 'webgl'] as const) {
+      try {
+        const candidato = new Human(this.configuracion(backend)) as HumanCargado;
+        await candidato.load();
+        const activo = candidato.tf?.getBackend?.();
+        if (activo && activo !== backend) {
+          throw new Error(`Human quedó en ${activo} en vez de ${backend}`);
+        }
+        human = candidato;
+        this.backendActivo = backend;
+        if (backend !== 'wasm') {
+          console.warn('[ReconocimientoFacial] wasm no arrancó: se usa WebGL, que en algunos celulares es impreciso.');
+        }
+        break;
+      } catch (error) {
+        console.warn(`[ReconocimientoFacial] No se pudo iniciar ${backend}`, error);
+      }
+    }
+    if (!human) {
+      throw new Error('No se pudo iniciar el reconocimiento facial.');
+    }
+
     // ⚠️ **Sin esto la GPU se prepara en la primera foto**: con `'none'`,
     // `warmup()` vuelve sin hacer nada y la compilación de shaders cae justo
     // al terminar la cuenta regresiva, que se queda congelada en el «1». Acá

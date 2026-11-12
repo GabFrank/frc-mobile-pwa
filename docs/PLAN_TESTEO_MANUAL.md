@@ -8950,6 +8950,55 @@ Estado: pendiente.
 **Esperado:** el mismo importe que antes del cambio (este arreglo no cambia
 qué precio se muestra, solo de cuál se toma la moneda). Estado: pendiente.
 
+## Bloque 106 — Marcación facial: el motor en wasm y los umbrales del desktop *(nuevo, #144)*
+
+El reconocimiento corría en WebGL, y en la GPU de algunos celulares Android la
+red devolvía casi el mismo vector para cualquier cara. Ahora corre en wasm, como
+el desktop. Hace falta un **Android** (idealmente uno de gama baja) y, para
+106.5, un central con el PR del enrolamiento roto. Antes de empezar: actualizar
+la app desde «Mi cuenta → Aplicación».
+
+### 106.1 · El motor arranca en wasm *(el que importa)*
+1. En un Android, abrir «Registrar mi rostro» con Chrome conectado por `chrome://inspect`
+2. Esperar a que diga que está listo
+3. En la consola: buscar avisos `[ReconocimientoFacial]`
+
+**Esperado:** no aparece «wasm no arrancó: se usa WebGL». En la pestaña Network
+se bajan `face-models/tfjs-wasm/*.wasm`. Estado: pendiente.
+
+### 106.2 · Enrolar desde Android y marcar
+1. Con una persona **sin** rostro registrado, registrarlo desde el Android
+2. Marcar entrada con «Marcación» en el mismo teléfono
+
+**Esperado:** el registro se guarda y la marcación verifica al primer intento,
+mirando de frente. Estado: pendiente.
+
+### 106.3 · Otra persona no pasa por vos
+1. Con la sesión de la persona de 106.2, que **otra** persona se ponga frente a la cámara en «Marcación»
+
+**Esperado:** «No te reconocimos» o «El rostro reconocido no es el tuyo». No se
+marca con rostro. Estado: pendiente.
+
+### 106.4 · Kiosco: dos compañeros parecidos
+1. En el kiosco de marcación, que pasen dos personas enroladas, una por vez
+
+**Esperado:** cada una se identifica con su nombre. Si alguna da «No estamos
+seguros de quién sos», anotar quién y con qué luz: puede ser el margen nuevo
+(0,05) o una galería vieja hecha en WebGL. Estado: pendiente.
+
+### 106.5 · El central rechaza un enrolamiento roto
+1. Con una PWA **vieja** (anterior a este cambio) en un Android de gama baja, registrar un rostro
+
+**Esperado:** el central lo rechaza con «Este dispositivo no generó un rostro
+confiable…» y no se guarda. Si no hay un teléfono que lo reproduzca, marcar
+como no verificable. Estado: pendiente.
+
+### 106.6 · Tiempo de la foto
+1. En un Android de gama baja, marcar con rostro y contar desde el «1» de la cuenta regresiva hasta el resultado
+
+**Esperado:** menos de 3 s. Wasm es más lento que la GPU; si tarda más, anotar
+el modelo del teléfono. Estado: pendiente.
+
 ---
 
 ## Resumen para completar
@@ -9061,7 +9110,8 @@ qué precio se muestra, solo de cuál se toma la moneda). Estado: pendiente.
 | 103 · Precios: la moneda de un precio inactivo | 4 | | | |
 | 104 · Precios y kiosco: la lista de monedas sin respuesta | 4 | | | |
 | 105 · Kiosco: un precio principal en otra moneda | 3 | | | |
-| **Total** | **875** | | | |
+| 106 · Marcación facial: el motor en wasm y los umbrales del desktop | 6 | | | |
+| **Total** | **881** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

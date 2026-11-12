@@ -310,6 +310,8 @@ Verificación: **115 archivos de test, 1.476 tests**, cero errores de tipos, AOT
 
 ⚠️ **«Registrar proveedor» desde la factura en Compras necesita un central con el PR central #573** (issue central #570, 2026-11-05). Son dos mutations nuevas, sin migración: contra un central viejo el botón aparece pero el diálogo muestra el error al abrirse, y el resto de Compras sigue igual. Se publica primero el central. Ver «Registrar el proveedor desde la factura» en [`docs/modulos/compras.md`](docs/modulos/compras.md).
 
+⚠️ **El reconocimiento facial corre en wasm, no en WebGL** (issue #144). En WebGL, la GPU de algunos celulares Android hacía que la red devolviera casi el mismo vector para cualquier cara, y el 1:N no distinguía a esas personas entre sí. No se publica atado al central: la PWA sola ya enrola y marca bien. El central suma, por su lado, el rechazo de enrolamientos rotos que manden PWAs viejas. Las personas que ya quedaron con una galería rota **tienen que volver a registrar el rostro**. Ver «El motor corre en wasm» en [`docs/modulos/marcacion.md`](docs/modulos/marcacion.md).
+
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
 Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.

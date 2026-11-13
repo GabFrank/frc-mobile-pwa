@@ -23,6 +23,7 @@ describe('Mis finanzas · convenios', () => {
     conveniosAbiertos: ReturnType<typeof vi.fn>;
     venta: ReturnType<typeof vi.fn>;
     autorizarPorQr: ReturnType<typeof vi.fn>;
+    creditoOtraEmpresa: ReturnType<typeof vi.fn>;
   };
   let escaner: { escanear: ReturnType<typeof vi.fn>; disponible: boolean };
   let notificacion: {
@@ -64,6 +65,7 @@ describe('Mis finanzas · convenios', () => {
       conveniosAbiertos: vi.fn(() => of([])),
       venta: vi.fn(() => of({})),
       autorizarPorQr: vi.fn(() => of(true)),
+      creditoOtraEmpresa: vi.fn(() => of(null)),
     };
     escaner = { escanear: vi.fn(async () => undefined), disponible: true };
     notificacion = { ok: vi.fn(), warn: vi.fn(), danger: vi.fn() };
@@ -133,6 +135,64 @@ describe('Mis finanzas · convenios', () => {
 
     expect(texto(f)).toContain('Venta 900');
     expect(texto(f)).not.toContain('No se pudieron cargar');
+  });
+
+  describe('crédito en la otra empresa', () => {
+    const otra = {
+      empresa: 'Bodega',
+      resumen: { limite: 1_000_000, utilizado: 250_000, disponible: 750_000, porcentaje: 25 },
+    };
+
+    it('sin convenio allá no muestra la sección', () => {
+      const f = TestBed.createComponent(MisFinanzasPage);
+      f.detectChanges();
+
+      expect(texto(f)).not.toContain('Crédito en');
+      expect(texto(f)).not.toContain('otra empresa');
+    });
+
+    it('muestra límite, utilizado y disponible de la otra empresa', () => {
+      servicio.creditoOtraEmpresa.mockReturnValue(of(otra));
+      const f = TestBed.createComponent(MisFinanzasPage);
+      f.detectChanges();
+
+      expect(texto(f)).toContain('Crédito en Bodega');
+      expect(texto(f)).toContain('250.000');
+      expect(texto(f)).toContain('750.000');
+    });
+
+    it('si no se pudo consultar lo dice, y lo propio carga igual', () => {
+      servicio.creditoOtraEmpresa.mockReturnValue(throwError(() => new Error('caído')));
+      servicio.conveniosPagina.mockReturnValue(of(pagina([convenio()])));
+      const f = TestBed.createComponent(MisFinanzasPage);
+      f.detectChanges();
+
+      expect(texto(f)).toContain('No se pudo consultar el crédito de la otra empresa');
+      expect(texto(f)).toContain('Venta 900');
+    });
+
+    it('reintentar vuelve a preguntar', () => {
+      servicio.creditoOtraEmpresa.mockReturnValueOnce(throwError(() => new Error('caído')));
+      servicio.creditoOtraEmpresa.mockReturnValueOnce(of(otra));
+      const f = TestBed.createComponent(MisFinanzasPage);
+      f.detectChanges();
+
+      f.componentInstance.cargarOtraEmpresa();
+      f.detectChanges();
+
+      expect(texto(f)).toContain('Crédito en Bodega');
+      expect(texto(f)).not.toContain('No se pudo consultar el crédito de la otra empresa');
+    });
+
+    it('se muestra aunque acá no sea cliente', () => {
+      servicio.clientePorPersona.mockReturnValue(of(undefined));
+      servicio.creditoOtraEmpresa.mockReturnValue(of(otra));
+      const f = TestBed.createComponent(MisFinanzasPage);
+      f.detectChanges();
+
+      expect(texto(f)).toContain('No tenés convenio');
+      expect(texto(f)).toContain('Crédito en Bodega');
+    });
   });
 
   it('cambiar de filtro vuelve a la primera página', () => {

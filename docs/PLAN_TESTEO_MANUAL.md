@@ -2023,7 +2023,9 @@ disponible* que muestra `₲ ••••••` en los tres importes. **No** el
 2. Cerrar la app por completo y volver a abrirla.
 
 **Esperado:** al tocar aparecen disponible, gastado y límite. Al volver a
-entrar siguen visibles: la preferencia se guarda.
+entrar (con «Mantenerme conectado») siguen visibles: la preferencia se guarda. Pero si se **cierra sesión**
+y entra otra persona (o la misma), arrancan tapados de nuevo: el saldo de uno
+no queda a la vista del siguiente.
 
 ### 22.3 · La barra sigue al gasto
 1. Con los valores visibles, mirar la barra.
@@ -2056,7 +2058,7 @@ bienvenida.
 
 ### 22.7 · Intercambiar con la otra empresa *(el que importa)*
 1. Con un usuario que tenga convenio en las dos empresas y los valores visibles, entrar a la app
-2. Tocar el ícono de intercambio (las dos flechas, a la izquierda del ojo)
+2. Tocar el ícono de intercambio (las dos flechas, abajo a la derecha, en la línea de los montos)
 3. Tocarlo de nuevo
 
 **Esperado:** en el paso 2 la etiqueta pasa a «Crédito disponible en

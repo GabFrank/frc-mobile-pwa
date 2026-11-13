@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { CREDITO_VISIBLE_KEY } from 'src/app/core/auth/auth.tokens';
 import {
   CreditoOtraEmpresa,
   MisFinanzasService,
@@ -10,9 +11,6 @@ import {
 } from 'src/app/pages/mis-finanzas/mis-finanzas.service';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { ImporteComponent } from 'src/app/shared/importe/importe.component';
-
-/** Preferencia de visibilidad. Persiste entre sesiones, como en `frc-mobile`. */
-const CLAVE_VISIBLE = 'frc.credito.visible';
 
 /** A partir de acá la barra deja de ser informativa y empieza a avisar. */
 const UMBRAL_WARN = 75;
@@ -28,7 +26,9 @@ const UMBRAL_WARN = 75;
  * ⚠️ **Los valores arrancan ocultos y la preferencia se guarda.** No es
  * pudor: esta pantalla se abre en el salón, delante de clientes y de otros
  * empleados, y el saldo de una persona no tiene por qué leerse por encima
- * del hombro. `frc-mobile` ya lo resolvía así y se conserva.
+ * del hombro. `frc-mobile` ya lo resolvía así y se conserva. A diferencia de
+ * `frc-mobile`, la preferencia se borra con la sesión (`limpiarSesion`): si no,
+ * el próximo que entra en el mismo teléfono ve el saldo del anterior.
  *
  * ⚠️ **Si la persona no es cliente, la card no existe.** No todo empleado
  * compra por convenio; mostrar un bloque en cero le diría que tiene un
@@ -76,31 +76,15 @@ const UMBRAL_WARN = 75;
           <span class="etiqueta" aria-live="polite">
             {{ viendoOtra() ? 'Crédito disponible en ' + otra()!.empresa : 'Crédito disponible' }}
           </span>
-          <!--
-            El intercambio va a la izquierda del ojo: si llega después, el ojo
-            no se corre bajo el dedo.
-          -->
-          <div class="acciones">
-            @if (puedeAlternar()) {
-              <button
-                type="button"
-                class="accion"
-                [attr.aria-label]="viendoOtra() ? 'Ver mi crédito' : 'Ver crédito en ' + otra()!.empresa"
-                (click)="alternarEmpresa($event)"
-              >
-                <frc-icono nombre="intercambio" [tamano]="20" />
-              </button>
-            }
-            <button
+          <button
             type="button"
-              class="accion"
-              [attr.aria-label]="visible() ? 'Ocultar valores' : 'Mostrar valores'"
-              [attr.aria-pressed]="visible()"
-              (click)="alternarVisibilidad($event)"
-            >
-              <frc-icono [nombre]="visible() ? 'ocultar' : 'ver'" [tamano]="20" />
-            </button>
-          </div>
+            class="accion"
+            [attr.aria-label]="visible() ? 'Ocultar valores' : 'Mostrar valores'"
+            [attr.aria-pressed]="visible()"
+            (click)="alternarVisibilidad($event)"
+          >
+            <frc-icono [nombre]="visible() ? 'ocultar' : 'ver'" [tamano]="20" />
+          </button>
         </div>
 
         <div class="monto">
@@ -148,6 +132,21 @@ const UMBRAL_WARN = 75;
               <span class="oculto chico">₲ ••••••</span>
             }
           </div>
+          <!--
+            Abajo a la derecha, en la línea de los montos y en la columna del
+            ojo: lejos del ojo para no tocar uno por el otro, y a mano del
+            pulgar. Va al final de la fila, así que llegar tarde no corre nada.
+          -->
+          @if (puedeAlternar()) {
+            <button
+              type="button"
+              class="accion intercambio"
+              [attr.aria-label]="viendoOtra() ? 'Ver mi crédito' : 'Ver crédito en ' + otra()!.empresa"
+              (click)="alternarEmpresa($event)"
+            >
+              <frc-icono nombre="intercambio" [tamano]="20" />
+            </button>
+          }
         </div>
       </div>
     }
@@ -182,7 +181,6 @@ const UMBRAL_WARN = 75;
       color: var(--text-mute);
       font-weight: var(--fw-medium);
     }
-    .acciones { display: flex; gap: var(--sp-1); }
     .accion {
       background: none;
       border: none;
@@ -221,6 +219,7 @@ const UMBRAL_WARN = 75;
     .indicador.danger { background: var(--danger-fill); }
 
     .detalles { display: flex; gap: var(--sp-6); }
+    .intercambio { margin-left: auto; align-self: flex-end; }
     .detalle { display: flex; flex-direction: column; gap: var(--sp-1); }
     .detalle-etiqueta { font-size: var(--fs-caption); color: var(--text-mute); }
 
@@ -269,7 +268,7 @@ export class CreditoResumenComponent {
   readonly resumen = signal<ResumenCredito | null>(null);
   readonly cargando = signal(true);
   readonly error = signal(false);
-  readonly visible = signal(localStorage.getItem(CLAVE_VISIBLE) === 'true');
+  readonly visible = signal(localStorage.getItem(CREDITO_VISIBLE_KEY) === 'true');
 
   /** Crédito en la otra empresa; `null` si no hay o no se pudo preguntar. */
   readonly otra = signal<CreditoOtraEmpresa | null>(null);
@@ -349,7 +348,7 @@ export class CreditoResumenComponent {
     evento.stopPropagation();
     const nuevo = !this.visible();
     this.visible.set(nuevo);
-    localStorage.setItem(CLAVE_VISIBLE, String(nuevo));
+    localStorage.setItem(CREDITO_VISIBLE_KEY, String(nuevo));
   }
 
   alternarEmpresa(evento: Event): void {

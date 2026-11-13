@@ -46,11 +46,19 @@ export function guardarSesion(token: string, usuarioId: number): void {
   almacen.setItem(AUTH_USER_ID_KEY, String(usuarioId));
 }
 
+/**
+ * «Valores visibles» de la tarjeta de crédito de Inicio. Es de la persona, no
+ * del teléfono: se borra con la sesión para que el próximo que entre no vea el
+ * saldo del anterior —el propio y el de la otra empresa— sin tocar el ojo.
+ */
+export const CREDITO_VISIBLE_KEY = 'frc.credito.visible';
+
 export function limpiarSesion(): void {
   for (const almacen of [localStorage, sessionStorage]) {
     almacen.removeItem(AUTH_TOKEN_KEY);
     almacen.removeItem(AUTH_USER_ID_KEY);
   }
+  localStorage.removeItem(CREDITO_VISIBLE_KEY);
 }
 
 /**

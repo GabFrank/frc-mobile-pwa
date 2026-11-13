@@ -2023,7 +2023,9 @@ disponible* que muestra `₲ ••••••` en los tres importes. **No** el
 2. Cerrar la app por completo y volver a abrirla.
 
 **Esperado:** al tocar aparecen disponible, gastado y límite. Al volver a
-entrar siguen visibles: la preferencia se guarda.
+entrar (con «Mantenerme conectado») siguen visibles: la preferencia se guarda. Pero si se **cierra sesión**
+y entra otra persona (o la misma), arrancan tapados de nuevo: el saldo de uno
+no queda a la vista del siguiente.
 
 ### 22.3 · La barra sigue al gasto
 1. Con los valores visibles, mirar la barra.
@@ -2033,10 +2035,11 @@ roja si el disponible quedó negativo. Con los valores tapados la barra queda
 **vacía** — si no, filtraría de un vistazo lo que el ojo acaba de tapar.
 
 ### 22.4 · Sin convenio no hay tarjeta
-1. Entrar con un usuario cuya persona no sea cliente.
+1. Entrar con un usuario cuya persona no sea cliente ni acá ni en la otra empresa.
 
 **Esperado:** no aparece ninguna tarjeta de crédito. **No** una tarjeta en
-cero: eso diría que agotó su crédito.
+cero: eso diría que agotó su crédito. (Si es cliente en la otra empresa, ver
+22.9.)
 
 ### 22.5 · Lleva al detalle
 1. Tocar la tarjeta (no el ojo).
@@ -2049,6 +2052,44 @@ cero: eso diría que agotó su crédito.
 **Esperado:** la tarjeta dice que no se pudo cargar y ofrece *Reintentar*. El
 resto de Inicio se ve normal y **no** aparece un toast rojo tapando la
 bienvenida.
+
+> Del 22.7 al 22.11 necesitan el central con `convenioOtraEmpresa` y las
+> variables `CONVENIO_REMOTO_*` cargadas (ver el bloque 107). *(nuevo, sin probar)*
+
+### 22.7 · Intercambiar con la otra empresa *(el que importa)*
+1. Con un usuario que tenga convenio en las dos empresas y los valores visibles, entrar a la app
+2. Tocar el ícono de intercambio (las dos flechas, abajo a la derecha, en la línea de los montos)
+3. Tocarlo de nuevo
+
+**Esperado:** en el paso 2 la etiqueta pasa a «Crédito disponible en
+Farmacia» (o «en Bodega») con los números de la otra empresa, y **no** se
+abre Mis finanzas. En el paso 3 vuelve a «Crédito disponible» con los
+propios. Estado: pendiente.
+
+### 22.8 · Con los valores tapados
+1. Con el ojo cerrado, tocar el intercambio
+
+**Esperado:** cambia la etiqueta, pero los importes siguen `₲ ••••••` y la
+barra vacía y sin color. Estado: pendiente.
+
+### 22.9 · Cliente solo en la otra empresa
+1. Entrar con alguien que no es cliente acá pero sí allá
+
+**Esperado:** aparece la tarjeta «Crédito disponible en …» con los números de
+la otra empresa, **sin** botón de intercambio. Estado: pendiente.
+
+### 22.10 · La otra empresa no responde
+1. Con el central de la otra empresa caído, o contra un central sin la query, entrar a la app
+
+**Esperado:** la tarjeta propia se ve como siempre, sin botón de intercambio y
+sin ningún error ni toast. Estado: pendiente.
+
+### 22.11 · Con teclado
+1. Con un teclado (o Chrome de escritorio), llegar con Tab al ojo y apretar Enter; después al intercambio y apretar Enter
+2. Con el foco en la tarjeta (no en un botón), apretar Enter
+
+**Esperado:** en el paso 1 cada botón hace lo suyo y **no** se abre Mis
+finanzas. En el paso 2 se abre Mis finanzas. Estado: pendiente.
 
 ---
 
@@ -8999,6 +9040,48 @@ como no verificable. Estado: pendiente.
 **Esperado:** menos de 3 s. Wasm es más lento que la GPU; si tarda más, anotar
 el modelo del teléfono. Estado: pendiente.
 
+## Bloque 107 — Mis finanzas: el crédito en la otra empresa *(nuevo, sin probar)*
+
+Un funcionario puede tener convenio en la bodega y en la farmacia. Mis finanzas
+muestra, debajo del crédito propio, el de la otra empresa: el central lo consulta
+al central de la otra empresa por el CI de la persona en sesión. Necesita el
+central con `convenioOtraEmpresa` y, en su servidor, las variables
+`CONVENIO_REMOTO_*` cargadas. Sin ellas la sección no aparece.
+
+### 107.1 · Con convenio en las dos *(el que importa)*
+1. Entrar con un funcionario que tenga convenios abiertos en las dos empresas
+2. Abrir «Mis finanzas»
+
+**Esperado:** aparecen «Crédito» y «Crédito en Bodega» (o «en Farmacia»), cada una
+con límite, utilizado y disponible. Los números de la otra empresa coinciden con
+los que ve esa persona entrando a la PWA de esa empresa. Estado: pendiente.
+
+### 107.2 · Sin convenio en la otra empresa
+1. Entrar con alguien que no es cliente en la otra empresa
+
+**Esperado:** no aparece la sección de la otra empresa, ni vacía ni en cero.
+Estado: pendiente.
+
+### 107.3 · Cliente solo en la otra empresa
+1. Entrar con alguien que no es cliente acá pero sí allá
+
+**Esperado:** «No tenés convenio» para la empresa propia y, arriba, «Crédito en …»
+con los números de la otra. Estado: pendiente.
+
+### 107.4 · La otra empresa no responde
+1. Con el central de la otra empresa caído (o con el token mal cargado), abrir «Mis finanzas»
+
+**Esperado:** en menos de ~10 s aparece «No se pudo consultar el crédito de la
+otra empresa» con «Reintentar». El crédito y la lista propios cargan igual. Sin
+toast de error. Estado: pendiente.
+
+### 107.5 · CI escrito distinto en cada base
+1. Entrar con alguien cuyo CI esté guardado con puntos en una base y sin puntos en la otra
+
+**Esperado:** la sección de la otra empresa no aparece. Es una limitación
+conocida: se busca el CI exacto para no mostrar nunca el crédito de otra persona.
+Estado: pendiente.
+
 ---
 
 ## Resumen para completar
@@ -9026,7 +9109,7 @@ el modelo del teléfono. Estado: pendiente.
 | 19 · Inventario | 5 | 4 | | |
 | 20 · Recepción de mercadería | 29 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
-| 22 · Crédito en Inicio | 6 | | | |
+| 22 · Crédito en Inicio | 11 | | | |
 | 23 · Escáner universal | 9 | 3 | | |
 | 24 · Configuración en Mi cuenta | 6 | | | |
 | 25 · Productos vencidos | 5 | 2 | | |
@@ -9058,6 +9141,7 @@ el modelo del teléfono. Estado: pendiente.
 | 51 · Crear una transferencia y cargarle productos | 16 | | | |
 | 52 · Elegir el lote al cargar un producto | 16 | | | |
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
+| 107 · Crédito en la otra empresa | 5 | | | |
 | 54 · Cantidades en enteros | 10 | 10 | | |
 | 55 · Alta de solicitud de caja chica | 16 | | | |
 | 56 · La foto del producto en el buscador | 6 | | | |

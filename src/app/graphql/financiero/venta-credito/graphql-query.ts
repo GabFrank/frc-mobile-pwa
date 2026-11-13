@@ -181,3 +181,17 @@ export const countByClienteAndEstado = gql`
     data: countByClienteIdAndEstado(id: $id, estado: $estado)
   }
 `;
+
+/**
+ * Crédito por convenio de la persona en sesión en el central de la otra empresa
+ * (bodega ↔ farmacia). Sin variables a propósito: el central toma el CI de la sesión.
+ */
+export const convenioOtraEmpresaQuery = gql`
+  query {
+    data: convenioOtraEmpresa {
+      empresa
+      limite
+      utilizado
+    }
+  }
+`;

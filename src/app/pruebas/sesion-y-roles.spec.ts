@@ -37,7 +37,10 @@ describe('Sesión y control de acceso por rol', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: MisFinanzasService, useValue: { resumenCredito: () => of(null) } },
+        {
+          provide: MisFinanzasService,
+          useValue: { resumenCredito: () => of(null), creditoOtraEmpresa: () => of(null) },
+        },
       ],
     });
   });

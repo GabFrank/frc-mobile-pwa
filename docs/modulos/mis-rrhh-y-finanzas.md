@@ -153,6 +153,10 @@ porque son de cada instancia.
   dice. Las dos cosas no se confunden.
 - Un CI con puntos en una base y sin puntos en la otra no se encuentra. Es a
   propósito: normalizarlo puede cruzar a dos personas.
+- **En Inicio**, la tarjeta «Crédito disponible» suma un botón de intercambio
+  que alterna entre las dos empresas (no se guarda la elección). Si acá no es
+  cliente pero allá sí, muestra la otra sin botón. Un fallo de la otra empresa
+  no se muestra en Inicio: solo desaparece el botón.
 
 El plan, con la configuración y el orden de despliegue, está en el central:
 `docs/manuales-implementacion/financiero/plan-convenio-otra-empresa.md`.

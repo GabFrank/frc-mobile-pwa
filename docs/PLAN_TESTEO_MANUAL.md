@@ -2033,10 +2033,11 @@ roja si el disponible quedó negativo. Con los valores tapados la barra queda
 **vacía** — si no, filtraría de un vistazo lo que el ojo acaba de tapar.
 
 ### 22.4 · Sin convenio no hay tarjeta
-1. Entrar con un usuario cuya persona no sea cliente.
+1. Entrar con un usuario cuya persona no sea cliente ni acá ni en la otra empresa.
 
 **Esperado:** no aparece ninguna tarjeta de crédito. **No** una tarjeta en
-cero: eso diría que agotó su crédito.
+cero: eso diría que agotó su crédito. (Si es cliente en la otra empresa, ver
+22.9.)
 
 ### 22.5 · Lleva al detalle
 1. Tocar la tarjeta (no el ojo).
@@ -2049,6 +2050,44 @@ cero: eso diría que agotó su crédito.
 **Esperado:** la tarjeta dice que no se pudo cargar y ofrece *Reintentar*. El
 resto de Inicio se ve normal y **no** aparece un toast rojo tapando la
 bienvenida.
+
+> Del 22.7 al 22.11 necesitan el central con `convenioOtraEmpresa` y las
+> variables `CONVENIO_REMOTO_*` cargadas (ver el bloque 107). *(nuevo, sin probar)*
+
+### 22.7 · Intercambiar con la otra empresa *(el que importa)*
+1. Con un usuario que tenga convenio en las dos empresas y los valores visibles, entrar a la app
+2. Tocar el ícono de intercambio (las dos flechas, a la izquierda del ojo)
+3. Tocarlo de nuevo
+
+**Esperado:** en el paso 2 la etiqueta pasa a «Crédito disponible en
+Farmacia» (o «en Bodega») con los números de la otra empresa, y **no** se
+abre Mis finanzas. En el paso 3 vuelve a «Crédito disponible» con los
+propios. Estado: pendiente.
+
+### 22.8 · Con los valores tapados
+1. Con el ojo cerrado, tocar el intercambio
+
+**Esperado:** cambia la etiqueta, pero los importes siguen `₲ ••••••` y la
+barra vacía y sin color. Estado: pendiente.
+
+### 22.9 · Cliente solo en la otra empresa
+1. Entrar con alguien que no es cliente acá pero sí allá
+
+**Esperado:** aparece la tarjeta «Crédito disponible en …» con los números de
+la otra empresa, **sin** botón de intercambio. Estado: pendiente.
+
+### 22.10 · La otra empresa no responde
+1. Con el central de la otra empresa caído, o contra un central sin la query, entrar a la app
+
+**Esperado:** la tarjeta propia se ve como siempre, sin botón de intercambio y
+sin ningún error ni toast. Estado: pendiente.
+
+### 22.11 · Con teclado
+1. Con un teclado (o Chrome de escritorio), llegar con Tab al ojo y apretar Enter; después al intercambio y apretar Enter
+2. Con el foco en la tarjeta (no en un botón), apretar Enter
+
+**Esperado:** en el paso 1 cada botón hace lo suyo y **no** se abre Mis
+finanzas. En el paso 2 se abre Mis finanzas. Estado: pendiente.
 
 ---
 
@@ -9068,7 +9107,7 @@ Estado: pendiente.
 | 19 · Inventario | 5 | 4 | | |
 | 20 · Recepción de mercadería | 29 | | | |
 | 21 · Solicitud de pago | 20 | 18 | | |
-| 22 · Crédito en Inicio | 6 | | | |
+| 22 · Crédito en Inicio | 11 | | | |
 | 23 · Escáner universal | 9 | 3 | | |
 | 24 · Configuración en Mi cuenta | 6 | | | |
 | 25 · Productos vencidos | 5 | 2 | | |

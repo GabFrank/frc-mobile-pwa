@@ -8999,6 +8999,48 @@ como no verificable. Estado: pendiente.
 **Esperado:** menos de 3 s. Wasm es más lento que la GPU; si tarda más, anotar
 el modelo del teléfono. Estado: pendiente.
 
+## Bloque 107 — Mis finanzas: el crédito en la otra empresa *(nuevo, sin probar)*
+
+Un funcionario puede tener convenio en la bodega y en la farmacia. Mis finanzas
+muestra, debajo del crédito propio, el de la otra empresa: el central lo consulta
+al central de la otra empresa por el CI de la persona en sesión. Necesita el
+central con `convenioOtraEmpresa` y, en su servidor, las variables
+`CONVENIO_REMOTO_*` cargadas. Sin ellas la sección no aparece.
+
+### 107.1 · Con convenio en las dos *(el que importa)*
+1. Entrar con un funcionario que tenga convenios abiertos en las dos empresas
+2. Abrir «Mis finanzas»
+
+**Esperado:** aparecen «Crédito» y «Crédito en Bodega» (o «en Farmacia»), cada una
+con límite, utilizado y disponible. Los números de la otra empresa coinciden con
+los que ve esa persona entrando a la PWA de esa empresa. Estado: pendiente.
+
+### 107.2 · Sin convenio en la otra empresa
+1. Entrar con alguien que no es cliente en la otra empresa
+
+**Esperado:** no aparece la sección de la otra empresa, ni vacía ni en cero.
+Estado: pendiente.
+
+### 107.3 · Cliente solo en la otra empresa
+1. Entrar con alguien que no es cliente acá pero sí allá
+
+**Esperado:** «No tenés convenio» para la empresa propia y, arriba, «Crédito en …»
+con los números de la otra. Estado: pendiente.
+
+### 107.4 · La otra empresa no responde
+1. Con el central de la otra empresa caído (o con el token mal cargado), abrir «Mis finanzas»
+
+**Esperado:** en menos de ~10 s aparece «No se pudo consultar el crédito de la
+otra empresa» con «Reintentar». El crédito y la lista propios cargan igual. Sin
+toast de error. Estado: pendiente.
+
+### 107.5 · CI escrito distinto en cada base
+1. Entrar con alguien cuyo CI esté guardado con puntos en una base y sin puntos en la otra
+
+**Esperado:** la sección de la otra empresa no aparece. Es una limitación
+conocida: se busca el CI exacto para no mostrar nunca el crédito de otra persona.
+Estado: pendiente.
+
 ---
 
 ## Resumen para completar
@@ -9058,6 +9100,7 @@ el modelo del teléfono. Estado: pendiente.
 | 51 · Crear una transferencia y cargarle productos | 16 | | | |
 | 52 · Elegir el lote al cargar un producto | 16 | | | |
 | 53 · El flotante no va en Buscar | 4 | 3 | | |
+| 107 · Crédito en la otra empresa | 5 | | | |
 | 54 · Cantidades en enteros | 10 | 10 | | |
 | 55 · Alta de solicitud de caja chica | 16 | | | |
 | 56 · La foto del producto en el buscador | 6 | | | |

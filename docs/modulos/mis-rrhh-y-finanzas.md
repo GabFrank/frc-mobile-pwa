@@ -138,6 +138,27 @@ llevaba a la lista de convenios y la otra abría el escáner; con el escáner
 todavía sin portar, quedaba una pantalla intermedia con un solo destino. La
 lista **es** la pantalla.
 
+## El crédito en la otra empresa
+
+Un funcionario puede tener convenio en la bodega y en la farmacia, que son dos
+centrales con bases distintas. Mis finanzas muestra, debajo del crédito propio,
+el de la otra empresa: `convenioOtraEmpresa` le pide al central que pregunte al
+otro central por el **CI exacto** de la persona en sesión. Los ids no sirven,
+porque son de cada instancia.
+
+- **No lleva argumentos.** El CI sale de la sesión: si lo mandara la app,
+  cualquiera podría leer el crédito de cualquier CI.
+- `null` = no hay nada que mostrar (no es cliente allá, o la integración no
+  está configurada). Si no se pudo preguntar, la query falla y la tarjeta lo
+  dice. Las dos cosas no se confunden.
+- Un CI con puntos en una base y sin puntos en la otra no se encuentra. Es a
+  propósito: normalizarlo puede cruzar a dos personas.
+
+El plan, con la configuración y el orden de despliegue, está en el central:
+`docs/manuales-implementacion/financiero/plan-convenio-otra-empresa.md`.
+**El central se despliega antes que la PWA**: contra un central sin el campo,
+la tarjeta muestra el error.
+
 ## Todo lo que crece se pagina en el servidor
 
 Las cuatro listas del repo anterior traían la tabla entera. La de marcaciones

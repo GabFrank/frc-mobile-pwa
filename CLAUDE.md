@@ -312,6 +312,8 @@ Verificación: **115 archivos de test, 1.476 tests**, cero errores de tipos, AOT
 
 ⚠️ **El reconocimiento facial corre en wasm, no en WebGL** (issue #144). En WebGL, la GPU de algunos celulares Android hacía que la red devolviera casi el mismo vector para cualquier cara, y el 1:N no distinguía a esas personas entre sí. No se publica atado al central: la PWA sola ya enrola y marca bien. El central suma, por su lado, el rechazo de enrolamientos rotos que manden PWAs viejas. Las personas que ya quedaron con una galería rota **tienen que volver a registrar el rostro**. Ver «El motor corre en wasm» en [`docs/modulos/marcacion.md`](docs/modulos/marcacion.md).
 
+⚠️ **El crédito en la otra empresa necesita un central con `convenioOtraEmpresa`** (rama `feature/convenio-otra-empresa` del central, 2026-11-13). Es una query nueva y sin migración, pero contra un central viejo **todos** ven «No se pudo consultar el crédito de la otra empresa» en Mis finanzas, aunque nadie la haya configurado. **El central de cada instancia se despliega antes que la PWA de esa puerta.** Para que aparezca, además, el servidor necesita las variables `CONVENIO_REMOTO_*`. Ver «El crédito en la otra empresa» en [`docs/modulos/mis-rrhh-y-finanzas.md`](docs/modulos/mis-rrhh-y-finanzas.md).
+
 Antes de probar a mano: [`docs/PLAN_TESTEO_MANUAL.md`](docs/PLAN_TESTEO_MANUAL.md).
 
 Ver `docs/analisis/plan-migracion-pwa.md` para el plan completo.

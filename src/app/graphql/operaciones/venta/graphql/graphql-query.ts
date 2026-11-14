@@ -196,37 +196,6 @@ export const reimprimirVentaQuery = gql`
   }
 `;
 
-//ventasPorCajaId
-
-export const ventasPorCajaIdQuery = gql`
-  query ($id: ID!, $page: Int, $size: Int, $asc: Boolean, $sucId: ID, $formaPago: ID, $estado: VentaEstado) {
-    data: ventasPorCajaId(id: $id, page: $page,size: $size,asc: $asc, sucId: $sucId, formaPago: $formaPago, estado: $estado) {
-      id
-      sucursalId
-      cliente {
-        id
-        persona {
-          nombre
-        }
-      }
-      formaPago {
-        id
-        descripcion
-      }
-      estado
-      creadoEn
-      usuario {
-        id
-      }
-      valorDescuento
-      valorTotal
-      totalGs
-      totalRs
-      totalDs
-    }
-  }
-`;
-
 export const ventaPorPeriodoQuery = gql`
   query ($inicio: String, $fin: String, $sucId: ID) {
     data: ventaPorPeriodo(inicio: $inicio, fin: $fin, sucId: $sucId) {

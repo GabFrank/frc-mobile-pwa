@@ -248,3 +248,49 @@ export function excedeElStock(
   }
   return cantidad * (presentacion?.cantidad ?? 1) > stock;
 }
+
+/**
+ * El cuerpo del mensaje que se comparte por WhatsApp, debajo de
+ * «Transferencia #N»: una línea por dato, para que se lea de un vistazo y el
+ * bot del grupo lo coteje contra lo que lee en el central antes de tomarla.
+ *
+ * `items` en `null` cuando no se pudieron cargar: mejor no decir cuántos que
+ * decir cero. Lo que falta (solicitante, fecha) no se escribe.
+ */
+export function detalleParaCompartir(
+  t:
+    | Pick<Transferencia, 'sucursalOrigen' | 'sucursalDestino' | 'solicitante' | 'creadoEn'>
+    | null
+    | undefined,
+  items: number | null,
+): string {
+  const lineas = [
+    'Origen: ' + (t?.sucursalOrigen?.nombre ?? '—'),
+    'Destino: ' + (t?.sucursalDestino?.nombre ?? '—'),
+  ];
+  const solicitante = t?.solicitante?.persona?.nombre ?? t?.solicitante?.nickname;
+  if (solicitante) {
+    lineas.push('Solicitante: ' + solicitante);
+  }
+  const fecha = fechaHoraParaCompartir(t?.creadoEn);
+  if (fecha) {
+    lineas.push('Fecha y hora: ' + fecha);
+  }
+  if (items != null) {
+    lineas.push('Productos: ' + items);
+  }
+  return lineas.join('\n');
+}
+
+/** «02/11/2026 16:37», en la hora del teléfono. `null` si no hay fecha válida. */
+function fechaHoraParaCompartir(creadoEn: string | null | undefined): string | null {
+  if (!creadoEn) {
+    return null;
+  }
+  const d = new Date(creadoEn.includes('T') ? creadoEn : creadoEn.replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${dos(d.getDate())}/${dos(d.getMonth() + 1)}/${d.getFullYear()} ${dos(d.getHours())}:${dos(d.getMinutes())}`;
+}

@@ -9098,6 +9098,49 @@ claro (#1565c0 sobre #e8eff8).
 
 ---
 
+## Bloque 109 — Ficha del producto: cada precio en su moneda (#148) *(probado en Chromium)*
+
+Necesita un central con la moneda de los precios (`PrecioPorSucursal.moneda`, V260.5: hoy solo alpha / `develop`).
+Contra beta y prod todo sigue en ₲, como antes.
+
+### 109.1 · Un precio en dólares *(el que importa)*
+1. Buscar › 7840058000675 (COCA COLA 1.5 L, con PROMOCION en USD) › ⋮ › **Ver ficha del producto**
+
+**Esperado:** «PROMOCION (principal)» dice **US$ 5,85** (con centavos), igual que en Editar producto › Precios y
+en el kiosco. Los precios en guaraníes del mismo producto siguen en ₲ y sin decimales. Estado: ✅ 15/11 contra alpha
+local con MR, por link directo: «US$ 5,85» y «UNITARIO ₲ 13.000».
+
+### 109.2 · Un producto todo en guaraníes
+1. Abrir la ficha de un producto sin precios en otra moneda
+
+**Esperado:** todo en ₲, sin decimales, sin el chip «Moneda sin confirmar». Igual que antes del cambio. Estado: ✅
+15/11, ACTOCEF 500 (producto 1): «₲ 107.800» y «₲ 92.000».
+
+### 109.3 · Un precio inactivo en dólares
+1. En Editar producto › Precios, desactivar un precio en USD
+2. Volver a la ficha
+
+**Esperado:** el inactivo sigue diciendo **US$**, no ₲. Estado: ✅ 15/11 con un inactivo que ya existía en alpha (CHICLE
+ZOAH MENTA, producto 11295): «US$ 4,39» sin tocar datos.
+
+### 109.4 · Recargar estando en la ficha
+1. Con la ficha del 109.1 abierta, recargar la página (o abrir el link `/producto/<id>` directo)
+
+**Esperado:** nunca se ve «₲ 6». Puede verse un instante el número solo con «Moneda sin confirmar», y enseguida
+«US$ 5,85».
+Estado: ⚠️ 15/11, forzado en memoria (lista sin llegar → «5,85 Moneda sin confirmar», sin ₲); falta mirarlo
+recargando en un teléfono con red lenta.
+
+### 109.5 · Sin red al abrir la ficha
+1. Entrar a la app, cortar la red (modo avión o DevTools › Offline) después de que cargue la ficha de otro producto
+2. Abrir la ficha del 109.1 desde el historial del navegador o con la red cortada al pedir la moneda
+
+**Esperado:** si la moneda no se pudo confirmar, el precio sale **sin símbolo** con el chip «Moneda sin
+confirmar»; nunca «₲ 6». Con la red de vuelta, al reabrir la ficha sale «US$ 5,85». Estado: ✅ 15/11 cortando por
+parche de XHR solo la lectura por producto: el activo sale «US$» por la sesión y el inactivo «Moneda sin confirmar».
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -9210,7 +9253,8 @@ claro (#1565c0 sobre #e8eff8).
 | 105 · Kiosco: un precio principal en otra moneda | 3 | | | |
 | 106 · Marcación facial: el motor en wasm y los umbrales del desktop | 6 | | | |
 | 108 · Mis finanzas: el chip «Abierto» en azul | 1 | 1 | | |
-| **Total** | **892** | | | |
+| 109 · Ficha del producto: cada precio en su moneda | 5 | 4 | 1 | |
+| **Total** | **897** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

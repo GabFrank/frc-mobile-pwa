@@ -6,9 +6,24 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 
 import { Router } from '@angular/router';
+
+import { esFalloDeTransporte, DatosService } from 'src/app/core/graphql/datos.service';
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
+import type { Moneda } from 'src/app/domains/moneda/moneda.model';
+import {
+  monedaGuardadaDePrecio,
+  monedasDePreciosDeProducto,
+  referenciaDePrecio,
+} from 'src/app/domains/moneda/precio-moneda';
+import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
+import {
+  MonedaDePreciosDeProductoGQL,
+  type ProductoConMonedaDePrecios,
+} from 'src/app/graphql/operaciones/moneda/convertirPrecios';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { Sucursal } from 'src/app/domains/empresarial/sucursal/sucursal.model';
@@ -19,7 +34,7 @@ import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
 import { ProductoBusquedaService } from 'src/app/domains/productos/producto-busqueda.service';
-import { formatearExistencia } from 'src/app/generic/utils/moneda.util';
+import { esEntero, formatearCantidad, formatearExistencia } from 'src/app/generic/utils/moneda.util';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
 import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component';
@@ -104,7 +119,15 @@ interface Marca {
               @for (precio of preciosPorPresentacion().get(pr.id) ?? []; track precio.id) {
                 <div class="linea">
                   <span class="etiqueta">{{ nombrePrecio(precio) }}</span>
-                  <frc-importe [valor]="precio.precio ?? 0" moneda="Guaraní" simbolo="₲" />
+                  @if (precio.referencia; as ref) {
+                    <frc-importe [valor]="precio.precio ?? 0" [moneda]="ref.moneda" [simbolo]="ref.simbolo" />
+                  } @else {
+                    <!-- Sin saber la moneda, el número solo: nunca ₲ por descarte (#148). -->
+                    <span class="sin-moneda">
+                      {{ precio.sinMoneda }}
+                      <frc-estado-chip etiqueta="Moneda sin confirmar" tono="warn" />
+                    </span>
+                  }
                 </div>
               } @empty {
                 <div class="linea"><span class="etiqueta vacio">Sin precio cargado</span></div>
@@ -159,6 +182,7 @@ interface Marca {
     .linea { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
     .etiqueta { font-size: var(--fs-label); color: var(--text-soft); }
     .etiqueta.vacio { color: var(--text-mute); font-style: italic; }
+    .sin-moneda { display: inline-flex; align-items: center; gap: var(--sp-2); font-variant-numeric: tabular-nums; }
 
     .codigos { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
     .codigo {
@@ -191,6 +215,10 @@ export class ProductoDetallePage {
   private readonly auth = inject(AuthService);
   private readonly roles = inject(RoleService);
   private readonly router = inject(Router);
+  private readonly datos = inject(DatosService);
+  private readonly monedasSesion = inject(MonedasSesion);
+  private readonly precioMoneda = inject(PrecioMonedaService);
+  private readonly monedaDePreciosGQL = inject(MonedaDePreciosDeProductoGQL);
 
   /** Del router. Opcional: se asigna después de construir (NG0950). */
   readonly id = input<string>();
@@ -217,9 +245,32 @@ export class ProductoDetallePage {
 
   readonly presentaciones = computed(() => this.producto()?.presentaciones ?? []);
 
-  /** Precios de cada presentación, filtrados y ordenados una sola vez por carga. */
+  /** La moneda de cada precio del producto (activos e inactivos), o `null` si no llegó. */
+  private readonly monedasDelProducto = signal<ReadonlyMap<string, Moneda | null> | null>(null);
+  /** La lectura por producto respondió con error de GraphQL: el central no la tiene. */
+  private readonly productoSinConsulta = signal(false);
+  private lecturaMonedas = 0;
+
+  /**
+   * Precios de cada presentación, filtrados y ordenados una sola vez por carga,
+   * con la moneda en que se muestran: `referencia` `null` = no se sabe (#148).
+   */
   readonly preciosPorPresentacion = computed(
-    () => new Map(this.presentaciones().map((p) => [p.id, this.preciosDe(p)])),
+    () =>
+      new Map(
+        this.presentaciones().map((p) => [
+          p.id,
+          this.preciosDe(p).map((precio) => {
+            const moneda = this.monedaDe(precio);
+            const v = precio.precio ?? 0;
+            return {
+              ...precio,
+              referencia: moneda === undefined ? null : referenciaDePrecio(moneda, this.monedasSesion.empresa()),
+              sinMoneda: formatearCantidad(v, esEntero(v) ? 0 : 2),
+            };
+          }),
+        ]),
+      ),
   );
 
   /**
@@ -275,8 +326,18 @@ export class ProductoDetallePage {
   constructor() {
     effect(() => {
       if (this.id() !== undefined) {
-        this.cargar();
+        // `untracked`: `cargar()` lee signals de la sesión (vía `listo()`) y no
+        // tienen que volver a disparar la carga entera.
+        untracked(() => this.cargar());
       }
+    });
+
+    // La moneda por producto, cuando el central maneja monedas (se sabe al
+    // terminar la lista de la sesión). Igual que Precios.
+    effect(() => {
+      const id = this.id();
+      const puede = this.monedasSesion.preciosMonedaSoportado() || this.monedasSesion.preciosMonedaSinRespuesta();
+      if (id !== undefined && puede) untracked(() => this.cargarMonedas(id));
     });
   }
 
@@ -290,6 +351,12 @@ export class ProductoDetallePage {
 
     this.cargando.set(true);
     this.error.set(null);
+    // Lo del producto anterior no vale para este.
+    this.lecturaMonedas++;
+    this.monedasDelProducto.set(null);
+    this.productoSinConsulta.set(false);
+    // Si la lista de la sesión no se pidió o no respondió, otra vez.
+    void this.precioMoneda.listo();
 
     this.busqueda.detalle(id).subscribe({
       next: (p) => {
@@ -335,6 +402,45 @@ export class ProductoDetallePage {
         this.stockFallo.set(true);
         this.cargandoStock.set(false);
       },
+    });
+  }
+
+  /** Sin caché ni toast: la ficha no se bloquea por la moneda. */
+  private cargarMonedas(idRuta: string): void {
+    const id = Number(idRuta);
+    if (!Number.isFinite(id) || id <= 0) return;
+    const lectura = ++this.lecturaMonedas;
+    this.datos
+      .consultar<ProductoConMonedaDePrecios>(this.monedaDePreciosGQL, { id }, {
+        mostrarCarga: false,
+        notificarError: false,
+        gql: { fetchPolicy: 'network-only' },
+      })
+      .subscribe({
+        next: (p) => {
+          if (lectura !== this.lecturaMonedas || idRuta !== this.id()) return;
+          this.monedasDelProducto.set(monedasDePreciosDeProducto(p));
+        },
+        error: (err: unknown) => {
+          if (lectura !== this.lecturaMonedas || idRuta !== this.id()) return;
+          // GraphQL: un central sin la moneda de los precios. Transporte: no se sabe.
+          if (!esFalloDeTransporte(err)) this.productoSinConsulta.set(true);
+        },
+      });
+  }
+
+  private monedaDe(precio: { id?: number | string; activo?: boolean }): Moneda | null | undefined {
+    // El precio suelto (`id: -1`) no tiene id de precio: la moneda de la empresa.
+    if (precio.id === -1) return null;
+    return monedaGuardadaDePrecio({
+      precioId: precio.id,
+      activo: precio.activo,
+      delProducto: this.monedasDelProducto(),
+      productoSinConsulta: this.productoSinConsulta(),
+      sesion: this.monedasSesion.preciosOtraMoneda(),
+      soportado: this.monedasSesion.preciosMonedaSoportado(),
+      sinRespuesta: this.monedasSesion.preciosMonedaSinRespuesta(),
+      listos: this.monedasSesion.preciosMonedaListos(),
     });
   }
 

@@ -31,8 +31,10 @@ Reusar lo que ya resuelve la pantalla de Precios (`editar/precios.page.ts`, #137
 7. La lectura por producto copia la guarda de Precios (`lecturaMonedas` + id actual, `precios.page.ts:679,684`) y
    reinicia el mapa al cambiar de id: el `effect` de la ficha recarga con el mismo componente.
 
-El precio «suelto» (presentaciones sin lista) usa el id real de `precioPrincipal` (`graphql-query.ts:150`), no `-1`:
-si ese principal está en USD, también tiene que salir en USD.
+El precio «suelto» (presentaciones sin lista) **sigue con `id: -1` y la moneda de la empresa**. Los dos auditores
+pidieron usar `precioPrincipal.id`, pero ese id **es el de la presentación** (#142, central #605, comentario de
+`precioEscogido` en `shared/producto/presentacion.util.ts`): buscar su moneda con él leería otra fila. Hallazgo
+verificado y descartado.
 
 **Fuera de alcance**: la card del buscador (`shared/producto/producto-card.component.ts:159`) y el pesable
 (`shared/producto/buscador-producto.component.ts:109,116`) también fijan ₲. Issue aparte.
@@ -65,6 +67,16 @@ producto con PROMOCION en USD, uno todo en ₲, uno con precio inactivo en USD, 
 - **Eje B** (revisar): mismo hallazgo de la lista sin llegar (→ punto 6), respuestas fuera de orden (→ punto 7), id del
   suelto. Sin riesgo: la lectura de moneda no bloquea `cargando()`; GraphQL vs transporte ya los separa
   `esFalloDeTransporte`; se revierte con un commit, sin datos ni consultas nuevas.
+
+## Auditoría del diff
+
+Fijo 1 y Fijo 2: N/A para mobile-pwa, sin backend, `.graphqls` ni migración. Condicionales: no los dispara el diff.
+Fijo 3 (contrato y versiones): contra un central viejo no sale la consulta nueva y todo queda en ₲ (confirmado);
+`preciosMonedaListos` no queda en false para siempre (`pedir()` lo pone siempre, con tope de 8 s). Hallazgo MEDIUM
+aplicado: el primer `effect` de la ficha llamaba a `cargar()` sin `untracked` y quedaba dependiendo de
+`preciosMonedaSinRespuesta` (vía `listo()`), lo que recargaba la ficha entera al volver la lista. LOW sin aplicar:
+`listo()` no repide con `carga != null` y `listos` false (estado al que hoy no se llega); la carrera logout/lectura
+en curso ya existía.
 
 ## Sin verificar
 

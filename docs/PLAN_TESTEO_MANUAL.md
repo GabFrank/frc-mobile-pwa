@@ -9084,6 +9084,20 @@ Estado: pendiente.
 
 ---
 
+## Bloque 108 — Mis finanzas: el chip «Abierto» en azul *(probado en Chromium)*
+
+### 108.1 · El color del chip
+1. Entrar con un funcionario que tenga convenios abiertos y alguno finalizado
+2. Abrir «Mis finanzas», pestaña de la lista y después **Historial**
+
+**Esperado:** el chip «Abierto» sale **azul** (el mismo azul que «En tránsito» o
+«Parcial»), no gris; «Finalizado» sigue verde. En modo oscuro el azul es claro y
+se lee sobre el fondo. Estado: ✅ probado 15/11 contra alpha con MR (6 abiertos,
+19 finalizados), en Abiertos e Historial, en oscuro (#64b5f6 sobre #1a2836) y en
+claro (#1565c0 sobre #e8eff8).
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -9195,7 +9209,8 @@ Estado: pendiente.
 | 104 · Precios y kiosco: la lista de monedas sin respuesta | 4 | | | |
 | 105 · Kiosco: un precio principal en otra moneda | 3 | | | |
 | 106 · Marcación facial: el motor en wasm y los umbrales del desktop | 6 | | | |
-| **Total** | **881** | | | |
+| 108 · Mis finanzas: el chip «Abierto» en azul | 1 | 1 | | |
+| **Total** | **892** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

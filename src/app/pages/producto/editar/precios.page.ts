@@ -30,6 +30,7 @@ import {
   monedaIdParaGuardar,
   monedasDePreciosDeProducto,
   referenciaDePrecio,
+  monedaGuardadaDePrecio,
   textoVersionMinima,
 } from 'src/app/domains/moneda/precio-moneda';
 import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
@@ -693,29 +694,18 @@ export class PreciosPage {
       });
   }
 
-  /**
-   * La moneda guardada de un precio: `null` = la de la empresa, `undefined` =
-   * **no se sabe**. La lectura por producto gana si respondió (la lista de la
-   * sesión puede estar vieja); si no la trae o no respondió, la sesión, que
-   * solo conoce los activos: un inactivo queda sin saber, nunca en guaraníes
-   * por descarte.
-   */
+  /** La moneda guardada de un precio: `null` = la de la empresa, `undefined` = **no se sabe**. */
   monedaGuardada(p: PrecioPorSucursal): Moneda | null | undefined {
-    const clave = String(p.id);
-    const delProducto = this.monedasDelProducto();
-    if (delProducto?.has(clave)) return delProducto.get(clave) ?? null;
-    if (this.soportaMonedaPrecio() && !this.sesionSinRespuesta()) {
-      const deLaSesion = this.monedasPrecio().get(clave);
-      if (deLaSesion) return deLaSesion;
-      return p.activo === false ? undefined : null;
-    }
-    // El central no tiene la moneda de los precios: todo en la de la empresa.
-    if (this.productoSinConsulta()) return null;
-    // La lista de la sesión no respondió (#139): lo que había puede no tener lo
-    // último guardado. No se sabe, activo o inactivo.
-    if (this.sesionSinRespuesta()) return undefined;
-    // Un central viejo: todo en la moneda de la empresa, como siempre.
-    return null;
+    return monedaGuardadaDePrecio({
+      precioId: p.id,
+      activo: p.activo,
+      delProducto: this.monedasDelProducto(),
+      productoSinConsulta: this.productoSinConsulta(),
+      sesion: this.monedasPrecio(),
+      soportado: this.soportaMonedaPrecio(),
+      sinRespuesta: this.sesionSinRespuesta(),
+      listos: this.monedasSesion.preciosMonedaListos(),
+    });
   }
 
   /**

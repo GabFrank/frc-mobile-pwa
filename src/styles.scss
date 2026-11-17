@@ -279,3 +279,14 @@ frc-pagina .acciones button {
 frc-pagina .acciones:has(> div:empty) {
   display: none;
 }
+
+// ─── Rótulo del campo recortado arriba en los diálogos ─────────────────
+// El rótulo flotante de un campo `outline` sobresale medio renglón por
+// encima del borde. Si el campo es lo primero del contenido de un diálogo
+// (buscadores de solicitante, de producto…), el contenedor con scroll lo
+// corta. Un poco de aire arriba alcanza, en todos los diálogos a la vez.
+.mat-mdc-dialog-content > .mat-mdc-form-field-appearance-outline:first-child,
+.mat-mdc-dialog-surface > * > .barra:first-child > .mat-mdc-form-field-appearance-outline,
+.mat-mdc-dialog-surface .mat-mdc-form-field-appearance-outline:first-child {
+  margin-top: 8px;
+}

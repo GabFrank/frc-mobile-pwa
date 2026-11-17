@@ -226,6 +226,8 @@ describe('Precios generales del central (#135)', () => {
         { provide: SucursalService, useValue: { actual } },
       ],
     });
+    // Un central sin precios en moneda: la lista de la sesión ya se resolvió (#148).
+    TestBed.inject(MonedasSesion).preciosMonedaListos.set(true);
     const f = TestBed.createComponent(PreciosPage);
     f.componentRef.setInput('id', '1');
     f.componentRef.setInput('presentacionId', '2');
@@ -340,6 +342,7 @@ describe('Moneda de los precios inactivos (#137)', () => {
     precios: unknown[];
     lectura?: () => Observable<unknown>;
     soportado?: boolean;
+    listos?: boolean;
     sesion?: Map<string, Moneda>;
   }) => {
     datos = {
@@ -379,6 +382,8 @@ describe('Moneda de los precios inactivos (#137)', () => {
     sesion.catalogo.set([gs, usd]);
     sesion.preciosMonedaSoportado.set(opts.soportado ?? true);
     sesion.preciosOtraMoneda.set(opts.sesion ?? new Map());
+    // `pedir()` la marca lista siempre al resolver, también contra un central viejo.
+    sesion.preciosMonedaListos.set(opts.listos ?? true);
     const f = TestBed.createComponent(PreciosPage);
     f.componentRef.setInput('id', '5');
     f.componentRef.setInput('presentacionId', '2');
@@ -490,6 +495,13 @@ describe('Moneda de los precios inactivos (#137)', () => {
     respuestas[1].next(producto({ 10: usd }));
     respuestas[0].next(producto({ 10: null }));
     expect(c.monedaGuardada(c.preciosEditables()[0])?.id).toBe(3);
+  });
+
+  it('mientras la lista de la sesión no llegó, la moneda no se sabe y el importe no se edita (#148)', () => {
+    const c = montar({ precios: [precio(10, false)], soportado: false, listos: false }).componentInstance;
+
+    expect(datos.consultar).not.toHaveBeenCalled();
+    expect(c.monedaDesconocida(c.preciosEditables()[0])).toBe(true);
   });
 
   it('con un central sin precios en moneda no se pide la lectura y nada cambia', () => {

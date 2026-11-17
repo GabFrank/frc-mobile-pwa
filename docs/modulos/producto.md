@@ -247,6 +247,15 @@ buscador**, como «ver stock», y no una que declare el llamador.
 > se pudo consultar». Lo que **no** puede hacer es listar las sucursales en
 > cero: eso afirmaría que no hay mercadería.
 
+> ⚠️ **Cada precio sale en su moneda** (#148). La consulta de la ficha no trae
+> la moneda: se lee aparte con `MonedaDePreciosDeProducto` (activos e
+> inactivos) y, mientras no llega, de la lista de la sesión. Decide
+> `monedaGuardadaDePrecio()` (`domains/moneda/precio-moneda.ts`), la misma regla
+> que Precios. Si la moneda no se sabe —la lista de la sesión todavía no llegó
+> o no respondió, o un inactivo sin la lectura por producto— el importe sale
+> **sin símbolo** con «Moneda sin confirmar»: nunca ₲ por descarte. Contra un
+> central sin `PrecioPorSucursal.moneda` todo sale en ₲, como siempre.
+
 ## Kiosco — `/kiosco`
 
 Tablet o teléfono fijo en la góndola con un lector HID conectado. El cliente

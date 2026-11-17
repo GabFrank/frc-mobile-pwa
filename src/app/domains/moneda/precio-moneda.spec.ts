@@ -6,6 +6,7 @@ import {
   agruparPorOrigen,
   debeMostrarSelectorMoneda,
   esErrorVersionMinima,
+  monedaGuardadaDePrecio,
   monedaIdParaGuardar,
   monedasPorPrecio,
   referenciaDePrecio,
@@ -77,6 +78,37 @@ describe('referenciaDePrecio', () => {
 
   it('una empresa en dólares sin moneda propia se muestra en dólares', () => {
     expect(referenciaDePrecio(null, dolar).simbolo).toBe('US$');
+  });
+});
+
+describe('monedaGuardadaDePrecio', () => {
+  const sesionOk = { sesion: new Map<string, Moneda>(), soportado: true, sinRespuesta: false, listos: true };
+  const datos = (extra: Partial<Parameters<typeof monedaGuardadaDePrecio>[0]>) =>
+    monedaGuardadaDePrecio({ precioId: 5, delProducto: null, productoSinConsulta: false, ...sesionOk, ...extra });
+
+  it('la lectura por producto gana, también para un inactivo', () => {
+    const delProducto = new Map([['5', dolar]]);
+    expect(datos({ delProducto, activo: false })).toBe(dolar);
+    expect(datos({ delProducto: new Map([['5', null]]), sesion: new Map([['5', dolar]]) })).toBeNull();
+  });
+
+  it('sin lectura por producto, la sesión: activo sin entrada es la empresa, inactivo no se sabe', () => {
+    expect(datos({ sesion: new Map([['5', dolar]]) })).toBe(dolar);
+    expect(datos({})).toBeNull();
+    expect(datos({ activo: false })).toBeUndefined();
+  });
+
+  it('central viejo: la moneda de la empresa', () => {
+    expect(datos({ soportado: false })).toBeNull();
+    expect(datos({ soportado: false, productoSinConsulta: true, listos: false })).toBeNull();
+  });
+
+  it('la sesión sin respuesta: no se sabe', () => {
+    expect(datos({ soportado: false, sinRespuesta: true })).toBeUndefined();
+  });
+
+  it('la lista de la sesión todavía no llegó: no se sabe, no es un central viejo (#148)', () => {
+    expect(datos({ soportado: false, listos: false })).toBeUndefined();
   });
 });
 

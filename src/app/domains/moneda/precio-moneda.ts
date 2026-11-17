@@ -116,6 +116,48 @@ export function referenciaDePrecio(
 }
 
 /**
+ * La moneda guardada de un precio: `null` = la de la empresa, `undefined` =
+ * **no se sabe**. La usan Precios y la ficha del producto (#148).
+ *
+ * La lectura por producto gana si respondió (la lista de la sesión puede estar
+ * vieja); si no la trae o no respondió, la sesión, que solo conoce los activos:
+ * un inactivo queda sin saber, nunca en guaraníes por descarte. Mientras la
+ * lista de la sesión no llegó tampoco se sabe: no es lo mismo que un central
+ * viejo.
+ */
+export function monedaGuardadaDePrecio(datos: {
+  precioId: number | string | null | undefined;
+  activo?: boolean | null;
+  /** `monedasDePreciosDeProducto`, o `null` si no llegó. */
+  delProducto: ReadonlyMap<string, Moneda | null> | null;
+  /** La lectura por producto respondió con error de GraphQL: el central no la tiene. */
+  productoSinConsulta: boolean;
+  /** `MonedasSesion.preciosOtraMoneda`. */
+  sesion: ReadonlyMap<string, Moneda>;
+  soportado: boolean;
+  sinRespuesta: boolean;
+  /** `MonedasSesion.preciosMonedaListos`. */
+  listos: boolean;
+}): Moneda | null | undefined {
+  const clave = String(datos.precioId);
+  if (datos.delProducto?.has(clave)) return datos.delProducto.get(clave) ?? null;
+  if (datos.soportado && !datos.sinRespuesta) {
+    const deLaSesion = datos.sesion.get(clave);
+    if (deLaSesion) return deLaSesion;
+    return datos.activo === false ? undefined : null;
+  }
+  // El central no tiene la moneda de los precios: todo en la de la empresa.
+  if (datos.productoSinConsulta) return null;
+  // La lista de la sesión no respondió (#139): lo que había puede no tener lo
+  // último guardado. No se sabe, activo o inactivo.
+  if (datos.sinRespuesta) return undefined;
+  // Todavía no llegó (recarga, link directo): no se sabe (#148).
+  if (!datos.listos) return undefined;
+  // Un central viejo: todo en la moneda de la empresa, como siempre.
+  return null;
+}
+
+/**
  * La moneda de cada precio de un producto, activos e inactivos (#137): por id
  * de precio (texto). Valor `null` = la moneda de la empresa (el precio no
  * tiene moneda propia). Un id que **no está** en el mapa no se sabe: no es lo

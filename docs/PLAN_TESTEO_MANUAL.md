@@ -9139,6 +9139,49 @@ recargando en un teléfono con red lenta.
 confirmar»; nunca «₲ 6». Con la red de vuelta, al reabrir la ficha sale «US$ 5,85». Estado: ✅ 15/11 cortando por
 parche de XHR solo la lectura por producto: el activo sale «US$» por la sesión y el inactivo «Moneda sin confirmar».
 
+## Bloque 110 — Buscador: el precio de cada presentación en su moneda (#152)
+
+Necesita un central con la moneda de los precios (`PrecioPorSucursal.moneda`, V260.5: hoy solo alpha / `develop`).
+Contra beta y prod todo sigue en ₲ una vez que la app sabe que el central no la tiene (menos de un segundo al
+entrar).
+
+### 110.1 · Un precio en dólares en la card *(el que importa)*
+1. Buscar › 7840058000675 (COCA COLA 1.5 L, con PROMOCION en USD) › tocar la card para abrir las presentaciones
+
+**Esperado:** la presentación dice **US$ 5,85**, no «₲ 6». Estado: ✅ 17/11 contra alpha local con MR: «US$ 5,85».
+
+### 110.2 · Un producto todo en guaraníes
+1. Buscar un producto sin precios en otra moneda (ACTOCEF 500) y abrir la card
+
+**Esperado:** el precio en ₲, sin decimales y sin el chip «Moneda sin confirmar», igual que antes. Estado: ✅ 17/11:
+«₲ 107.800».
+
+### 110.3 · Un pesable con el precio en dólares
+1. Escanear (o escribir) el código de balanza de un producto cuyo precio por kilo está en USD
+
+**Esperado:** «× **US$** … por kg» y el total en US$ **con centavos** (0,5 kg × 5,85 = US$ 2,93), nunca en ₲.
+Estado: ✅ 17/11, forzado: alpha no tiene pesables con precio; `codigoPorCodigo` respondido por parche de XHR con el
+precio real 15205 (USD) → «× US$ 5,85 por kg», «Total US$ 2,93». Falta con un pesable real en USD.
+
+### 110.4 · Un pesable en guaraníes
+1. Escanear el código de balanza de un producto en ₲ (bodega)
+
+**Esperado:** igual que antes: precio por kilo y total en ₲, sin decimales. Estado: ✅ 17/11, forzado igual que el
+110.3: «₲ 32.000 por kg», «Total ₲ 48.000»; 12.345 × 0,5 kg redondea a «₲ 6.173», como antes.
+
+### 110.5 · Sin saber la moneda
+1. Entrar con la red lenta o cortada al cargar la app y buscar el producto del 110.1
+
+**Esperado:** el precio sale **sin símbolo** con el chip «Moneda sin confirmar»; nunca «₲ 6». Con la red de vuelta,
+al buscar de nuevo sale «US$ 5,85». Estado: ✅ 17/11 cortando por parche de XHR solo la lista de la sesión: la card
+«5,85 Moneda sin confirmar» y el pesable «5,85 … 2,93 Moneda sin confirmar»; con la red de vuelta, la búsqueda
+siguiente vuelve a pedir la lista y sale «US$ 5,85».
+
+### 110.6 · El kiosco sigue igual
+1. Kiosco › escanear 7840058000675
+
+**Esperado:** el precio en US$, como antes del cambio. Estado: ✅ 17/11: «US$ 5,85».
+
 ---
 
 ## Resumen para completar
@@ -9254,7 +9297,8 @@ parche de XHR solo la lectura por producto: el activo sale «US$» por la sesió
 | 106 · Marcación facial: el motor en wasm y los umbrales del desktop | 6 | | | |
 | 108 · Mis finanzas: el chip «Abierto» en azul | 1 | 1 | | |
 | 109 · Ficha del producto: cada precio en su moneda | 5 | 4 | 1 | |
-| **Total** | **897** | | | |
+| 110 · Buscador: el precio de cada presentación en su moneda | 6 | 6 | | |
+| **Total** | **903** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

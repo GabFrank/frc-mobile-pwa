@@ -13,6 +13,7 @@ import {
 } from '../domains/empresarial/sucursal/sucursal.util';
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
+import { PrecioMonedaService } from '../domains/moneda/precio-moneda.service';
 import { ProductoBusquedaService } from '../domains/productos/producto-busqueda.service';
 import { Producto } from '../domains/productos/producto.model';
 import { BuscadorProductoComponent } from '../shared/producto/buscador-producto.component';
@@ -82,6 +83,7 @@ describe('Buscador de producto', () => {
         { provide: EscanerService, useValue: escaner },
         { provide: NotificacionService, useValue: notificacion },
         { provide: DialogoService, useValue: dialogo },
+        { provide: PrecioMonedaService, useValue: { listo: vi.fn(async () => undefined) } },
       ],
     });
   });

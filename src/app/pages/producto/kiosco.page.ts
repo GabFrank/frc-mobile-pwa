@@ -29,7 +29,7 @@ import { esGuarani, formatearCantidad, formatearImporte } from 'src/app/generic/
 import { ConversionPrecioService } from 'src/app/domains/moneda/conversion-precio.service';
 import type { PreciosEnMoneda } from 'src/app/graphql/operaciones/moneda/convertirPrecios';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
-import { etiquetaPresentacion, precioDe, precioEscogido, resolverPresentacionPorCodigo } from 'src/app/shared/producto/presentacion.util';
+import { etiquetaPresentacion, precioConIdEscogido, precioDe, resolverPresentacionPorCodigo } from 'src/app/shared/producto/presentacion.util';
 import { KioscoConfigDialogComponent } from './kiosco-config-dialog.component';
 import { KioscoMonedasComponent } from './kiosco-monedas.component';
 import { KioscoTiraComponent } from './kiosco-tira.component';
@@ -798,7 +798,7 @@ export class KioscoPage implements AfterViewInit {
 
   /** La moneda propia del precio de la presentación; `null` = la de la empresa. */
   private monedaPropiaDe(p: Presentacion | null): Moneda | null {
-    const precioId = precioEscogido(p)?.id;
+    const precioId = precioConIdEscogido(p)?.id;
     return this.precioMoneda.monedaDe(precioId);
   }
 

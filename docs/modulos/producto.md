@@ -256,6 +256,13 @@ buscador**, como «ver stock», y no una que declare el llamador.
 > **sin símbolo** con «Moneda sin confirmar»: nunca ₲ por descarte. Contra un
 > central sin `PrecioPorSucursal.moneda` todo sale en ₲, como siempre.
 
+> ⚠️ **La card del buscador y el pesable, igual** (#152), pero solo con la
+> lista de la sesión: `monedaDePrecioEscogido()` (`presentacion.util.ts`), sin
+> consulta por producto. El id del precio sale de `precioConIdEscogido()`:
+> `precioPrincipal` trae **el id de la presentación** (#142) y nunca se busca
+> la moneda con él; por eso `codigoPorCodigoQuery` (el pesable) pide también
+> `precios`. El total del pesable no se redondea a entero: en USD lleva centavos.
+
 ## Kiosco — `/kiosco`
 
 Tablet o teléfono fijo en la góndola con un lector HID conectado. El cliente

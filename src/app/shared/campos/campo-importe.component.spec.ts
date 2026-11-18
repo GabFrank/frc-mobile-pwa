@@ -2,6 +2,8 @@ import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
+import { Moneda } from 'src/app/domains/moneda/moneda.model';
 import { CampoImporteComponent } from './campo-importe.component';
 
 @Component({
@@ -81,5 +83,32 @@ describe('CampoImporteComponent', () => {
     escribir('100');
     escribir('');
     expect(fixture.componentInstance.control.value).toBeNull();
+  });
+
+  describe('sin moneda', () => {
+    const salir = () => {
+      input().dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => {
+      fixture.componentInstance.moneda.set(null);
+      fixture.detectChanges();
+    });
+
+    it('no cae a la moneda de la empresa: el monto puede cargarse antes de elegir la moneda', () => {
+      TestBed.inject(MonedasSesion).empresa.set(
+        Object.assign(new Moneda(), { denominacion: 'GUARANI', simbolo: 'Gs.', decimales: 0 }),
+      );
+      escribir('1234,56');
+      salir();
+      expect(fixture.componentInstance.control.value).toBe(1234.56);
+    });
+
+    it('sin moneda de empresa conocida, dos decimales como antes', () => {
+      escribir('1234,56');
+      salir();
+      expect(fixture.componentInstance.control.value).toBe(1234.56);
+    });
   });
 });

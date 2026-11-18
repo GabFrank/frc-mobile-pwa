@@ -27,10 +27,14 @@ export class SucursalService {
     return this.datos.porId<Sucursal>(this.porIdGQL, id);
   }
 
-  /** Sucursal de la instancia contra la que está apuntando la app. */
+  /**
+   * Sucursal de la instancia contra la que está apuntando la app. Sin aviso
+   * propio: quien la pide decide qué mostrar si falla.
+   */
   actual(): Observable<Sucursal> {
     return this.datos.consultar<Sucursal>(this.actualGQL, undefined, {
       mostrarCarga: false,
+      notificarError: false,
     });
   }
 

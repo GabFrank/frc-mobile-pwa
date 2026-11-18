@@ -1,4 +1,5 @@
 import {
+  MARGEN_MINIMO_IDENTIFICACION,
   UMBRAL_SIMILITUD_FACIAL,
   UMBRAL_SIMILITUD_VERIFICACION,
   mejorSimilitudConGaleria,
@@ -35,32 +36,28 @@ export interface Identificacion {
   /**
    * Cuánto le sacó al segundo candidato, si el central lo informa.
    *
-   * ⚠️ **Se registra, no se usa para decidir.** Poner un umbral de margen hoy
-   * sería inventar el número que la medición existe para averiguar: hace
-   * falta ver qué margen dan estas caras, estas cámaras y esta luz. Cuando
-   * haya datos, es una línea.
+   * Decide desde el issue #144, con el número medido sobre las marcaciones
+   * reales: ver {@link MARGEN_MINIMO_IDENTIFICACION}. Contra un central sin el
+   * campo (`null`) no se exige: no se puede pedir lo que no se informa.
    */
   margen: number | null;
-  /** Si las dos superan su umbral. Solo con esto en `true` se marca. */
+  /** Si las dos similitudes superan su umbral y el margen alcanza. Solo con esto en `true` se marca. */
   confiable: boolean;
 }
 
 /**
  * Comprueba a quién dijo el central que reconoció.
  *
- * ⚠️ **Son dos controles independientes y los dos tienen que pasar.** El
- * central resuelve el 1:N contra su caché en memoria y devuelve **el mejor
- * match y nada más**: `findBestMatch()` calcula el máximo y descarta el resto,
- * y `UsuarioSimilitudResult` solo lleva `usuario` y `similitud`. Un `0.71`
- * contra un segundo candidato de `0.69` llega **indistinguible** de un `0.71`
- * contra un `0.45`, y el primero es una moneda al aire. Desde `V216.5` el
- * central informa `margen`, que se **registra** con la marcación; el umbral
- * sobre ese margen no se fija todavía, porque el número tiene que salir de los
- * datos de esta población y no de una suposición. Mientras tanto, el control
- * que decide es recalcular acá contra la galería que vino.
+ * ⚠️ **Son tres controles independientes y los tres tienen que pasar.**
+ * 1. Lo que dijo el central para el mejor candidato (`0.70`).
+ * 2. Lo recalculado acá contra la galería que vino (`0.75`, el de verificación).
+ * 3. El **margen** contra el segundo candidato (`0.05`), si el central lo
+ *    informa. Un `0.80` contra un segundo de `0.79` es una moneda al aire: sin
+ *    esto, alcanzaba con parecerse a un compañero casi tanto como a uno mismo.
+ *    El número salió de las marcaciones reales (issue #144).
  *
- * ⚠️ **El umbral local es el de verificación (`0.75`), no el de búsqueda
- * (`0.55`).** `frc-mobile` acepta con `0.55` en las dos puntas
+ * ⚠️ **El umbral local es el de verificación (`0.75`), no el de búsqueda.**
+ * `frc-mobile` acepta con `0.55` en las dos puntas
  * (`buscarYValidarUsuario`), pero lo usa para **elegir** a quién marcar en una
  * pantalla donde después hay una verificación 1:1. Acá el 1:N es la única
  * puerta y el dispositivo es compartido: un rechazo de más cuesta un
@@ -93,6 +90,9 @@ export function validarIdentificacion(
     similitudCentral,
     similitudLocal,
     margen: respuesta?.margen ?? null,
-    confiable: similitudCentral >= UMBRAL_SIMILITUD_FACIAL && similitudLocal >= umbralLocal,
+    confiable:
+      similitudCentral >= UMBRAL_SIMILITUD_FACIAL &&
+      similitudLocal >= umbralLocal &&
+      (respuesta?.margen == null || respuesta.margen >= MARGEN_MINIMO_IDENTIFICACION),
   };
 }

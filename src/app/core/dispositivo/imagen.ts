@@ -38,6 +38,24 @@ export async function fotoADataUri(
   const ancho = Math.round(bitmap.width * escala);
   const alto = Math.round(bitmap.height * escala);
 
+  return dibujar(bitmap, ancho, alto).toDataURL('image/jpeg', calidad);
+}
+
+/**
+ * La foto en un `<canvas>`, reducida a `ladoMaximo` y con la orientación EXIF
+ * resuelta. Para leer algo de la imagen (un QR, texto) en vez de mandarla.
+ */
+export async function fotoALienzo(archivo: File, ladoMaximo: number): Promise<HTMLCanvasElement> {
+  const bitmap = await decodificar(archivo);
+  const escala = Math.min(1, ladoMaximo / Math.max(bitmap.width, bitmap.height));
+  return dibujar(bitmap, Math.round(bitmap.width * escala), Math.round(bitmap.height * escala));
+}
+
+function dibujar(
+  bitmap: ImageBitmap | HTMLImageElement,
+  ancho: number,
+  alto: number,
+): HTMLCanvasElement {
   const lienzo = document.createElement('canvas');
   lienzo.width = ancho;
   lienzo.height = alto;
@@ -47,8 +65,7 @@ export async function fotoADataUri(
     throw new Error('Este navegador no puede procesar la imagen.');
   }
   ctx.drawImage(bitmap as CanvasImageSource, 0, 0, ancho, alto);
-
-  return lienzo.toDataURL('image/jpeg', calidad);
+  return lienzo;
 }
 
 async function decodificar(archivo: File): Promise<ImageBitmap | HTMLImageElement> {

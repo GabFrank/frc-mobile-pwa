@@ -7,6 +7,8 @@ import { MatInputModule } from '@angular/material/input';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { MonedaModuloService } from 'src/app/core/moneda/moneda-modulo.service';
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
@@ -27,10 +29,8 @@ import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { OpcionSeleccion, SelectorComponent } from 'src/app/shared/selector/selector.component';
+import { esMonedaEmpresa, monedaInicial, nombreMonedaEmpresa } from './recepcion-moneda';
 import { RecepcionService } from './recepcion.service';
-
-/** Denominaciones que identifican la moneda local. */
-const LOCALES = ['GUARANI', 'GS'];
 
 /**
  * Arranque de una recepción: sucursal, proveedor y las notas que trae.
@@ -149,7 +149,7 @@ const LOCALES = ['GUARANI', 'GS'];
               />
             </mat-form-field>
             <p class="ayuda">
-              Cuánto vale una unidad de esa moneda en guaraníes. Sin esto los
+              Cuánto vale una unidad de esa moneda en {{ monedaEmpresaTexto() }}. Sin esto los
               importes de la recepción quedan mal.
             </p>
           }
@@ -195,6 +195,8 @@ export class RecepcionNuevaPage {
   private readonly notificacion = inject(NotificacionService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly monedaModulo = inject(MonedaModuloService);
+  private readonly sesionMonedas = inject(MonedasSesion);
 
   readonly sucursal = signal<Sucursal | null>(null);
   readonly proveedor = signal<Proveedor | null>(null);
@@ -221,10 +223,13 @@ export class RecepcionNuevaPage {
     })),
   );
 
-  /** La moneda elegida no es la local: hay que informar la cotización. */
+  /** En qué se expresa la cotización: la moneda de la empresa. */
+  readonly monedaEmpresaTexto = computed(() => nombreMonedaEmpresa(this.sesionMonedas.empresa()));
+
+  /** La moneda elegida no es la de la empresa: hay que informar la cotización. */
   readonly necesitaCotizacion = computed(() => {
     const moneda = this.monedas().find((m) => String(m.id) === String(this.monedaId()));
-    return moneda != null && !esMonedaLocal(moneda);
+    return moneda != null && !esMonedaEmpresa(moneda, this.sesionMonedas.empresa());
   });
 
   readonly puedeIniciar = computed(
@@ -252,10 +257,21 @@ export class RecepcionNuevaPage {
     this.servicio.monedas().subscribe({
       next: (lista) => {
         this.monedas.set(lista);
-        const local = lista.find(esMonedaLocal) ?? lista[0];
-        this.monedaId.set(local?.id ?? null);
+        void this.elegirMonedaInicial(lista);
       },
     });
+  }
+
+  /**
+   * Arranca en la moneda de COMPRAS (la de la empresa si no hay configuración).
+   * Si mientras tanto se eligió una —a mano o por una nota—, no se pisa.
+   */
+  private async elegirMonedaInicial(lista: Moneda[]): Promise<void> {
+    const deCompras = await this.monedaModulo.monedaDe('COMPRAS');
+    if (this.monedaId() != null) {
+      return;
+    }
+    this.monedaId.set(monedaInicial(lista, deCompras, this.sesionMonedas.empresa())?.id ?? null);
   }
 
   nombre(p: Proveedor): string {
@@ -546,9 +562,4 @@ export class RecepcionNuevaPage {
         error: () => this.iniciando.set(false),
       });
   }
-}
-
-function esMonedaLocal(moneda: Moneda): boolean {
-  const denominacion = (moneda?.denominacion ?? '').toUpperCase();
-  return LOCALES.some((l) => denominacion.includes(l));
 }

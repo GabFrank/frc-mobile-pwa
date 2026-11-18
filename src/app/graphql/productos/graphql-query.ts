@@ -192,6 +192,12 @@ export const codigoPorCodigoQuery = gql`
           id
           precio
         }
+        precios {
+          id
+          precio
+          principal
+          activo
+        }
         producto {
           id
           descripcion

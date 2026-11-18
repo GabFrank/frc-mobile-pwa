@@ -1,7 +1,6 @@
-// Portado verbatim de `frc-mobile`. Lo único que cambia es de dónde sale el
-// tipo: acá el servicio vive en `core/dispositivo/`. **El resto no se toca**:
-// este archivo define el formato de galería y los umbrales que el central ya
-// tiene guardados, así que cualquier ajuste invalida los rostros enrolados.
+// Portado de `frc-mobile`. **El formato de galería no se toca**: es el que el
+// central ya tiene guardado, y cambiarlo invalida los rostros enrolados. Los
+// umbrales sí se ajustaron (issue #144), con datos y en coseno, igual que el desktop.
 import type { CapturaFacial } from 'src/app/core/dispositivo/reconocimiento-facial.service';
 
 export interface EmbeddingGaleriaItem {
@@ -17,10 +16,28 @@ export interface EmbeddingGaleria {
 
 const POSES_CAPTURA = ['left', 'right', 'front'];
 
-/** Umbral 1:N búsqueda por caché del servidor. */
-export const UMBRAL_SIMILITUD_FACIAL = 0.55;
-/** Umbral 1:1 verificación con usuario ya seleccionado (igual que desktop). */
+/*
+ * Umbrales en coseno, los mismos del desktop. Calibrados el 2026-11-12 con las
+ * galerías sanas de producción (58 personas, 650 capturas de marcación):
+ *   - dos personas distintas: mediana 0,53, el 99,9 % por debajo de 0,75;
+ *   - la misma persona, promedio de frames: mediana 0,89;
+ *   - la misma persona, un frame suelto: mediana 0,84 (un frame es más ruidoso).
+ */
+/** 1:N: lo mínimo que tiene que dar el central para el mejor candidato. El 0,55 anterior no separaba personas. */
+export const UMBRAL_SIMILITUD_FACIAL = 0.70;
+/** Cada frame de la tanda, para contar como válido. */
+export const UMBRAL_SIMILITUD_FRAME_VERIFICACION = 0.70;
+/**
+ * 1:1 final, sobre el embedding promedio de la tanda. Con 0,75 un impostor pasa
+ * el 0,13 % de las veces y la persona correcta queda afuera el 1,4 %.
+ */
 export const UMBRAL_SIMILITUD_VERIFICACION = 0.75;
+/**
+ * 1:N del kiosco: cuánto le tiene que sacar el mejor candidato al segundo.
+ * Con 0,05 la persona correcta queda afuera un 0,3 % más de las veces, y deja
+ * de alcanzar con parecerse a un compañero casi tanto como a uno mismo.
+ */
+export const MARGEN_MINIMO_IDENTIFICACION = 0.05;
 export const SCORE_MINIMO_DETECCION = 0.45;
 export const SCORE_MINIMO_FRAME = 0.55;
 export const SCORE_MINIMO_FRAME_VERIFICACION = 0.6;
@@ -251,13 +268,14 @@ export function cumpleUmbralVerificacion(
 export function confirmarVerificacionFinal(
   frames: FrameCalidadFacial[],
   galeria: EmbeddingGaleria,
-  umbral = UMBRAL_SIMILITUD_VERIFICACION,
+  umbralFrame = UMBRAL_SIMILITUD_FRAME_VERIFICACION,
+  umbralFinal = UMBRAL_SIMILITUD_VERIFICACION,
 ): { embedding: number[]; score: number; similitud: number } | null {
   const validos = frames.filter(
     (f) =>
       f.embedding?.length > 0 &&
       f.score >= SCORE_MINIMO_FRAME_VERIFICACION &&
-      (f.similitud == null || f.similitud >= umbral),
+      (f.similitud == null || f.similitud >= umbralFrame),
   );
   if (validos.length < FRAMES_MINIMOS_VERIFICACION) {
     return null;
@@ -269,13 +287,13 @@ export function confirmarVerificacionFinal(
   }
 
   const similitudFinal = mejorSimilitudConGaleria(embedding, galeria);
-  if (similitudFinal < umbral) {
+  if (similitudFinal < umbralFinal) {
     return null;
   }
 
   const similitudPromedio =
     validos.reduce((suma, f) => suma + (f.similitud ?? 0), 0) / validos.length;
-  if (similitudPromedio < umbral) {
+  if (similitudPromedio < umbralFrame) {
     return null;
   }
 

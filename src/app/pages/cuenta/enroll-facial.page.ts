@@ -14,6 +14,7 @@ import { Router } from '@angular/router';
 import { AuthService } from 'src/app/core/auth/auth.service';
 import {
   CapturaFacial,
+  DeteccionFallidaError,
   ReconocimientoFacialService,
 } from 'src/app/core/dispositivo/reconocimiento-facial.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
@@ -308,6 +309,13 @@ export class EnrollFacialPage {
         this.fotoFrontal = this.tomarFoto(el);
         await this.guardar(nuevas);
       }
+    } catch (err) {
+      if (!(err instanceof DeteccionFallidaError)) {
+        throw err;
+      }
+      // La detección no respondió a tiempo: sin esto el botón quedaba
+      // deshabilitado para siempre.
+      this.aviso.set('No se pudo analizar la imagen. Probá de nuevo.');
     } finally {
       this.ocupado.set(false);
     }

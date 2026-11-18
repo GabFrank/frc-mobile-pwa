@@ -16,6 +16,8 @@ import type {
   PresentacionCompra,
   RepartoRenglon,
   ResumenFinalizarNotas,
+  ProveedorDeFactura,
+  RegistrarProveedorFacturaInput,
 } from 'src/app/domains/compras/compras.model';
 import type { PageInfo } from 'src/app/domains/page-info.model';
 import { ConfirmarFacturaGQL } from 'src/app/graphql/operaciones/compras/confirmarFactura';
@@ -38,6 +40,8 @@ import { ResumenFinalizarNotasGQL } from 'src/app/graphql/operaciones/compras/re
 import { ConfirmarCabeceraFacturaFotoGQL } from 'src/app/graphql/operaciones/compras/confirmarCabeceraFacturaFoto';
 import { FotoFacturaGQL } from 'src/app/graphql/operaciones/compras/fotoFactura';
 import { LeerFacturaFotoGQL } from 'src/app/graphql/operaciones/compras/leerFacturaFoto';
+import { ProveedorDeFacturaGQL } from 'src/app/graphql/operaciones/compras/proveedorDeFactura';
+import { RegistrarProveedorDeFacturaGQL } from 'src/app/graphql/operaciones/compras/registrarProveedorDeFactura';
 import { VincularRenglonFacturaGQL } from 'src/app/graphql/operaciones/compras/vincularRenglonFactura';
 
 /**
@@ -72,6 +76,8 @@ export class ComprasService {
   private readonly leerFotoGQL = inject(LeerFacturaFotoGQL);
   private readonly confirmarFotoGQL = inject(ConfirmarCabeceraFacturaFotoGQL);
   private readonly fotoGQL = inject(FotoFacturaGQL);
+  private readonly proveedorDeFacturaGQL = inject(ProveedorDeFacturaGQL);
+  private readonly registrarProveedorGQL = inject(RegistrarProveedorDeFacturaGQL);
 
   // ────────────────────────────────────────────────────────────── Lecturas ──
 
@@ -211,6 +217,24 @@ export class ComprasService {
   /** La factura del proveedor en PDF: el central la trae de SIFEN y la arma. Solo consulta. */
   kudeFacturaProveedor(qr: string): Observable<KudeProveedor> {
     return this.datos.mutar<KudeProveedor>(this.kudeGQL, { qr });
+  }
+
+  /**
+   * El emisor de la factura, para darlo de alta como proveedor. Con `qr` el
+   * central trae la factura de SIFEN (o de la caché); con `documentoId` usa la
+   * ya guardada (la factura en papel). El diálogo muestra el error: no avisa sola.
+   */
+  proveedorDeFactura(origen: { qr?: string; documentoId?: number | string }): Observable<ProveedorDeFactura> {
+    return this.datos.mutar<ProveedorDeFactura>(
+      this.proveedorDeFacturaGQL,
+      { qr: origen.qr ?? null, documentoId: origen.documentoId ?? null },
+      { notificarError: false },
+    );
+  }
+
+  /** Alta del proveedor con los datos de la factura. Idempotente por RUC en el central. */
+  registrarProveedorDeFactura(input: RegistrarProveedorFacturaInput): Observable<ProveedorDeFactura> {
+    return this.datos.mutar<ProveedorDeFactura>(this.registrarProveedorGQL, { input }, { notificarError: false });
   }
 
   /** Los precios del pedido en otra moneda que la factura. La conversión la hace el central. */

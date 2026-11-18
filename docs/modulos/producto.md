@@ -247,6 +247,22 @@ buscador**, como «ver stock», y no una que declare el llamador.
 > se pudo consultar». Lo que **no** puede hacer es listar las sucursales en
 > cero: eso afirmaría que no hay mercadería.
 
+> ⚠️ **Cada precio sale en su moneda** (#148). La consulta de la ficha no trae
+> la moneda: se lee aparte con `MonedaDePreciosDeProducto` (activos e
+> inactivos) y, mientras no llega, de la lista de la sesión. Decide
+> `monedaGuardadaDePrecio()` (`domains/moneda/precio-moneda.ts`), la misma regla
+> que Precios. Si la moneda no se sabe —la lista de la sesión todavía no llegó
+> o no respondió, o un inactivo sin la lectura por producto— el importe sale
+> **sin símbolo** con «Moneda sin confirmar»: nunca ₲ por descarte. Contra un
+> central sin `PrecioPorSucursal.moneda` todo sale en ₲, como siempre.
+
+> ⚠️ **La card del buscador y el pesable, igual** (#152), pero solo con la
+> lista de la sesión: `monedaDePrecioEscogido()` (`presentacion.util.ts`), sin
+> consulta por producto. El id del precio sale de `precioConIdEscogido()`:
+> `precioPrincipal` trae **el id de la presentación** (#142) y nunca se busca
+> la moneda con él; por eso `codigoPorCodigoQuery` (el pesable) pide también
+> `precios`. El total del pesable no se redondea a entero: en USD lleva centavos.
+
 ## Kiosco — `/kiosco`
 
 Tablet o teléfono fijo en la góndola con un lector HID conectado. El cliente
@@ -330,14 +346,43 @@ Cuatro cosas cuestan caro no saberlas:
    `presentacion-editar.page.ts`, no desde el hub — el hub solo **cuenta**
    cuántos hay en total, sumando todas las presentaciones.
 
-3. **El precio se escribe solo en la sucursal de la sesión**, igual que el
-   escritorio (`adicionar-precio-dialog.component.ts:265`, sin alternativa).
-   Los precios de las demás sucursales se muestran de solo lectura, con su
-   sucursal identificada. Al marcar un precio como principal, la pantalla
-   degrada primero —en orden, nunca en paralelo— a los demás principales
-   **de la propia sucursal** en esa presentación
-   (`preciosADegradar()`/`codigosADegradar()` en `producto-editar.reglas.ts`);
-   nunca toca precios de otra sucursal.
+3. **Solo se editan los precios generales, los de la sucursal del central**
+   (#135). El central guarda todo precio en **su** sucursal: pisa el
+   `sucursalId` del input con su property `sucursalId`
+   (`PrecioPorSucursalGraphQL.savePrecioPorSucursal`), que vale 0 = SERVIDOR.
+   Esos precios son los de toda la red: el PDV de cada sucursal los lee por
+   presentación, sin filtrar sucursal. La pantalla le pregunta al central cuál
+   es su sucursal con `sucursalActual` (lee la misma property), sin un `0`
+   fijo; mientras no responde o si falla, **nada es editable** y «Agregar»
+   está bloqueado.
+   - Un precio de **una sucursal concreta** se muestra de solo lectura, aunque
+     sea la de la sesión: guardarlo desde acá lo mudaría a la sucursal del
+     central, es decir a todas.
+   - Al **editar** se manda el `sucursalId` del propio precio; al **agregar**,
+     el de la sesión, como el escritorio. Hoy da lo mismo porque el central lo
+     pisa; si un día lo respeta, editar no muda el precio.
+   - **La moneda de cada precio** (#137) sale de una lectura aparte de
+     `producto(id) { presentaciones { precios { id moneda } } }`, sin caché,
+     solo si el central maneja precios en moneda: `preciosEnOtraMoneda` trae
+     solo los **activos**, y un inactivo en dólares quedaba como de la moneda
+     de la empresa. Si esa lectura no respondió o no trae el precio, un
+     **inactivo** no tiene moneda conocida: se muestra «Moneda sin confirmar»
+     y no se edita su importe (activar, desactivar, marcar principal y
+     eliminar sí, sin mandar `monedaId`, y el central conserva la guardada).
+     Nunca se manda la moneda de la empresa por descarte: la borraría.
+   - **Si la lista de la sesión no tuvo respuesta** (#139: red, timeout de 8 s,
+     5xx; `MonedasSesion.preciosMonedaSinRespuesta`), no se confía en ella:
+     la moneda sale solo de la consulta por producto; si tampoco responde,
+     ningún importe se edita. «Agregar» queda bloqueado mientras tanto (un
+     precio nuevo sin `monedaId` cae en la moneda del módulo PRECIOS). Un
+     central viejo (error de GraphQL, `esFalloDeTransporte` en falso) sigue
+     todo en la moneda de la empresa. El kiosco reintenta y, si no, no
+     muestra el importe.
+   - Al marcar un precio como principal, la pantalla degrada primero —en
+     orden, nunca en paralelo— a los demás principales **entre los
+     editables** en esa presentación (`preciosADegradar()`/`codigosADegradar()`
+     en `producto-editar.reglas.ts`); nunca toca precios de una sucursal
+     concreta.
 
    El escritorio tiene acá un defecto destructivo que esta app **decide no
    replicar**: al degradar el principal de OTRA sucursal, reescribe el
@@ -485,3 +530,9 @@ invisible en vez de algo roto que alguien intenta vender.
 > ofrece solo `EXPO` y `EXPO-DEPOSITO`, y un producto nuevo no puede recibir su
 > precio normal desde el teléfono. **No es una falla de la pantalla: es el
 > dato.** El escritorio no filtra, así que no lo nota.
+
+> ⚠️ **`precioPrincipal` llega con el id de la presentación** (#142, central #605): el central lo arma con un
+> `select *` sobre presentación join precio. El importe está bien; el id no. `precioEscogido`
+> (`shared/producto/presentacion.util.ts`) busca en `precios` el principal **con el mismo importe** para tener el id
+> real (el kiosco lo usa para saber la moneda). No el primer principal: hay presentaciones con dos principales de
+> importes distintos.

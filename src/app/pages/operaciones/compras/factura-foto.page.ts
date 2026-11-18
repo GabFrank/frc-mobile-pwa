@@ -17,6 +17,12 @@ import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { aId, partirNumeroFactura, textoNumeroFactura } from './compras-reglas';
 import { ComprasService } from './compras.service';
 import { FacturaFotoEstado } from './factura-foto.estado';
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
+import {
+  RegistrarProveedorDialogComponent,
+  type RegistrarProveedorData,
+  type RegistrarProveedorResultado,
+} from './registrar-proveedor-dialog.component';
 
 const CONDICIONES = ['CONTADO', 'CREDITO'] as const;
 
@@ -79,7 +85,11 @@ const CONDICIONES = ['CONTADO', 'CREDITO'] as const;
                   mal. Elegí el proveedor a mano.
                 </p>
               } @else if (proveedorId() == null) {
-                <p class="aviso">No se encontró un proveedor con el RUC {{ c.emisorRuc }}. Elegilo a mano.</p>
+                <p class="aviso">
+                  No se encontró un proveedor con el RUC {{ c.emisorRuc }}. Registralo con los datos de la
+                  factura o elegilo a mano.
+                </p>
+                <button matButton="filled" class="registrar" (click)="registrarProveedor()">Registrar proveedor</button>
               }
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Buscar proveedor</mat-label>
@@ -183,6 +193,7 @@ const CONDICIONES = ['CONTADO', 'CREDITO'] as const;
     .aviso { margin: 0 0 var(--sp-3); font-size: var(--fs-label); color: var(--warn); }
     .ayuda { margin: 0; font-size: var(--fs-caption); color: var(--text-mute); }
     .proveedor { margin: 0; font-weight: var(--fw-medium); }
+    .registrar { margin-bottom: var(--sp-3); }
     .fotos { display: flex; gap: var(--sp-2); overflow-x: auto; margin-bottom: var(--sp-3); }
     .miniatura { border: 1px solid var(--border); background: none; padding: 0; width: 120px; height: 120px; flex: none; cursor: zoom-in; border-radius: var(--radius-sm); overflow: hidden; }
     .miniatura img { width: 100%; height: 100%; object-fit: cover; }
@@ -202,6 +213,7 @@ export class FacturaFotoPage {
   private readonly recepcion = inject(RecepcionService);
   private readonly router = inject(Router);
   private readonly notificacion = inject(NotificacionService);
+  private readonly dialogo = inject(DialogoService);
 
   /** Llega de la ruta `:pedidoId/foto`; ausente en `foto` (compra nueva). */
   readonly pedidoId = input<string>();
@@ -334,6 +346,26 @@ export class FacturaFotoPage {
         if (contenido.length === 0) this.notificacion.warn('Ningún proveedor con ese nombre.');
       },
     });
+  }
+
+  /**
+   * Alta del proveedor con lo que la IA leyó del papel. Es un diálogo y no otra
+   * ruta: la cabecera vive en memoria y se perdería al navegar y volver.
+   */
+  async registrarProveedor(): Promise<void> {
+    const documentoId = this.cabecera()?.documentoId;
+    if (documentoId == null) return;
+    const r = await this.dialogo.abrir<
+      RegistrarProveedorDialogComponent,
+      RegistrarProveedorData,
+      RegistrarProveedorResultado
+    >(RegistrarProveedorDialogComponent, { documentoId }, '460px');
+    if (!r) return;
+    this.proveedorId.set(r.proveedorId);
+    this.proveedorNombre.set(r.proveedorNombre);
+    this.proveedores.set([]);
+    this.textoProveedor.set('');
+    this.buscando.set(false);
   }
 
   elegirProveedor(p: Proveedor): void {

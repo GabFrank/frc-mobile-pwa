@@ -6,13 +6,10 @@ import { validarIdentificacion } from '../pages/marcacion/identificacion.util';
 /**
  * El 1:N del kiosco: el central dice quién es, y el dispositivo lo comprueba.
  *
- * ⚠️ **Son dos controles, no uno.** `usuarioPorEmbedding` devuelve el mejor
- * match de su caché **y nada del segundo candidato**, así que un 0,71 contra
- * un segundo de 0,69 llega indistinguible de un 0,71 contra un 0,45. Mientras
- * el central no informe el margen —issue #217—, recalcular la similitud acá
- * contra la galería que vino en la respuesta es lo único que queda.
+ * ⚠️ **Son tres controles, no uno**: lo que dice el central, lo recalculado
+ * acá contra la galería que vino, y el margen contra el segundo candidato.
  *
- * Ver la issue #17.
+ * Ver las issues #17 y #144.
  */
 describe('Validar a quién identificó el central', () => {
   const ROSTRO = [1, 0, 0, 0, 0, 0, 0, 0];
@@ -96,6 +93,33 @@ describe('Validar a quién identificó el central', () => {
 
     expect(id?.similitudLocal).toBeCloseTo(1);
     expect(id?.confiable).toBe(false);
+  });
+
+  it('un central entre el 0,55 viejo y el 0,70 nuevo ya no alcanza (issue #144)', () => {
+    // El 0,55 estaba por debajo de la mediana entre dos personas distintas (0,53).
+    const id = validarIdentificacion(ROSTRO, respuesta(ROSTRO, 0.65));
+
+    expect(id?.confiable).toBe(false);
+  });
+
+  it('sin margen suficiente contra el segundo candidato no es confiable (issue #144)', () => {
+    // Se parece casi tanto a otro compañero como a sí mismo: moneda al aire.
+    const id = validarIdentificacion(ROSTRO, { ...respuesta(ROSTRO, 0.9), margen: 0.02 });
+
+    expect(id?.margen).toBeCloseTo(0.02);
+    expect(id?.confiable).toBe(false);
+  });
+
+  it('con margen suficiente sigue siendo confiable', () => {
+    const id = validarIdentificacion(ROSTRO, { ...respuesta(ROSTRO, 0.9), margen: 0.05 });
+
+    expect(id?.confiable).toBe(true);
+  });
+
+  it('contra un central que no informa el margen, no se exige', () => {
+    const id = validarIdentificacion(ROSTRO, { ...respuesta(ROSTRO, 0.9), margen: null });
+
+    expect(id?.confiable).toBe(true);
   });
 
   it('sin galería en la respuesta no se puede comprobar nada, así que no es confiable', () => {

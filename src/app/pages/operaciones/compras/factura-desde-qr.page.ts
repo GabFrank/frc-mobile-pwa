@@ -10,8 +10,14 @@ import { SkeletonComponent } from 'src/app/shared/estados-ui/skeleton.component'
 import { ImporteComponent } from 'src/app/shared/importe/importe.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { facturaYaUsada } from './compras-reglas';
+import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { ComprasService } from './compras.service';
 import { EscanearFacturaService } from './escanear-factura.service';
+import {
+  RegistrarProveedorDialogComponent,
+  type RegistrarProveedorData,
+  type RegistrarProveedorResultado,
+} from './registrar-proveedor-dialog.component';
 
 /**
  * Se llega acá escaneando un KuDE sin haber elegido el pedido: desde el botón
@@ -21,6 +27,9 @@ import { EscanearFacturaService } from './escanear-factura.service';
  * es sin ir a SIFEN. Si ningún pedido de ese proveedor espera factura —el caso
  * normal—, la factura **crea la compra** entera: se abre directo. Si alguno la
  * espera (un pedido planificado en el escritorio), se ofrecen las dos cosas.
+ *
+ * Si el RUC no es de ningún proveedor, se ofrece **registrarlo** con los datos
+ * de la factura (de SIFEN) y, al volver, la factura sigue sola.
  */
 @Component({
   selector: 'frc-factura-desde-qr',
@@ -44,6 +53,7 @@ import { EscanearFacturaService } from './escanear-factura.service';
       } @else if (datos(); as d) {
         @if (!d.proveedorId) {
           <frc-estado-vacio titulo="Proveedor no encontrado" [detalle]="vacio(d)" icono="documento" />
+          <button matButton="filled" class="nueva" (click)="registrarProveedor()">Registrar proveedor</button>
         } @else if (d.pedidos.length === 0) {
           <frc-estado-vacio
             titulo="No se pudo abrir la factura"
@@ -87,6 +97,7 @@ import { EscanearFacturaService } from './escanear-factura.service';
 export class FacturaDesdeQrPage {
   private readonly servicio = inject(ComprasService);
   private readonly escaneo = inject(EscanearFacturaService);
+  private readonly dialogo = inject(DialogoService);
 
   /** Llega por `?qr=`. */
   readonly qr = input<string>();
@@ -147,6 +158,21 @@ export class FacturaDesdeQrPage {
     });
   }
 
+  /**
+   * Alta del proveedor con los datos de la factura. Con el proveedor creado se
+   * vuelve a cargar la misma factura: sigue sola a sus pedidos o a la compra nueva.
+   */
+  async registrarProveedor(): Promise<void> {
+    const qr = (this.qr() ?? '').trim();
+    if (!qr) return;
+    const r = await this.dialogo.abrir<
+      RegistrarProveedorDialogComponent,
+      RegistrarProveedorData,
+      RegistrarProveedorResultado
+    >(RegistrarProveedorDialogComponent, { qr }, '460px');
+    if (r) this.cargar();
+  }
+
   elegir(p: CompraPedidoResumen): void {
     void this.escaneo.leerYAbrir(p.pedidoId, (this.qr() ?? '').trim(), true);
   }
@@ -164,7 +190,7 @@ export class FacturaDesdeQrPage {
   vacio(d: PedidosParaFactura): string {
     return (
       'El RUC ' + (d.proveedorRuc ?? '') +
-      ' de esta factura no corresponde a ningún proveedor cargado. Dalo de alta como proveedor en el sistema de escritorio.'
+      ' de esta factura no corresponde a ningún proveedor cargado. Registralo con los datos de la factura.'
     );
   }
 }

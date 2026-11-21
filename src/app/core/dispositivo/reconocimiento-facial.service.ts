@@ -1,5 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
+import { frameAclarado } from './luz-facial';
+
 /** Una detección lista para enrolar o para marcar. */
 export interface CapturaFacial {
   /** Descriptor de 1024 dimensiones. */
@@ -220,25 +222,22 @@ export class ReconocimientoFacialService {
     if (!this.human) {
       await this.cargar();
     }
-    const human = this.human as { detect(f: unknown): Promise<{ face?: unknown[] }> };
-    const resultado = await conLimite(
-      human.detect(fuente),
-      this.precalentado ? MS_LIMITE_DETECCION : MS_LIMITE_DETECCION_EN_FRIO,
-    );
-    // Un `error` de Human (p. ej. el video todavía no tiene frame) llega sin
-    // caras y vuelve `null`, como siempre: se pierde ese frame, no la tanda.
-    const caras = (resultado?.face ?? []) as Record<string, unknown>[];
-    if (!caras.length) {
-      return null;
-    }
+    let cara = await this.primeraCara(fuente);
 
-    const cara = caras[0];
-    const embedding = cara['embedding'] as number[] | undefined;
-    if (!embedding?.length) {
-      // Hay cara pero Human no pudo describirla: casi siempre es que está
-      // muy lejos o muy movida. No es un error, es «probá de nuevo».
+    // Poca luz o contraluz: se aclara según la luz de la cara (o del centro,
+    // si no se vio ninguna) y se vuelve a detectar. Con luz normal no entra.
+    // Ver `luz-facial.ts`.
+    const aclarado = this.aclarar(fuente, cara ? (cara['box'] as [number, number, number, number]) : null);
+    if (aclarado) {
+      const conLuz = await this.primeraCara(aclarado);
+      if (conLuz) {
+        cara = conLuz;
+      }
+    }
+    if (!cara) {
       return null;
     }
+    const embedding = cara['embedding'] as number[];
 
     return {
       embedding: Array.from(embedding),
@@ -251,6 +250,26 @@ export class ReconocimientoFacialService {
       live: typeof cara['live'] === 'number' ? (cara['live'] as number) : 1,
       box: (cara['box'] as [number, number, number, number]) ?? [0, 0, 0, 0],
     };
+  }
+
+  /** Cómo se aclara un frame oscuro. Propiedad para poder reemplazarla en los tests. */
+  aclarar = frameAclarado;
+
+  /** La primera cara del frame **con embedding**, o `null`. */
+  private async primeraCara(
+    fuente: HTMLVideoElement | HTMLCanvasElement | HTMLImageElement,
+  ): Promise<Record<string, unknown> | null> {
+    const human = this.human as { detect(f: unknown): Promise<{ face?: unknown[] }> };
+    const resultado = await conLimite(
+      human.detect(fuente),
+      this.precalentado ? MS_LIMITE_DETECCION : MS_LIMITE_DETECCION_EN_FRIO,
+    );
+    // Un `error` de Human (p. ej. el video todavía no tiene frame) llega sin
+    // caras y vuelve `null`, como siempre: se pierde ese frame, no la tanda.
+    const cara = ((resultado?.face ?? []) as Record<string, unknown>[])[0];
+    // Cara sin embedding: Human no pudo describirla —muy lejos, muy movida o
+    // muy oscura—. No es un error, es «probá de nuevo» (o aclarar).
+    return (cara?.['embedding'] as number[] | undefined)?.length ? cara : null;
   }
 
   /**

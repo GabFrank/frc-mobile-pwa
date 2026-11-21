@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 import { of, throwError } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthService } from '../core/auth/auth.service';
 import { DialogoService } from '../core/ui/dialogo.service';
@@ -22,6 +22,14 @@ import { ProductoService } from '../pages/producto/producto.service';
  * **solo inventarios** y exige abrir un acordeón y copiar a mano.
  */
 describe('Vencimiento sugerido al contar', () => {
+  // Las fechas de los casos son fijas y la sugerencia descarta lo ya vencido: sin fijar «hoy»,
+  // los tests se rompían solos cuando el calendario pasaba esas fechas (2026-11-21).
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-06-01T12:00:00'));
+  });
+  afterEach(() => vi.useRealTimers());
+
   let servicio: { porId: ReturnType<typeof vi.fn>; guardarItem: ReturnType<typeof vi.fn> };
   let productos: { vencimientosConocidos: ReturnType<typeof vi.fn> };
 

@@ -437,6 +437,36 @@ PWA vieja en caché sigue en WebGL hasta actualizarse—: si el promedio de las
 fotos tiene 35 % o más de dimensiones en cero, o se parece 0,90 o más al de otra
 persona enrolada. Ver `EmbeddingGaleriaService.motivoEnrolamientoNoConfiable`.
 
+## Poca luz y contraluz
+
+Con poca luz o una ventana detrás, Human **sí encuentra la cara**, pero el
+embedding sale degradado y la prueba de vida se cae: el kiosco rechazaba a
+gente enrolada. Ahora `ReconocimientoFacialService.detectar` mide la luz **de
+la caja de la cara** (o del centro del frame, si no vio ninguna) y, si está por
+debajo de 80/255, aclara el frame hasta ~130 (ganancia con tope ×4) y vuelve a
+detectar. Si el aclarado pierde la cara, se queda con el original. Con luz
+normal no entra. Lógica y números en `core/dispositivo/luz-facial.ts`.
+
+Medido el 2026-11-21 sobre una captura real del kiosco, oscurecida y con ruido:
+
+| Frame | similitud propia | vida |
+|---|---|---|
+| 12 % de luz | 0,71 → 0,83 | 0,59 → 0,95 |
+| 8 % de luz | 0,52 → 0,77 | 0,48 → 0,93 |
+| contraluz | 0,79 → 0,79 | **0,16 → 1,00** |
+| luz normal | 1,000 (no se toca) | — |
+
+⚠️ **No se usa `filter.equalization` de Human**: estira el histograma de la
+imagen entera, con una ventana quemada no hace nada y con mucho ruido perdió la
+cara.
+
+⚠️ **No se elige «el mejor» de los dos frames.** Cara oscura → aclarado, siempre.
+Quedarse con el que dé más `real`/`live` le daría a una foto dos oportunidades
+contra el anti-spoofing.
+
+⚠️ **El tope ×4 está medido**: con ×8 el ruido amplificado perdía la cara en los
+frames más oscuros.
+
 ## Los umbrales: los del desktop, calibrados con datos
 
 `confirmarVerificacionFinal` exige **tres controles independientes**. Los

@@ -9184,6 +9184,47 @@ siguiente vuelve a pedir la lista y sale «US$ 5,85».
 
 ---
 
+## Bloque 111 — Marcación facial: poca luz y contraluz *(nuevo, sin probar en un teléfono)*
+
+Con poca luz o con una ventana atrás, el kiosco decía «No te reconocimos. Poné la cara frente a la cámara» o «Tiene que
+ser un rostro real» a una persona enrolada. Ahora, si la cara está oscura, el frame se aclara según la luz **de la
+cara** antes de describirla. Los umbrales no cambiaron. Ver «Poca luz y contraluz» en
+[`docs/modulos/marcacion.md`](modulos/marcacion.md).
+
+### 111.1 · Contraluz *(el que importa)*
+1. Kiosco de marcación › parado de espaldas a una ventana con luz fuerte › Empezar
+
+**Esperado:** reconoce a la persona y ofrece marcar. Antes fallaba con «No te reconocimos…» o «Tiene que ser un
+rostro real».
+
+### 111.2 · Habitación con poca luz
+1. Apagar la luz principal y dejar solo una lámpara lejos › Kiosco › Empezar
+
+**Esperado:** reconoce a la persona. Si está muy a oscuras (casi no se ve la cara en pantalla) puede seguir fallando:
+ahí el aviso pide más luz y se acepta.
+
+### 111.3 · Luz normal: nada cambió
+1. Kiosco con buena luz › Empezar, tres veces seguidas
+
+**Esperado:** reconoce igual que antes, sin demora visible.
+
+### 111.4 · La marcación propia (1:1) con poca luz
+1. Mi trabajo › Marcación › Marcar con rostro, en la misma penumbra del 111.2
+
+**Esperado:** pasa la verificación sin pedir «Tomar otra foto».
+
+### 111.5 · Registrar el rostro con poca luz
+1. Mi cuenta › Registrar rostro, en penumbra, las capturas pedidas
+
+**Esperado:** toma las capturas sin decir «No se detectó un rostro» en cada una.
+
+### 111.6 · Una foto sigue sin pasar
+1. Kiosco › mostrar a la cámara una foto de una persona enrolada en otro celular, con la pantalla al mínimo de brillo
+
+**Esperado:** no marca: «Tiene que ser un rostro real» o «No te reconocimos».
+
+---
+
 ## Resumen para completar
 
 | Bloque | Casos | ✅ | ⚠️ | ❌ |
@@ -9298,7 +9339,8 @@ siguiente vuelve a pedir la lista y sale «US$ 5,85».
 | 108 · Mis finanzas: el chip «Abierto» en azul | 1 | 1 | | |
 | 109 · Ficha del producto: cada precio en su moneda | 5 | 4 | 1 | |
 | 110 · Buscador: el precio de cada presentación en su moneda | 6 | 6 | | |
-| **Total** | **903** | | | |
+| 111 · Marcación facial: poca luz y contraluz | 6 | | | |
+| **Total** | **909** | | | |
 
 > El total se recalcula **sumando la columna «Casos»**, no arrastrando el
 > número anterior. Al 2026-09-04 la tabla venía diciendo **494** cuando las

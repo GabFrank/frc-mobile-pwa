@@ -102,14 +102,22 @@ export function nombreImagenQr(rotulo: string): string {
  * No es un bug del mensaje: es que en desarrollo no hay ninguna URL pública
  * que ofrecer.
  */
-export function textoParaCompartir(rotulo: string, codigo: string, enlace?: string | null): string {
+export function textoParaCompartir(
+  rotulo: string,
+  codigo: string,
+  enlace?: string | null,
+  detalle?: string | null,
+): string {
   const partes = [];
   if (rotulo) {
     partes.push(rotulo);
   }
+  if (detalle?.trim()) {
+    partes.push(detalle.trim());
+  }
   if (enlace) {
-    partes.push(enlace, '');
-    partes.push(`Tocá el enlace para abrirlo en la app. Si no, pegá este código en la carga manual del escáner:\n${codigo}`);
+    partes.push('Link: ' + enlace, '');
+    partes.push(`Si el link no abre, pegá este código en la carga manual del escáner:\n${codigo}`);
   } else {
     partes.push('', `Escaneá el QR con el botón de la app, o pegá este código en la carga manual:\n${codigo}`);
   }

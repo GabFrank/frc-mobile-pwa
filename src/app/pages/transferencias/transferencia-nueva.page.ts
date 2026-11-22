@@ -145,6 +145,7 @@ export class TransferenciaNuevaPage {
   readonly cargando = signal(true);
   readonly creando = signal(false);
   readonly error = signal<string | null>(null);
+  /** Por defecto, quien la crea: es el caso normal del pedido por el grupo. */
   readonly solicitante = signal<Usuario | null>(null);
   readonly buscandoCajeros = signal(false);
   /** Se supo que el destino no tiene cajas abiertas y se cayó a todos los usuarios. */
@@ -180,6 +181,7 @@ export class TransferenciaNuevaPage {
   );
 
   constructor() {
+    this.solicitante.set(this.auth.usuario());
     this.cargarSucursales();
   }
 
@@ -223,14 +225,14 @@ export class TransferenciaNuevaPage {
   }
 
   /**
-   * ⚠️ **Cambiar el destino descarta el solicitante.** Los candidatos salen de
-   * las cajas abiertas de esa sucursal: dejar al elegido antes atribuiría el
-   * pedido a alguien de otra sucursal, y la pantalla lo seguiría mostrando
-   * como válido.
+   * ⚠️ **Cambiar el destino descarta el solicitante elegido.** Los candidatos
+   * salen de las cajas abiertas de esa sucursal: dejar al elegido antes
+   * atribuiría el pedido a alguien de otra sucursal. Vuelve a quien la crea.
    */
   cambiarDestino(valor: unknown): void {
     this.destinoId.set(valor);
-    this.solicitante.set(null);
+    // Vuelve a quien la crea, que vale para cualquier destino.
+    this.solicitante.set(this.auth.usuario());
     this.sinCajasAbiertas.set(false);
   }
 

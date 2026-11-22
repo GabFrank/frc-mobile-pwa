@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
+import type { Subscription } from 'rxjs';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
 import { DatosService } from 'src/app/core/graphql/datos.service';
@@ -113,7 +114,7 @@ const DIAS_PERIODO = 30;
       } @else {
         <p class="total">{{ total() }} producto{{ total() === 1 ? '' : 's' }}</p>
 
-        @for (p of filas(); track p.productoId) {
+        @for (p of filas(); track p.productoId + '@' + p.sucursalId) {
           <frc-card
             [titulo]="p.productoDescripcion ?? 'Producto'"
             [subtitulo]="'Código ' + p.productoId"
@@ -173,6 +174,14 @@ export class ControlInventarioPage {
 
   private readonly listaSucursales = signal<Sucursal[]>([]);
   private pagina = 0;
+
+  /**
+   * La consulta en curso. Se cancela al lanzar otra: si no, la respuesta de un
+   * filtro anterior y más lento (por ejemplo «Todas las sucursales») llega
+   * después y pisa la lista del filtro elegido, y «Cargar más» le agrega
+   * páginas del filtro nuevo (#674).
+   */
+  private consultaEnCurso?: Subscription;
 
   /** Solo «sin movimiento» necesita sucursal sí o sí. */
   readonly exigeSucursal = computed(() => this.reporte() === 'faltantes');
@@ -248,7 +257,8 @@ export class ControlInventarioPage {
             comun,
           );
 
-    consulta.subscribe({
+    this.consultaEnCurso?.unsubscribe();
+    this.consultaEnCurso = consulta.subscribe({
       next: (page) => {
         const contenido = page?.getContent ?? [];
         this.filas.update((previas) => (agregando ? [...previas, ...contenido] : contenido));

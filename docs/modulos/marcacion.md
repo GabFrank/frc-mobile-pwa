@@ -99,7 +99,7 @@ Flujo:
 
 > **Regla clave — la identificación exige múltiples frames coincidentes.** `FRAMES_MINIMOS_VERIFICACION = 3` y `HITS_CONSECUTIVOS_VERIFICACION = 3` evitan que un frame borroso o una foto sostenida frente a la cámara valide una identidad. **No bajes estos umbrales para "agilizar" el flujo.**
 
-> **Regla clave — verificación (`0.75`) es más estricta que búsqueda (`0.55`).** En verificación ya se sabe contra quién comparar; en búsqueda hay que tolerar más variación para no descartar al usuario correcto. Ambos umbrales están calibrados contra condiciones reales de sucursal.
+> **Regla clave — verificación (`0.75`) es más estricta que búsqueda.** Esto describe `frc-mobile`, que usaba `0.55` en búsqueda. La PWA y el desktop usan `0.70` en búsqueda desde el issue #144: el `0.55` estaba por debajo de la mediana entre dos personas distintas.
 
 `IngresoPersonaComponent` registra rostros nuevos: captura varias imágenes y llama `onIncorporarEmbeddingMarcacion` (ver `IncorporarEmbeddingResult`). Solo capturas con score ≥ `SCORE_MINIMO_GALERIA` (0.7) entran a la galería.
 
@@ -333,6 +333,25 @@ El backend dice qué corresponde (`accionPendiente`) y la pantalla ofrece
 `esSalidaAlmuerzo` viaja aparte del `tipo`: una salida de almuerzo es
 `SALIDA` pero **no cierra la jornada**.
 
+### El estado se vuelve a pedir: tras un error y al volver a la app
+
+⚠️ **Un error al guardar no quiere decir que no se guardó.** El 28/10 una
+entrada entró al central a las 08:04 y la respuesta no llegó: la pantalla
+siguió ofreciendo *Marcar entrada* y el central rechazó la segunda («Ya
+registró entrada…»). Por eso, tras un error de `enviar()`, la pantalla vuelve a
+pedir el estado.
+
+⚠️ **iOS deja la pantalla viva en segundo plano, a veces por días.** Al volver
+(`visibilitychange` → `visible`) se vuelven a pedir el estado y la ubicación.
+No con una marcación en curso (`detectar()` borra la posición que `marcar()`
+va a leer), ni sobre una detección que ya está buscando, ni sobre una carga
+normal que todavía no respondió.
+
+Estas recargas son **silenciosas** (`cargar(true)`): sin aviso ni carga global,
+y si fallan queda lo que había. Volver con la red todavía caída es lo normal en
+iOS, y un aviso de la recarga taparía el del central (se ve uno solo a la vez).
+Solo se aplica la respuesta del último pedido.
+
 ## La sucursal persistida se retiró
 
 `MarcacionService` guardaba la última sucursal elegida en
@@ -391,14 +410,54 @@ poder marcar por un problema de red sería peor que perder una segunda opinión.
 El 1:N que **sí marca por otra persona** vive solo en el kiosco, que es el
 dispositivo compartido donde hace falta.
 
-## Los umbrales no se bajaron, y no se bajan
+## El motor corre en wasm, no en WebGL *(issue #144)*
 
-`confirmarVerificacionFinal` viene de `frc-mobile` y exige **tres controles
-independientes**; `embedding-galeria.util.ts` se copió verbatim, cambiando solo
-la ruta del import.
+Human corre con el backend **wasm** (en la CPU, float32 exacto), igual que el
+desktop y `frc-mobile`. WebGL queda solo de respaldo si wasm no arranca.
+
+⚠️ **En WebGL, la GPU de algunos celulares calcula con precisión reducida y
+`faceres` devuelve casi el mismo vector para cualquier cara.** Medido sobre las
+galerías de producción el 2026-11-12: 26 personas enroladas desde la PWA en
+Android quedaron con galerías que se parecen entre sí al 95 %, y con más de un
+tercio de las dimensiones en cero (las sanas, como mucho un cuarto). En sus
+marcaciones, el margen sobre el segundo candidato era 0,01–0,05 (lo sano es
+0,18): entre ellas, una podía marcar por otra. Una foto mala —borrosa, oscura,
+lejos— **no** produce esa firma; es una falla numérica de la red.
+
+Los `.wasm` salen de `@tensorflow/tfjs-backend-wasm` y los copia
+`scripts/face-models.mjs` a `public/face-models/tfjs-wasm/`, en el mismo grupo
+lazy del service worker que los modelos. ⚠️ **Tienen que ser de la versión de
+tfjs que Human trae adentro** (hoy 4.22.0): si no coinciden, el build falla.
+
+`detector.rotation` está en `true`, como en el desktop: endereza la cara antes
+de describirla.
+
+El central además **rechaza un enrolamiento roto** venga de donde venga —una
+PWA vieja en caché sigue en WebGL hasta actualizarse—: si el promedio de las
+fotos tiene 35 % o más de dimensiones en cero, o se parece 0,90 o más al de otra
+persona enrolada. Ver `EmbeddingGaleriaService.motivoEnrolamientoNoConfiable`.
+
+## Los umbrales: los del desktop, calibrados con datos
+
+`confirmarVerificacionFinal` exige **tres controles independientes**. Los
+umbrales son los del desktop y salen de las galerías sanas de producción (58
+personas, 650 capturas de marcación, en coseno):
+
+| Umbral | Valor | Qué mide |
+|---|---|---|
+| `UMBRAL_SIMILITUD_FRAME_VERIFICACION` | `0.70` | Cada frame de la tanda, para contar como válido |
+| `UMBRAL_SIMILITUD_VERIFICACION` | `0.75` | El embedding **promedio** de la tanda: la decisión final |
+| `UMBRAL_SIMILITUD_FACIAL` | `0.70` | Lo que dice el central para el mejor candidato (1:N) |
+| `MARGEN_MINIMO_IDENTIFICACION` | `0.05` | Lo que el mejor candidato le saca al segundo (kiosco) |
+
+Un frame suelto de la persona correcta da mediana 0,84 y el promedio de la
+tanda 0,89; dos personas distintas dan mediana 0,53. Con 0,75 sobre el promedio
+un impostor pasa el 0,13 % de las veces y la persona correcta queda afuera el
+1,4 %. El margen de 0,05 suma un 0,3 % de rechazos a la persona correcta.
 
 ⚠️ Si en la práctica cuesta pasar, el problema es el **enrolamiento** —pocas
-poses, mala luz—, no el umbral. Aflojarlo convierte esto en un teatro.
+poses, mala luz, o una galería hecha en WebGL—, no el umbral. Aflojarlo
+convierte esto en un teatro.
 
 ⚠️ **Los frames salen de una sola foto, no de un rato frente a la cámara.**
 Antes había un bucle a 12 fps que acumulaba aciertos consecutivos; ahora la
@@ -445,6 +504,36 @@ era relajar la regla, que es justo lo que la issue prohíbe.
 sigue por el camino de «sin verificación facial», que pregunta si se quiere
 marcar igual y lo deja registrado. Insistir para siempre dejaría a alguien sin
 poder marcar por una cámara mala, que es un problema distinto.
+
+### La GPU se prepara antes de la cuenta, y la foto tiene tope
+
+⚠️ **Con `warmup: 'none'` la GPU se preparaba en la primera foto.** En Human
+3.3.6, `warmup()` con `'none'` vuelve sin hacer nada, así que la compilación de
+shaders caía justo al terminar la cuenta y la pantalla se quedaba congelada en
+el «1» (reportado en un iPhone 11, 2026-11-10). Ahora `ReconocimientoFacialService`
+llama `warmup({ warmup: 'face' })` después de cargar, mientras se ve
+«Preparando el reconocimiento…». Solo usa la imagen embebida de Human y no toca
+el embedding.
+
+⚠️ **El `detect` y el `warmup` de Human pueden no resolver nunca**: son
+executors async sin `try`, así que si algo tira adentro —contexto WebGL
+perdido— la promesa queda pendiente. Por eso los dos tienen tope:
+
+| Qué | Tope | Si se pasa |
+|---|---|---|
+| Precalentamiento | 15 s | Se sigue sin él |
+| Detección, precalentado | 5 s | `DeteccionFallidaError` |
+| Detección, sin precalentar | 15 s | `DeteccionFallidaError` |
+
+`capturarTanda` convierte ese error en una **tanda vacía**, no en una a medias:
+con uno o dos frames el llamador diría «no es un rostro real» por un cuelgue.
+Vacía dice «no se detectó» y cuenta el intento. Un `error` con el que Human
+**resuelve** (video sin frame todavía) no es eso: sigue volviendo `null` y se
+pierde ese frame solo — el kiosco arranca la cuenta sin esperar a la cámara.
+
+El tope no rescata un bloqueo sincrónico del hilo (el timer no puede
+dispararse mientras tanto): eso lo evita el precalentamiento. El tope cubre la
+promesa colgada, que se ve como «Verificando…» sin fin.
 
 ## `captura-facial.component.ts`, la cámara sin criterio
 
@@ -527,14 +616,13 @@ descartaba el resto.
 ⚠️ **Hasta `V216.5` un `0.71` contra un segundo candidato de `0.69` llegaba
 indistinguible de un `0.71` contra un `0.45`**, y el primero es una moneda al
 aire. Ahora `usuarioPorEmbedding` devuelve también `similitudSegundo` y
-`margen` — pero el margen se **registra**, no se usa para rechazar. Por eso
-`validarIdentificacion()` recalcula la similitud **en el dispositivo** contra
-la galería que vino en la respuesta, y exige las dos:
+`margen`. `validarIdentificacion()` exige las tres:
 
 | Control | Umbral | Por qué ese |
 |---|---|---|
-| Central | `0.55` (`UMBRAL_SIMILITUD_FACIAL`) | Es el de búsqueda, el que usa su caché |
-| Local | `0.75` (`UMBRAL_SIMILITUD_VERIFICACION`) | **Más estricto que el `0.55` de `frc-mobile`** |
+| Central | `0.70` (`UMBRAL_SIMILITUD_FACIAL`) | El `0.55` anterior estaba por debajo de la mediana entre dos personas distintas (`0.53`) |
+| Local | `0.75` (`UMBRAL_SIMILITUD_VERIFICACION`) | Recalculado en el dispositivo contra la galería que vino |
+| Margen | `0.05` (`MARGEN_MINIMO_IDENTIFICACION`) | Si el central lo informa; contra uno sin el campo no se exige |
 
 `frc-mobile` acepta con `0.55` en las dos puntas, pero lo usa para **elegir** a
 quién marcar en una pantalla donde después hay una verificación 1:1. Acá el
@@ -566,10 +654,9 @@ contra la galería propia— y mezclarlas en la misma columna la vuelve
 inservible: nadie sabría después cuál está mirando. Si el central no contestó,
 queda vacía.
 
-⚠️ **El margen se registra pero todavía no decide nada.** Poner hoy un umbral
-de margen sería inventar el número que la medición existe para averiguar: hace
-falta ver qué margen dan estas caras, estas cámaras y esta luz. Cuando haya
-datos, es una línea en `validarIdentificacion()`.
+⚠️ **El margen decide desde el issue #144.** Hasta entonces solo se
+registraba, a la espera de datos; con las marcaciones reales de producción se
+fijó en `0.05` en `validarIdentificacion()`.
 
 ⚠️ **Son tres mitades, no dos.** Hay una migración por repositorio y el orden
 importa:

@@ -98,20 +98,15 @@ describe('Qué falta para poder pedir la plata', () => {
     ).toBeNull();
   });
 
-  it('exige la persona cuando el beneficiario es una persona', () => {
+  it('no exige beneficiario: ni persona ni proveedor', () => {
     expect(
       faltaParaGuardar({
         ...completo(),
         beneficiarioTipo: 'PERSONA',
         beneficiarioPersonaId: null,
       }),
-    ).toBe('Seleccione la persona beneficiaria');
-  });
-
-  it('exige el proveedor cuando el beneficiario es un proveedor', () => {
-    expect(faltaParaGuardar({ ...completo(), beneficiarioProveedorId: null })).toBe(
-      'Seleccione el proveedor beneficiario',
-    );
+    ).toBeNull();
+    expect(faltaParaGuardar({ ...completo(), beneficiarioProveedorId: null })).toBeNull();
   });
 
   it('rechaza un monto en cero', () => {
@@ -233,6 +228,16 @@ describe('El input que se manda al central', () => {
     const input = construirPreGastoInput(base);
     expect(input.sucursalId).toBe(1);
     expect(input.sucursalCajaId).toBe(1);
+  });
+
+  it('sin beneficiario no manda ningún id al central', () => {
+    const input = construirPreGastoInput({
+      ...base,
+      beneficiarioPersonaId: null,
+      beneficiarioProveedorId: null,
+    });
+    expect(input.beneficiarioProveedorId).toBeUndefined();
+    expect(input.beneficiarioPersonaId).toBeUndefined();
   });
 
   it('manda el beneficiario que corresponde y no el otro', () => {

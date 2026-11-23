@@ -15,6 +15,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import type {
   AvisoFactura,
@@ -25,9 +26,11 @@ import type {
   RepartoRenglon,
   SugerenciaProducto,
 } from 'src/app/domains/compras/compras.model';
+import type { Moneda } from 'src/app/domains/moneda/moneda.model';
 import { PERMISOS } from 'src/app/domains/personas/roles/permisos';
 import { RoleService } from 'src/app/domains/personas/roles/role.service';
 import { fechaLegible } from 'src/app/generic/utils/dateUtils';
+import { formatearImporte } from 'src/app/generic/utils/moneda.util';
 import { CardComponent } from 'src/app/shared/card/card.component';
 import { EstadoChipComponent } from 'src/app/shared/estado/estado-chip.component';
 import { EstadoErrorComponent } from 'src/app/shared/estados-ui/estado-error.component';
@@ -52,6 +55,7 @@ import {
   tonoAviso,
   tonoRenglon,
 } from './compras-reglas';
+import { monedaDeFactura, textoMoneda } from './compras-moneda';
 import { ComprasService } from './compras.service';
 import {
   VincularRenglonData,
@@ -210,25 +214,25 @@ const FILTROS: { valor: FiltroRenglones; etiqueta: string }[] = [
 
         <frc-seccion titulo="Totales" [panel]="true">
           @if ((f.subtotalExenta ?? 0) > 0) {
-            <frc-dato etiqueta="Exentas"><frc-importe [valor]="f.subtotalExenta ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
+            <frc-dato etiqueta="Exentas"><frc-importe [valor]="f.subtotalExenta ?? null" [moneda]="monedaFactura()" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
           }
           @if ((f.subtotalIva5 ?? 0) > 0) {
-            <frc-dato etiqueta="Gravadas 5 %"><frc-importe [valor]="f.subtotalIva5 ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
+            <frc-dato etiqueta="Gravadas 5 %"><frc-importe [valor]="f.subtotalIva5 ?? null" [moneda]="monedaFactura()" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
           }
           @if ((f.subtotalIva10 ?? 0) > 0) {
-            <frc-dato etiqueta="Gravadas 10 %"><frc-importe [valor]="f.subtotalIva10 ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
+            <frc-dato etiqueta="Gravadas 10 %"><frc-importe [valor]="f.subtotalIva10 ?? null" [moneda]="monedaFactura()" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
           }
           @if ((f.totalIva5 ?? 0) > 0) {
-            <frc-dato etiqueta="IVA 5 %"><frc-importe [valor]="f.totalIva5 ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
+            <frc-dato etiqueta="IVA 5 %"><frc-importe [valor]="f.totalIva5 ?? null" [moneda]="monedaFactura()" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
           }
           @if ((f.totalIva10 ?? 0) > 0) {
-            <frc-dato etiqueta="IVA 10 %"><frc-importe [valor]="f.totalIva10 ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
+            <frc-dato etiqueta="IVA 10 %"><frc-importe [valor]="f.totalIva10 ?? null" [moneda]="monedaFactura()" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
           }
           @if ((f.totalDescuento ?? 0) > 0) {
-            <frc-dato etiqueta="Descuentos y bonificaciones"><frc-importe [valor]="f.totalDescuento ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
+            <frc-dato etiqueta="Descuentos y bonificaciones"><frc-importe [valor]="f.totalDescuento ?? null" [moneda]="monedaFactura()" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
           }
-          <frc-dato etiqueta="Total de la factura"><frc-importe [valor]="f.totalGeneral ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
-          <frc-dato etiqueta="Valor de la nota"><frc-importe [valor]="f.totalNota ?? null" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
+          <frc-dato etiqueta="Total de la factura"><frc-importe [valor]="f.totalGeneral ?? null" [moneda]="monedaFactura()" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
+          <frc-dato etiqueta="Valor de la nota"><frc-importe [valor]="f.totalNota ?? null" [moneda]="monedaFactura()" [simbolo]="f.monedaSimbolo ?? null" /></frc-dato>
         </frc-seccion>
 
         @for (a of avisos(); track $index) {
@@ -510,6 +514,7 @@ export class FacturaProveedorPage {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly roles = inject(RoleService);
+  private readonly monedas = inject(MonedasSesion);
 
   /** Llegan de la ruta `:pedidoId/factura/:documentoId`. */
   readonly pedidoId = input<string>();
@@ -529,6 +534,13 @@ export class FacturaProveedorPage {
   readonly conversion = signal<ConversionMoneda | null>(null);
   readonly conversionCargando = signal(false);
   readonly conversionError = signal<string | null>(null);
+  /** La moneda de la factura según el catálogo: define los decimales de sus importes. */
+  readonly monedaFactura = computed(() => monedaDeFactura(this.factura(), this.monedas.catalogo()));
+  /** La moneda elegida para el pedido (la de la factura, salvo que se cambie). */
+  private readonly monedaPedido = computed(() => {
+    const id = this.monedaId();
+    return id == null ? null : (this.monedas.catalogo().find((m) => m.id === id) ?? null);
+  });
   readonly otraMoneda = computed(() => {
     const deFactura = aId(this.factura()?.monedaId);
     return this.monedaId() != null && deFactura != null && this.monedaId() !== deFactura;
@@ -746,7 +758,7 @@ export class FacturaProveedorPage {
       titulo: 'Cargar la factura al pedido',
       mensaje:
         'Se crea la nota ' + (f.numeroCompleto ?? '') + ' con ' + f.renglones.length +
-        ' renglones por ' + this.numero(f.totalNota) + ' ' + (f.monedaSimbolo ?? '') +
+        ' renglones por ' + this.importe(f.totalNota, this.monedaFactura()) + ' ' + (f.monedaSimbolo ?? '') +
         ' (con IVA), y se reparte entre las sucursales como dice el pedido.',
       confirmar: 'Cargar',
     });
@@ -774,10 +786,10 @@ export class FacturaProveedorPage {
         ' renglones para ' + nombres + (sucursales.length > 1 ? ', repartidos como cargaste' : '') +
         '. La compra queda en «Ítems del pedido» para que la revises en el sistema de escritorio con la' +
         ' factura en la mano; al finalizar la planificación, la factura ' + (f.numeroCompleto ?? '') + ' por ' +
-        this.numero(f.totalNota) + ' ' + (f.monedaSimbolo ?? '') + ' (con IVA) se carga sola.' +
+        this.importe(f.totalNota, this.monedaFactura()) + ' ' + (f.monedaSimbolo ?? '') + ' (con IVA) se carga sola.' +
         (this.otraMoneda() && this.conversion()
           ? ' El pedido va en ' + (this.conversion()!.monedaSimbolo ?? '') + ' por ' +
-            this.numero(this.conversion()!.totalPedido) + ', convertido a la cotización.'
+            this.importe(this.conversion()!.totalPedido, this.monedaPedido()) + ', convertido a la cotización.'
           : ''),
       confirmar: 'Crear compra',
     });
@@ -884,8 +896,7 @@ export class FacturaProveedorPage {
   }
 
   moneda(f: FacturaProveedor): string {
-    const base = f.moneda ?? '—';
-    return f.cotizacion && f.cotizacion > 1 ? base + ' · cotización ' + this.numero(f.cotizacion) : base;
+    return textoMoneda(f, this.monedaFactura(), this.monedas.empresa(), (v) => this.numero(v));
   }
 
   codigos(r: RenglonFactura): string {
@@ -896,6 +907,11 @@ export class FacturaProveedorPage {
     ]
       .filter(Boolean)
       .join(' · ');
+  }
+
+  /** Un importe con los decimales de su moneda; sin moneda resuelta, como siempre. */
+  importe(valor: number | null | undefined, moneda: Moneda | null): string {
+    return moneda ? formatearImporte(valor ?? 0, moneda) : this.numero(valor);
   }
 
   /** Solo formatea un número que ya mandó el central. */

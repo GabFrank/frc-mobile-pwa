@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   linkedSignal,
   output,
@@ -9,12 +10,20 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
+import { referenciaDePrecio } from 'src/app/domains/moneda/precio-moneda';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
-import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { esEntero, formatearCantidad, type MonedaReferencia } from 'src/app/generic/utils/moneda.util';
+import { EstadoChipComponent } from '../estado/estado-chip.component';
 import { IconoComponent } from '../icono/icono.component';
 import { ImporteComponent } from '../importe/importe.component';
-import { etiquetaPresentacion, precioDe, presentacionesContables } from './presentacion.util';
+import {
+  etiquetaPresentacion,
+  monedaDePrecioEscogido,
+  precioDe,
+  presentacionesContables,
+} from './presentacion.util';
 
 /** Una entrada del menú `⋮`. El id lo interpreta la pantalla que la declaró. */
 export interface AccionProducto {
@@ -44,7 +53,7 @@ export interface AccionProducto {
 @Component({
   selector: 'frc-producto-card',
   standalone: true,
-  imports: [MatMenuModule, MatButtonModule, IconoComponent, ImporteComponent],
+  imports: [MatMenuModule, MatButtonModule, IconoComponent, ImporteComponent, EstadoChipComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <article class="card" [class.abierta]="abierta()">
@@ -156,7 +165,15 @@ export interface AccionProducto {
                 </span>
                 <span class="p-cifras">
                   @if (mostrarPrecio() && precio(p) != null) {
-                    <frc-importe [valor]="precio(p)" moneda="Guaraní" simbolo="₲" />
+                    @if (referencia(p); as ref) {
+                      <frc-importe [valor]="precio(p)" [moneda]="ref.moneda" [simbolo]="ref.simbolo" />
+                    } @else {
+                      <!-- Sin saber la moneda, el número solo: nunca ₲ por descarte (#152). -->
+                      <span class="sin-moneda">
+                        {{ sinMoneda(p) }}
+                        <frc-estado-chip etiqueta="Moneda sin confirmar" tono="warn" />
+                      </span>
+                    }
                   }
                   @if (stock() != null) {
                     <span class="p-stock">
@@ -317,6 +334,12 @@ export interface AccionProducto {
       gap: 2px;
       flex-shrink: 0;
     }
+    .sin-moneda {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-variant-numeric: tabular-nums;
+    }
     .p-stock {
       font-size: var(--fs-caption);
       color: var(--text-soft);
@@ -348,6 +371,8 @@ export interface AccionProducto {
   `,
 })
 export class ProductoCardComponent {
+  private readonly monedasSesion = inject(MonedasSesion);
+
   readonly producto = input.required<Producto>();
   readonly acciones = input<AccionProducto[]>([]);
   readonly mostrarPrecio = input(false);
@@ -483,6 +508,17 @@ export class ProductoCardComponent {
 
   precio(p: Presentacion): number | null {
     return precioDe(p);
+  }
+
+  /** La moneda en que se muestra el precio, o `null` si no se sabe (#152). */
+  referencia(p: Presentacion): { moneda: MonedaReferencia; simbolo: string } | null {
+    const moneda = monedaDePrecioEscogido(p, this.monedasSesion);
+    return moneda === undefined ? null : referenciaDePrecio(moneda, this.monedasSesion.empresa());
+  }
+
+  sinMoneda(p: Presentacion): string {
+    const v = this.precio(p);
+    return formatearCantidad(v, v != null && esEntero(v) ? 0 : 2);
   }
 
   codigoDe(p: Presentacion): string {

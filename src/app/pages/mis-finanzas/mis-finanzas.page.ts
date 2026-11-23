@@ -23,7 +23,12 @@ import { DatoComponent } from 'src/app/shared/layout/dato.component';
 import { PaginaComponent } from 'src/app/shared/layout/pagina.component';
 import { SeccionComponent } from 'src/app/shared/layout/seccion.component';
 import { PaginacionComponent } from 'src/app/shared/paginacion/paginacion.component';
-import { MisFinanzasService, ResumenCredito, resumirCredito } from './mis-finanzas.service';
+import {
+  CreditoOtraEmpresa,
+  MisFinanzasService,
+  ResumenCredito,
+  resumirCredito,
+} from './mis-finanzas.service';
 import { VentaDetalleData, VentaDetalleDialogComponent } from './venta-detalle-dialog.component';
 
 type Filtro = 'abiertos' | 'todos';
@@ -83,6 +88,32 @@ const FILTROS: readonly { clave: Filtro; etiqueta: string; estado: EstadoVentaCr
           -->
           <frc-dato etiqueta="Disponible">
             <frc-importe [valor]="r.disponible" moneda="Guaraní" simbolo="₲" />
+          </frc-dato>
+        </frc-seccion>
+      }
+
+      <!--
+        La otra empresa va aparte de la propia: una persona puede tener
+        convenio allá aunque acá no sea cliente, y si falla la consulta allá
+        la de acá carga igual.
+      -->
+      @if (cargandoOtraEmpresa()) {
+        <frc-skeleton [cantidad]="1" />
+      } @else if (errorOtraEmpresa()) {
+        <frc-estado-error
+          titulo="No se pudo consultar el crédito de la otra empresa"
+          (reintentar)="cargarOtraEmpresa()"
+        />
+      } @else if (otraEmpresa(); as o) {
+        <frc-seccion [titulo]="'Crédito en ' + o.empresa" [panel]="true">
+          <frc-dato etiqueta="Límite">
+            <frc-importe [valor]="o.resumen.limite" moneda="Guaraní" simbolo="₲" />
+          </frc-dato>
+          <frc-dato etiqueta="Utilizado">
+            <frc-importe [valor]="o.resumen.utilizado" moneda="Guaraní" simbolo="₲" />
+          </frc-dato>
+          <frc-dato etiqueta="Disponible">
+            <frc-importe [valor]="o.resumen.disponible" moneda="Guaraní" simbolo="₲" />
           </frc-dato>
         </frc-seccion>
       }
@@ -171,6 +202,10 @@ export class MisFinanzasPage {
   /** Distingue «no es cliente» de «es cliente sin convenios». */
   readonly sinCliente = signal(false);
   readonly autorizando = signal(false);
+  /** `null` = no hay nada que mostrar allá; el error va aparte. */
+  readonly otraEmpresa = signal<CreditoOtraEmpresa | null>(null);
+  readonly cargandoOtraEmpresa = signal(true);
+  readonly errorOtraEmpresa = signal(false);
 
   readonly indiceFiltro = computed(() =>
     FILTROS.findIndex((f) => f.clave === this.filtroActivo()),
@@ -178,6 +213,7 @@ export class MisFinanzasPage {
 
   constructor() {
     this.cargar();
+    this.cargarOtraEmpresa();
     // No espera a que cargue el cliente: la autorización se valida contra la
     // persona en sesión y el propio QR, no contra la lista de convenios.
     this.consumirQrEntrante();
@@ -229,6 +265,22 @@ export class MisFinanzasPage {
       // Sin resumen se oculta el bloque entero. Mostrarlo en cero diría que
       // no debe nada, que es una afirmación y no un «no pude averiguarlo».
       error: () => this.resumen.set(null),
+    });
+  }
+
+  cargarOtraEmpresa(): void {
+    this.cargandoOtraEmpresa.set(true);
+    this.errorOtraEmpresa.set(false);
+    this.finanzas.creditoOtraEmpresa().subscribe({
+      next: (credito) => {
+        this.otraEmpresa.set(credito);
+        this.cargandoOtraEmpresa.set(false);
+      },
+      error: () => {
+        this.otraEmpresa.set(null);
+        this.errorOtraEmpresa.set(true);
+        this.cargandoOtraEmpresa.set(false);
+      },
     });
   }
 

@@ -7,6 +7,10 @@ import { Cliente } from 'src/app/domains/cliente/cliente.model';
 import type { PageInfo } from 'src/app/domains/page-info.model';
 import { EstadoVentaCredito, VentaCredito } from 'src/app/domains/venta-credito/venta-credito.model';
 import { Venta } from 'src/app/domains/venta/venta.model';
+import {
+  ConvenioOtraEmpresaGQL,
+  ConvenioRemoto,
+} from 'src/app/graphql/financiero/venta-credito/convenio-otra-empresa';
 import { VentaCreditoPorClienteGQL } from 'src/app/graphql/financiero/venta-credito/venta-credito-por-cliente-id';
 import { VentaCreditoPorClientePageGQL } from 'src/app/graphql/financiero/venta-credito/venta-credito-por-cliente-id-page';
 import { VentaCreditoQrAuthGQL } from 'src/app/graphql/financiero/venta-credito/venta-credito-qr-auth';
@@ -45,11 +49,22 @@ export function resumirCredito(
   abiertos: readonly VentaCredito[] | null,
 ): ResumenCredito {
   const utilizado = (abiertos ?? []).reduce((suma, c) => suma + (c.valorTotal ?? 0), 0);
+  return resumenDeTotales(limite, utilizado);
+}
+
+/** El resumen a partir del tope y lo utilizado, los dos emitidos por el backend. */
+export function resumenDeTotales(limite: number, utilizado: number): ResumenCredito {
   // Sin límite no hay porcentaje que mostrar: dividir por cero daría
   // Infinity y la barra saldría llena, que es justo lo contrario de lo que
   // pasa —un cliente sin tope asignado no gastó de más—.
   const porcentaje = limite > 0 ? Math.min(100, (utilizado / limite) * 100) : 0;
   return { limite, utilizado, disponible: limite - utilizado, porcentaje };
+}
+
+/** Crédito de la persona en la otra empresa (bodega ↔ farmacia), listo para mostrar. */
+export interface CreditoOtraEmpresa {
+  empresa: string;
+  resumen: ResumenCredito;
 }
 
 /**
@@ -73,6 +88,7 @@ export class MisFinanzasService {
   private readonly todosGQL = inject(VentaCreditoPorClienteGQL);
   private readonly ventaGQL = inject(VentaPorIdGQL);
   private readonly qrAuthGQL = inject(VentaCreditoQrAuthGQL);
+  private readonly otraEmpresaGQL = inject(ConvenioOtraEmpresaGQL);
 
   /**
    * Cliente del funcionario.
@@ -146,6 +162,32 @@ export class MisFinanzasService {
           .pipe(map((abiertos) => resumirCredito(cliente.credito ?? 0, abiertos)));
       }),
     );
+  }
+
+  /**
+   * Crédito de la persona en sesión en la otra empresa, que el central consulta
+   * por CI.
+   *
+   * Emite `null` si allá no tiene convenio o la integración no está configurada:
+   * no hay nada que mostrar. Si no se pudo preguntar, emite error, que es otra
+   * cosa. Sin toast ni carga global: es un bloque secundario de la pantalla.
+   */
+  creditoOtraEmpresa(): Observable<CreditoOtraEmpresa | null> {
+    return this.datos
+      .consultar<ConvenioRemoto | null>(this.otraEmpresaGQL, undefined, {
+        mostrarCarga: false,
+        notificarError: false,
+      })
+      .pipe(
+        map((c) =>
+          c
+            ? {
+                empresa: c.empresa || 'la otra empresa',
+                resumen: resumenDeTotales(c.limite ?? 0, c.utilizado ?? 0),
+              }
+            : null,
+        ),
+      );
   }
 
   /** Venta completa, con sus ítems, para el detalle. */

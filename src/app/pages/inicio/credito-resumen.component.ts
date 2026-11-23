@@ -1,13 +1,16 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
-import { MisFinanzasService, ResumenCredito } from 'src/app/pages/mis-finanzas/mis-finanzas.service';
+import { CREDITO_VISIBLE_KEY } from 'src/app/core/auth/auth.tokens';
+import {
+  CreditoOtraEmpresa,
+  MisFinanzasService,
+  ResumenCredito,
+} from 'src/app/pages/mis-finanzas/mis-finanzas.service';
 import { IconoComponent } from 'src/app/shared/icono/icono.component';
 import { ImporteComponent } from 'src/app/shared/importe/importe.component';
-
-/** Preferencia de visibilidad. Persiste entre sesiones, como en `frc-mobile`. */
-const CLAVE_VISIBLE = 'frc.credito.visible';
 
 /** A partir de acá la barra deja de ser informativa y empieza a avisar. */
 const UMBRAL_WARN = 75;
@@ -23,12 +26,20 @@ const UMBRAL_WARN = 75;
  * ⚠️ **Los valores arrancan ocultos y la preferencia se guarda.** No es
  * pudor: esta pantalla se abre en el salón, delante de clientes y de otros
  * empleados, y el saldo de una persona no tiene por qué leerse por encima
- * del hombro. `frc-mobile` ya lo resolvía así y se conserva.
+ * del hombro. `frc-mobile` ya lo resolvía así y se conserva. A diferencia de
+ * `frc-mobile`, la preferencia se borra con la sesión (`limpiarSesion`): si no,
+ * el próximo que entra en el mismo teléfono ve el saldo del anterior.
  *
  * ⚠️ **Si la persona no es cliente, la card no existe.** No todo empleado
  * compra por convenio; mostrar un bloque en cero le diría que tiene un
  * crédito agotado, que es exactamente lo contrario. Lo mismo si la consulta
  * falla: se ofrece reintentar, no se inventa un cero.
+ *
+ * **La otra empresa (bodega ↔ farmacia).** Si la persona tiene convenio en la
+ * otra empresa, el botón de intercambio alterna entre las dos. Si acá no es
+ * cliente pero allá sí, la card muestra la otra directamente. Un fallo de la
+ * otra empresa no se muestra acá —Inicio es la primera pantalla y Mis finanzas
+ * ya lo dice—: simplemente no aparece el botón.
  */
 @Component({
   selector: 'frc-credito-resumen',
@@ -36,7 +47,7 @@ const UMBRAL_WARN = 75;
   imports: [IconoComponent, ImporteComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (cargando()) {
+    @if (cargando() || (resumen() === null && !error() && cargandoOtra())) {
       <div class="card cargando" aria-hidden="true">
         <div class="sk linea corta"></div>
         <div class="sk linea larga"></div>
@@ -47,7 +58,7 @@ const UMBRAL_WARN = 75;
         <span class="fallo-texto">No se pudo cargar tu crédito.</span>
         <button type="button" class="reintentar" (click)="cargar()">Reintentar</button>
       </div>
-    } @else if (resumen(); as r) {
+    } @else if (mostrado(); as r) {
       <!--
         La card entera navega, pero el ojo NO: es un botón anidado con su
         propio stopPropagation. Sin eso, ocultar los valores te sacaba de la
@@ -58,14 +69,16 @@ const UMBRAL_WARN = 75;
         role="link"
         tabindex="0"
         (click)="verDetalle()"
-        (keydown.enter)="verDetalle()"
-        (keydown.space)="verDetalle()"
+        (keydown.enter)="teclaEnCard($event)"
+        (keydown.space)="teclaEnCard($event)"
       >
         <div class="cabecera">
-          <span class="etiqueta">Crédito disponible</span>
+          <span class="etiqueta" aria-live="polite">
+            {{ viendoOtra() ? 'Crédito disponible en ' + otra()!.empresa : 'Crédito disponible' }}
+          </span>
           <button
             type="button"
-            class="ojo"
+            class="accion"
             [attr.aria-label]="visible() ? 'Ocultar valores' : 'Mostrar valores'"
             [attr.aria-pressed]="visible()"
             (click)="alternarVisibilidad($event)"
@@ -96,8 +109,8 @@ const UMBRAL_WARN = 75;
         >
           <div
             class="indicador"
-            [class.warn]="tono(r) === 'warn'"
-            [class.danger]="tono(r) === 'danger'"
+            [class.warn]="visible() && tono(r) === 'warn'"
+            [class.danger]="visible() && tono(r) === 'danger'"
             [style.width.%]="visible() ? r.porcentaje : 0"
           ></div>
         </div>
@@ -119,6 +132,21 @@ const UMBRAL_WARN = 75;
               <span class="oculto chico">₲ ••••••</span>
             }
           </div>
+          <!--
+            Abajo a la derecha, en la línea de los montos y en la columna del
+            ojo: lejos del ojo para no tocar uno por el otro, y a mano del
+            pulgar. Va al final de la fila, así que llegar tarde no corre nada.
+          -->
+          @if (puedeAlternar()) {
+            <button
+              type="button"
+              class="accion intercambio"
+              [attr.aria-label]="viendoOtra() ? 'Ver mi crédito' : 'Ver crédito en ' + otra()!.empresa"
+              (click)="alternarEmpresa($event)"
+            >
+              <frc-icono nombre="intercambio" [tamano]="20" />
+            </button>
+          }
         </div>
       </div>
     }
@@ -153,7 +181,7 @@ const UMBRAL_WARN = 75;
       color: var(--text-mute);
       font-weight: var(--fw-medium);
     }
-    .ojo {
+    .accion {
       background: none;
       border: none;
       color: var(--text-soft);
@@ -162,7 +190,8 @@ const UMBRAL_WARN = 75;
       border-radius: var(--radius-sm);
       line-height: 0;
     }
-    .ojo:hover { background: var(--surface-sunken); }
+    .accion:hover { background: var(--surface-sunken); }
+    .accion:focus-visible { outline: 2px solid var(--brand-text); outline-offset: 2px; }
 
     .monto { font-size: var(--fs-display); font-weight: var(--fw-bold); color: var(--text); }
     .oculto {
@@ -190,6 +219,7 @@ const UMBRAL_WARN = 75;
     .indicador.danger { background: var(--danger-fill); }
 
     .detalles { display: flex; gap: var(--sp-6); }
+    .intercambio { margin-left: auto; align-self: flex-end; }
     .detalle { display: flex; flex-direction: column; gap: var(--sp-1); }
     .detalle-etiqueta { font-size: var(--fs-caption); color: var(--text-mute); }
 
@@ -233,14 +263,51 @@ export class CreditoResumenComponent {
   private readonly finanzas = inject(MisFinanzasService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly resumen = signal<ResumenCredito | null>(null);
   readonly cargando = signal(true);
   readonly error = signal(false);
-  readonly visible = signal(localStorage.getItem(CLAVE_VISIBLE) === 'true');
+  readonly visible = signal(localStorage.getItem(CREDITO_VISIBLE_KEY) === 'true');
+
+  /** Crédito en la otra empresa; `null` si no hay o no se pudo preguntar. */
+  readonly otra = signal<CreditoOtraEmpresa | null>(null);
+  readonly cargandoOtra = signal(true);
+  /** Elección del usuario. No se guarda: Inicio arranca siempre en la propia. */
+  private readonly eligioOtra = signal(false);
+
+  /** Solo se alterna si hay las dos; si acá no es cliente, la otra se muestra sola. */
+  readonly puedeAlternar = computed(() => this.resumen() !== null && this.otra() !== null);
+  readonly viendoOtra = computed(
+    () => this.otra() !== null && (this.resumen() === null || this.eligioOtra()),
+  );
+  readonly mostrado = computed<ResumenCredito | null>(() =>
+    this.viendoOtra() ? this.otra()!.resumen : this.resumen(),
+  );
 
   constructor() {
     this.cargar();
+    this.cargarOtra();
+  }
+
+  /** Una sola vez: Reintentar es de la propia, y repetirla le pegaría de nuevo al otro central. */
+  private cargarOtra(): void {
+    if (this.auth.usuario()?.persona?.id == null) {
+      this.cargandoOtra.set(false);
+      return;
+    }
+    this.finanzas
+      .creditoOtraEmpresa()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (credito) => {
+          this.otra.set(credito);
+          this.cargandoOtra.set(false);
+        },
+        // Silencioso a propósito: también es lo que pasa contra un central que
+        // todavía no tiene la query.
+        error: () => this.cargandoOtra.set(false),
+      });
   }
 
   cargar(): void {
@@ -281,7 +348,25 @@ export class CreditoResumenComponent {
     evento.stopPropagation();
     const nuevo = !this.visible();
     this.visible.set(nuevo);
-    localStorage.setItem(CLAVE_VISIBLE, String(nuevo));
+    localStorage.setItem(CREDITO_VISIBLE_KEY, String(nuevo));
+  }
+
+  alternarEmpresa(evento: Event): void {
+    evento.stopPropagation();
+    this.eligioOtra.set(!this.eligioOtra());
+  }
+
+  /**
+   * Enter y Espacio sobre la card navegan; sobre sus botones, no. El keydown de
+   * un botón enfocado sube hasta acá, y sin este filtro activar el ojo con el
+   * teclado también abría Mis finanzas.
+   */
+  teclaEnCard(evento: Event): void {
+    if (evento.target !== evento.currentTarget) {
+      return;
+    }
+    evento.preventDefault();
+    this.verDetalle();
   }
 
   verDetalle(): void {

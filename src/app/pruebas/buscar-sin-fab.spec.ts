@@ -10,6 +10,7 @@ import { AuthService } from '../core/auth/auth.service';
 import { EscanerService } from '../core/dispositivo/escaner.service';
 import { DialogoService } from '../core/ui/dialogo.service';
 import { NotificacionService } from '../core/ui/notificacion.service';
+import { PrecioMonedaService } from '../domains/moneda/precio-moneda.service';
 import { ProductoBusquedaService } from '../domains/productos/producto-busqueda.service';
 import { BuscarPage } from '../pages/buscar/buscar.page';
 import { PaginaComponent } from '../shared/layout/pagina.component';
@@ -48,6 +49,7 @@ describe('Buscar · sin botón flotante', () => {
         { provide: EscanerService, useValue: { escanear: vi.fn(), disponible: true } },
         { provide: NotificacionService, useValue: { ok: vi.fn(), warn: vi.fn(), danger: vi.fn() } },
         { provide: DialogoService, useValue: { abrir: vi.fn() } },
+        { provide: PrecioMonedaService, useValue: { listo: vi.fn(async () => undefined) } },
         // Sucursal con depósito: es la que decide si se pide el stock, y no
         // tiene nada que ver con el FAB. Se fija para que el montaje no
         // dependa del estado de la sesión.

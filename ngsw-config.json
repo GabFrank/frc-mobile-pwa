@@ -37,6 +37,16 @@
           "/face-models/**"
         ]
       }
+    },
+    {
+      "name": "ocr",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": [
+          "/ocr/**"
+        ]
+      }
     }
   ],
   "appData": {

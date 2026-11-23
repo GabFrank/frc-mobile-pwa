@@ -14,6 +14,10 @@ describe('estado-registry', () => {
     expect(resolverEstado('EstadoDevolucion', 'RETIRADO').tono).toBe('info');
   });
 
+  it('un convenio abierto va en azul, no en gris', () => {
+    expect(resolverEstado('EstadoVentaCredito', 'ABIERTO').tono).toBe('info');
+  });
+
   it('respeta los valores mal escritos del backend', () => {
     // `CONLCUIDA` está así en el central. Corregirlo del lado del cliente
     // rompería la coincidencia del string.

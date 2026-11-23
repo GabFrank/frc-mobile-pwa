@@ -11,6 +11,7 @@ import {
   leerUsuarioIdEnSesion,
   leerUsuarioRecordado,
   limpiarSesion,
+  CREDITO_VISIBLE_KEY,
   MANTENER_CONECTADO_KEY,
   mantenerConectado,
   RECORDAR_USUARIO_KEY,
@@ -83,6 +84,12 @@ describe('Recordar usuario y mantener la sesión', () => {
       expect(sessionStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
       expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBe('tok-nuevo');
       expect(leerUsuarioIdEnSesion()).toBe(9);
+    });
+
+    it('cerrar sesión vuelve a tapar los valores del crédito', () => {
+      localStorage.setItem(CREDITO_VISIBLE_KEY, 'true');
+      limpiarSesion();
+      expect(localStorage.getItem(CREDITO_VISIBLE_KEY)).toBeNull();
     });
 
     it('cerrar sesión limpia los dos almacenes', () => {

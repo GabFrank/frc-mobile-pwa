@@ -1,3 +1,7 @@
+import type { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
+import type { Moneda } from 'src/app/domains/moneda/moneda.model';
+import { monedaGuardadaDePrecio } from 'src/app/domains/moneda/precio-moneda';
+import { PrecioPorSucursal } from 'src/app/domains/productos/precio-por-sucursal.model';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
 import { normalizarCodigo } from 'src/app/generic/utils/barcodeUtils';
@@ -67,17 +71,74 @@ export function presentacionesContables(presentaciones: Presentacion[]): Present
   return unitarias.length > 0 ? unitarias : activas;
 }
 
-/** Precio de la presentación: el principal, y si no el primero activo. */
-export function precioDe(presentacion: Presentacion | null | undefined): number | null {
+/**
+ * El precio que se usa de la presentación: el principal, y si no el primero
+ * activo con importe. `precioDe()` es su importe; el kiosco necesita el
+ * precio mismo para saber en qué moneda está.
+ *
+ * ⚠️ **`precioPrincipal` llega con el id de la presentación** (#142,
+ * central #605): el central lo arma con un `select *` sobre presentación
+ * join precio, y las columnas que se llaman igual (`id`, `activo`,
+ * `principal`...) traen las de la presentación. El **importe** sí es el del
+ * precio. Por eso se busca en `precios` (ids reales) el principal **con ese
+ * mismo importe**: el mismo que eligió el central. No el primer principal de
+ * la lista: hay presentaciones con dos principales de importes distintos, y
+ * se mostraría otro precio. Sin coincidencia, `precioPrincipal` como siempre.
+ */
+export function precioEscogido(presentacion: Presentacion | null | undefined): PrecioPorSucursal | null {
   if (!presentacion) {
     return null;
   }
-  const principal = presentacion.precioPrincipal?.precio;
-  if (principal != null) {
-    return principal;
+  const lista = presentacion.precios ?? [];
+  const principales = lista.filter((p) => p.principal === true && p.precio != null);
+  const delCentral = presentacion.precioPrincipal;
+  if (delCentral?.precio != null) {
+    return principales.find((p) => p.precio === delCentral.precio) ?? delCentral;
   }
-  const activo = presentacion.precios?.find((p) => p.activo !== false && p.precio != null);
-  return activo?.precio ?? null;
+  if (principales.length > 0) {
+    return principales[0];
+  }
+  return lista.find((p) => p.activo !== false && p.precio != null) ?? null;
+}
+
+/** Precio de la presentación: el principal, y si no el primero activo. */
+export function precioDe(presentacion: Presentacion | null | undefined): number | null {
+  return precioEscogido(presentacion)?.precio ?? null;
+}
+
+/**
+ * El precio escogido **solo si salió de `precios`**, que es el único con su id
+ * real: el de `precioPrincipal` es el de la presentación (#142) y buscar su
+ * moneda con él leería otra fila (#152).
+ */
+export function precioConIdEscogido(presentacion: Presentacion | null | undefined): PrecioPorSucursal | null {
+  const escogido = precioEscogido(presentacion);
+  return escogido != null && (presentacion?.precios ?? []).includes(escogido) ? escogido : null;
+}
+
+/**
+ * La moneda del precio que se muestra de la presentación (card del buscador,
+ * pesable; #152): `null` = la de la empresa, `undefined` = no se sabe. Usa la
+ * lista de la sesión, no la consulta por producto: un principal inactivo en
+ * otra moneda queda sin saber, nunca en guaraníes por descarte.
+ */
+export function monedaDePrecioEscogido(
+  presentacion: Presentacion | null | undefined,
+  sesion: MonedasSesion,
+): Moneda | null | undefined {
+  const escogido = precioConIdEscogido(presentacion);
+  // Sin id se lo trata como un inactivo: no se sabe, salvo con un central viejo
+  // (la de la empresa).
+  return monedaGuardadaDePrecio({
+    precioId: escogido?.id ?? null,
+    activo: escogido ? escogido.activo : false,
+    delProducto: null,
+    productoSinConsulta: false,
+    sesion: sesion.preciosOtraMoneda(),
+    soportado: sesion.preciosMonedaSoportado(),
+    sinRespuesta: sesion.preciosMonedaSinRespuesta(),
+    listos: sesion.preciosMonedaListos(),
+  });
 }
 
 /**

@@ -57,11 +57,10 @@ const MINIMO_VIDA = 0.5;
  * vive solo acá, que es el dispositivo donde hace falta. La contrapartida es
  * que un falso positivo deja una marcación a nombre de quien no estuvo.
  *
- * ⚠️ **Doble control antes de marcar.** El central resuelve el 1:N y devuelve
- * el mejor match **sin el margen contra el segundo candidato**; acá se
+ * ⚠️ **Triple control antes de marcar.** El central resuelve el 1:N; acá se
  * recalcula la similitud contra la galería que vino, con el umbral de
- * verificación (`0.75`) y no el de búsqueda (`0.55`). Ver
- * {@link validarIdentificacion} y la issue #217 del central.
+ * verificación (`0.75`), y se exige que el mejor candidato le saque al menos
+ * `0.05` al segundo. Ver {@link validarIdentificacion} y la issue #144.
  *
  * ⚠️ **La posición es la de la detección, no la de cada marcación.** A
  * diferencia de la marcación personal, acá el dispositivo está fijo en una

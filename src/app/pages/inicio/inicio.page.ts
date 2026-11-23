@@ -118,15 +118,14 @@ export class InicioPage {
    * Los accesos sin `roles` son deliberados: autoservicio y consulta. El
    * porqué de cada uno está en `permisos.ts`.
    */
-  // Los seis primeros son los de uso diario (orden pedido por Franco, 2026-11-03).
+  // Los cinco primeros son los de uso diario (orden pedido por Franco, 2026-11-03).
+  // Nada que ya esté en la barra de abajo (`DESTINOS` de shell/nav.ts): sería un botón repetido.
   private readonly TODOS: readonly AccesoRapido[] = [
     { etiqueta: 'Marcación', ruta: '/marcacion', icono: 'reloj' },
     { etiqueta: 'Transferencias', ruta: '/transferencias', icono: 'camion', roles: PERMISOS.transferencias },
     { etiqueta: 'Inventario', ruta: '/inventario', icono: 'inventario', roles: PERMISOS.inventario },
     { etiqueta: 'Mis finanzas', ruta: '/mis-finanzas', icono: 'dinero' },
     { etiqueta: 'Caja', ruta: '/operaciones/caja', icono: 'dinero', roles: PERMISOS.caja },
-    { etiqueta: 'Operaciones', ruta: '/operaciones', icono: 'caja' },
-    { etiqueta: 'Buscar producto', ruta: '/buscar', icono: 'buscar' },
     { etiqueta: 'Productos vencidos', ruta: '/producto/vencidos', icono: 'vencido' },
     { etiqueta: 'Consultar precio', ruta: '/kiosco', icono: 'etiqueta' },
     {
@@ -156,7 +155,6 @@ export class InicioPage {
       roles: PERMISOS.kioscoMarcacion,
     },
     { etiqueta: 'Mi trabajo', ruta: '/mi-trabajo', icono: 'persona' },
-    { etiqueta: 'Mi cuenta', ruta: '/cuenta', icono: 'cuenta' },
   ];
 
   readonly saludo = computed(() => {

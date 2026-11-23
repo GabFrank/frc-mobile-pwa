@@ -127,10 +127,10 @@ const REGISTRO: Record<ClaveEstado, EstadoVisual> = {
   'VentaTarjetaEstado.COMPLETADO': { etiqueta: 'Registrado',    tono: 'ok',   icono: 'checkCirculo' },
 
   // ─── Compras a crédito por convenio ────────────────────────────────────
-  // ABIERTO es neutro y no naranja: para el funcionario un convenio abierto
-  // es lo normal —recién se salda con la liquidación del mes—, no algo
-  // pendiente de su parte. EN_MORA sí es su problema.
-  'EstadoVentaCredito.ABIERTO':     { etiqueta: 'Abierto',     tono: 'neutral', icono: 'documento' },
+  // ABIERTO es azul de «en curso» y no naranja: para el funcionario un
+  // convenio abierto es lo normal —recién se salda con la liquidación del
+  // mes—, no algo pendiente de su parte. EN_MORA sí es su problema.
+  'EstadoVentaCredito.ABIERTO':     { etiqueta: 'Abierto',     tono: 'info',    icono: 'documento' },
   'EstadoVentaCredito.FINALIZADO':  { etiqueta: 'Finalizado',  tono: 'ok',      icono: 'checkCirculo' },
   'EstadoVentaCredito.EN_MORA':     { etiqueta: 'En mora',     tono: 'danger',  icono: 'alerta' },
   'EstadoVentaCredito.INCOBRABLE':  { etiqueta: 'Incobrable',  tono: 'danger',  icono: 'error' },

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from 'src/app/core/auth/auth.service';
@@ -274,31 +274,92 @@ export class MarcacionPage {
     return min != null ? convertMsToTime(min * 60_000) : '—';
   });
 
+  /** Número del último pedido de estado: solo se aplica esa respuesta. */
+  private pedidoEstado = 0;
+
   constructor() {
     this.cargar();
     this.cargarSucursales();
+
+    // ⚠️ **iOS deja la pantalla viva en segundo plano, a veces por días.** Sin
+    // esto, al volver se veía el estado y la ubicación de cuando se abrió, y
+    // se ofrecía marcar una acción que el central ya no acepta (28/10).
+    const alCambiarVisibilidad = () => {
+      if (document.visibilityState === 'visible') {
+        this.alVolverAlFrente();
+      }
+    };
+    document.addEventListener('visibilitychange', alCambiarVisibilidad);
+    inject(DestroyRef).onDestroy(() =>
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad),
+    );
   }
 
-  cargar(): void {
+  /**
+   * Pide el estado del día.
+   *
+   * @param silenciosa Las recargas que nadie pidió —al volver a la app, tras
+   *   un rechazo— no avisan ni ponen la pantalla en error: si fallan queda lo
+   *   que había. Volver con la red todavía caída es lo normal en iOS, y el
+   *   aviso de la recarga taparía el del central (se ve uno solo a la vez).
+   */
+  cargar(silenciosa = false): void {
+    const pedido = ++this.pedidoEstado;
     const usuarioId = this.auth.usuario()?.id;
     if (usuarioId == null) {
-      this.error.set('La sesión no tiene usuario.');
-      this.cargando.set(false);
+      if (!silenciosa) {
+        this.error.set('La sesión no tiene usuario.');
+        this.cargando.set(false);
+      }
       return;
     }
-    this.cargando.set(true);
-    this.error.set(null);
+    if (!silenciosa) {
+      this.cargando.set(true);
+      this.error.set(null);
+    }
 
-    this.servicio.estado(usuarioId).subscribe({
+    const opciones = silenciosa ? { notificarError: false, mostrarCarga: false } : undefined;
+    this.servicio.estado(usuarioId, opciones).subscribe({
       next: (estado) => {
+        if (pedido !== this.pedidoEstado) {
+          return;
+        }
         this.estado.set(estado ?? null);
+        this.error.set(null);
         this.cargando.set(false);
       },
       error: (err: Error) => {
-        this.error.set(err.message);
+        if (pedido !== this.pedidoEstado) {
+          return;
+        }
         this.cargando.set(false);
+        if (silenciosa && this.estado()) {
+          return;
+        }
+        this.error.set(err.message);
       },
     });
+  }
+
+  /**
+   * La app volvió al frente: el estado y la ubicación pueden tener días.
+   *
+   * ⚠️ **No con una marcación en curso.** `detectar()` borra la posición al
+   * empezar, y `marcar()` lee la suya después de su propio `detectar()`: una
+   * detección cruzada la dejaría sin posición. Tampoco se apila sobre una
+   * detección que ya está buscando, ni pisa una carga normal en vuelo: una
+   * recarga silenciosa que fallara después la dejaría sin aplicar.
+   */
+  private alVolverAlFrente(): void {
+    if (this.enCurso() != null || this.marcando()) {
+      return;
+    }
+    if (!this.cargando()) {
+      this.cargar(true);
+    }
+    if (this.det.estado() !== 'buscando') {
+      void this.det.detectar();
+    }
   }
 
   private cargarSucursales(): void {
@@ -599,6 +660,10 @@ export class MarcacionPage {
         this.marcando.set(false);
         this.enCurso.set(null);
         this.notificacion.danger(err.message);
+        // Un error no quiere decir que no se guardó: la respuesta pudo
+        // perderse con la marcación ya hecha (28/10). Sin recargar, la
+        // pantalla volvía a ofrecer lo mismo y el central lo rechazaba.
+        this.cargar(true);
       },
     });
   }

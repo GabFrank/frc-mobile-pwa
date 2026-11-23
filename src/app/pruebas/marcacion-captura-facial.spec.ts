@@ -3,7 +3,11 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CapturaFacial, ReconocimientoFacialService } from '../core/dispositivo/reconocimiento-facial.service';
+import {
+  CapturaFacial,
+  DeteccionFallidaError,
+  ReconocimientoFacialService,
+} from '../core/dispositivo/reconocimiento-facial.service';
 import { DatosService } from '../core/graphql/datos.service';
 import { GaleriaFacialGQL } from '../graphql/personas/usuario/graphql/galeriaFacial';
 import { UsuarioPorEmbeddingGQL } from '../graphql/personas/usuario/graphql/usuarioPorEmbedding';
@@ -259,6 +263,22 @@ describe('Verificación facial con cuenta regresiva', () => {
 
     expect(f.componentInstance.fase()).toBe('fallo');
     expect(f.componentInstance.motivo()).toContain('rostro');
+    expect(cerrar).not.toHaveBeenCalled();
+  });
+
+  it('si la detección se cuelga a mitad de la foto, ofrece tomar otra en vez de quedar trabado', async () => {
+    // El frame 1 sale bien y el 2 no se pudo analizar (la GPU no respondió).
+    detectar
+      .mockResolvedValueOnce(captura())
+      .mockRejectedValueOnce(new DeteccionFallidaError('La detección no respondió a tiempo.'));
+    const f = await listo();
+
+    await sacarFoto(f);
+
+    expect(detectar).toHaveBeenCalledTimes(2);
+    expect(f.componentInstance.fase()).toBe('fallo');
+    // Un cuelgue no es una foto de una foto: no se acusa de suplantación.
+    expect(f.componentInstance.motivo()).toContain('No se detectó tu rostro');
     expect(cerrar).not.toHaveBeenCalled();
   });
 

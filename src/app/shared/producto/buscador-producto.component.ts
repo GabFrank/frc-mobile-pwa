@@ -7,6 +7,7 @@ import {
   input,
   output,
   signal,
+  untracked,
   WritableSignal,
 } from '@angular/core';
 import { Router } from '@angular/router';
@@ -16,16 +17,20 @@ import { MatInputModule } from '@angular/material/input';
 import { Subscription } from 'rxjs';
 
 import { EscanerService } from 'src/app/core/dispositivo/escaner.service';
+import { MonedasSesion } from 'src/app/core/moneda/monedas-sesion';
 import { FORMATOS_PRODUCTO } from 'src/app/core/dispositivo/escaner.types';
 import { DialogoService } from 'src/app/core/ui/dialogo.service';
 import { NotificacionService } from 'src/app/core/ui/notificacion.service';
+import { referenciaDePrecio } from 'src/app/domains/moneda/precio-moneda';
+import { PrecioMonedaService } from 'src/app/domains/moneda/precio-moneda.service';
 import {
   ProductoBusquedaService,
   ResultadoPesable,
 } from 'src/app/domains/productos/producto-busqueda.service';
 import { Presentacion } from 'src/app/domains/productos/presentacion.model';
 import { Producto } from 'src/app/domains/productos/producto.model';
-import { formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { esEntero, formatearCantidad } from 'src/app/generic/utils/moneda.util';
+import { EstadoChipComponent } from '../estado/estado-chip.component';
 import { EstadoErrorComponent } from '../estados-ui/estado-error.component';
 import { EstadoVacioComponent } from '../estados-ui/estado-vacio.component';
 import { SkeletonComponent } from '../estados-ui/skeleton.component';
@@ -33,7 +38,7 @@ import { IconoComponent } from '../icono/icono.component';
 import { ImporteComponent } from '../importe/importe.component';
 import { SeccionComponent } from '../layout/seccion.component';
 import { ACCION_FICHA, ACCION_STOCK, OpcionesBuscador, SeleccionProducto } from './buscador.types';
-import { precioDe } from './presentacion.util';
+import { monedaDePrecioEscogido, precioDe } from './presentacion.util';
 import { AccionProducto, ProductoCardComponent } from './producto-card.component';
 import {
   StockSucursalesData,
@@ -71,6 +76,7 @@ const LOTE = 10;
     SkeletonComponent,
     EstadoVacioComponent,
     EstadoErrorComponent,
+    EstadoChipComponent,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
@@ -106,15 +112,29 @@ const LOTE = 10;
             <span>{{ pesoLegible() }} kg</span>
             @if (precioPorKilo(); as precio) {
               <span class="por">
-                × <frc-importe [valor]="precio" moneda="Guaraní" simbolo="₲" /> por kg
+                ×
+                @if (referenciaPesable(); as ref) {
+                  <frc-importe [valor]="precio" [moneda]="ref.moneda" [simbolo]="ref.simbolo" />
+                } @else {
+                  {{ sinMoneda(precio) }}
+                }
+                por kg
               </span>
             }
           </div>
           @if (totalPesable(); as total) {
             <div class="total">
               <span>Total</span>
-              <frc-importe [valor]="total" moneda="Guaraní" simbolo="₲" />
+              @if (referenciaPesable(); as ref) {
+                <frc-importe [valor]="total" [moneda]="ref.moneda" [simbolo]="ref.simbolo" />
+              } @else {
+                <span>{{ sinMoneda(total) }}</span>
+              }
             </div>
+          }
+          @if (precioPorKilo() != null && !referenciaPesable()) {
+            <!-- Sin saber la moneda, los números solos: nunca ₲ por descarte (#152). -->
+            <frc-estado-chip etiqueta="Moneda sin confirmar" tono="warn" />
           }
         </div>
       </frc-seccion>
@@ -226,6 +246,8 @@ export class BuscadorProductoComponent {
   private readonly notificacion = inject(NotificacionService);
   private readonly dialogo = inject(DialogoService);
   private readonly router = inject(Router);
+  private readonly monedasSesion = inject(MonedasSesion);
+  private readonly precioMoneda = inject(PrecioMonedaService);
 
   readonly opciones = input<OpcionesBuscador>({});
   /**
@@ -315,13 +337,19 @@ export class BuscadorProductoComponent {
 
   readonly precioPorKilo = computed(() => precioDe(this.pesable()?.presentacion));
   readonly pesoLegible = computed(() => formatearCantidad(this.pesable()?.peso, 3));
+  /** La moneda del precio del pesable, o `null` si no se sabe (#152). */
+  readonly referenciaPesable = computed(() => {
+    const moneda = monedaDePrecioEscogido(this.pesable()?.presentacion, this.monedasSesion);
+    return moneda === undefined ? null : referenciaDePrecio(moneda, this.monedasSesion.empresa());
+  });
 
   /**
    * Peso × precio por kilo.
    *
    * No contradice la regla 6 —el dinero lo calcula el backend—: el precio de
    * un pesable **es** por kilo y la cantidad viene en el código. Es aplicar la
-   * unidad del precio que el backend ya mandó.
+   * unidad del precio que el backend ya mandó. Sin redondear: `frc-importe`
+   * lo muestra con los decimales de la moneda (en USD, los centavos; #152).
    */
   readonly totalPesable = computed(() => {
     const precio = this.precioPorKilo();
@@ -329,8 +357,12 @@ export class BuscadorProductoComponent {
     if (precio == null || peso == null) {
       return null;
     }
-    return Math.round(precio * peso);
+    return precio * peso;
   });
+
+  sinMoneda(valor: number): string {
+    return formatearCantidad(valor, esEntero(valor) ? 0 : 2);
+  }
 
   /**
    * Existencia del producto, o `null` si no corresponde mostrarla.
@@ -391,6 +423,9 @@ export class BuscadorProductoComponent {
     }
     this.error.set(null);
     this.ultimaBusqueda.set(consulta);
+    // Si la moneda de los precios quedó sin respuesta, se vuelve a pedir. Sin
+    // rastrear: el effect de `codigoInicial` llega hasta acá (#152).
+    untracked(() => void this.precioMoneda.listo());
 
     this.enVuelo = this.busqueda.buscarPorCodigoOTexto(consulta, this.offset).subscribe({
       next: (lista) => {
@@ -562,6 +597,7 @@ export class BuscadorProductoComponent {
     this.resultados.set([]);
     this.abiertoId.set(null);
     this.pesable.set(null);
+    untracked(() => void this.precioMoneda.listo());
 
     this.enVuelo = this.busqueda.pesable(codigo).subscribe({
       next: (resultado) => {

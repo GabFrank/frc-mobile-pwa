@@ -279,4 +279,63 @@ describe('Escáner de códigos', () => {
     expect(cerrar).toHaveBeenCalledWith(undefined);
     expect(detener).toHaveBeenCalled();
   });
+
+  /** Simula que el usuario eligió una foto en el selector del teléfono. */
+  async function elegirFoto(f: ReturnType<typeof crear>): Promise<void> {
+    const entrada = f.nativeElement.querySelector('input[type=file]') as HTMLInputElement;
+    const archivo = new File(['x'], 'kude.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(entrada, 'files', { value: [archivo], configurable: true });
+    entrada.dispatchEvent(new Event('change'));
+    await asentar();
+    f.detectChanges();
+  }
+
+  it('sin lectura de foto no hay botón ni selector de archivos', async () => {
+    montarCamara();
+    montarDetector([]);
+
+    const f = crear();
+    await asentar();
+    f.detectChanges();
+
+    expect(f.nativeElement.querySelector('input[type=file]')).toBeFalsy();
+    expect(f.nativeElement.textContent).not.toContain('de una foto');
+  });
+
+  it('lee el código de una foto y lo deja para revisar, sin confirmar solo', async () => {
+    montarCamara();
+    montarDetector([]);
+    const leer = vi.fn().mockResolvedValue('0180 0625 0720');
+
+    const f = crear({ leerFoto: { etiqueta: 'Leer el CDC de una foto', leer } });
+    await asentar();
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Leer el CDC de una foto');
+
+    await elegirFoto(f);
+
+    expect(leer).toHaveBeenCalled();
+    // La cámara se suelta antes de leer: el led prendido confunde.
+    expect(detener).toHaveBeenCalled();
+    expect(f.componentInstance.estado()).toBe('manual');
+    expect(f.componentInstance.codigoManual()).toBe('0180 0625 0720');
+    expect(f.componentInstance.motivo()).toContain('Revisá');
+    expect(cerrar).not.toHaveBeenCalled();
+  });
+
+  it('si la foto no trae el código, vuelve a la carga manual vacía y lo dice', async () => {
+    montarCamara();
+    montarDetector([]);
+    const leer = vi.fn().mockResolvedValue(null);
+
+    const f = crear({ leerFoto: { etiqueta: 'Leer el CDC de una foto', leer } });
+    await asentar();
+    f.detectChanges();
+    await elegirFoto(f);
+
+    expect(f.componentInstance.estado()).toBe('manual');
+    expect(f.componentInstance.codigoManual()).toBe('');
+    expect(f.componentInstance.motivo()).toContain('No se encontró');
+    expect(cerrar).not.toHaveBeenCalled();
+  });
 });
